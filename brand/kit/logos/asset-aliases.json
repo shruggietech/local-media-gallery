@@ -1,0 +1,842 @@
+{
+  "aliases": [
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "black",
+        "layout": "wide",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-lockup-wide-monochrome-clear-light-black-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-wide-monochrome-clear-black-for-light-1024.png",
+      "sha256": "2770313c3a6ab3657c220b5562859fd6d6dddfc617b401249887f7b0b7c65629",
+      "source_path": "logos/png/localmedia-gallery-horizontal-black-1024.png",
+      "title": "Wide logo lockup, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "none",
+        "layout": "wide",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-lockup-wide-full-color-clear-dark-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-wide-full-color-clear-for-dark-1024.png",
+      "sha256": "d98a3402c0ff4424e2ad0c9708d82ddbba9c998ee963342ebc3a60eb5345dd87",
+      "source_path": "logos/png/localmedia-gallery-horizontal-color-1024.png",
+      "title": "Wide logo lockup, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "none",
+        "layout": "wide",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-lockup-wide-full-color-clear-light-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-wide-full-color-clear-for-light-1024.png",
+      "sha256": "050a8de1d4e6ad49682db782ae82cc8b64df42309abdab0b89ef5da0933da03d",
+      "source_path": "logos/png/localmedia-gallery-horizontal-light-1024.png",
+      "title": "Wide logo lockup, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "white",
+        "layout": "wide",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-lockup-wide-monochrome-clear-dark-white-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-wide-monochrome-clear-white-for-dark-1024.png",
+      "sha256": "7dc26ce56429e0068aaf9dd967de30f990ad49eb45cd4d07251a7daed89cf313",
+      "source_path": "logos/png/localmedia-gallery-horizontal-white-1024.png",
+      "title": "Wide logo lockup, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "black",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-mark-none-monochrome-clear-light-black-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-monochrome-clear-black-for-light-1024.png",
+      "sha256": "9a38ae5f50f974b8e743d80de036a7c18cd3d37274ebcc7b37da379f15d2afb5",
+      "source_path": "logos/png/localmedia-gallery-mark-black-1024.png",
+      "title": "Full brand mark, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-mark-none-full-color-clear-dark-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-full-color-clear-for-dark-1024.png",
+      "sha256": "04ffeb00112eb0b196c63e9fc323e16144315354965c81d664586d969f95c973",
+      "source_path": "logos/png/localmedia-gallery-mark-color-1024.png",
+      "title": "Full brand mark, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-mark-none-full-color-clear-light-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-full-color-clear-for-light-1024.png",
+      "sha256": "3ba3802cac7104e5f2f77b1ea3eaa37d1d781b48e2c80b43e8b21d11d0a3c62d",
+      "source_path": "logos/png/localmedia-gallery-mark-light-1024.png",
+      "title": "Full brand mark, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "black",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "reduced",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-mark-none-monochrome-clear-light-black-identity-none-reduced",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-monochrome-clear-black-for-light-1024.png",
+      "sha256": "c48bfb60412acf9d3d40a93cf6239ec8777093c648859623bc49c27750b29eb2",
+      "source_path": "logos/png/localmedia-gallery-mark-reduced-black-1024.png",
+      "title": "Reduced brand mark, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "reduced",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-mark-none-full-color-clear-dark-none-identity-none-reduced",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-dark-1024.png",
+      "sha256": "1a1c328b31b7b11b731c66524bd4c56d4fcbf3c03b5e0cc1b2f4be6fe8701a24",
+      "source_path": "logos/png/localmedia-gallery-mark-reduced-color-1024.png",
+      "title": "Reduced brand mark, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "reduced",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-mark-none-full-color-clear-light-none-identity-none-reduced",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-light-1024.png",
+      "sha256": "26775dd87a3669c04f71905af0f705a4ae11e323be7adac0ce0ac85f182dc5f4",
+      "source_path": "logos/png/localmedia-gallery-mark-reduced-light-1024.png",
+      "title": "Reduced brand mark, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "white",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "reduced",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-mark-none-monochrome-clear-dark-white-identity-none-reduced",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-monochrome-clear-white-for-dark-1024.png",
+      "sha256": "4bc5bb4f4a64a49b293082ea920de2f725b7d429f7db83bb3693a2198be50a49",
+      "source_path": "logos/png/localmedia-gallery-mark-reduced-white-1024.png",
+      "title": "Reduced brand mark, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "white",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-mark-none-monochrome-clear-dark-white-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-monochrome-clear-white-for-dark-1024.png",
+      "sha256": "8fcd066a2774a7d64554e12faa24e13ba6ecb73f31c83a22eff4e9480bf584b5",
+      "source_path": "logos/png/localmedia-gallery-mark-white-1024.png",
+      "title": "Full brand mark, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "dark",
+        "form": "social-image",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "social-share",
+        "source_variant": "none",
+        "surface": "none",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-social-share-social-image-none-full-color-dark-none-none-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-social-share-image-full-color-dark-1280.png",
+      "sha256": "85d29c907acef0ef365544b841ac483741a972c5753c8b9b2eccf82e6869abf6",
+      "source_path": "logos/png/localmedia-gallery-social-image-1280.png",
+      "title": "Social share image, full color, dark background"
+    },
+    {
+      "design": {
+        "background": "dark",
+        "form": "social-image",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "social-share",
+        "source_variant": "none",
+        "surface": "none",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-social-share-social-image-none-full-color-dark-none-none-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-social-share-image-full-color-dark-1280.png",
+      "sha256": "85d29c907acef0ef365544b841ac483741a972c5753c8b9b2eccf82e6869abf6",
+      "source_path": "logos/png/localmedia-gallery-social-preview-1280.png",
+      "title": "Social share image, full color, dark background"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "black",
+        "layout": "stacked",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-lockup-stacked-monochrome-clear-light-black-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-stacked-monochrome-clear-black-for-light-1024.png",
+      "sha256": "ca1988d336c6e221e3576b5039ef9a481a553caf420c33a94885a4da5d91069f",
+      "source_path": "logos/png/localmedia-gallery-stacked-black-1024.png",
+      "title": "Stacked logo lockup, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "none",
+        "layout": "stacked",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-lockup-stacked-full-color-clear-dark-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-stacked-full-color-clear-for-dark-1024.png",
+      "sha256": "f5a1d299cf0feb50c3ecf80ad759a6825696abec10a3d0d3b4bc11ee669f0a54",
+      "source_path": "logos/png/localmedia-gallery-stacked-color-1024.png",
+      "title": "Stacked logo lockup, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "none",
+        "layout": "stacked",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-lockup-stacked-full-color-clear-light-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-stacked-full-color-clear-for-light-1024.png",
+      "sha256": "0df120c56efe69ac646d40fc98fc9dcaee28ca2f2c68d67a3731fdd072258b9f",
+      "source_path": "logos/png/localmedia-gallery-stacked-light-1024.png",
+      "title": "Stacked logo lockup, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "white",
+        "layout": "stacked",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-lockup-stacked-monochrome-clear-dark-white-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-stacked-monochrome-clear-white-for-dark-1024.png",
+      "sha256": "26a59edbc9159360e2a86f381519f9fb772a25ae7f0e1ea36bf7cd7fa7ba44a3",
+      "source_path": "logos/png/localmedia-gallery-stacked-white-1024.png",
+      "title": "Stacked logo lockup, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "wordmark",
+        "ink": "black",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "none",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-wordmark-none-monochrome-clear-light-black-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-wordmark-monochrome-clear-black-for-light-1024.png",
+      "sha256": "89de8f472e622e4bc457d52e11e0ed497a9364da1087da256643af3d492e3940",
+      "source_path": "logos/png/localmedia-gallery-wordmark-black-1024.png",
+      "title": "Wordmark, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "wordmark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "none",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-wordmark-none-full-color-clear-dark-none-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-wordmark-full-color-clear-for-dark-1024.png",
+      "sha256": "1bb209dbad1ee054f9cb617539c445033a16d8eb1fcdfa3c9b79e34df589837e",
+      "source_path": "logos/png/localmedia-gallery-wordmark-color-1024.png",
+      "title": "Wordmark, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "wordmark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "none",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-wordmark-none-full-color-clear-light-none-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-wordmark-full-color-clear-for-light-1024.png",
+      "sha256": "7fb5be3ddf9e852065abad714d0d14c901cf6db5e3f72b3700b1f7d96f84f8e9",
+      "source_path": "logos/png/localmedia-gallery-wordmark-light-1024.png",
+      "title": "Wordmark, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "wordmark",
+        "ink": "white",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "none",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-wordmark-none-monochrome-clear-dark-white-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-wordmark-monochrome-clear-white-for-dark-1024.png",
+      "sha256": "669844181213e047b6c33e34d1bd3a6b6c02cfd1aa0b11f9d392126063c367cb",
+      "source_path": "logos/png/localmedia-gallery-wordmark-white-1024.png",
+      "title": "Wordmark, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "black",
+        "layout": "wide",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-lockup-wide-monochrome-clear-light-black-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-wide-monochrome-clear-black-for-light.svg",
+      "sha256": "9ee588bd0ad11b1ba6ee9f89788055b22fb926e51978237b622e757fea2ce018",
+      "source_path": "logos/svg/localmedia-gallery-horizontal-black.svg",
+      "title": "Wide logo lockup, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "none",
+        "layout": "wide",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-lockup-wide-full-color-clear-dark-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-wide-full-color-clear-for-dark.svg",
+      "sha256": "5d4c755fbb0ca760b4a654d3796990cb726bfc9a7b3ad7f9532e4ca2fceeaf34",
+      "source_path": "logos/svg/localmedia-gallery-horizontal-color.svg",
+      "title": "Wide logo lockup, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "none",
+        "layout": "wide",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-lockup-wide-full-color-clear-light-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-wide-full-color-clear-for-light.svg",
+      "sha256": "132c30a8bfc4c71c3bb547adb57814e470407a2742b2d81d3582a137b624145a",
+      "source_path": "logos/svg/localmedia-gallery-horizontal-light.svg",
+      "title": "Wide logo lockup, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "white",
+        "layout": "wide",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-lockup-wide-monochrome-clear-dark-white-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-wide-monochrome-clear-white-for-dark.svg",
+      "sha256": "16666e934f44f5469458cc3c38f36cd971530dc8fb32b07b1cfc73eae60359e4",
+      "source_path": "logos/svg/localmedia-gallery-horizontal-white.svg",
+      "title": "Wide logo lockup, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "black",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-mark-none-monochrome-clear-light-black-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-monochrome-clear-black-for-light.svg",
+      "sha256": "58311efc2031973a4f6dc12d544b6abd1e99480441e464bad26870f92fd064fd",
+      "source_path": "logos/svg/localmedia-gallery-mark-black.svg",
+      "title": "Full brand mark, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-mark-none-full-color-clear-dark-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-full-color-clear-for-dark.svg",
+      "sha256": "ba5fed980834f0daf7c167776674cd4f804613b95d06628d75ba8226f178474b",
+      "source_path": "logos/svg/localmedia-gallery-mark-color.svg",
+      "title": "Full brand mark, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-mark-none-full-color-clear-light-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-full-color-clear-for-light.svg",
+      "sha256": "ee6cbc762d045d7cc9b559001727ed5340293433d138c06b66670ed58c2679f0",
+      "source_path": "logos/svg/localmedia-gallery-mark-light.svg",
+      "title": "Full brand mark, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "black",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "reduced",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-mark-none-monochrome-clear-light-black-identity-none-reduced",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-monochrome-clear-black-for-light.svg",
+      "sha256": "64c760d9f65f2506ce1fecffcba8318ebc22ae2799fda0dd71a95e5a153d94cf",
+      "source_path": "logos/svg/localmedia-gallery-mark-reduced-black.svg",
+      "title": "Reduced brand mark, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "reduced",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-mark-none-full-color-clear-dark-none-identity-none-reduced",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-dark.svg",
+      "sha256": "aaa2f9128cd77b4c6e6998b8279e63480a7ba6084e0d9c5f8da25dda65f10812",
+      "source_path": "logos/svg/localmedia-gallery-mark-reduced-color.svg",
+      "title": "Reduced brand mark, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "reduced",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-mark-none-full-color-clear-light-none-identity-none-reduced",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-light.svg",
+      "sha256": "f2fc4cbab1f80e15be64ab50910053c09701a7ea3bf44294ddbc973f0ca1282c",
+      "source_path": "logos/svg/localmedia-gallery-mark-reduced-light.svg",
+      "title": "Reduced brand mark, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "white",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "reduced",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-mark-none-monochrome-clear-dark-white-identity-none-reduced",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-monochrome-clear-white-for-dark.svg",
+      "sha256": "2e02dcc2d1a717644e78e0a2db95150cfb7b7acfece0e6e85ea68e1d19e917d9",
+      "source_path": "logos/svg/localmedia-gallery-mark-reduced-white.svg",
+      "title": "Reduced brand mark, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "mark",
+        "ink": "white",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-mark-none-monochrome-clear-dark-white-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-monochrome-clear-white-for-dark.svg",
+      "sha256": "6c610ceea332a7523dd8eaf910d1d9d00c45aa2e639314cc94c0798420f117e9",
+      "source_path": "logos/svg/localmedia-gallery-mark-white.svg",
+      "title": "Full brand mark, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "dark",
+        "form": "social-image",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "social-share",
+        "source_variant": "none",
+        "surface": "none",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-social-share-social-image-none-full-color-dark-none-none-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-social-share-image-full-color-dark.svg",
+      "sha256": "4c61bc4a424a2f7bb078af9063a74ffa64dfdc0f2dbf43b168a7a1e2895a78d5",
+      "source_path": "logos/svg/localmedia-gallery-social-image.svg",
+      "title": "Social share image, full color, dark background"
+    },
+    {
+      "design": {
+        "background": "dark",
+        "form": "social-image",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "social-share",
+        "source_variant": "none",
+        "surface": "none",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-social-share-social-image-none-full-color-dark-none-none-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-social-share-image-full-color-dark.svg",
+      "sha256": "4c61bc4a424a2f7bb078af9063a74ffa64dfdc0f2dbf43b168a7a1e2895a78d5",
+      "source_path": "logos/svg/localmedia-gallery-social-preview.svg",
+      "title": "Social share image, full color, dark background"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "black",
+        "layout": "stacked",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-lockup-stacked-monochrome-clear-light-black-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-stacked-monochrome-clear-black-for-light.svg",
+      "sha256": "b27036193c11acaf5d7e303bba18c9c302c33c4d014417de7510e180040c0c77",
+      "source_path": "logos/svg/localmedia-gallery-stacked-black.svg",
+      "title": "Stacked logo lockup, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "none",
+        "layout": "stacked",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-lockup-stacked-full-color-clear-dark-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-stacked-full-color-clear-for-dark.svg",
+      "sha256": "bb39d526b078fcf2b1b0795c7235a3b7d1162ff344de91e68c4bebff7dc7ade3",
+      "source_path": "logos/svg/localmedia-gallery-stacked-color.svg",
+      "title": "Stacked logo lockup, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "none",
+        "layout": "stacked",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-lockup-stacked-full-color-clear-light-none-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-stacked-full-color-clear-for-light.svg",
+      "sha256": "f6cacf72d241a085665e1149c4cf011a1b29c7c5f0c2d52bd39b8e8d1f97a490",
+      "source_path": "logos/svg/localmedia-gallery-stacked-light.svg",
+      "title": "Stacked logo lockup, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "lockup",
+        "ink": "white",
+        "layout": "stacked",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "full",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-lockup-stacked-monochrome-clear-dark-white-identity-none-full",
+      "preferred_path": "logos/named/localmedia-gallery-logo-lockup-stacked-monochrome-clear-white-for-dark.svg",
+      "sha256": "5ab1c4e423db9b5ba43f77c383154022deee6b64fa374d239c0639959bb2e0d8",
+      "source_path": "logos/svg/localmedia-gallery-stacked-white.svg",
+      "title": "Stacked logo lockup, monochrome white ink, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "wordmark",
+        "ink": "black",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "none",
+        "surface": "light",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-wordmark-none-monochrome-clear-light-black-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-wordmark-monochrome-clear-black-for-light.svg",
+      "sha256": "301e3a2dc71177b1220932cd085c31e39a65c763944f2b23a0056da6cb093906",
+      "source_path": "logos/svg/localmedia-gallery-wordmark-black.svg",
+      "title": "Wordmark, monochrome black ink, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "wordmark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "none",
+        "surface": "dark",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-wordmark-none-full-color-clear-dark-none-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-wordmark-full-color-clear-for-dark.svg",
+      "sha256": "864d5c34b4fba2c3c339ec98aeb0a71941be128d127fd003cc9282275faf09ab",
+      "source_path": "logos/svg/localmedia-gallery-wordmark-color.svg",
+      "title": "Wordmark, full color, for dark backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "wordmark",
+        "ink": "none",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "none",
+        "surface": "light",
+        "treatment": "full-color"
+      },
+      "design_id": "asset-brand-identity-wordmark-none-full-color-clear-light-none-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-wordmark-full-color-clear-for-light.svg",
+      "sha256": "a17a5566c567eb61d0cbe3f3e1e009a7e398a3d93a631b5819e2d94b3959e824",
+      "source_path": "logos/svg/localmedia-gallery-wordmark-light.svg",
+      "title": "Wordmark, full color, for light backgrounds"
+    },
+    {
+      "design": {
+        "background": "clear",
+        "form": "wordmark",
+        "ink": "white",
+        "layout": "none",
+        "platform": "identity",
+        "platform_role": "none",
+        "purpose": "brand-identity",
+        "source_variant": "none",
+        "surface": "dark",
+        "treatment": "monochrome"
+      },
+      "design_id": "asset-brand-identity-wordmark-none-monochrome-clear-dark-white-identity-none-none",
+      "preferred_path": "logos/named/localmedia-gallery-wordmark-monochrome-clear-white-for-dark.svg",
+      "sha256": "f8ecf4fafe022e5b6a39ff200b95d31ec917aa55705a9b6bef8ae2651d2cfe37",
+      "source_path": "logos/svg/localmedia-gallery-wordmark-white.svg",
+      "title": "Wordmark, monochrome white ink, for dark backgrounds"
+    }
+  ],
+  "brand": "localmedia-gallery",
+  "schema_version": 1
+}

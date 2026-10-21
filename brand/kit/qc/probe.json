@@ -1,0 +1,31 @@
+{
+  "tier": "full",
+  "python": "3.12.9",
+  "cli": {
+    "rsvg-convert": false,
+    "resvg": false,
+    "inkscape": false,
+    "magick": true,
+    "convert": false,
+    "oxipng": false,
+    "pdftoppm": true,
+    "pdffonts": false,
+    "node": true,
+    "npx": true
+  },
+  "modules": {
+    "coloraide": true,
+    "jsonschema": true,
+    "fontTools": true,
+    "PIL": true,
+    "playwright": true,
+    "pikepdf": true
+  },
+  "chromium": true,
+  "svg_renderer": true,
+  "pillow_composite": true,
+  "svg_raster": true,
+  "raster_reason": null,
+  "node_resvg": true,
+  "ico_writer": true
+}

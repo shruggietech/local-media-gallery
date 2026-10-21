@@ -1,0 +1,34 @@
+name: Feature or work-slice proposal
+description: Define an outcome, acceptance and related requirements.
+title: "feat: "
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Observable acceptance criteria
+    validations:
+      required: true
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirement, slice and milestone references
+      description: Link applicable requirements or Spec Kit artifacts.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Dependencies and scope boundaries
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected areas
+      description: Maintainers apply the corresponding area labels during triage.
+      multiple: true
+      options: [gallery, media, configuration, platform, brand, documentation, tooling, release]
+    validations:
+      required: true

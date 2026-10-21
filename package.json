@@ -1,0 +1,18 @@
+{
+  "name": "local-media-gallery",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local Media Gallery repository maintenance tools",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "brand:verify": "node scripts/sync-brand-kit.mjs --verify",
+    "brand:check": "node scripts/sync-brand-kit.mjs --check",
+    "brand:update": "node scripts/sync-brand-kit.mjs --update"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "adapter_version": "1.0.0",
+  "brand": "localmedia-gallery",
+  "brand_version": "1.0.0",
+  "compiler_version": "3.1.0",
+  "interface_canon_version": "1.0.1",
+  "component_recipe_version": "1.1.0",
+  "theme_json_version": 3,
+  "tested_pairs": [
+    {
+      "wordpress": "6.9.9",
+      "php": "8.2"
+    },
+    {
+      "wordpress": "7.1.2",
+      "php": "8.3"
+    }
+  ],
+  "namespace": "stbb-localmedia-gallery",
+  "entries": {
+    "theme": "wordpress/theme/stbb-localmedia-gallery",
+    "zip": "wordpress/localmedia-gallery-stbb-theme.zip",
+    "inventory": "wordpress/theme-inventory.json",
+    "support": "wordpress/support-matrix.json",
+    "theme_json": "wordpress/theme/stbb-localmedia-gallery/theme.json"
+  },
+  "zip": {
+    "bytes": 293766,
+    "sha256": "85cc64c10efd3b857f6113c7b4ea4734897e978c2307ae95cdfb3acdb6ca9e0c"
+  },
+  "assets": [
+    {
+      "source": "fonts/woff2/SpaceGrotesk-Medium.woff2",
+      "path": "assets/fonts/woff2/SpaceGrotesk-Medium.woff2",
+      "bytes": 32480,
+      "sha256": "6d90cc6539e794019ada4d6ffd1f4080c66b7ad1762b425f5794500c12427551"
+    },
+    {
+      "source": "fonts/woff2/SpaceGrotesk-Bold.woff2",
+      "path": "assets/fonts/woff2/SpaceGrotesk-Bold.woff2",
+      "bytes": 31560,
+      "sha256": "cdaf8bb228ee112c0ab784d9edd2b877cb096bad24cbbf88babeedebe197e742"
+    },
+    {
+      "source": "fonts/licenses/OFL-Space-Grotesk.txt",
+      "path": "assets/licenses/OFL-Space-Grotesk.txt",
+      "bytes": 4401,
+      "sha256": "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943"
+    },
+    {
+      "source": "fonts/woff2/Geist-Regular.woff2",
+      "path": "assets/fonts/woff2/Geist-Regular.woff2",
+      "bytes": 45172,
+      "sha256": "faed18848df4a6e1b5503b589bbbc055fbdab0e1780781edf5105457395e1e5d"
+    },
+    {
+      "source": "fonts/woff2/Geist-Medium.woff2",
+      "path": "assets/fonts/woff2/Geist-Medium.woff2",
+      "bytes": 46356,
+      "sha256": "0b50074337a05ed834a1474d3d13fc6bd8480e2ce3075d02f1d38c017a8ac2a4"
+    },
+    {
+      "source": "fonts/licenses/OFL-Geist.txt",
+      "path": "assets/licenses/OFL-Geist.txt",
+      "bytes": 4383,
+      "sha256": "942560b236adfa83745b2c64e5fc09ebaf91cb331751b1157eb92187e5d6e930"
+    },
+    {
+      "source": "fonts/woff2/GeistMono-Regular.woff2",
+      "path": "assets/fonts/woff2/GeistMono-Regular.woff2",
+      "bytes": 50196,
+      "sha256": "c88d20967768754cbdca230acd74ecb25de78d0dc47e31694aa8bd2c528fec26"
+    },
+    {
+      "source": "logos/png/localmedia-gallery-horizontal-black-1024.png",
+      "path": "assets/images/localmedia-gallery-horizontal-black-1024.png",
+      "bytes": 25077,
+      "sha256": "2770313c3a6ab3657c220b5562859fd6d6dddfc617b401249887f7b0b7c65629"
+    },
+    {
+      "source": "logos/png/localmedia-gallery-mark-black-1024.png",
+      "path": "assets/images/localmedia-gallery-mark-black-1024.png",
+      "bytes": 26004,
+      "sha256": "9a38ae5f50f974b8e743d80de036a7c18cd3d37274ebcc7b37da379f15d2afb5"
+    },
+    {
+      "source": "logos/png/localmedia-gallery-social-preview-1280.png",
+      "path": "assets/images/localmedia-gallery-social-preview-1280.png",
+      "bytes": 36108,
+      "sha256": "85d29c907acef0ef365544b841ac483741a972c5753c8b9b2eccf82e6869abf6"
+    }
+  ]
+}

@@ -1,0 +1,512 @@
+{
+  "$schema": "../../skill/references/canon.schema.json",
+  "id": "localmedia-gallery",
+  "kind": "sub-brand",
+  "title": "Local Media Gallery",
+  "slug": "localmedia-gallery",
+  "version": "1.0.0",
+  "canon": "2.1.0",
+  "wordmark_text": "Local Media Gallery",
+  "affiliation": {
+    "ownership": "shruggietech-owned",
+    "showcase": "public",
+    "parent": "ShruggieTech",
+    "inheritance": "independent",
+    "endorsement": "shruggietech-project",
+    "service_credit": "none"
+  },
+  "registry_base": "https://brand.shruggie.tech/localmedia-gallery/brand",
+  "showcase_surface": "card",
+  "guidance": {
+    "surface_mode": "dark",
+    "written_form": "Write Local Media Gallery as the name; use localmedia.gallery only as an address.",
+    "logo": "Use the larger icon beside Local Media above Gallery. Preserve the supplied hierarchy and proportions. Keep the domain for address use.",
+    "palette": "The formal identity uses Jade on dark surfaces and Deep Jade on light surfaces."
+  },
+  "messaging": {
+    "slogan": {
+      "status": "approved",
+      "text": "Your media presented beautifully.",
+      "uses": [
+        "visual-guide",
+        "strategy-reference",
+        "consumer-data"
+      ],
+      "source": "Owner initial brand-package request, 2026-10-21; exact slogan supplied for the official brand package and website.",
+      "approved_by": "repository owner",
+      "approved_on": "2026-10-21"
+    },
+    "short_description": {
+      "status": "approved",
+      "text": "A lightweight, interactive gallery for browsing local images and videos.",
+      "uses": [
+        "visual-guide",
+        "site-metadata",
+        "consumer-data"
+      ],
+      "source": "Owner initial brand-package request, 2026-10-21; exact short description supplied for the official brand package and website.",
+      "approved_by": "repository owner",
+      "approved_on": "2026-10-21"
+    },
+    "long_description": {
+      "status": "unresolved"
+    }
+  },
+  "accent": {
+    "bright": "#69D4BB",
+    "deep": "#08745F",
+    "accessible": "#08745F",
+    "dim": "#69D4BB"
+  },
+  "semantic_colors": {
+    "emphasis": "#69D4BB",
+    "action": "#08745F"
+  },
+  "surfaces": {
+    "base": "#10151E",
+    "card": "#161D29",
+    "popover": "#161D29",
+    "secondary": "#202B3B",
+    "hover": "#2A3548"
+  },
+  "light_surfaces": {
+    "base": "#F3F5FA",
+    "card": "#FFFFFF",
+    "popover": "#FFFFFF",
+    "secondary": "#E8EDF7",
+    "hover": "#DFE5F0",
+    "foreground": "#182137",
+    "muted_foreground": "#526078"
+  },
+  "typography": {
+    "mode": "house",
+    "families": {
+      "display": {
+        "name": "Space Grotesk",
+        "weights": [
+          500,
+          700
+        ]
+      },
+      "body": {
+        "name": "Geist",
+        "weights": [
+          400,
+          500
+        ]
+      },
+      "mono": {
+        "name": "Geist Mono",
+        "weights": [
+          400
+        ]
+      }
+    }
+  },
+  "color_roles": {
+    "identity": [
+      {
+        "id": "primary",
+        "label": "Gallery Jade",
+        "source": "brand.accent.bright",
+        "use": "Identity artwork on dark surfaces"
+      },
+      {
+        "id": "light-ink",
+        "label": "Deep Jade",
+        "source": "brand.accent.accessible",
+        "use": "Identity artwork and readable accent on light surfaces"
+      }
+    ],
+    "combinations": [
+      {
+        "id": "gallery-tiles",
+        "label": "Contact sheet",
+        "colors": [
+          "primary"
+        ],
+        "artwork": "logo.full",
+        "use": "Four equal gallery tiles with image and video cutouts"
+      }
+    ]
+  },
+  "logo": {
+    "source_mode": "constructed",
+    "geometry_provenance": "glyphkit",
+    "grid": 1000,
+    "canvas_width": 1000,
+    "canvas_height": 1000,
+    "artwork_width": 776,
+    "artwork_height": 776,
+    "reduced_artwork_width": 776,
+    "reduced_artwork_height": 776,
+    "clear_space_units": 100,
+    "standalone_padding_units": 100,
+    "reduced_below_px": 32,
+    "standalone_mark_variant": "full",
+    "min_px": {
+      "mark": 16,
+      "horizontal": 200,
+      "stacked": 160,
+      "wordmark": 160
+    },
+    "application_icon": {
+      "background": "#10151E"
+    },
+    "role_colors": {
+      "color": {
+        "accent": "#69D4BB",
+        "wordmark": "#F3F5FA"
+      },
+      "light": {
+        "accent": "#08745F",
+        "wordmark": "#182137"
+      },
+      "black": {
+        "accent": "#000000",
+        "wordmark": "#000000"
+      },
+      "white": {
+        "accent": "#FFFFFF",
+        "wordmark": "#FFFFFF"
+      }
+    },
+    "construction": "Four equal 352-unit rounded tiles, with 72-unit gutters and 48-unit corners, centered on a 1000-unit grid. Full preserves selected D exactly. Image and video details are true evenodd cutouts. Reduced removes the sun and replaces the double-peak landscape with one broad peak; all four tiles and the video cue remain.",
+    "paths": {
+      "full": [
+        {
+          "role": "accent",
+          "d": "M160 112 L416 112 C442.51 112 464 133.49 464 160 L464 416 C464 442.51 442.51 464 416 464 L160 464 C133.49 464 112 442.51 112 416 L112 160 C112 133.49 133.49 112 160 112 Z M164 398 L246 251 L320 354 L361 302 L412 398 Z M397 210 C397 201.51 393.63 193.37 387.63 187.37 C381.63 181.37 373.49 178 365 178 C356.51 178 348.37 181.37 342.37 187.37 C336.37 193.37 333 201.51 333 210 C333 218.49 336.37 226.63 342.37 232.63 C348.37 238.63 356.51 242 365 242 C373.49 242 381.63 238.63 387.63 232.63 C393.63 226.63 397 218.49 397 210 Z",
+          "fill_rule": "evenodd"
+        },
+        {
+          "role": "accent",
+          "d": "M584 112 L840 112 C866.51 112 888 133.49 888 160 L888 416 C888 442.51 866.51 464 840 464 L584 464 C557.49 464 536 442.51 536 416 L536 160 C536 133.49 557.49 112 584 112 Z"
+        },
+        {
+          "role": "accent",
+          "d": "M160 536 L416 536 C442.51 536 464 557.49 464 584 L464 840 C464 866.51 442.51 888 416 888 L160 888 C133.49 888 112 866.51 112 840 L112 584 C112 557.49 133.49 536 160 536 Z"
+        },
+        {
+          "role": "accent",
+          "d": "M584 536 L840 536 C866.51 536 888 557.49 888 584 L888 840 C888 866.51 866.51 888 840 888 L584 888 C557.49 888 536 866.51 536 840 L536 584 C536 557.49 557.49 536 584 536 Z M666 620 L666 806 L802 713 Z",
+          "fill_rule": "evenodd"
+        }
+      ],
+      "reduced": [
+        {
+          "role": "accent",
+          "d": "M160 112 L416 112 C442.51 112 464 133.49 464 160 L464 416 C464 442.51 442.51 464 416 464 L160 464 C133.49 464 112 442.51 112 416 L112 160 C112 133.49 133.49 112 160 112 Z M164 398 L286 218 L412 398 Z",
+          "fill_rule": "evenodd"
+        },
+        {
+          "role": "accent",
+          "d": "M584 112 L840 112 C866.51 112 888 133.49 888 160 L888 416 C888 442.51 866.51 464 840 464 L584 464 C557.49 464 536 442.51 536 416 L536 160 C536 133.49 557.49 112 584 112 Z"
+        },
+        {
+          "role": "accent",
+          "d": "M160 536 L416 536 C442.51 536 464 557.49 464 584 L464 840 C464 866.51 442.51 888 416 888 L160 888 C133.49 888 112 866.51 112 840 L112 584 C112 557.49 133.49 536 160 536 Z"
+        },
+        {
+          "role": "accent",
+          "d": "M584 536 L840 536 C866.51 536 888 557.49 888 584 L888 840 C888 866.51 866.51 888 840 888 L584 888 C557.49 888 536 866.51 536 840 L536 584 C536 557.49 557.49 536 584 536 Z M666 620 L666 806 L802 713 Z",
+          "fill_rule": "evenodd"
+        }
+      ]
+    },
+    "wordmark_segments": [
+      {
+        "text": "Local Media ",
+        "role": "wordmark"
+      },
+      {
+        "text": "Gallery",
+        "role": "accent"
+      }
+    ],
+    "lockups": {
+      "horizontal": {
+        "mark_height_units": 160,
+        "canvas_height_units": 216,
+        "padding_units": 28,
+        "gap_units": 36,
+        "line_gap_units": 14,
+        "wordmark_lines": [
+          {
+            "text": "Local Media",
+            "role": "wordmark",
+            "font_size_units": 48
+          },
+          {
+            "text": "Gallery",
+            "role": "accent",
+            "font_size_units": 84
+          }
+        ]
+      },
+      "stacked": {
+        "wordmark_scale": 0.62,
+        "mark_height_c": 4.0,
+        "gap_c": 0.65
+      }
+    }
+  },
+  "descriptor": "A lightweight, interactive gallery for browsing local images and videos.",
+  "functional_descriptor": "A lightweight, interactive gallery for browsing local images and videos.",
+  "category": "Local media gallery",
+  "register": "plain-helpful",
+  "shruggie_flourish": false,
+  "functional_colors": {
+    "warning": {
+      "dark": "#F2BE6E",
+      "light": "#805000"
+    },
+    "error": {
+      "dark": "#F39494",
+      "light": "#A03035"
+    },
+    "success": {
+      "dark": "#77C9A8",
+      "light": "#17654B"
+    },
+    "information": {
+      "dark": "#8EBBFF",
+      "light": "#26549B"
+    }
+  },
+  "identity_continuity": {
+    "record": "identity-continuity.json",
+    "status": "approved-canonical"
+  },
+  "approval_ledger": {
+    "source_hashes": {},
+    "gate_1": {
+      "status": "approved",
+      "approved_by": "repository owner",
+      "approved_on": "2026-10-21",
+      "scope": [
+        "horizontal-lockup",
+        "reduced-and-platform",
+        "single-ink",
+        "stacked-lockup",
+        "wordmark-only"
+      ],
+      "derivative_config_sha256": "6f1ce8c9178da3eea7d315ec6f71efbfa5a8051e29b0d95af63d1037dc6026ee",
+      "canonical_source_sha256": "057856a8914e25144a56b3b167d5f1730e2434fc1db97aa6a44a1d123f7a7efc"
+    },
+    "gate_2": {
+      "status": "approved",
+      "approved_by": "repository owner",
+      "approved_on": "2026-10-21",
+      "derivative_manifest_sha256": "a8ee594a1ba9f190f0bec838ff6873d58c9fb9eb2092260a212e7e5c3a2707f5",
+      "surfaces": [
+        "brand-landing-page",
+        "downloads",
+        "guideline-topics",
+        "public-metadata",
+        "registry-endpoints",
+        "showcase-card",
+        "social-preview",
+        "structured-data"
+      ]
+    }
+  },
+  "social_copy": {
+    "slogan": "Your media presented beautifully.",
+    "layout": "slogan-only",
+    "description_lines": [],
+    "composition": "centered-group",
+    "approval": {
+      "approved_by": "repository owner",
+      "approved_on": "2026-10-21",
+      "source": "Owner, 2026-10-21: take the description text out of the social share image and vertically re-center what remains in that image. Slogan retained exactly from the original request."
+    }
+  },
+  "social_image_approval": {
+    "approved_by": "repository owner",
+    "approved_on": "2026-10-21",
+    "source": "Approved as shown. Finalize the Local Media Gallery brand package, run the full validation, and prepare it for publication on the ShruggieTech brands website. Reviewed packet: ddcad04a7e409348c5eedecc24b18798e478cdeae890a97bcd72d75ab3ae8faa",
+    "svg_sha256": "4c61bc4a424a2f7bb078af9063a74ffa64dfdc0f2dbf43b168a7a1e2895a78d5",
+    "png_sha256": "85d29c907acef0ef365544b841ac483741a972c5753c8b9b2eccf82e6869abf6"
+  },
+  "measured": {
+    "generated_by": "shruggie-brandbuilder/enrich_brand.py",
+    "rule": "Every number here is measured from the hex at generation time. Regenerate rather than edit; verify.py re-derives all of it.",
+    "dark_base": "#10151E",
+    "light_base": "#F3F5FA",
+    "identity_hue": 176.1
+  },
+  "color": {
+    "accent-bright": {
+      "hex": "#69D4BB",
+      "oklch": "oklch(0.7993 0.1063 176.12)",
+      "hue": 176.1,
+      "role": "identity accent, links, focus",
+      "contrast": {
+        "on_dark_base": 10.22,
+        "on_light_base": 1.64
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#000000",
+        "ratio": 11.74
+      }
+    },
+    "accent-deep": {
+      "hex": "#08745F",
+      "oklch": "oklch(0.4996 0.0931 173.99)",
+      "hue": 174.0,
+      "role": "hover and active",
+      "contrast": {
+        "on_dark_base": 3.2,
+        "on_light_base": 5.24
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 5.72
+      }
+    },
+    "accent-accessible": {
+      "hex": "#08745F",
+      "oklch": "oklch(0.4996 0.0931 173.99)",
+      "hue": 174.0,
+      "role": "the accent on light surfaces",
+      "contrast": {
+        "on_dark_base": 3.2,
+        "on_light_base": 5.24
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 5.72
+      },
+      "note": "The bright accent measures 1.64:1 on the light base and is never text there."
+    },
+    "fault": {
+      "hex": "#E9505F",
+      "oklch": "oklch(0.6437 0.1882 18.59)",
+      "hue": 18.6,
+      "role": "failure state on dark surfaces",
+      "contrast": {
+        "on_dark_base": 5.03,
+        "on_light_base": 3.33
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#000000",
+        "ratio": 5.78
+      },
+      "note": "inherited verbatim from canon 2.1.0"
+    },
+    "fault-deep": {
+      "hex": "#C0293A",
+      "oklch": "oklch(0.5308 0.1857 20.87)",
+      "hue": 20.9,
+      "role": "failure state on light surfaces",
+      "contrast": {
+        "on_dark_base": 3.15,
+        "on_light_base": 5.32
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 5.8
+      },
+      "note": "inherited verbatim from canon 2.1.0"
+    },
+    "emphasis": {
+      "hex": "#69D4BB",
+      "oklch": "oklch(0.7993 0.1063 176.12)",
+      "hue": 176.1,
+      "role": "brand-specific emphasis",
+      "contrast": {
+        "on_dark_base": 10.22,
+        "on_light_base": 1.64
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#000000",
+        "ratio": 11.74
+      }
+    },
+    "action": {
+      "hex": "#08745F",
+      "oklch": "oklch(0.4996 0.0931 173.99)",
+      "hue": 174.0,
+      "role": "brand-specific action fill",
+      "contrast": {
+        "on_dark_base": 3.2,
+        "on_light_base": 5.24
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 5.72
+      }
+    },
+    "surface-base": {
+      "hex": "#10151E",
+      "oklch": "oklch(0.1950 0.0199 262.01)",
+      "hue": null,
+      "role": "dark surface: base",
+      "contrast": {
+        "on_dark_base": 1.0,
+        "on_light_base": 16.77
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 18.29
+      }
+    },
+    "surface-card": {
+      "hex": "#161D29",
+      "oklch": "oklch(0.2297 0.0256 261.02)",
+      "hue": 261.0,
+      "role": "dark surface: card",
+      "contrast": {
+        "on_dark_base": 1.08,
+        "on_light_base": 15.5
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 16.91
+      }
+    },
+    "surface-popover": {
+      "hex": "#161D29",
+      "oklch": "oklch(0.2297 0.0256 261.02)",
+      "hue": 261.0,
+      "role": "dark surface: popover",
+      "contrast": {
+        "on_dark_base": 1.08,
+        "on_light_base": 15.5
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 16.91
+      }
+    },
+    "surface-secondary": {
+      "hex": "#202B3B",
+      "oklch": "oklch(0.2864 0.0333 257.67)",
+      "hue": 257.7,
+      "role": "dark surface: secondary",
+      "contrast": {
+        "on_dark_base": 1.28,
+        "on_light_base": 13.1
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 14.28
+      }
+    },
+    "surface-hover": {
+      "hex": "#2A3548",
+      "oklch": "oklch(0.3276 0.0371 261.16)",
+      "hue": 261.2,
+      "role": "dark surface: hover",
+      "contrast": {
+        "on_dark_base": 1.48,
+        "on_light_base": 11.32
+      },
+      "legal_foreground_when_used_as_fill": {
+        "color": "#FFFFFF",
+        "ratio": 12.34
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "package": {
+    "id": "localmedia-gallery-brand-1.0.0-bb3.1.0",
+    "filename": "localmedia-gallery-brand-1.0.0-bb3.1.0.zip",
+    "brand_slug": "localmedia-gallery",
+    "brand_version": "1.0.0",
+    "brandbuilder_version": "3.1.0"
+  },
+  "versions": {
+    "canon_version": "2.1.0",
+    "interface_canon_version": "1.0.1",
+    "component_recipe_version": "1.1.0",
+    "web_react_adapter_version": "1.1.0",
+    "egui_adapter_version": "1.0.2",
+    "wordpress_adapter_version": "1.0.0",
+    "compiler_version": "3.1.0",
+    "brand_version": "1.0.0"
+  },
+  "source_revision": "2589678e971ae654579e9dbb9575661775c4a6ec",
+  "publication": {
+    "status": "candidate",
+    "version": "3.1.0",
+    "tag": "v3.1.0"
+  },
+  "checksum_authority": {
+    "algorithm": "sha256",
+    "manifest": "manifest.json",
+    "release_checksums": null
+  }
+}

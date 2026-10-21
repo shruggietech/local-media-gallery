@@ -1,0 +1,12 @@
+Local Media Gallery
+Copyright 2026 ShruggieTech
+
+Original source and documentation are licensed under Apache License 2.0.
+
+The delivered brand kit is maintained by shruggietech/shruggie-brand.
+See brand/kit/LICENSE, brand/kit/LICENSE-BRAND.md and brand/kit/NOTICE
+for asset licensing and bundled font/dependency attribution.
+
+Spec Kit infrastructure and generated command skills come from github/spec-kit
+under its MIT license, preserved in .specify/LICENSE.
+Other imported agent skills retain their existing license and attribution notices.

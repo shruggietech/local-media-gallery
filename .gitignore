@@ -1,0 +1,37 @@
+# Local media, credentials and machine state.
+/data/
+/library/
+/workspaces/
+/models/
+/.local/
+/.codex/
+/.aws/
+.env
+.env.*
+!.env.example
+!.env.template
+.agents/*
+!.agents/skills/
+
+# Generated files and caches.
+node_modules/
+/build/
+/dist/
+coverage/
+.venv/
+__pycache__/
+*.py[cod]
+.bootstrap-spec-kit/
+/brand/.update-lock/
+/brand/.staging-*/
+/brand/*.zip
+
+# Editor and OS scratch.
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini

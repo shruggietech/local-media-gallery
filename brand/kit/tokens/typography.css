@@ -1,0 +1,23 @@
+:root {
+  --lo-font-display: "Space Grotesk", system-ui, sans-serif;
+  --lo-font-body: "Geist", system-ui, sans-serif;
+  --lo-font-mono: "Geist Mono", ui-monospace, monospace;
+  --lo-weight-regular: 400;
+  --lo-weight-medium: 500;
+  --lo-weight-bold: 700;
+  --lo-display-xl: 4.5rem;
+  --lo-display-lg: 3.5rem;
+  --lo-display-md: 2.5rem;
+  --lo-display-sm: 1.75rem;
+  --lo-display-xs: 1.25rem;
+  --lo-body-lg: 1.15rem;
+  --lo-body-md: 1rem;
+  --lo-body-sm: 0.875rem;
+  --lo-body-xs: 0.75rem;
+  --lo-tracking-display: -0.025em;
+  --lo-tracking-eyebrow: 0.12em;
+  --lo-tracking-mono: 0.08em;
+  --lo-leading-display: 1.1;
+  --lo-leading-body: 1.7;
+  --lo-leading-code: 1.6;
+}

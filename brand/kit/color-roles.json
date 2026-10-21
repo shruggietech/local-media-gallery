@@ -1,0 +1,244 @@
+{
+  "schema_version": 1,
+  "identity": [
+    {
+      "id": "primary",
+      "label": "Gallery Jade",
+      "source": "brand.accent.bright",
+      "hex": "#69D4BB",
+      "use": "Identity artwork on dark surfaces"
+    },
+    {
+      "id": "light-ink",
+      "label": "Deep Jade",
+      "source": "brand.accent.accessible",
+      "hex": "#08745F",
+      "use": "Identity artwork and readable accent on light surfaces"
+    }
+  ],
+  "identity_combinations": [
+    {
+      "id": "gallery-tiles",
+      "label": "Contact sheet",
+      "colors": [
+        "primary"
+      ],
+      "artwork": "logo.full",
+      "use": "Four equal gallery tiles with image and video cutouts"
+    }
+  ],
+  "interface": {
+    "dark": [
+      {
+        "id": "action",
+        "label": "Action",
+        "source": "semantic.action",
+        "hex": "#08745F",
+        "use": "Primary interactive action",
+        "non_color_cue": "A descriptive button or link label",
+        "foreground": "#FFFFFF",
+        "foreground_contrast": 5.72,
+        "surface": "#10151E",
+        "surface_contrast": 3.2,
+        "theme": "dark"
+      },
+      {
+        "id": "warning",
+        "label": "Warning",
+        "source": "brand.functional_colors.warning.dark",
+        "hex": "#F2BE6E",
+        "use": "Attention or recoverable risk",
+        "non_color_cue": "Warning text and icon",
+        "foreground": "#000000",
+        "foreground_contrast": 12.37,
+        "surface": "#10151E",
+        "surface_contrast": 10.77,
+        "theme": "dark"
+      },
+      {
+        "id": "error",
+        "label": "Error",
+        "source": "brand.functional_colors.error.dark",
+        "hex": "#F39494",
+        "use": "Failure or destructive action",
+        "non_color_cue": "Error text and icon",
+        "foreground": "#000000",
+        "foreground_contrast": 9.47,
+        "surface": "#10151E",
+        "surface_contrast": 8.25,
+        "theme": "dark"
+      },
+      {
+        "id": "success",
+        "label": "Success",
+        "source": "brand.functional_colors.success.dark",
+        "hex": "#77C9A8",
+        "use": "Completed operation",
+        "non_color_cue": "Success text and icon",
+        "foreground": "#000000",
+        "foreground_contrast": 10.7,
+        "surface": "#10151E",
+        "surface_contrast": 9.32,
+        "theme": "dark"
+      },
+      {
+        "id": "information",
+        "label": "Information",
+        "source": "brand.functional_colors.information.dark",
+        "hex": "#8EBBFF",
+        "use": "Neutral information or help",
+        "non_color_cue": "Information label and icon",
+        "foreground": "#000000",
+        "foreground_contrast": 10.7,
+        "surface": "#10151E",
+        "surface_contrast": 9.32,
+        "theme": "dark"
+      },
+      {
+        "id": "focus",
+        "label": "Focus",
+        "source": "brand.accent.bright",
+        "hex": "#69D4BB",
+        "use": "Keyboard focus ring",
+        "non_color_cue": "Visible outline and keyboard focus order",
+        "foreground": "#000000",
+        "foreground_contrast": 11.74,
+        "surface": "#10151E",
+        "surface_contrast": 10.22,
+        "theme": "dark"
+      },
+      {
+        "id": "selection",
+        "label": "Selection",
+        "source": "brand.accent.bright",
+        "hex": "#69D4BB",
+        "use": "Selected control or item",
+        "non_color_cue": "Selected label or checked state",
+        "foreground": "#000000",
+        "foreground_contrast": 11.74,
+        "surface": "#10151E",
+        "surface_contrast": 10.22,
+        "theme": "dark"
+      },
+      {
+        "id": "disabled",
+        "label": "Disabled",
+        "source": "brand.accent.dim",
+        "hex": "#69D4BB",
+        "use": "Unavailable control",
+        "non_color_cue": "Disabled attribute and text",
+        "foreground": "#000000",
+        "foreground_contrast": 11.74,
+        "surface": "#10151E",
+        "surface_contrast": 10.22,
+        "theme": "dark"
+      }
+    ],
+    "light": [
+      {
+        "id": "action",
+        "label": "Action",
+        "source": "semantic.action",
+        "hex": "#08745F",
+        "use": "Primary interactive action",
+        "non_color_cue": "A descriptive button or link label",
+        "foreground": "#FFFFFF",
+        "foreground_contrast": 5.72,
+        "surface": "#F3F5FA",
+        "surface_contrast": 5.24,
+        "theme": "light"
+      },
+      {
+        "id": "warning",
+        "label": "Warning",
+        "source": "brand.functional_colors.warning.light",
+        "hex": "#805000",
+        "use": "Attention or recoverable risk",
+        "non_color_cue": "Warning text and icon",
+        "foreground": "#FFFFFF",
+        "foreground_contrast": 6.85,
+        "surface": "#F3F5FA",
+        "surface_contrast": 6.28,
+        "theme": "light"
+      },
+      {
+        "id": "error",
+        "label": "Error",
+        "source": "brand.functional_colors.error.light",
+        "hex": "#A03035",
+        "use": "Failure or destructive action",
+        "non_color_cue": "Error text and icon",
+        "foreground": "#FFFFFF",
+        "foreground_contrast": 7.07,
+        "surface": "#F3F5FA",
+        "surface_contrast": 6.48,
+        "theme": "light"
+      },
+      {
+        "id": "success",
+        "label": "Success",
+        "source": "brand.functional_colors.success.light",
+        "hex": "#17654B",
+        "use": "Completed operation",
+        "non_color_cue": "Success text and icon",
+        "foreground": "#FFFFFF",
+        "foreground_contrast": 7.0,
+        "surface": "#F3F5FA",
+        "surface_contrast": 6.42,
+        "theme": "light"
+      },
+      {
+        "id": "information",
+        "label": "Information",
+        "source": "brand.functional_colors.information.light",
+        "hex": "#26549B",
+        "use": "Neutral information or help",
+        "non_color_cue": "Information label and icon",
+        "foreground": "#FFFFFF",
+        "foreground_contrast": 7.44,
+        "surface": "#F3F5FA",
+        "surface_contrast": 6.82,
+        "theme": "light"
+      },
+      {
+        "id": "focus",
+        "label": "Focus",
+        "source": "brand.accent.accessible",
+        "hex": "#08745F",
+        "use": "Keyboard focus ring",
+        "non_color_cue": "Visible outline and keyboard focus order",
+        "foreground": "#FFFFFF",
+        "foreground_contrast": 5.72,
+        "surface": "#F3F5FA",
+        "surface_contrast": 5.24,
+        "theme": "light"
+      },
+      {
+        "id": "selection",
+        "label": "Selection",
+        "source": "brand.accent.accessible",
+        "hex": "#08745F",
+        "use": "Selected control or item",
+        "non_color_cue": "Selected label or checked state",
+        "foreground": "#FFFFFF",
+        "foreground_contrast": 5.72,
+        "surface": "#F3F5FA",
+        "surface_contrast": 5.24,
+        "theme": "light"
+      },
+      {
+        "id": "disabled",
+        "label": "Disabled",
+        "source": "brand.accent.dim",
+        "hex": "#69D4BB",
+        "use": "Unavailable control",
+        "non_color_cue": "Disabled attribute and text",
+        "foreground": "#000000",
+        "foreground_contrast": 11.74,
+        "surface": "#F3F5FA",
+        "surface_contrast": 1.64,
+        "theme": "light"
+      }
+    ]
+  }
+}

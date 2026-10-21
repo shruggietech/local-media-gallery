@@ -1,0 +1,204 @@
+{
+  "brand": "localmedia-gallery",
+  "derivatives": [
+    {
+      "path": "logos/png/localmedia-gallery-horizontal-black-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-horizontal-black.svg",
+      "rendered_from_sha256": "9ee588bd0ad11b1ba6ee9f89788055b22fb926e51978237b622e757fea2ce018"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-horizontal-color-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-horizontal-color.svg",
+      "rendered_from_sha256": "5d4c755fbb0ca760b4a654d3796990cb726bfc9a7b3ad7f9532e4ca2fceeaf34"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-horizontal-light-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-horizontal-light.svg",
+      "rendered_from_sha256": "132c30a8bfc4c71c3bb547adb57814e470407a2742b2d81d3582a137b624145a"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-horizontal-white-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-horizontal-white.svg",
+      "rendered_from_sha256": "16666e934f44f5469458cc3c38f36cd971530dc8fb32b07b1cfc73eae60359e4"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-mark-black-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-mark-black.svg",
+      "rendered_from_sha256": "58311efc2031973a4f6dc12d544b6abd1e99480441e464bad26870f92fd064fd"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-mark-color-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-mark-color.svg",
+      "rendered_from_sha256": "ba5fed980834f0daf7c167776674cd4f804613b95d06628d75ba8226f178474b"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-mark-light-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-mark-light.svg",
+      "rendered_from_sha256": "ee6cbc762d045d7cc9b559001727ed5340293433d138c06b66670ed58c2679f0"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-mark-reduced-black-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-mark-reduced-black.svg",
+      "rendered_from_sha256": "64c760d9f65f2506ce1fecffcba8318ebc22ae2799fda0dd71a95e5a153d94cf"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-mark-reduced-color-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-mark-reduced-color.svg",
+      "rendered_from_sha256": "aaa2f9128cd77b4c6e6998b8279e63480a7ba6084e0d9c5f8da25dda65f10812"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-mark-reduced-light-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-mark-reduced-light.svg",
+      "rendered_from_sha256": "f2fc4cbab1f80e15be64ab50910053c09701a7ea3bf44294ddbc973f0ca1282c"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-mark-reduced-white-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-mark-reduced-white.svg",
+      "rendered_from_sha256": "2e02dcc2d1a717644e78e0a2db95150cfb7b7acfece0e6e85ea68e1d19e917d9"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-mark-white-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-mark-white.svg",
+      "rendered_from_sha256": "6c610ceea332a7523dd8eaf910d1d9d00c45aa2e639314cc94c0798420f117e9"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-social-image-1280.png",
+      "rendered_from": "logos/svg/localmedia-gallery-social-image.svg",
+      "rendered_from_sha256": "4c61bc4a424a2f7bb078af9063a74ffa64dfdc0f2dbf43b168a7a1e2895a78d5"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-social-preview-1280.png",
+      "rendered_from": "logos/svg/localmedia-gallery-social-preview.svg",
+      "rendered_from_sha256": "4c61bc4a424a2f7bb078af9063a74ffa64dfdc0f2dbf43b168a7a1e2895a78d5"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-stacked-black-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-stacked-black.svg",
+      "rendered_from_sha256": "b27036193c11acaf5d7e303bba18c9c302c33c4d014417de7510e180040c0c77"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-stacked-color-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-stacked-color.svg",
+      "rendered_from_sha256": "bb39d526b078fcf2b1b0795c7235a3b7d1162ff344de91e68c4bebff7dc7ade3"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-stacked-light-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-stacked-light.svg",
+      "rendered_from_sha256": "f6cacf72d241a085665e1149c4cf011a1b29c7c5f0c2d52bd39b8e8d1f97a490"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-stacked-white-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-stacked-white.svg",
+      "rendered_from_sha256": "5ab1c4e423db9b5ba43f77c383154022deee6b64fa374d239c0639959bb2e0d8"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-wordmark-black-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-wordmark-black.svg",
+      "rendered_from_sha256": "301e3a2dc71177b1220932cd085c31e39a65c763944f2b23a0056da6cb093906"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-wordmark-color-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-wordmark-color.svg",
+      "rendered_from_sha256": "864d5c34b4fba2c3c339ec98aeb0a71941be128d127fd003cc9282275faf09ab"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-wordmark-light-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-wordmark-light.svg",
+      "rendered_from_sha256": "a17a5566c567eb61d0cbe3f3e1e009a7e398a3d93a631b5819e2d94b3959e824"
+    },
+    {
+      "path": "logos/png/localmedia-gallery-wordmark-white-1024.png",
+      "rendered_from": "logos/svg/localmedia-gallery-wordmark-white.svg",
+      "rendered_from_sha256": "f8ecf4fafe022e5b6a39ff200b95d31ec917aa55705a9b6bef8ae2651d2cfe37"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-horizontal-black.svg",
+      "sha256": "9ee588bd0ad11b1ba6ee9f89788055b22fb926e51978237b622e757fea2ce018"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-horizontal-color.svg",
+      "sha256": "5d4c755fbb0ca760b4a654d3796990cb726bfc9a7b3ad7f9532e4ca2fceeaf34"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-horizontal-light.svg",
+      "sha256": "132c30a8bfc4c71c3bb547adb57814e470407a2742b2d81d3582a137b624145a"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-horizontal-white.svg",
+      "sha256": "16666e934f44f5469458cc3c38f36cd971530dc8fb32b07b1cfc73eae60359e4"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-mark-black.svg",
+      "sha256": "58311efc2031973a4f6dc12d544b6abd1e99480441e464bad26870f92fd064fd"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-mark-color.svg",
+      "sha256": "ba5fed980834f0daf7c167776674cd4f804613b95d06628d75ba8226f178474b"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-mark-light.svg",
+      "sha256": "ee6cbc762d045d7cc9b559001727ed5340293433d138c06b66670ed58c2679f0"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-mark-reduced-black.svg",
+      "sha256": "64c760d9f65f2506ce1fecffcba8318ebc22ae2799fda0dd71a95e5a153d94cf"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-mark-reduced-color.svg",
+      "sha256": "aaa2f9128cd77b4c6e6998b8279e63480a7ba6084e0d9c5f8da25dda65f10812"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-mark-reduced-light.svg",
+      "sha256": "f2fc4cbab1f80e15be64ab50910053c09701a7ea3bf44294ddbc973f0ca1282c"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-mark-reduced-white.svg",
+      "sha256": "2e02dcc2d1a717644e78e0a2db95150cfb7b7acfece0e6e85ea68e1d19e917d9"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-mark-white.svg",
+      "sha256": "6c610ceea332a7523dd8eaf910d1d9d00c45aa2e639314cc94c0798420f117e9"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-social-image.svg",
+      "sha256": "4c61bc4a424a2f7bb078af9063a74ffa64dfdc0f2dbf43b168a7a1e2895a78d5"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-social-preview.svg",
+      "sha256": "4c61bc4a424a2f7bb078af9063a74ffa64dfdc0f2dbf43b168a7a1e2895a78d5"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-stacked-black.svg",
+      "sha256": "b27036193c11acaf5d7e303bba18c9c302c33c4d014417de7510e180040c0c77"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-stacked-color.svg",
+      "sha256": "bb39d526b078fcf2b1b0795c7235a3b7d1162ff344de91e68c4bebff7dc7ade3"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-stacked-light.svg",
+      "sha256": "f6cacf72d241a085665e1149c4cf011a1b29c7c5f0c2d52bd39b8e8d1f97a490"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-stacked-white.svg",
+      "sha256": "5ab1c4e423db9b5ba43f77c383154022deee6b64fa374d239c0639959bb2e0d8"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-wordmark-black.svg",
+      "sha256": "301e3a2dc71177b1220932cd085c31e39a65c763944f2b23a0056da6cb093906"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-wordmark-color.svg",
+      "sha256": "864d5c34b4fba2c3c339ec98aeb0a71941be128d127fd003cc9282275faf09ab"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-wordmark-light.svg",
+      "sha256": "a17a5566c567eb61d0cbe3f3e1e009a7e398a3d93a631b5819e2d94b3959e824"
+    },
+    {
+      "path": "logos/svg/localmedia-gallery-wordmark-white.svg",
+      "sha256": "f8ecf4fafe022e5b6a39ff200b95d31ec917aa55705a9b6bef8ae2651d2cfe37"
+    }
+  ],
+  "schema_version": 1
+}
