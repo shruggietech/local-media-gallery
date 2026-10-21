@@ -16,7 +16,15 @@ The prototype strips Windows drive letters, only escapes spaces in paths, constr
 
 Support Windows, Linux and macOS. Provide an installed command that can open a given directory on demand without requiring initialization or changes to the collection's structure. An uninstalled native executable can be placed in a media directory and run there. Installation provides additional system integration and persistent user settings. The owner cites flask/ngrok as the command-oriented deployment mental model; this does not authorize adding tunneling or remote access.
 
-The same product must support sharing a directory containing media and its portable launcher: the recipient extracts the archive and opens the appropriate native application without installing the product. The gallery must locate its media after relocation and discover additions/removals without manual manifest regeneration. A user-installed browser or particular browser brand must not be required. Electron is excluded. Small portable binaries are a goal alongside this install-free sharing requirement; runtime dependencies and complete distribution size still require feasibility verification.
+The same product must support sharing a directory containing media and its Lite launcher. Lite is a lightweight, on-demand convenience for opening and sharing galleries on supported hosts. It runs in place without installing the full application. The gallery must locate its media after relocation and discover additions/removals without manual manifest regeneration. A user-installed browser or particular browser brand must not be required. Electron is excluded.
+
+The owner subsequently clarified that full installation can be heavy and Lite should stay lightweight. Do not require every Lite copy to carry all dependencies of the full installation or turn Lite into a universal clean-machine runtime bundle. Document the actual supported-host requirements without presenting Lite as equivalent to a complete installation.
+
+### Application stack and editions
+
+Choose Rust, taking the Rust/Tauri option from the host comparison, with a statically exported Next.js application interface. This records the selected direction; no application implementation or measured package sizes exist yet.
+
+The full edition provides installed application capabilities, system integration and persistent user state. Its installer may provision the dependencies it needs, and its real installation footprint must be stated honestly. Lite binaries prioritize lightweight on-demand browsing and gallery sharing. Both editions retain the shared gallery behavior and portable media/settings model. Exact feature boundaries remain to be specified without inventing arbitrary Lite restrictions.
 
 ### Optional gallery preparation
 
@@ -32,22 +40,22 @@ Keep editing limited initially. Exact supported editing operations remain open; 
 
 Portable galleries carry a persistent settings.json for custom presentation choices. For installed software, store settings under Windows AppData; platform-appropriate user locations are needed on macOS/Linux. Remembering absolute directory paths and per-directory choices in SQLite with an inactivity decay period is an owner-proposed direction. The earlier 90-day suggestion and settings precedence are agent proposals, not approved constants. Machine-local remembered paths must not be required to open a shared portable gallery.
 
-### Self-installation
+### Installation
 
-Provide built-in installation capability in each platform's native application. On Windows, the EXE is the installer entry point; avoid requiring an MSI. Installation must detect relevant collisions before changing an existing application, install location or command entry. Ownership/version checks, install scope, destinations, update behavior and uninstall behavior need design. The portable application must remain useful without invoking installation.
+Full installation may use appropriate platform installers, including MSI on Windows. The owner has removed the earlier MSI restriction. Built-in installation entry points may use the platform installer rather than reimplementing all installation machinery. Installation must detect relevant collisions before changing an existing application, install location or command entry. Ownership/version checks, install scope, destinations, update behavior and uninstall behavior need design. Lite remains useful without full installation and does not need to carry a complete installer payload.
 
 ### Documentation
 
-Use Next.js for the documentation site. Consider Next.js for the application interface if it fits the native host, offline operation and portable distribution requirements. This is not approval of the application framework or host.
+Use Next.js for the documentation site and a static Next.js export for the Rust/Tauri application interface. Keep gallery discovery and runtime operations in the native host so media changes do not require rebuilding the interface.
 
 ## Proposed refinements to discuss
 
 - Separate live filesystem observations from sidecar-reported metadata and preserve arbitrary sidecar fields.
 - Reconcile the directory on opening and after missed filesystem events; any saved index is a rebuildable cache.
 - Persist intentional settings while re-evaluating automatic performance budgets on each recipient machine.
-- Offer direct per-user installation, with explicit treatment of owned upgrades, unrelated same-name commands and incomplete prior installs.
+- Prefer conventional installation behavior, with explicit treatment of owned upgrades, unrelated same-name commands and incomplete prior installs; per-user scope remains a proposal.
 - Use Windows AppData for installed settings/state, macOS Library locations, and Linux XDG configuration/state/cache locations. Exact subdirectories are not yet selected.
 
 ## Decisions held open
 
-Application language/runtime, application frontend framework, native host, rendering-runtime distribution, scanner, media processing and packaging remain unselected. SQLite is the proposed remembered-location store; its scope and lifecycle are not an approved database design. CPU architectures, minimum OS versions, recursive/folder navigation behavior, network/removable-drive guarantees, precise editing scope and thumbnail format/location remain open. The documentation renderer is Next.js. Node is currently only a repository-maintenance tool. No application schema is invented before its data contract is agreed.
+Rust/Tauri and Next.js are selected. Rendering-runtime distribution for full and Lite editions, scanner, media processing and exact packaging remain to be specified. MSI is allowed, not mandated. SQLite is the proposed remembered-location store; its scope and lifecycle are not an approved database design. CPU architectures, minimum OS versions, recursive/folder navigation behavior, network/removable-drive guarantees, precise editing scope and thumbnail format/location remain open. Node is currently only a repository-maintenance tool. No application schema is invented before its data contract is agreed.

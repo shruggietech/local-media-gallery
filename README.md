@@ -6,7 +6,7 @@ Your media presented beautifully.
 
 ## Start here
 
-Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). The intended platforms are Windows, Linux and macOS, with portable and installed operation. Remaining application requirements, frameworks and packaging will be agreed during discovery before implementation. The documentation website will use Next.js.
+Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). The planned application uses Rust, Tauri and a static Next.js interface on Windows, Linux and macOS. A full installation provides system integration and persistent user state; lightweight Lite binaries provide on-demand gallery browsing and sharing. Platform installers, including MSI on Windows, are allowed. The documentation website will also use Next.js.
 
 ## Local development
 
