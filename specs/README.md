@@ -7,3 +7,5 @@ Use `.specify/` templates and the installed `$speckit-*` skills. Agree behavior 
 See [discovery](discovery.md) for the initial brainstorming agenda and [foundation verification](foundation.md) for this local setup.
 
 The [v0.0.0 technical specification slice](001-technical-specification/spec.md) records the approved chapter-authoring work and its local verification.
+
+The [first working gallery slice](002-working-gallery/spec.md) proposes S002 behavior, defaults and small-fixture acceptance. Its decision record includes the owner-selected Windows-first native validation scope.
