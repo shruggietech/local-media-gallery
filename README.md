@@ -15,6 +15,7 @@ Node.js 24 or newer runs the dependency-free repository tools. This does not sel
 ```text
 npm ci
 npm run check
+npm run check:docs
 npm test
 ```
 

@@ -1,0 +1,73 @@
+# Verification and compatibility
+
+## Evidence model
+
+**VC-01:** Verification claims MUST identify what was exercised, the exact source/artifact version, the environment and the observed result. A source-level check, synthetic fixture, native runtime test, hosted check and user observation are different forms of evidence. Passing one must not be represented as completion of another.
+
+A release's acceptance scope must identify its supported platform/architecture/runtime combinations, edition behavior and elected checks before results are evaluated. The open-decision register identifies choices that must be settled for affected claims. An untested combination must not inherit a support claim merely because the code compiled elsewhere.
+
+## Behavioral acceptance matrix
+
+The matrix gives each chapter's requirements a verification home. It specifies expected outcomes, not reports of completed tests.
+
+| Contract | Representative positive scenario | Boundary or failure scenario |
+| --- | --- | --- |
+| [OV-01 through OV-05](overview.md) | Open unprepared media, browse common functionality, inspect item information | No thumbnails/sidecars/history; filtered empty versus inaccessible root; editing never implied by viewing |
+| [AR-01 through AR-05](architecture.md) | Static interface reads live native results; background work remains cancellable | Replace gallery during scan; stale results cannot update the new session; no frontend rebuild per collection |
+| [DI-01 through DI-06](installation-and-distribution.md) | Install Full; launch Lite on a supported host; include another platform's artifact | Unrelated command collision, incompatible runtime, interrupted update, wrong architecture and removal preserving media |
+| [GL-01 through GL-06](gallery-lifecycle.md) | Extract under a different root; discover additions/removals automatically | Non-ASCII/reserved-character names, changing files, unreadable children, unavailable drive and traversal cycle |
+| [BP-01 through BP-06](browsing-and-playback.md) | Stable sorting/filtering, aspect-aware cards, item details and seekable supported video | Missing sort values, no matches, unsupported codec, narrow viewport and keyboard-only navigation |
+| [MD-01 through MD-06](metadata-and-sidecars.md) | Inspect arbitrary nested JSON and chosen summary fields with provenance | Ambiguous naming, duplicate keys under chosen policy, malformed/large JSON, stale reads and large exact numbers |
+| [CS-01 through CS-06](configuration-and-state.md) | Restore saved settings from their declared scopes and reopen portable presentation | Invalid settings, concurrent writes, read-only directory, incompatible format and expiry preserving originals/settings |
+| [IF-01 through IF-07](interfaces-and-contracts.md) | Equivalent GUI/command operations and attributable job results | Invalid/stale identifiers, cancellation, partial outcomes, timeout uncertainty and machine-output separation |
+| [PF-01 through PF-06](thumbnails-and-performance.md) | Browse originals; optionally generate and reuse thumbnails; adapt bounded work | No cache, changed source, full disk, cancelled generation, slow storage and mixed image/video load |
+| [SR-01 through SR-07](security-and-reliability.md) | Scoped access, verified artifacts, recoverable writes and useful diagnostics | Traversal attempts, active-looking JSON text, interrupted writes, unrelated-file collision and hidden helper failure |
+| [WD-01 through WD-06](website-and-documentation.md) | Independent landing; explicit documentation versions; rendered changelog/contracts | Missing target topic, old snapshot with current site renderer, absent download and incorrect latest-version pointer |
+| [VC-01 through VC-05](verification-and-compatibility.md) | Exact-version evidence and successful elected release checks | Late terminal outcome, mismatched versions, unsupported downgrade and unverified claim |
+
+Fixtures should use self-contained synthetic media and metadata where practical. Representative files must include several aspect ratios, images/videos, missing optional facts and varied native path spellings. Actual format support requires real decode/playback checks for the advertised formats, not only extension-based fixtures.
+
+## Source, product and website checks
+
+The repository's maintainer workflow includes:
+
+```text
+npm ci
+npm run check
+npm run check:docs
+npm test
+```
+
+These checks cover repository integrity, documentation structure/references and the maintainer tooling exercised by tests. Product acceptance additionally requires applicable Rust/native checks, artifact launches, directory/media behavior and rendered interface checks when those surfaces are implemented. Website acceptance requires a complete static build, route/link/asset validation and rendered landing/documentation interaction checks. Source link checks cannot prove a future renderer or native media transport works.
+
+**VC-02:** Every new release MUST compile the corresponding documentation and check all retained documentation versions through the site's current build. Schema examples must be validated against their stated schema version when those contracts exist. The vocabulary/glossary and exact release/download identity must be reviewed, with a complete vocabulary rescan for major releases.
+
+The independent landing page must be tested for its own content, release pointers, navigation and runtime payload. Documentation checks include topic-preserving version changes, explicit missing-topic fallback, version-scoped search and historical asset/fragment resolution.
+
+## Qualification accounting
+
+**VC-03:** Release qualification MUST begin after verified prerequisite readiness, target 660 seconds and enforce a 900-second hard limit. Target-only overruns are advisory. Provisional finalization must retain fifteen seconds for terminal results and final acceptance. Functional, integrity, provenance and elected checks remain mandatory; a timing target does not waive a required failure.
+
+Preparation includes required dependency/tool/artifact readiness. Qualification includes its relevant queues and checks after readiness. Combined accounting includes both phases and must not conceal time spent waiting. A terminal completion timestamp is authoritative: requesting cancellation or beginning finalization before a deadline does not convert a late result into an on-time pass.
+
+The result should record preparation start/readiness, qualification start, each required terminal outcome, final completion and separate preparation/qualification/combined elapsed time. Failed, cancelled, missing and timed-out outcomes must remain distinguishable. Repeating an unchanged check does not improve verification unless a new failure or uncertainty warrants it.
+
+User observations normally follow releases and arrive as versioned issues. This policy does not add a mandatory attended pre-release session. Controlled automated and native checks still verify the behaviors and artifacts a release claims.
+
+## Compatibility and version identity
+
+**VC-04:** Software, release-versioned documentation and the master application JSON Schema MUST use the same release identity when released together. Brand-kit and optional tool versions remain separately recorded. A format revision may differ from product version but must have an explicit migration relationship. [Semantic Versioning](https://semver.org/spec/v2.0.0.html) supplies release-version terminology; breaking changes must be explained in the changelog and concise release notes.
+
+Prefer compatible readers/writers where practical. Document what older configurations can be read, what newer fields can be preserved and when migration prevents downgrade. Do not promise unrestricted forward/backward compatibility. Reading an unknown field without loss does not establish that its behavior is understood. External sidecars remain governed by their own flexible inspection contract.
+
+Retained documentation must continue to describe its corresponding release even when the website renderer is updated. Selecting an older documentation version does not run an older application or change support status for that binary.
+
+## Release acceptance and remaining work
+
+**VC-05:** A release MUST NOT be accepted or advertised as published solely because source checks passed. The evidence must bind the final source revision, artifact identities/hashes, required terminal results and documentation/schema references. Download availability and current-version pointers require verification of actual publication when publication is authorized.
+
+Release notes contain short user-relevant highlights, any necessary migration action and a final link to the master changelog. Repository workflow follows the contribution/merge policy.
+
+Resolve U-01/U-02 before asserting a full platform/edition matrix, U-04 before codec claims and U-10 before numerical performance claims. Other open decisions must be resolved before their affected contracts are presented as complete. This allows scoped implementation to proceed without substituting a plan for delivered behavior.
+
+Return to the [index](index.md) or consult the [glossary](glossary.md).

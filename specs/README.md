@@ -5,3 +5,5 @@ This directory contains discovery notes and Spec Kit implementation slices. It i
 Use `.specify/` templates and the installed `$speckit-*` skills. Agree behavior with the owner before choosing frameworks or creating implementation plans. For implementation slices, specify, clarify as needed, plan, generate tasks and analyze before implementation. Keep acceptance and evidence explicit. Once published, link slices to GitHub Issues, milestones and Projects without maintaining a competing status system.
 
 See [discovery](discovery.md) for the initial brainstorming agenda and [foundation verification](foundation.md) for this local setup.
+
+The [v0.0.0 technical specification slice](001-technical-specification/spec.md) records the approved chapter-authoring work and its local verification.

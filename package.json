@@ -10,6 +10,7 @@
   },
   "scripts": {
     "check": "node scripts/check.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
     "test": "node --test tests/*.test.mjs",
     "brand:verify": "node scripts/sync-brand-kit.mjs --verify",
     "brand:check": "node scripts/sync-brand-kit.mjs --check",
