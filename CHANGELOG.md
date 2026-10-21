@@ -17,3 +17,4 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 ### Decisions
 
 - 2026-10-21: Keep application and documentation-site architecture open for owner brainstorming. Node is maintenance tooling only. Do not create a remote repository or publish during local setup. Adopt constitution 1.0.0 from the owner directives without selecting product technologies.
+- 2026-10-21: Record the owner's Windows/Linux/macOS platform requirement, on-demand and portable launch models, install-free sharing, optional thumbnail and cross-platform gallery preparation, limited initial editing, typical scale of thousands, installed settings in AppData and native self-installation with collision detection. Select Next.js for documentation; keep the application host and framework open. Record remembered-location SQLite state and its decay policy as a proposed direction without adopting an unapproved expiry constant.

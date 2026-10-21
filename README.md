@@ -6,7 +6,7 @@ Your media presented beautifully.
 
 ## Start here
 
-Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). Product requirements, frameworks, packaging and supported platforms will be agreed during discovery before application implementation.
+Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). The intended platforms are Windows, Linux and macOS, with portable and installed operation. Remaining application requirements, frameworks and packaging will be agreed during discovery before implementation. The documentation website will use Next.js.
 
 ## Local development
 
