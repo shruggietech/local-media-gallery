@@ -11,6 +11,10 @@ use std::{
 
 const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
 
+fn default_font_scale() -> u8 {
+    100
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CardSize {
@@ -52,6 +56,8 @@ pub struct Settings {
     pub format_version: u32,
     pub page_size: u16,
     pub card_size: CardSize,
+    #[serde(default = "default_font_scale")]
+    pub font_scale: u8,
     pub controls_expanded: bool,
     pub scroll_indicator: ScrollIndicator,
     pub metadata_expanded: bool,
@@ -68,6 +74,7 @@ impl Default for Settings {
             format_version: 1,
             page_size: 48,
             card_size: CardSize::Medium,
+            font_scale: default_font_scale(),
             controls_expanded: false,
             scroll_indicator: ScrollIndicator::Auto,
             metadata_expanded: false,
@@ -98,6 +105,12 @@ impl Settings {
             return Err(GalleryError::new(
                 "settings_invalid",
                 "Choose a supported page size.",
+            ));
+        }
+        if !matches!(settings.font_scale, 80 | 90 | 100) {
+            return Err(GalleryError::new(
+                "settings_invalid",
+                "Choose a supported global font size.",
             ));
         }
         Ok(settings)
@@ -315,6 +328,115 @@ mod tests {
         assert_eq!(reopened.settings.page_size, 24);
         assert!(reopened.settings.metadata_expanded);
         assert!(reopened.warning.is_none());
+    }
+    #[test]
+    fn legacy_font_scale_defaults_without_rewriting_or_losing_preferences() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("settings.json");
+        let mut legacy = serde_json::to_value(Settings::default()).unwrap();
+        legacy.as_object_mut().unwrap().remove("fontScale");
+        legacy["pageSize"] = 24.into();
+        legacy["metadataExpanded"] = true.into();
+        legacy["futurePreference"] = serde_json::json!({"retain": [1, 2]});
+        let bytes = serde_json::to_vec(&legacy).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        let store = store(&dir);
+        let loaded = store.envelope();
+        let value = serde_json::to_value(&loaded.settings).unwrap();
+        assert_eq!(value["fontScale"], 100);
+        assert_eq!(loaded.settings.page_size, 24);
+        assert!(loaded.settings.metadata_expanded);
+        assert!(loaded.warning.is_none());
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        let mut next = value;
+        next["fontScale"] = 90.into();
+        store.save(next, &loaded.revision).unwrap();
+        let reopened = SettingsStore::load(path, false).envelope();
+        let value = serde_json::to_value(&reopened.settings).unwrap();
+        assert_eq!(value["fontScale"], 90);
+        assert_eq!(value["pageSize"], 24);
+        assert_eq!(value["metadataExpanded"], true);
+        assert_eq!(value["futurePreference"], legacy["futurePreference"]);
+    }
+    #[test]
+    fn supported_font_scales_persist_and_restore() {
+        let dir = TempDir::new().unwrap();
+        let store = store(&dir);
+        assert_eq!(
+            serde_json::to_value(store.envelope().settings).unwrap()["fontScale"],
+            100
+        );
+        for scale in [80, 90, 100] {
+            let before = store.envelope();
+            let mut next = serde_json::to_value(&before.settings).unwrap();
+            next["fontScale"] = scale.into();
+            store.save(next, &before.revision).unwrap();
+            let reopened = SettingsStore::load(dir.path().join("settings.json"), false).envelope();
+            assert_eq!(
+                serde_json::to_value(reopened.settings).unwrap()["fontScale"],
+                scale
+            );
+            assert!(reopened.warning.is_none());
+        }
+    }
+    #[test]
+    fn invalid_font_scales_never_replace_valid_settings() {
+        let dir = TempDir::new().unwrap();
+        let store = store(&dir);
+        let before = store.envelope();
+        let saved = store
+            .save(
+                serde_json::to_value(&before.settings).unwrap(),
+                &before.revision,
+            )
+            .unwrap();
+        let prior = fs::read(dir.path().join("settings.json")).unwrap();
+        for bad in [
+            serde_json::json!(0),
+            serde_json::json!(79),
+            serde_json::json!(95),
+            serde_json::json!(101),
+            serde_json::json!(80.5),
+            serde_json::json!(-1),
+            serde_json::json!("90"),
+            serde_json::json!(null),
+            serde_json::json!(true),
+        ] {
+            let mut value = serde_json::to_value(&saved.settings).unwrap();
+            value["fontScale"] = bad;
+            assert_eq!(
+                store.save(value, &saved.revision).unwrap_err().code,
+                "settings_invalid"
+            );
+            assert_eq!(fs::read(dir.path().join("settings.json")).unwrap(), prior);
+        }
+    }
+    #[test]
+    fn invalid_stored_font_scale_is_preserved_with_default_and_warning() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value["fontScale"] = 95.into();
+        let bytes = serde_json::to_vec(&value).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        let store = store(&dir);
+        let loaded = store.envelope();
+        assert!(loaded.warning.is_some());
+        assert_eq!(
+            serde_json::to_value(&loaded.settings).unwrap()["fontScale"],
+            100
+        );
+        assert_eq!(
+            store
+                .save(
+                    serde_json::to_value(&loaded.settings).unwrap(),
+                    &loaded.revision
+                )
+                .unwrap_err()
+                .code,
+            "settings_unavailable"
+        );
+        assert_eq!(fs::read(&path).unwrap(), bytes);
     }
     #[test]
     fn invalid_known_values_are_rejected_without_creating_a_file() {

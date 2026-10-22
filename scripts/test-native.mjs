@@ -49,7 +49,7 @@ const input = (action, extra = []) => execute('C:/Program Files/PowerShell/7/pws
 async function test(name, body) { await body(); passed.push(name); console.log(`PASS ${name}`); }
 async function connect() {
   await until(async () => { const r = await fetch(origin + '/status', { signal: AbortSignal.timeout(500) }); return r.ok; }, 'Native driver readiness', 20000);
-  session = (await request('/session', { capabilities: { alwaysMatch: { 'wdio:tauriServiceOptions': { windowLabel: 'main' } } } })).sessionId;
+  session = (await until(() => request('/session', { capabilities: { alwaysMatch: { 'wdio:tauriServiceOptions': { windowLabel: 'main' } } } }), 'Native main-window readiness', 20000)).sessionId;
 }
 async function stop() {
   if (session) { await request(`/session/${session}`, undefined, 'DELETE'); session = null; }
@@ -285,6 +285,36 @@ try {
     await visible('document.querySelector(".scroll-indicator")?.dataset.visible==="true"');
     await pause(1200);assert.equal(await js('return document.querySelector(".scroll-indicator")?.dataset.visible'), 'false');
     await click('Show controls');
+  });
+  await test('global font size scales app text, preserves geometry and restores preferences',async()=>{
+    if(await js('return !document.getElementById("font-scale")')) await click('Settings');
+    await visible('document.getElementById("font-scale")');
+    assert.equal(await js('return document.getElementById("font-scale").value'),'100','Current size is default');
+    const measureText=()=>js('const selectors=["body",".identity h1",".app-header button","label[for=media-filter]","#media-filter",".settings-panel h2",".media-caption>span:first-child",".collection-count"];return selectors.map(s=>({selector:s,font:parseFloat(getComputedStyle(document.querySelector(s)).fontSize)}));');
+    const measureGeometry=()=>js('const c=document.querySelector(".media-card");const b=document.querySelector(".app-header button");return {root:parseFloat(getComputedStyle(document.documentElement).fontSize),card:c.getBoundingClientRect().width,media:c.querySelector(".media-surface").getBoundingClientRect().width,target:parseFloat(getComputedStyle(b).minHeight),bar:document.querySelector(".app-header").getBoundingClientRect().height};');
+    const normal=await measureText();const geometry=await measureGeometry();
+    let viewerFonts;let viewerGeometry;
+    for(const scale of [100,90,80]){
+      await select('font-scale',String(scale));await pause(150);
+      const actual=await measureText();for(let i=0;i<actual.length;i++)assert.ok(Math.abs(actual[i].font-normal[i].font*scale/100)<0.06,JSON.stringify({scale,actual:actual[i],baseline:normal[i]}));
+      const current=await measureGeometry();for(const key of Object.keys(geometry))assert.ok(Math.abs(current[key]-geometry[key])<0.1,'Text sizing changed '+key);
+      await open('image2.jpg');await visible('document.querySelector("dialog img")?.naturalWidth>0');
+      if(await js('return !document.querySelector(".item-facts")'))await click('Information');
+      const focused=await js('const d=document.querySelector("dialog").getBoundingClientRect();const m=document.querySelector(".viewer-media").getBoundingClientRect();return {fonts:["#viewer-title","#information-title",".item-facts dt",".item-facts dd","dialog button"].map(s=>parseFloat(getComputedStyle(document.querySelector(s)).fontSize)),geometry:{w:d.width,h:d.height,mw:m.width}}');
+      if(scale===100){viewerFonts=focused.fonts;viewerGeometry=focused.geometry;}
+      else{for(let i=0;i<focused.fonts.length;i++)assert.ok(Math.abs(focused.fonts[i]-viewerFonts[i]*scale/100)<0.06,'Viewer text scales');for(const key of Object.keys(viewerGeometry))assert.ok(Math.abs(focused.geometry[key]-viewerGeometry[key])<0.1,'Viewer media frame changed');}
+      await click('Close viewer');
+      await until(async()=>JSON.parse(await readFile(settingsFile)).fontScale===scale,'Font preference saved');
+    }
+    await stop();child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
+    await until(()=>js('return Math.abs(parseFloat(getComputedStyle(document.body).fontSize)-arguments[0])<0.06',[normal[0].font*0.8]),'Reduced size restored after restart');
+    await click('Settings');assert.equal(await js('return document.getElementById("font-scale").value'),'80');
+    await js('document.getElementById("font-scale").focus();return true;');await input('keys',['-Keys','{HOME}{ENTER}']);
+    await until(()=>js('return document.getElementById("font-scale").value==="100"'),'Keyboard default reset');
+    await until(async()=>JSON.parse(await readFile(settingsFile)).fontScale===100,'Default font save');
+    assert.ok(Math.abs(await js('return parseFloat(getComputedStyle(document.body).fontSize)')-normal[0].font)<0.06,'Default restored original text size');
+    await stop();child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
+    await until(()=>js('return Math.abs(parseFloat(getComputedStyle(document.body).fontSize)-arguments[0])<0.06',[normal[0].font]),'Default restored after restart');
   });
   await test('information persists immediately and survives restart',async()=>{
     await open('image2.jpg');

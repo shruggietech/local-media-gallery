@@ -13,7 +13,7 @@ import { formatBytes, formatModified, masonryLayout, mediaUrl, pageItems, viewIt
 import { createAdmissionQueue } from '../lib/admission';
 
 const initial: Snapshot = { version: '0.0.0', sessionId: null, root: null, status: 'selection', revision: '0', mediaOrigin: '', items: [], issues: [] };
-const defaults: ViewSettings = { version: '0.0.0', formatVersion: 1, pageSize: 48, cardSize: 'medium', controlsExpanded: false, scrollIndicator: 'auto', metadataExpanded: false, filter: 'all', sort: 'name', direction: 'asc' };
+const defaults: ViewSettings = { version: '0.0.0', formatVersion: 1, fontScale: 100, pageSize: 48, cardSize: 'medium', controlsExpanded: false, scrollIndicator: 'auto', metadataExpanded: false, filter: 'all', sort: 'name', direction: 'asc' };
 const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);
@@ -180,6 +180,10 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
 export default function Gallery() {
   const [snapshot, setSnapshot] = useState<Snapshot>(initial);
   const [settings, setSettings] = useState<ViewSettings>(defaults);
+  useLayoutEffect(() => {
+    document.documentElement.style.setProperty('--gallery-font-scale', String(settings.fontScale / 100));
+    return () => { document.documentElement.style.removeProperty('--gallery-font-scale'); };
+  }, [settings.fontScale]);
   const settingsRef = useRef<ViewSettings>(defaults); const settingsRevision = useRef(''); const saves = useRef(Promise.resolve());
   const [settingsReady, setSettingsReady] = useState(false); const [settingsWarning, setSettingsWarning] = useState(''); const [testPageSize, setTestPageSize] = useState<4 | undefined>();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -292,6 +296,7 @@ export default function Gallery() {
       <div className="collection-summary"><p className="root-path">{snapshot.root || 'No directory selected'}</p><p className="muted">Direct files only. Refresh to see changes.</p><StatusBadge status={snapshot.status === 'unavailable' ? 'error' : snapshot.status === 'partial' ? 'warning' : 'neutral'}>{status}</StatusBadge></div>
     </section> : null}
     {settingsOpen && settings.controlsExpanded ? <section className="settings-panel" id="view-settings" aria-label="View settings"><h2>View settings</h2>
+      <Field id="font-scale" label="Global font size" control={<FormControls.Select value={settings.fontScale} onChange={event => changeSettings({ fontScale: Number(event.target.value) as ViewSettings['fontScale'] })}><option value="100">Default (100%)</option><option value="90">Small (90%)</option><option value="80">Smaller (80%)</option></FormControls.Select>} />
       <Field id="page-size" label="Items per page" control={<FormControls.Select value={settings.pageSize} onChange={event => changeView({ pageSize: Number(event.target.value) })}>{testPageSize === 4 ? <option value="4">4 (native test)</option> : null}<option value="24">24</option><option value="48">48</option><option value="96">96</option></FormControls.Select>} />
       <Field id="card-size" label="Card size" control={<FormControls.Select value={settings.cardSize} onChange={event => changeSettings({ cardSize: event.target.value as ViewSettings['cardSize'] })}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></FormControls.Select>} />
       <Field id="scroll-indicator" label="Scroll indicator" control={<FormControls.Select value={settings.scrollIndicator} onChange={event => changeSettings({ scrollIndicator: event.target.value as ViewSettings['scrollIndicator'] })}><option value="auto">While scrolling</option><option value="always">Always visible</option></FormControls.Select>} />

@@ -28,3 +28,12 @@ test('master settings contract validates preferences and preserves compatible un
   assert.ok(valid({...settings,futurePreference:{enabled:true}}));
   for(const changed of [{...settings,pageSize:4},{...settings,pageSize:1000},{...settings,metadataExpanded:'yes'},{...settings,formatVersion:2},{...settings,version:'0.0.1'},{...settings,sort:'random'}]) assert.equal(valid(changed),false);
 });
+
+test('font scale contract accepts legacy settings and exactly three supported presets', () => {
+  const ajv = new Ajv2020({strict:true}).addKeyword('x-release-version').addSchema(schema);
+  const valid = ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/settings'});
+  assert.ok(valid(settings), 'Existing settings without fontScale remain compatible');
+  assert.equal(schema.$defs.settings.properties.fontScale?.default,100);
+  for(const fontScale of [80,90,100]) assert.ok(valid({...settings,fontScale}), JSON.stringify(valid.errors));
+  for(const fontScale of [0,79,95,101,80.5,-1,'90',null,true]) assert.equal(valid({...settings,fontScale}),false, 'Invalid fontScale '+JSON.stringify(fontScale));
+});

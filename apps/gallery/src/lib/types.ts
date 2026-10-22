@@ -38,6 +38,7 @@ export interface ViewSettings {
   formatVersion: 1;
   pageSize: number;
   cardSize: 'small' | 'medium' | 'large';
+  fontScale: 80 | 90 | 100;
   controlsExpanded: boolean;
   scrollIndicator: 'auto' | 'always';
   metadataExpanded: boolean;

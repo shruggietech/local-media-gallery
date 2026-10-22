@@ -23,6 +23,7 @@ The current flat document identifies product `version` as `0.0.0` and `formatVer
 
 | Field | Values | First-use default |
 | --- | --- | --- |
+| `fontScale` | `100`, `90`, `80` (percent) | `100` |
 | `pageSize` | `24`, `48`, `96` | `48` |
 | `cardSize` | `small`, `medium`, `large` | `medium` |
 | `controlsExpanded` | Boolean | `false` |
@@ -31,6 +32,10 @@ The current flat document identifies product `version` as `0.0.0` and `formatVer
 | `filter` | `all`, `image`, `video` | `all` |
 | `sort` | `name`, `modified`, `size` | `name` |
 | `direction` | `asc`, `desc` | `asc` |
+
+Global font size offers Default (100%), Small (90%) and Smaller (80%). The current text size remains the default. The choice affects application text, including controls, filenames and focused information, and persists immediately. Media sizes, card widths/gaps and control minimum hit areas retain their existing geometry; text-dependent captions can reflow. Browser/OS text scaling still applies. Native operating-system dialogs and built-in media controls retain platform styling.
+
+A file from an earlier build may omit `fontScale`; it loads as `100` without changing the file until an explicit preference save. Other existing preferences and compatible unknown fields are retained.
 
 A missing file supplies these defaults without creating a file. A changed preference takes effect in memory immediately and queues a native save. Metadata disclosure is saved on every explicit toggle. Defaults include manual refresh only; there is no automatic-refresh preference in this document.
 

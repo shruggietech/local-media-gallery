@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bb-surface-background); color: var(--bb-text-primary); font-family: var(--bb-typography-body-family); font-weight: 400; font-synthesis: none; }
+body { margin: 0; background: var(--bb-surface-background); color: var(--bb-text-primary); font-family: var(--bb-typography-body-family); font-size: calc(1rem * var(--gallery-font-scale, 1)); font-weight: 400; font-synthesis: none; }
 h1, h2, h3 { font-family: var(--bb-typography-display-family); font-weight: 500; margin-block: 0 var(--lo-space-3); }
 p { margin-block: 0 var(--lo-space-3); }
 button, input, select { font: inherit; }

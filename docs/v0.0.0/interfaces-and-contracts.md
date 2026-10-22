@@ -64,6 +64,8 @@ External sidecars remain arbitrary JSON under [metadata and sidecars](metadata-a
 
 **IF-07:** Error presentation MUST retain the affected operation and useful recovery context without executing sidecar content or exposing unnecessary private values. Exact stable error identifiers and numeric process codes are U-08. Unknown failures must not be coerced into success or an empty collection.
 
+The optional `fontScale` preference accepts `100`, `90` or `80` percent, defaulting to `100` when absent. This is an additive format-1 field; legacy user settings remain readable without a rewrite on load.
+
 ## Open decisions
 
 U-08 retains Full/Lite command syntax, preparation/installation operations and broader error/exit-code compatibility. The current readonly snapshot, preference boundary and local opening syntax are defined above. U-07 retains future portable settings and broader state formats. Semantic requirements above constrain future contracts.
