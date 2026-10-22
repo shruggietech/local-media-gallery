@@ -7,7 +7,7 @@ import { verifyInstalled } from './sync-brand-kit.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const skip = new Set(['.git', '.agents', '.local', 'node_modules', 'brand/kit', '.specify/scripts', '.specify/templates', '.specify/LICENSE']);
-const textExtensions = new Set(['.md', '.json', '.mjs', '.yml', '.yaml', '.ps1', '.py']);
+const textExtensions = new Set(['.md', '.json', '.mjs', '.cjs', '.ts', '.tsx', '.css', '.toml', '.rs', '.yml', '.yaml', '.ps1', '.py']);
 const rootText = new Set(['AGENTS.md', 'LICENSE', 'NOTICE', 'VERSION', '.gitignore', '.gitattributes', '.editorconfig']);
 const decoder = new TextDecoder('utf-8', { fatal: true });
 let count = 0;
@@ -16,6 +16,8 @@ async function inspect(relative = '') {
   for (const entry of await readdir(join(root, relative), { withFileTypes: true })) {
     const name = relative ? `${relative}/${entry.name}` : entry.name;
     if (skip.has(name)) continue;
+    if (entry.isDirectory() && ['node_modules', '.next', 'target', 'out'].includes(entry.name)) continue;
+    if (['apps/gallery/public/brand', 'apps/gallery/src-tauri/gen'].includes(name)) continue;
     assert.ok(!entry.isSymbolicLink(), `Unexpected symlink: ${name}`);
     if (entry.isDirectory()) { await inspect(name); continue; }
     if (!textExtensions.has(extname(name)) && !rootText.has(name)) continue;
@@ -46,6 +48,14 @@ assert.equal(pkg.version, version, 'Package and VERSION disagree');
 assert.equal(lock.version, version, 'Lockfile and VERSION disagree');
 assert.equal(lock.packages[''].version, version, 'Root package lock and VERSION disagree');
 assert.equal(pkg.private, true, 'Maintainer package must remain private');
+const appPackage = JSON.parse(await readFile(join(root, 'apps/gallery/package.json'), 'utf8'));
+const nativeConfig = JSON.parse(await readFile(join(root, 'apps/gallery/src-tauri/tauri.conf.json'), 'utf8'));
+const schema = JSON.parse(await readFile(join(root, 'schemas', `v${version}`, 'local-media-gallery.schema.json'), 'utf8'));
+assert.equal(appPackage.version, version, 'Application and VERSION disagree');
+assert.equal(nativeConfig.version, version, 'Native application and VERSION disagree');
+assert.equal(schema['x-release-version'], version, 'Master schema and VERSION disagree');
+const interfaceReference = await readFile(join(root, 'docs', `v${version}`, 'interfaces-and-contracts.md'), 'utf8');
+assert.ok(interfaceReference.includes(`\`${schema.$id}\``), 'Documentation must identify the exact master schema');
 await access(join(root, 'docs', `v${version}`, 'index.md'));
 const init = JSON.parse(await readFile(join(root, '.specify/init-options.json'), 'utf8'));
 assert.equal(init.integration, 'codex');

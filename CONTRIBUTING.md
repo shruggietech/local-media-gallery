@@ -8,16 +8,22 @@ The repository is local. Local commits are authorized. Remote creation, first pu
 
 ## Checks
 
-Use Node.js 24 or newer for repository maintenance, and Python 3.11 or newer for Spec Kit helpers.
+Use Node.js 24+, Python 3.12+, and the pinned Rust 1.96.0 toolchain. Windows native work requires the MSVC C++ build tools, Windows SDK and WebView2. FFmpeg creates the short synthetic clips used by acceptance. See the README for local prerequisites and launch behavior.
 
 ```text
 npm ci
+npm run prepare:local
 npm run check
 npm run check:docs
 npm test
+npm run build:app
+npm run check:app
+npm run qualify
 ```
 
-These validate repository integrity, documentation structure/references and the brand importer. Add affected site, runtime and packaging checks when those surfaces exist. There is no application or documentation-site build command yet.
+These validate repository integrity, documentation structure/references, importer and JSON contracts, pure view logic, Rust discovery/access/streaming, TypeScript, brand lint/proofs, static export and actual Windows WebView2 behavior. Native testing uses twelve candidates and real Windows input/picker controls; allow the automated app to finish its interaction. No personal collection or bulk fixture is needed. Native WebDriver is feature-gated out of the normal application. The independent landing page and documentation-site build remain future work.
+
+The exact pinned brand verifier runs in an ignored temporary copy with verified recovery bytes, Node 24.11.0 and Pillow 12.3.0, using the delivered approved proof matrix. It checks all 36 verifier conditions and the glyph validator without changing `brand/kit`. Other hosts may supply `GALLERY_PROOF_NODE` pointing to an actual native Node 24.11.0 runtime; no Linux/macOS native qualification is claimed.
 
 For release qualification, verify prerequisites before starting the qualification clock. Target 660 seconds with a 900-second hard limit and a fifteen-second provisional finalization reserve. Target-only overruns are advisory. Report preparation, qualification and combined time separately; terminal completion timestamps govern acceptance. Functional, integrity, provenance and elected checks remain mandatory. User observations normally follow releases as issues; do not invent an attended pre-release verification gate.
 

@@ -1,6 +1,6 @@
 # S002 proposed acceptance coverage
 
-**Status**: Verification design only; no application behavior has been exercised
+**Status**: Required local acceptance coverage; actual terminal results are recorded in [verification](verification.md).
 
 **Specification**: [First working local gallery](spec.md)
 
@@ -53,6 +53,6 @@ Where a failure cannot be induced on an elected environment, record the exact un
 
 ## Acceptance prerequisites
 
-The owner elected Windows-first native acceptance in Q-01. Windows native build/launch/media checks are therefore required for S002; Linux/macOS native results remain explicitly deferred. The remaining scope/default proposals are not approved implicitly by that answer. Linux/macOS remain product targets. No installed Full/Lite package, remote workflow, release tag or public website is part of the acceptance surface.
+The owner elected Windows-first native acceptance in Q-01 and subsequently authorized autonomous implementation. The defaults were explicitly adopted under that authorization in [decisions](decisions.md). Windows native build/launch/media checks are required; Linux/macOS native results remain explicitly deferred while both remain product targets. No installed Full/Lite package, remote workflow, release tag or public website is part of this acceptance surface.
 
 Implementation qualification follows the repository's functional/integrity/provenance checks and its 660-second target, 900-second hard limit and fifteen-second finalization reserve after prerequisite readiness. Native results and any missing elected checks must be explicit. User observations normally follow releases; this document does not create an attended pre-release approval test.

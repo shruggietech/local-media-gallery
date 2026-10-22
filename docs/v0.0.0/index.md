@@ -1,6 +1,6 @@
 # Local Media Gallery technical specification
 
-v0.0.0 is a specification and maintainer-tooling baseline; application commands, installable product packages and the live documentation website do not exist yet.
+v0.0.0 remains an unreleased specification baseline with a local Rust/Tauri gallery implementation; installable Full/Lite packages and the independent landing page/documentation website remain pending.
 
 Local Media Gallery presents local images and videos through a Rust/Tauri application with a statically exported Next.js interface. Full installation provides system integration and persistent user state. Lite provides lightweight, on-demand directory browsing and gallery sharing on supported hosts. The product targets Windows, Linux and macOS.
 

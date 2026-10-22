@@ -1,0 +1,16 @@
+[workspace]
+members = ["crates/gallery-core", "apps/gallery/src-tauri"]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.96"
+
+[profile.dev]
+debug = 1
+
+[profile.release]
+strip = true
+lto = "thin"

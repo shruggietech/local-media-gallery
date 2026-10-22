@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0
+import { createHash } from 'node:crypto';
+import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { root, execute, python, environment } from './run.mjs';
+import { verifyInstalled } from './sync-brand-kit.mjs';
+
+const kit = path.join(root, 'brand/kit');
+await verifyInstalled(path.join(root, 'brand'));
+const contract = JSON.parse(await readFile(path.join(kit, 'enforcement/consumer-contract.json')));
+const archive = path.join(kit, contract.recovery.path);
+const bytes = await readFile(archive);
+if (createHash('sha256').update(bytes).digest('hex') !== contract.recovery.sha256) throw new Error('Pinned BrandBuilder recovery checksum mismatch.');
+await mkdir(path.join(root, '.local'), { recursive: true });
+const temporary = await mkdtemp(path.join(root, '.local/brand-validation-'));
+const copy = path.join(temporary, 'kit');
+await cp(kit, copy, { recursive: true });
+const recovery = path.join(temporary, 'brandbuilder');
+await mkdir(recovery, { recursive: true });
+const extract = 'import pathlib,sys,zipfile; base=pathlib.Path(sys.argv[2]).resolve(); z=zipfile.ZipFile(sys.argv[1]); names=z.namelist(); assert all(not pathlib.PurePosixPath(n).is_absolute() and ".." not in pathlib.PurePosixPath(n).parts for n in names); z.extractall(base)';
+await execute(python, ['-c', extract, archive, recovery]);
+await writeFile(path.join(recovery, 'package.json'), '{"type":"commonjs"}\n');
+const approved = path.join(temporary, 'approved');
+await cp(kit, path.join(approved, contract.brand.slug), { recursive: true });
+const proofNode = process.env.GALLERY_PROOF_NODE ?? path.join(root, '.local/tools/node-v24.11.0-win-x64/node.exe');
+const env = { ...environment, GP_NODE: proofNode, GP_APPROVED_PROOF_ROOT: approved };
+await execute(python, [path.join(recovery, 'templates/verify.py'), copy], { cwd: copy, env });
+await execute(python, [path.join(recovery, 'templates/validate_glyph.py'), path.join(copy, 'brand.json')], { cwd: copy, env });
+await verifyInstalled(path.join(root, 'brand'));
+console.log('Pinned kit and glyph checks passed through an isolated exact recovery; installed kit bytes unchanged.');

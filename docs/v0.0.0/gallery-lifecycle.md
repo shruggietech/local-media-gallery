@@ -28,6 +28,8 @@ flowchart TB
 
 An inaccessible child entry must be attributable without discarding successfully discovered siblings. The gallery must tolerate files disappearing, becoming unreadable or being replaced between enumeration and opening. The next valid observation governs whether an item can be loaded. In-progress copies must not be reported as permanently corrupt solely because the first read was incomplete.
 
+The current local browsing scope is direct regular-file image/video candidates, excluding subdirectories, linked descendants, dot-prefixed entries and Windows hidden/system/reparse entries. Recognized extensions nominate candidates; runtime decoding determines display/playback support. Names remain display data, with opaque native item identity. Notifications and periodic reconciliation refresh observations; file opens probe readability without decoding every original. Controls and media facts are session-only.
+
 **GL-03:** Directory traversal MUST terminate under the selected traversal policy and MUST NOT repeatedly follow a cycle. Recursion, external symlink traversal, nested galleries and mount boundaries require the explicit policy under U-03. An implementation must not accidentally decide those policies through the defaults of a filesystem library.
 
 ## Maintaining a current view
@@ -49,6 +51,8 @@ Preparing a gallery does not transfer ownership of its originals to the applicat
 **GL-06:** Renaming or moving the containing gallery directory MUST NOT require rebuilding a media manifest. Shared configuration and sidecar associations must be evaluated against the recipient's actual root. Missing caches can be rebuilt or bypassed. The recipient's application does not require access to the sender's per-user state.
 
 For example, a synthetic gallery containing `harbor.jpg`, `harbor.jpg_meta.json`, `clip.mp4` and optional settings can be extracted under a different parent directory and drive. Discovery should locate the current files. A later added `portrait.png` appears automatically; removing `clip.mp4` removes its available media entry without running a preparation command.
+
+On Windows, the current capability-relative access implementation holds the selected directory against rename/removal while open. Use **Close folder** or close the application before moving it. Reopening the new location discovers the current contents and retires former-session resource grants without a manifest.
 
 Temporary loss of a removable drive or network location is not proof that the user's settings should be deleted. A session should show the unavailable root and allow a supported recovery path. Exact network/removable-drive guarantees and reconnection behavior are U-03; ordinary root relocation remains required.
 

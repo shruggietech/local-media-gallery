@@ -6,7 +6,7 @@ The gallery presents discovered images and videos as individually inspectable it
 
 **BP-01:** Users MUST be able to sort and filter by media type. Sorting must have a deterministic tie-breaker so repeated refreshes do not arbitrarily reorder equivalent items. Available criteria must identify whether values come from current file observations or optional metadata. A field's absence must be handled consistently without hiding the item.
 
-The initial direction includes filename-based browsing and practical file properties such as dates, size, dimensions and duration where available. Exact sort choices, collation, missing-value placement, default direction and additional sidecar-derived filters remain U-05. The interface must not label a sidecar timestamp as a current filesystem timestamp without attribution.
+The local interface initially shows All media with filename ascending. All/Images/Videos filters and filename, modified-time and byte-size sorting are available in both directions. Filename ordering is case-insensitive and natural for numeric chunks, with exact names breaking ties. Missing facts sort last in both directions. Additional dimensions/duration/sidecar-derived sorting and filters remain U-05. A sidecar timestamp must not be labelled as a current filesystem timestamp without attribution.
 
 **BP-02:** A filter change or change in visible item count MUST retain a valid navigation state. If a previously selected page or position no longer exists, the interface must move to a defined valid state and show the resulting item count. No-match results must offer an understandable way to inspect or clear the active filters.
 
@@ -14,7 +14,7 @@ The initial direction includes filename-based browsing and practical file proper
 
 **BP-03:** Cards MUST accommodate media aspect ratios without unintended stretching. The gallery should obtain dimensions or useful placeholders early enough to reserve space, then replace placeholders without losing the user's location. Portrait, landscape, square and unusually long images must remain inspectable.
 
-The layout must work at narrow and wide window sizes, varying display scale and keyboard zoom. Card-size controls must describe a meaningful visual choice rather than exposing a hardcoded pixel value that breaks a small viewport. A justified-row layout, masonry arrangement or another aspect-aware strategy can satisfy the requirement if it preserves understandable ordering and keyboard navigation; the default layout is U-05.
+The local interface uses a responsive grid with stable row-by-row order, intrinsic media proportions and uncropped previews. The layout must work at narrow and wide window sizes, varying display scale and keyboard zoom. Future card-size controls must describe a meaningful visual choice rather than exposing a hardcoded pixel value that breaks a small viewport. Alternate layout and density controls remain U-05.
 
 Cropping for a preview, if offered, must be distinguishable from full-media viewing. The larger viewer must provide access to the full content and identify the current item. Metadata visibility must not depend solely on hover.
 
@@ -30,7 +30,7 @@ The information view must accommodate arbitrary nested sidecar content and selec
 
 An extension is a discovery hint, not proof of a codec. When a format cannot be displayed or played, the item should remain represented with an actionable explanation and inspectable information. Alternative opening or conversion actions require their own explicit behavior and remain U-04. The baseline does not promise every format accepted by an extension list will decode on every supported platform.
 
-Loading many videos must not automatically create an unbounded set of active decoders. Preview, animation and autoplay defaults, simultaneous playback policy and audio behavior remain U-05. Resource adaptation must not silently change a user's explicit playback choice or pretend a paused item has finished playing.
+Loading many videos must not automatically create an unbounded set of active decoders. Current cards use bounded viewport admission and media-type placeholders for video, with metadata probes for proportions. Playback starts only by user action in the selected viewer; closing it or replacing the item/root stops playback and releases its source. Native controls and a named Play/Pause action provide playback, with Previous/Next following the filtered order and Escape closing the viewer. Richer previews and autoplay preferences remain U-05. Resource adaptation must not silently change an explicit playback choice or pretend a paused item has finished playing.
 
 ## Interaction, accessibility and feedback
 

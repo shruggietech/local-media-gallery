@@ -6,7 +6,7 @@
 
 **Created**: 2026-10-21
 
-**Status**: Draft with proposed defaults; owner selected Windows-first native validation
+**Status**: Implemented locally under owner-authorized autopilot; Windows-first qualification recorded separately
 
 **Input**: Specify the first working gallery using Spec Kit, propose sensible defaults, flag required owner input before implementation, and keep everything local. The owner explicitly rejected testing on 1,000 images.
 
@@ -149,8 +149,12 @@ Persistent `settings.json`, installed AppData state/SQLite history, flexible sid
 - Q: Should S002 native acceptance start on Windows, or require native checks on all three product platforms? A: The owner selected "Windows first (recommended)." FR-023 and D-01 now use Windows-first native acceptance; Linux/macOS remain targets with runtime checks deferred.
 - The owner excluded testing on 1,000 images. A small functional fixture is the proposed alternative for this slice; no broader testing policy or product file-count limit is inferred.
 
+### Autopilot authorization 2026-10-21
+
+- The owner directed execution of S002 autonomously using Shruggie Spec Kit, with all work local. D-02 through D-14 are adopted for this slice under that decision policy. They do not finalize deferred product behavior outside S002.
+
 ## Dependencies and readiness
 
 S001 supplied the public contract baseline and maintenance tools. The selected native/interface direction, delivered brand contract and hidden Windows process rules constrain later implementation. Exact library pins, repository app layout, transport messages and implementation tasks belong to the subsequent technical planning phase.
 
-No application code is authorized by this specification request. No further clarification is blocking specification completion. Technical planning follows this specification; implementation still requires owner direction on the proposed slice. The quality review is in [requirements checklist](checklists/requirements.md); current authoring checks are in [verification](verification.md). No remote, push, tag, release, site deployment or public tracking setup is included.
+The owner subsequently authorized S002 implementation through the Shruggie Spec Kit autopilot skill. The autopilot request authorizes routine decisions and implementation without inter-step approval. No clarification blocks the agreed slice. The quality review is in [requirements checklist](checklists/requirements.md); current authoring checks are in [verification](verification.md). No remote, push, tag, release, site deployment or public tracking setup is included.

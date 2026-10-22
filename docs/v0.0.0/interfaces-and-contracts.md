@@ -4,7 +4,7 @@
 
 The application exposes behavior through a command entry point, its native interface and native/frontend communication. Application-owned configuration and release artifacts also form contracts. **IF-01:** Equivalent actions MUST share the same gallery semantics regardless of entry point. Opening a directory through the command must not require a different media manifest from opening it through a native chooser.
 
-Exact executable names, subcommands, flags, numeric exit codes and message field names remain U-08. The operations below specify behavior, not an installed command reference.
+The local development executable is `local-media-gallery`, with an optional single directory argument, `--` for a dash-leading path, `--help` and `--version`. Invalid arguments exit with code 2. No directory opens an explicit selection screen. Full/Lite installation and preparation subcommands remain U-08; the operations below also describe those future capabilities.
 
 ## Command behavior
 
@@ -34,15 +34,15 @@ Long-running jobs require finite admission, observable progress and cancellation
 
 The media path should support bounded streaming and video byte-range seeking where required by the support contract. A generated URL or native resource reference is an implementation mechanism, not a portable media identifier that must be saved into `settings.json`. Closing a session must retire access that belongs only to that session.
 
-Transporting an entire large image or video as a JSON/base64 response should be avoided when a streaming resource can be used. The exact Tauri protocol or handler design is unresolved; its acceptance includes seeking, Unicode names, reserved URL characters and safe root resolution on all supported platforms.
+The local application serves originals through a private IPv4-loopback endpoint on an ephemeral port, with bounded streaming and exact single byte ranges. URLs contain opaque session, item and observation identifiers, with Host/Origin checks and no filename-as-authority route. The interface is bundled static content; recipients need neither Node nor a browser application. Closing/replacing a session retires its grants and active streams. These URLs are transient and MUST NOT be saved as portable references. Native seeking and filename handling require evidence on each declared runtime.
 
 ## Data contracts and versioning
 
 **IF-05:** Application-owned durable structures MUST have a declared format/version policy before release. The software, versioned documentation and master application JSON Schema must identify the same release when released together. A separate internal format revision may additionally identify migrations; it must not be confused with product or brand versions.
 
-External sidecars remain arbitrary JSON under [metadata and sidecars](metadata-and-sidecars.md). The future master schema may describe application envelopes, settings or artifact records with explicitly open metadata payloads. It must not require external documents to become gallery-owned records. No master application schema or finalized settings wire representation is introduced by this baseline.
+The [master application JSON Schema](../../schemas/v0.0.0/local-media-gallery.schema.json) uses Draft 2020-12, the identifier `urn:local-media-gallery:0.0.0`, and release version 0.0.0. It defines the current readonly session snapshot and media observations, including lossless decimal strings for byte sizes and timestamps, nullable unavailable facts and opaque identifiers. It does not define durable settings or sidecar content.
 
-When JSON Schema is adopted, its dialect, identifier scheme and validation behavior must be explicit; [JSON Schema's specifications](https://json-schema.org/draft/2020-12) provide a primary reference without selecting the dialect here. Examples must be validated against the exact schema snapshot they claim to illustrate.
+External sidecars remain arbitrary JSON under [metadata and sidecars](metadata-and-sidecars.md). The master schema must not require external documents to become gallery-owned records. [JSON Schema's specifications](https://json-schema.org/draft/2020-12) define the dialect. Runtime snapshots and examples must validate against their exact owned schema snapshot.
 
 **IF-06:** Boundary conversions MUST preserve exact values or explicitly encode them losslessly. Paths, timestamps, large integers, absent fields and null must not be flattened into convenient but inaccurate frontend values. Friendly formatting should remain separable from the underlying source value.
 
@@ -62,6 +62,6 @@ When JSON Schema is adopted, its dialect, identifier scheme and validation behav
 
 ## Open decisions
 
-U-08 owns concrete syntax, protocol layouts, session/process behavior, exact identifiers, error/exit codes and schema dialect. U-07 owns settings formats. Semantic requirements above constrain those designs; illustrative operation labels do not establish compatibility promises for an API that has not been finalized.
+U-08 retains Full/Lite command syntax, preparation/installation operations and broader error/exit-code compatibility. The current readonly snapshot and local opening syntax are defined above. U-07 owns durable settings formats. Semantic requirements above constrain future contracts.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).

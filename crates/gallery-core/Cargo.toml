@@ -1,0 +1,22 @@
+[package]
+name = "gallery-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+axum = "=0.8.9"
+cap-std = "=4.0.3"
+cap-fs-ext = "=4.0.3"
+futures-util = "0.3"
+notify = "8.2"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "net", "fs", "io-util", "sync", "time", "macros"] }
+tokio-util = { version = "0.7", features = ["io", "rt"] }
+uuid = { version = "=1.28.0", features = ["v4"] }
+
+[dev-dependencies]
+serde_json = "1.0"
+tempfile = "=3.27.0"
+tower = { version = "0.5", features = ["util"] }

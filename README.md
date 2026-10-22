@@ -6,20 +6,30 @@ Your media presented beautifully.
 
 ## Start here
 
-Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). The planned application uses Rust, Tauri and a static Next.js interface on Windows, Linux and macOS. A full installation provides system integration and persistent user state; lightweight Lite binaries provide on-demand gallery browsing and sharing. Platform installers, including MSI on Windows, are allowed. The documentation website will also use Next.js.
+Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). The local development application uses Rust, Tauri and a bundled static Next.js interface. It opens a directory through a native chooser or launch argument, discovers current direct image/video files, and supports sorting, filtering, viewing and file information. Browsing is readonly and preferences are session-only. Windows is the first native verification host; Linux and macOS remain product targets.
+
+Full installation, lightweight Lite sharing packages, persistent settings, sidecar inspection, optional thumbnails, and the independent landing page and versioned documentation website remain future work. No product package has been released.
 
 ## Local development
 
-Node.js 24 or newer runs the dependency-free repository tools. This does not select the application's runtime or framework.
+Use Node.js 24+, Rust 1.96.0 with the Windows MSVC build tools/SDK, Python 3.12+, FFmpeg for the small synthetic verification fixture, and the installed WebView2 runtime. Recipients do not need Node or a browser application to run the built native application. Installer and Lite prerequisite delivery remain separate work.
 
 ```text
 npm ci
+npm run prepare:local
 npm run check
 npm run check:docs
 npm test
+npm run build:app
+npm run check:app
+npm run qualify
 ```
 
-Spec Kit is installed with Codex skills under `.agents/skills/`, templates and Python helpers under `.specify/`, and a [project constitution](.specify/memory/constitution.md). Python 3.11 or newer is required for those helpers. Start feature work with `$speckit-specify` after agreeing the intended behavior, then clarify, plan, generate tasks and analyze before implementation. Internal planning lives in `specs/`.
+`prepare:local` creates an ignored Python environment and downloads an official checksum-verified Node 24.11.0 proof-tool runtime on Windows x64. These exact brand verification prerequisites are separate from the application build runtime. It does not install the product. `qualify` prepares both normal and instrumented local builds, then times the required checks and real native acceptance with twelve media candidates. Native testing briefly operates the application window and folder chooser. It does not use a personal media collection or establish large-collection performance.
+
+Launch the built application with `target/debug/local-media-gallery.exe`, optionally followed by one directory. With no directory it opens a selection screen. `npm run app -- DIRECTORY` rebuilds and runs it for development. Use **Close folder** before moving an open gallery on Windows; its directory capability deliberately holds the root while selected. No manifest needs rebuilding after reopening the moved directory.
+
+Spec Kit is installed with Codex skills under `.agents/skills/`, templates and Python helpers under `.specify/`, and a [project constitution](.specify/memory/constitution.md). Start feature work with `$speckit-specify` after agreeing the intended behavior, then clarify, plan, generate tasks and analyze before implementation. Internal planning lives in `specs/`.
 
 ## Brand maintenance
 

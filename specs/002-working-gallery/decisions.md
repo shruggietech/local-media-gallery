@@ -2,7 +2,7 @@
 
 **Date**: 2026-10-21
 
-**Status**: D-01 selected by the owner; D-02 through D-14 are proposals for review
+**Status**: D-01 selected by the owner; D-02 through D-14 adopted for S002 under owner-authorized autopilot
 
 **Specification**: [First working local gallery](spec.md)
 
@@ -31,7 +31,7 @@ The owner explicitly rejected testing on 1,000 images. This specification propos
 | D-13 | U-10, verification | Reuse a small fixture of twelve media candidates across scenarios, plus a few boundary entries. Keep playback clips short and assets generated or redistribution-permitted. Record functional observations; do not generate a large collection | Respects the owner's testing boundary while covering actual playback, paths, layout and failures. No owner personal collection or attended pre-release gate is required |
 | D-14 | U-01/U-02, packaging | Produce a local runnable development/release-mode application for the elected native environment, with bundled static interface assets. Report artifact/prerequisite observations if collected; do not build installers or market it as Full/Lite yet | Proves the host/interface boundary without adding install/uninstall/update/sharing workflows to the first implementation slice |
 
-D-01 records the owner's choice. The remaining proposals remain reversible during review. Later engineering choices must preserve the specified behavior and cannot silently turn an unresolved detail into an advertised product guarantee.
+D-01 records the owner's choice. The owner subsequently authorized autonomous S002 implementation; D-02 through D-14 are adopted as reversible slice defaults under that authorization. Later engineering choices must preserve the specified behavior and cannot silently turn an unresolved detail into an advertised product guarantee.
 
 ## Q-01: Native validation scope
 

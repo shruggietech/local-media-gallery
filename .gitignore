@@ -35,3 +35,11 @@ __pycache__/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Native and static interface outputs.
+/target/
+apps/gallery/.next/
+apps/gallery/out/
+apps/gallery/public/brand/
+apps/gallery/src-tauri/gen/
+*.tsbuildinfo
