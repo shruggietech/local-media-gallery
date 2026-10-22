@@ -26,6 +26,10 @@ Machine-readable output, if offered, must have a versioned documented representa
 
 The native boundary needs operations for root selection/opening, discovery/query results, item information, media access, settings resolution/saving and optional preparation jobs. Progress/events need an operation identity and ordering semantics sufficient to prevent stale UI state. A request timeout must not be interpreted as proof that native work has stopped.
 
+Opening and Refresh return their completed discovery snapshots, and native completion notifications synchronize explicitly initiated changes. Reading a snapshot returns cached observations and does not scan. The interface does not poll snapshots or schedule discovery. Session ordering must prevent an older completion from replacing a newer user selection.
+
+User preferences use `load_settings` and `save_settings`. Loading returns the validated `settings`, an opaque content `revision` and an optional `warning`. Saving supplies `settings` and `expectedRevision`, then returns the updated envelope. The native host owns the destination; the renderer does not provide an arbitrary file path. Stale revisions, unsupported documents and write failures are reported without truncating the prior file. See [configuration and state](configuration-and-state.md#current-user-preferences) for fields and persistence.
+
 Long-running jobs require finite admission, observable progress and cancellation. Totals may initially be unknown; the UI must not invent a completed percentage from an unmeasured total. A terminal outcome should identify what completed, failed or remains resumable. Exact IPC transport, batching, job persistence and identifiers are U-08.
 
 ## Media delivery and item references
@@ -40,7 +44,7 @@ The local application serves originals through a private IPv4-loopback endpoint 
 
 **IF-05:** Application-owned durable structures MUST have a declared format/version policy before release. The software, versioned documentation and master application JSON Schema must identify the same release when released together. A separate internal format revision may additionally identify migrations; it must not be confused with product or brand versions.
 
-The [master application JSON Schema](../../schemas/v0.0.0/local-media-gallery.schema.json) uses Draft 2020-12, the identifier `urn:local-media-gallery:0.0.0`, and release version 0.0.0. It defines the current readonly session snapshot and media observations, including lossless decimal strings for byte sizes and timestamps, nullable unavailable facts and opaque identifiers. It does not define durable settings or sidecar content.
+The [master application JSON Schema](../../schemas/v0.0.0/local-media-gallery.schema.json) uses Draft 2020-12, the identifier `urn:local-media-gallery:0.0.0`, and release version 0.0.0. Its root defines the current readonly session snapshot and media observations, including lossless decimal strings for byte sizes and timestamps, nullable unavailable facts and opaque identifiers. Its `settings` definition describes the format-1 user preference document. The master schema does not constrain external sidecar content.
 
 External sidecars remain arbitrary JSON under [metadata and sidecars](metadata-and-sidecars.md). The master schema must not require external documents to become gallery-owned records. [JSON Schema's specifications](https://json-schema.org/draft/2020-12) define the dialect. Runtime snapshots and examples must validate against their exact owned schema snapshot.
 
@@ -62,6 +66,6 @@ External sidecars remain arbitrary JSON under [metadata and sidecars](metadata-a
 
 ## Open decisions
 
-U-08 retains Full/Lite command syntax, preparation/installation operations and broader error/exit-code compatibility. The current readonly snapshot and local opening syntax are defined above. U-07 owns durable settings formats. Semantic requirements above constrain future contracts.
+U-08 retains Full/Lite command syntax, preparation/installation operations and broader error/exit-code compatibility. The current readonly snapshot, preference boundary and local opening syntax are defined above. U-07 retains future portable settings and broader state formats. Semantic requirements above constrain future contracts.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "consumer": {
+    "brand": "localmedia-gallery",
+    "brand_version": "1.0.0"
+  },
+  "environment": {
+    "renderer": "web-react",
+    "host": "tauri"
+  },
+  "requirement": "Use a full-width media canvas with 12px content insets while preserving the existing AppFrame root scrolling, safe areas, titlebar avoidance, viewport behavior and focus ownership.",
+  "shared_concept": "Scrolling media canvas layout. Delivered contained AppFrame applies reading maxwidth1200 and 24px/48px gutters; full-bleed disables root/content overflow. Neither layout exposes bounded content insets for a full-width scrolling gallery.",
+  "evidence": [
+    "brand/kit/web/react/server.tsx: AppFrame contained/full-bleed API",
+    "brand/kit/web/components.css: contained reading gutters and full-bleed overflow rules",
+    "apps/gallery/src/app/gallery.css: Tauri contained-content geometry override",
+    "specs/003-responsive-gallery/plan.md#owner-refinement-after-native-candidate"
+  ],
+  "classification": "reusable-capability",
+  "upstream_resolution": null,
+  "submission_authorized": false
+}

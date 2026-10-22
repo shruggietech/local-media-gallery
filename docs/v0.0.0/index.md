@@ -41,9 +41,9 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 | U-02 | Full/Lite capability and dependency matrix beyond their agreed launch/state roles | [Overview](overview.md#open-decisions) |
 | U-03 | Default recursion, symlink traversal, nested galleries and network/removable-drive support boundaries | [Gallery lifecycle](gallery-lifecycle.md#open-decisions) |
 | U-04 | Tested image/video codecs, formats, orientation/color handling and unsupported-media actions | [Browsing and playback](browsing-and-playback.md#open-decisions) |
-| U-05 | Default card layout, sort/filter defaults, playback/preview behavior and keyboard bindings | [Browsing and playback](browsing-and-playback.md#open-decisions) |
+| U-05 | Richer preview/autoplay behavior and additional navigation/customization beyond the defined browsing defaults | [Browsing and playback](browsing-and-playback.md#open-decisions) |
 | U-06 | Sidecar matching precedence, directory-wide indexes, duplicate-key handling and curated field mappings | [Metadata and sidecars](metadata-and-sidecars.md#open-decisions) |
-| U-07 | Settings representation/precedence, exact user directories, SQLite adoption, decay and migrations | [Configuration and state](configuration-and-state.md#open-decisions) |
+| U-07 | Future portable settings and state-scope precedence, history/cache locations, SQLite adoption, decay and migrations | [Configuration and state](configuration-and-state.md#open-decisions) |
 | U-08 | Executable/subcommand names, exact exit codes, IPC layouts, identifiers and application-schema dialect | [Interfaces and contracts](interfaces-and-contracts.md#open-decisions) |
 | U-09 | Thumbnail encoders, video frame selection, portable cache placement and optional media-tool distribution | [Thumbnails and performance](thumbnails-and-performance.md#open-decisions) |
 | U-10 | Benchmark fixtures, reference hardware, time/memory/package budgets and adaptation thresholds | [Thumbnails and performance](thumbnails-and-performance.md#open-decisions) |

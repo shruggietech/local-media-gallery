@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { root } from './run.mjs';
 
-export const evidenceExclusions = ['specs/002-working-gallery/verification.md', 'specs/002-working-gallery/tasks.md'];
+export const evidenceExclusions = ['specs/003-responsive-gallery/verification.md', 'specs/003-responsive-gallery/tasks.md'];
 export async function sourceIdentity() {
   const { stdout } = await promisify(execFile)('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, windowsHide: true, maxBuffer: 4 * 1024 * 1024 });
   const files = [...new Set(stdout.split('\0').filter(Boolean))].filter(file => !evidenceExclusions.includes(file)).sort();

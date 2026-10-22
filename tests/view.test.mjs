@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { viewItems, naturalCompare, reconcileSelection, mediaUrl, formatBytes } from '../apps/gallery/src/lib/view.ts';
+import { createAdmissionQueue } from '../apps/gallery/src/lib/admission.ts';
+import { viewItems, naturalCompare, reconcileSelection, mediaUrl, formatBytes, pageItems, masonryLayout } from '../apps/gallery/src/lib/view.ts';
 
 const item = (id, name, kind = 'image', size = '10', modifiedMs = '100') => ({
   id, name, kind, size, modifiedMs, revision: `rev-${id}`, relativePath: name,
@@ -42,4 +43,66 @@ test('media URLs contain only opaque session and item values', () => {
   const url = mediaUrl(snapshot, item('opaque', '<img # %.jpg'));
   assert.equal(url, 'http://127.0.0.1:1234/media/session-token/opaque/rev-opaque');
   assert.ok(!url.includes('img'));
+});
+
+
+test('paging follows full sorting/filtering and clamps empty and removed pages', () => {
+  const collection = Array.from({ length: 11 }, (_, i) => item(String(i), 'image'+i+'.jpg', i % 3 ? 'image' : 'video', String(i)));
+  const sorted = viewItems(collection, 'all', 'size', 'desc');
+  assert.deepEqual(pageItems(sorted, 2, 4).items.map(x => x.size), ['6', '5', '4', '3']);
+  assert.equal(pageItems(sorted, 99, 4).page, 3);
+  assert.equal(pageItems(sorted, -4, 4).page, 1);
+  assert.deepEqual(pageItems([], 8, 48), { items: [], page: 1, pages: 1, start: 0, end: 0 });
+  assert.equal(pageItems(viewItems(collection, 'video', 'size', 'desc'), 2, 4).page, 1);
+  for (const size of [4, 24, 48, 96]) assert.ok(pageItems(sorted, 1, size).items.length <= size);
+});
+
+test('masonry fills shortest columns without reordering and keeps exact gaps', () => {
+  const layout = masonryLayout(624, 200, [300, 100, 200, 60, 80, 90]);
+  assert.equal(layout.columns, 3);
+  assert.equal(layout.width, 200);
+  assert.deepEqual(layout.positions.map(p => p.column), [0, 1, 2, 1, 1, 2]);
+  assert.deepEqual(layout.positions.map(p => [p.x, p.y]), [[0,0], [212,0], [424,0], [212,112], [212,184], [424,212]]);
+  assert.equal(layout.height, 302);
+  assert.equal(masonryLayout(120, 200, [30,40]).positions[1].y, 42);
+  assert.deepEqual(masonryLayout(0, 200, []).positions, []);
+});
+
+test('combined media queue admits four deferred loads and releases cancellation before replacement', async () => {
+  const queue = createAdmissionQueue(4);
+  const pending = []; const controls = []; const sequence = [];
+  let live = 0; let peak = 0;
+  for (let i = 0; i < 9; i++) {
+    const deferred = Promise.withResolvers(); pending.push(deferred);
+    controls.push(queue.request(done => {
+      live += 1; peak = Math.max(peak, live); sequence.push('start'+i);
+      let active = true;
+      const finish = () => { if (active) { active = false; live -= 1; } };
+      void deferred.promise.then(() => { finish(); done(); });
+      return () => { sequence.push('cancel'+i); finish(); };
+    }));
+  }
+  assert.equal(live, 4); assert.equal(queue.snapshot().active, 4);
+  controls[0]();
+  assert.equal(live, 4);
+  assert.ok(sequence.indexOf('cancel0') < sequence.indexOf('start4'));
+  pending[1].resolve(); await Promise.resolve();
+  assert.equal(live, 4);
+  queue.cancelAll();
+  assert.equal(live, 0); assert.equal(queue.snapshot().active, 0);
+  assert.equal(queue.snapshot().pending, 0); assert.equal(peak, 4); assert.equal(queue.snapshot().peak, 4);
+  for (const deferred of pending) deferred.resolve(); await Promise.resolve();
+  assert.equal(live, 0, 'late responses must not reopen obsolete loads');
+  queue.request(() => { throw new Error('a disposed queue must not start'); });
+});
+
+test('queued visible work wins priority and queued cancellation never starts', () => {
+  const queue = createAdmissionQueue(1); const started = []; let release;
+  queue.request(done => { release = done; started.push('active'); return () => {}; });
+  const cancel = queue.request(() => { started.push('obsolete'); return () => {}; }, 0);
+  queue.request(() => { started.push('nearby'); return () => {}; }, 20);
+  queue.request(() => { started.push('visible'); return () => {}; }, 1);
+  cancel(); release();
+  assert.deepEqual(started, ['active', 'visible']);
+  queue.cancelAll();
 });

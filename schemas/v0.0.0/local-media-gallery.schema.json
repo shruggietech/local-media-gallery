@@ -134,6 +134,76 @@
           ]
         }
       }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "version",
+        "formatVersion",
+        "pageSize",
+        "cardSize",
+        "controlsExpanded",
+        "scrollIndicator",
+        "metadataExpanded",
+        "filter",
+        "sort",
+        "direction"
+      ],
+      "properties": {
+        "version": {
+          "const": "0.0.0"
+        },
+        "formatVersion": {
+          "const": 1
+        },
+        "pageSize": {
+          "enum": [
+            24,
+            48,
+            96
+          ]
+        },
+        "cardSize": {
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ]
+        },
+        "controlsExpanded": {
+          "type": "boolean"
+        },
+        "scrollIndicator": {
+          "enum": [
+            "auto",
+            "always"
+          ]
+        },
+        "metadataExpanded": {
+          "type": "boolean"
+        },
+        "filter": {
+          "enum": [
+            "all",
+            "image",
+            "video"
+          ]
+        },
+        "sort": {
+          "enum": [
+            "name",
+            "modified",
+            "size"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      }
     }
   }
 }

@@ -19,3 +19,12 @@ test('master snapshot contract preserves exact native integer facts and version 
     { ...snapshot, items: [{ ...snapshot.items[0], size: 9007199254740992 }] },
   ]) assert.equal(validate(changed), false);
 });
+
+const settings = {version:'0.0.0',formatVersion:1,pageSize:48,cardSize:'medium',controlsExpanded:false,scrollIndicator:'auto',metadataExpanded:false,filter:'all',sort:'name',direction:'asc'};
+test('master settings contract validates preferences and preserves compatible unknown fields', () => {
+  const ajv = new Ajv2020({strict:true}).addKeyword('x-release-version').addSchema(schema);
+  const valid = ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/settings'});
+  assert.ok(valid(settings), JSON.stringify(valid.errors));
+  assert.ok(valid({...settings,futurePreference:{enabled:true}}));
+  for(const changed of [{...settings,pageSize:4},{...settings,pageSize:1000},{...settings,metadataExpanded:'yes'},{...settings,formatVersion:2},{...settings,version:'0.0.1'},{...settings,sort:'random'}]) assert.equal(valid(changed),false);
+});

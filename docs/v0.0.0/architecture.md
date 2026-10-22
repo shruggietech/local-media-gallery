@@ -11,7 +11,7 @@ flowchart TB
   Host <--> UI[Bundled static Next.js interface]
   Host <--> Media[Selected media directory and JSON sidecars]
   Host <--> Settings[Portable settings or installed user state]
-  Host --> Workers[Bounded discovery and optional thumbnail work]
+  Host --> Workers[Requested discovery and bounded optional work]
   Workers --> Cache[Disposable derived cache]
   Reader[Website visitor] --> Landing[Independent landing page]
   Reader --> Docs[Versioned documentation]
@@ -39,7 +39,7 @@ An application's exported interface and the website may share brand bindings and
 
 **AR-04:** Current directory observations MUST govern item existence. Portable settings govern intentional shared presentation according to the eventual precedence contract. Sidecars contribute attributed metadata. Machine-local remembered paths assist installed use. Derived caches accelerate work and MUST NOT become the only source from which the collection can be reconstructed.
 
-The host assigns item references to a gallery session and resolves them to authorized filesystem resources. Sorting/filtering can operate over discovered records while visible media is loaded incrementally. The transport must avoid copying the entire collection's image/video bytes through ordinary JSON messages. Native media URLs or an equivalent bounded streaming mechanism are specified through [interfaces and contracts](interfaces-and-contracts.md).
+The host assigns item references to a gallery session and resolves them to authorized filesystem resources. Opening and explicit Refresh produce the authoritative discovery snapshot; idle background scanning and collection polling are disabled. Sorting/filtering operate over that complete discovered record set before bounded pagination, while visible media loads on demand. The transport must avoid copying the entire collection's image/video bytes through ordinary JSON messages. Native media URLs or an equivalent bounded streaming mechanism are specified through [interfaces and contracts](interfaces-and-contracts.md).
 
 Paths must retain their native meaning. Presentation-friendly separators, URI encoding and canonical filesystem identity are different operations. Replacing a drive prefix or applying string substitutions is not sufficient path handling.
 

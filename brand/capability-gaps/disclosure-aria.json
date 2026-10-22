@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "consumer": {
+    "brand": "localmedia-gallery",
+    "brand_version": "1.0.0"
+  },
+  "environment": {
+    "renderer": "web-react",
+    "host": "tauri"
+  },
+  "requirement": "Disclosure controls must expose aria-expanded and aria-controls while using the governed Button. A narrow local typed wrapper forwards the two standard native attributes without disabling any rule.",
+  "shared_concept": "Native accessibility attribute enforcement parity: Button extends ButtonHTMLAttributes and spreads props, but generated legacy ESLint Button allow-list omits disclosure ARIA names.",
+  "evidence": [
+    "brand/kit/web/react/server.tsx: Button native attribute contract",
+    "brand/kit/enforcement/eslint.brand.mjs: Button prop allow-list",
+    "apps/gallery/src/app/gallery.tsx: typed DisclosureButton"
+  ],
+  "classification": "reusable-capability",
+  "upstream_resolution": null,
+  "submission_authorized": false
+}

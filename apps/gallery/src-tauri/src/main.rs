@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+mod settings;
 use gallery_core::{Engine, GalleryError, Snapshot};
-use std::{ffi::OsString, path::PathBuf, sync::Mutex};
-use tauri::{Manager, State, WebviewWindow};
+use settings::{SettingsEnvelope, SettingsStore};
+use std::{
+    ffi::OsString,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+use tauri::{Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 struct Runtime {
     engine: Engine,
     startup_error: Mutex<Option<String>>,
     transport_error: Mutex<Option<String>>,
+    publication: Mutex<()>,
 }
 enum Launch {
     Gallery(Option<PathBuf>),
@@ -76,6 +83,38 @@ fn current(runtime: &Runtime) -> Snapshot {
     }
     snapshot
 }
+fn publish(app: &tauri::AppHandle, runtime: &Runtime) -> Snapshot {
+    let _order = runtime.publication.lock().unwrap();
+    let snapshot = current(runtime);
+    let _ = app.emit("gallery-changed", snapshot.clone());
+    snapshot
+}
+#[tauri::command]
+fn load_settings(
+    window: WebviewWindow,
+    settings: State<Arc<SettingsStore>>,
+) -> Result<SettingsEnvelope, GalleryError> {
+    main_window(&window)?;
+    Ok(settings.envelope())
+}
+#[tauri::command]
+async fn save_settings(
+    window: WebviewWindow,
+    store: State<'_, Arc<SettingsStore>>,
+    expected_revision: String,
+    settings: serde_json::Value,
+) -> Result<SettingsEnvelope, GalleryError> {
+    main_window(&window)?;
+    let store = Arc::clone(store.inner());
+    tauri::async_runtime::spawn_blocking(move || store.save(settings, &expected_revision))
+        .await
+        .map_err(|_| {
+            GalleryError::new(
+                "internal",
+                "Preferences could not be saved. Changes remain in memory.",
+            )
+        })?
+}
 #[tauri::command]
 fn startup(window: WebviewWindow, runtime: State<Runtime>) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
@@ -91,14 +130,15 @@ async fn open_gallery(
     window: WebviewWindow,
     runtime: State<'_, Runtime>,
     path: String,
+    app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
     let engine = runtime.engine.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || engine.open(&PathBuf::from(path)))
+    tauri::async_runtime::spawn_blocking(move || engine.open(&PathBuf::from(path)))
         .await
         .map_err(|_| GalleryError::new("internal", "Directory selection failed."))??;
     *runtime.startup_error.lock().unwrap() = None;
-    Ok(result)
+    Ok(publish(&app, &runtime))
 }
 #[tauri::command]
 async fn choose_directory(
@@ -122,32 +162,36 @@ async fn choose_directory(
         .into_path()
         .map_err(|_| GalleryError::new("invalid_root", "Choose a local directory."))?;
     let engine = runtime.engine.clone();
-    let snapshot = tauri::async_runtime::spawn_blocking(move || engine.open(&path))
+    tauri::async_runtime::spawn_blocking(move || engine.open(&path))
         .await
         .map_err(|_| GalleryError::new("internal", "Directory selection failed."))??;
     *runtime.startup_error.lock().unwrap() = None;
-    Ok(Some(snapshot))
+    Ok(Some(publish(&app, &runtime)))
 }
 #[tauri::command]
 async fn refresh(
     window: WebviewWindow,
     runtime: State<'_, Runtime>,
     session_id: String,
+    app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
     let engine = runtime.engine.clone();
     tauri::async_runtime::spawn_blocking(move || engine.refresh(&session_id))
         .await
-        .map_err(|_| GalleryError::new("internal", "Refresh failed."))?
+        .map_err(|_| GalleryError::new("internal", "Refresh failed."))??;
+    Ok(publish(&app, &runtime))
 }
 #[tauri::command]
 fn close_gallery(
     window: WebviewWindow,
     runtime: State<Runtime>,
     session_id: String,
-) -> Result<(), GalleryError> {
+    app: tauri::AppHandle,
+) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
-    runtime.engine.close(&session_id)
+    runtime.engine.close(&session_id)?;
+    Ok(publish(&app, &runtime))
 }
 
 fn main() {
@@ -165,6 +209,16 @@ fn main() {
         }
     };
     let engine = Engine::new();
+    let transport =
+        std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).and_then(|listener| {
+            listener.set_nonblocking(true)?;
+            engine.set_media_origin(format!("http://{}", listener.local_addr()?));
+            Ok(listener)
+        });
+    let transport_error = transport.as_ref().err().map(|error| {
+        format!("Local media transport failed: {error}. Restart the application to retry.")
+    });
+    let listener = transport.ok();
     let error = initial.and_then(|path| engine.open(&path).err().map(|e| e.message));
     let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
     #[cfg(feature = "native-tests")]
@@ -173,39 +227,46 @@ fn main() {
         .manage(Runtime {
             engine,
             startup_error: Mutex::new(error),
-            transport_error: Mutex::new(None),
+            transport_error: Mutex::new(transport_error),
+            publication: Mutex::new(()),
         })
         .invoke_handler(tauri::generate_handler![
             startup,
             snapshot,
+            load_settings,
+            save_settings,
             open_gallery,
             choose_directory,
             refresh,
             close_gallery
         ])
-        .setup(|app| {
-            let engine = app.state::<Runtime>().engine.clone();
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(error) = gallery_core::serve_media(engine).await {
-                    *handle.state::<Runtime>().transport_error.lock().unwrap() = Some(format!(
-                        "Local media transport failed: {error}. Restart the application to retry."
-                    ));
+        .setup(move |app| {
+            let settings = match app.path().app_config_dir() {
+                Ok(directory) => {
+                    #[cfg(feature = "native-tests")]
+                    let directory = std::env::var_os("GALLERY_TEST_SETTINGS_DIR").map(PathBuf::from).unwrap_or(directory);
+                    #[cfg(feature = "native-tests")]
+                    let page_four = std::env::var("GALLERY_TEST_PAGE_SIZE").as_deref() == Ok("4");
+                    #[cfg(not(feature = "native-tests"))]
+                    let page_four = false;
+                    SettingsStore::load(directory.join("settings.json"), page_four)
                 }
-            });
-            let engine = app.state::<Runtime>().engine.clone();
-            tauri::async_runtime::spawn(async move {
-                loop {
-                    let current = engine.clone();
-                    if tauri::async_runtime::spawn_blocking(move || current.reconcile())
-                        .await
-                        .is_err()
-                    {
-                        break;
+                Err(error) => SettingsStore::unavailable(format!("The user settings directory is unavailable: {error}. Preferences remain in memory.")),
+            };
+            app.manage(Arc::new(settings));
+            if let Some(listener) = listener {
+                let engine = app.state::<Runtime>().engine.clone();
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(error) = gallery_core::serve_media_listener(engine, listener).await {
+                        let runtime = handle.state::<Runtime>();
+                        *runtime.transport_error.lock().unwrap() = Some(format!(
+                            "Local media transport failed: {error}. Restart the application to retry."
+                        ));
+                        publish(&handle, &runtime);
                     }
-                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                }
-            });
+                });
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

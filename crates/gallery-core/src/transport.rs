@@ -66,6 +66,15 @@ pub async fn serve_media(engine: Engine) -> std::io::Result<()> {
     engine.set_media_origin(format!("http://{host}"));
     axum::serve(listener, media_router(engine, host)).await
 }
+/// Serve a listener bound by the host before its initial UI snapshot.
+pub async fn serve_media_listener(
+    engine: Engine,
+    listener: std::net::TcpListener,
+) -> std::io::Result<()> {
+    let host = listener.local_addr()?.to_string();
+    let listener = tokio::net::TcpListener::from_std(listener)?;
+    axum::serve(listener, media_router(engine, host)).await
+}
 fn allowed_origin(origin: &str) -> bool {
     matches!(
         origin,

@@ -23,7 +23,7 @@ No file-count cap, media-content eligibility rule, account requirement or arbitr
 
 ### Explore a directory
 
-An installed user invokes the application with a directory, or chooses one through the application. The gallery discovers its contents and makes available items browsable while discovery progresses. Sorting, filtering, inspection and playback operate against the current collection. Remembered choices may be reapplied according to [configuration and state](configuration-and-state.md).
+An installed user invokes the application with a directory, or chooses one through the application. The gallery discovers its contents and makes available items browsable while discovery progresses. Sorting, filtering, inspection and playback operate against the last requested discovery result. Explicit Refresh updates additions, removals and changed observations while the gallery is open; no background scanning runs. Remembered choices may be reapplied according to [configuration and state](configuration-and-state.md).
 
 **OV-03:** The user MUST be able to distinguish an empty directory from an incomplete scan, an inaccessible directory and a filter yielding no matches. A missing or malformed sidecar MUST NOT make otherwise usable media disappear.
 
@@ -31,7 +31,7 @@ An installed user invokes the application with a directory, or chooses one throu
 
 A sender optionally prepares gallery-local settings, generates thumbnails and includes native Lite applications for selected recipient platforms. They share the media directory. A recipient extracts it and opens the appropriate launcher on a supported host. Relative gallery relationships and fresh discovery replace dependence on the sender's machine-local history.
 
-**OV-04:** Moving a gallery MUST NOT require manual regeneration of the media listing. The recipient MUST NOT need the sender's username, absolute directory path or remembered-location database. Adding or removing media MUST be reflected without rerunning a generator. [Gallery lifecycle](gallery-lifecycle.md) owns the detailed behavior.
+**OV-04:** Moving a gallery MUST NOT require manual regeneration of the media listing. The recipient MUST NOT need the sender's username, absolute directory path or remembered-location database. Adding or removing media MUST be reflected by opening or explicitly refreshing the gallery without rerunning a generator. [Gallery lifecycle](gallery-lifecycle.md) owns the detailed behavior.
 
 ### Install for continued use
 

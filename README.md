@@ -6,9 +6,9 @@ Your media presented beautifully.
 
 ## Start here
 
-Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). The local development application uses Rust, Tauri and a bundled static Next.js interface. It opens a directory through a native chooser or launch argument, discovers current direct image/video files, and supports sorting, filtering, viewing and file information. Browsing is readonly and preferences are session-only. Windows is the first native verification host; Linux and macOS remain product targets.
+Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). The local development application uses Rust, Tauri and a bundled static Next.js interface. It opens a directory through a native chooser or launch argument, discovers current direct image/video files, and supports sorting, filtering, viewing and file information. Browsing is readonly. Opening and explicit **Refresh** discover files; no background scanning runs. The interface uses bounded pages, tightly packed aspect-aware columns, a compact collapsible toolbar, and a focused viewer whose information panel starts collapsed. View choices, including information disclosure, save immediately in per-user `settings.json` beneath the platform application configuration directory (AppData on Windows). Windows is the first native verification host; Linux and macOS remain product targets.
 
-Full installation, lightweight Lite sharing packages, persistent settings, sidecar inspection, optional thumbnails, and the independent landing page and versioned documentation website remain future work. No product package has been released.
+Full installation, lightweight Lite sharing packages, portable gallery settings, remembered-directory history, sidecar inspection, optional thumbnails, adaptive calibration, and the independent landing page and versioned documentation website remain future work. No product package has been released.
 
 ## Local development
 
@@ -27,7 +27,9 @@ npm run qualify
 
 `prepare:local` creates an ignored Python environment and downloads an official checksum-verified Node 24.11.0 proof-tool runtime on Windows x64. These exact brand verification prerequisites are separate from the application build runtime. It does not install the product. `qualify` prepares both normal and instrumented local builds, then times the required checks and real native acceptance with twelve media candidates. Native testing briefly operates the application window and folder chooser. It does not use a personal media collection or establish large-collection performance.
 
-Launch the built application with `target/debug/local-media-gallery.exe`, optionally followed by one directory. With no directory it opens a selection screen. `npm run app -- DIRECTORY` rebuilds and runs it for development. Use **Close folder** before moving an open gallery on Windows; its directory capability deliberately holds the root while selected. No manifest needs rebuilding after reopening the moved directory.
+Launch the built application with `target/debug/local-media-gallery.exe`, optionally followed by one directory. With no directory it opens a selection screen. `npm run app -- DIRECTORY` rebuilds and runs it for development. Use **Close folder** before moving an open gallery on Windows; its directory capability deliberately holds the root while selected. No manifest needs rebuilding after reopening the moved directory. Select **Refresh** to discover additions, removals and changed files in an already open gallery.
+
+Pages default to 48 items, with 24 and 96 available under view settings. Sorting and filtering apply to the whole discovered collection. Gallery media work is suspended while an asset is focused, and expanding information keeps that media mounted and preserves playback. User preferences are global for now; no settings are written into the media directory. Malformed or unsupported settings remain intact with a visible warning and usable in-memory defaults.
 
 Spec Kit is installed with Codex skills under `.agents/skills/`, templates and Python helpers under `.specify/`, and a [project constitution](.specify/memory/constitution.md). Start feature work with `$speckit-specify` after agreeing the intended behavior, then clarify, plan, generate tasks and analyze before implementation. Internal planning lives in `specs/`.
 

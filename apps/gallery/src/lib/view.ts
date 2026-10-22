@@ -46,3 +46,25 @@ export function formatModified(value: string | null): string {
   if (integer < -8640000000000000n || integer > 8640000000000000n) return `${value} ms since Unix epoch`;
   return new Date(Number(integer)).toLocaleString(undefined, { timeZoneName: 'short' });
 }
+
+export function pageItems<T>(items: T[], requested: number, size: number): { items: T[]; page: number; pages: number; start: number; end: number } {
+  const count = Math.max(1, Math.trunc(size) || 1);
+  const pages = Math.max(1, Math.ceil(items.length / count));
+  const page = Math.min(pages, Math.max(1, Math.trunc(requested) || 1));
+  const offset = (page - 1) * count;
+  return { items: items.slice(offset, offset + count), page, pages, start: items.length ? offset + 1 : 0, end: Math.min(offset + count, items.length) };
+}
+
+export function masonryLayout(width: number, minimum: number, heights: number[], gap = 12) {
+  const available = Math.max(0, width);
+  const columns = Math.max(1, Math.floor((available + gap) / (Math.max(1, minimum) + gap)));
+  const cardWidth = Math.max(0, (available - gap * (columns - 1)) / columns);
+  const offsets = Array<number>(columns).fill(0);
+  const positions = heights.map(height => {
+    const column = offsets.indexOf(Math.min(...offsets));
+    const position = { x: column * (cardWidth + gap), y: offsets[column], column };
+    offsets[column] += Math.max(0, height) + gap;
+    return position;
+  });
+  return { columns, width: cardWidth, positions, height: Math.max(0, ...offsets) - (heights.length ? gap : 0) };
+}

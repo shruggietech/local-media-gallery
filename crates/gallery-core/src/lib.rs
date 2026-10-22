@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Readonly gallery sessions. Display labels never authorize filesystem access.
 mod transport;
-pub use transport::{byte_range, media_router, serve_media};
+pub use transport::{byte_range, media_router, serve_media, serve_media_listener};
 
 use cap_fs_ext::{FollowSymlinks, OpenOptionsFollowExt};
 use cap_std::{
     ambient_authority,
     fs::{Dir, OpenOptions},
 };
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     ffi::OsString,
     fmt,
     fs::File,
@@ -87,8 +86,7 @@ struct Session {
     issues: Vec<String>,
     revision: u64,
     cancel: CancellationToken,
-    dirty: Arc<Mutex<HashSet<OsString>>>,
-    _watcher: Option<RecommendedWatcher>,
+    items: Vec<MediaItem>,
 }
 #[derive(Default)]
 struct Hub {
@@ -206,23 +204,6 @@ impl Engine {
                 format!("Cannot list this directory: {e}"),
             )
         })?;
-        let dirty = Arc::new(Mutex::new(HashSet::new()));
-        let changes = dirty.clone();
-        let watcher =
-            notify::recommended_watcher(move |event: Result<notify::Event, notify::Error>| {
-                if let Ok(event) = event
-                    && (event.kind.is_modify() || event.kind.is_create() || event.kind.is_remove())
-                {
-                    let mut set = changes.lock().unwrap();
-                    for p in event.paths {
-                        if let Some(name) = p.file_name() {
-                            set.insert(name.to_os_string());
-                        }
-                    }
-                }
-            })
-            .ok()
-            .and_then(|mut w| w.watch(&root, RecursiveMode::NonRecursive).ok().map(|_| w));
         let mut hub = self.inner.hub.lock().unwrap();
         if self.inner.intent.load(Ordering::SeqCst) != intent {
             return Err(GalleryError::new(
@@ -233,8 +214,9 @@ impl Engine {
         if let Some(old) = hub.session.take() {
             old.cancel.cancel();
         }
+        let id = opaque();
         hub.session = Some(Session {
-            id: opaque(),
+            id: id.clone(),
             root,
             dir: Arc::new(dir),
             entries: HashMap::new(),
@@ -242,11 +224,11 @@ impl Engine {
             issues: vec![],
             revision: 0,
             cancel: CancellationToken::new(),
-            dirty,
-            _watcher: watcher,
+            items: vec![],
         });
         drop(hub);
-        Ok(self.snapshot())
+        self.reconcile(&id)?;
+        self.current_session(&id)
     }
     pub fn close(&self, id: &str) -> Result<(), GalleryError> {
         let mut hub = self.inner.hub.lock().unwrap();
@@ -262,14 +244,19 @@ impl Engine {
         }
     }
     pub fn refresh(&self, id: &str) -> Result<Snapshot, GalleryError> {
-        if self.snapshot().session_id.as_deref() != Some(id) {
-            return Err(GalleryError::new(
+        self.reconcile(id)?;
+        self.current_session(id)
+    }
+    fn current_session(&self, id: &str) -> Result<Snapshot, GalleryError> {
+        let snapshot = self.snapshot();
+        if snapshot.session_id.as_deref() == Some(id) {
+            Ok(snapshot)
+        } else {
+            Err(GalleryError::new(
                 "stale_session",
                 "This gallery session has ended.",
-            ));
+            ))
         }
-        self.reconcile();
-        Ok(self.snapshot())
     }
     pub fn snapshot(&self) -> Snapshot {
         let hub = self.inner.hub.lock().unwrap();
@@ -288,33 +275,30 @@ impl Engine {
             snapshot.root = Some(s.root.to_string_lossy().into_owned());
             snapshot.status = s.status.clone();
             snapshot.revision = s.revision.to_string();
-            snapshot.items = s.entries.values().map(|e| e.item.clone()).collect();
-            snapshot
-                .items
-                .sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+            snapshot.items = s.items.clone();
             snapshot.issues = s.issues.clone();
         }
         snapshot
     }
-    pub fn reconcile(&self) {
-        let Ok(_scan) = self.inner.scan.try_lock() else {
-            return;
-        };
-        let (id, root, dir, old, dirty, cancel) = {
+    fn reconcile(&self, expected_id: &str) -> Result<(), GalleryError> {
+        let _scan = self.inner.scan.lock().unwrap();
+        let (id, root, dir, old, cancel) = {
             let hub = self.inner.hub.lock().unwrap();
-            let Some(s) = &hub.session else {
-                return;
-            };
+            let s = hub
+                .session
+                .as_ref()
+                .filter(|s| s.id == expected_id)
+                .ok_or_else(|| {
+                    GalleryError::new("stale_session", "This gallery session has ended.")
+                })?;
             (
                 s.id.clone(),
                 s.root.clone(),
                 s.dir.clone(),
                 s.entries.clone(),
-                s.dirty.clone(),
                 s.cancel.clone(),
             )
         };
-        let touched = std::mem::take(&mut *dirty.lock().unwrap());
         let mut next = HashMap::new();
         let mut issues = vec![];
         let entries = dir.entries();
@@ -322,7 +306,10 @@ impl Engine {
         if !unavailable {
             for entry in entries.unwrap() {
                 if cancel.is_cancelled() {
-                    return;
+                    return Err(GalleryError::new(
+                        "stale_session",
+                        "This gallery session has ended.",
+                    ));
                 }
                 let entry = match entry {
                     Ok(e) => e,
@@ -367,9 +354,7 @@ impl Engine {
                     }
                 }
                 let prior = old.get(&name);
-                if let Some(prior) =
-                    prior.filter(|e| e.signature == signature && !touched.contains(&name))
-                {
+                if let Some(prior) = prior.filter(|e| e.signature == signature) {
                     next.insert(name, prior.clone());
                     continue;
                 }
@@ -404,9 +389,10 @@ impl Engine {
             );
         }
         let mut hub = self.inner.hub.lock().unwrap();
-        let Some(s) = hub.session.as_mut().filter(|s| s.id == id) else {
-            return;
-        };
+        let s =
+            hub.session.as_mut().filter(|s| s.id == id).ok_or_else(|| {
+                GalleryError::new("stale_session", "This gallery session has ended.")
+            })?;
         let status = if unavailable {
             "unavailable"
         } else if issues.is_empty() {
@@ -428,6 +414,9 @@ impl Engine {
                     prior.cancel.cancel();
                 }
             }
+            s.items = next.values().map(|entry| entry.item.clone()).collect();
+            s.items
+                .sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
             s.entries = next;
         }
         s.status = status.into();
@@ -435,6 +424,7 @@ impl Engine {
         if changed {
             s.revision += 1;
         }
+        Ok(())
     }
     pub fn open_media(
         &self,

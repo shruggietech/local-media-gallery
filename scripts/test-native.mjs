@@ -5,18 +5,21 @@ import { readFile, readdir, writeFile, mkdir, mkdtemp, copyFile, rename, rm } fr
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import Ajv from 'ajv/dist/2020.js';
+import { viewItems } from '../apps/gallery/src/lib/view.ts';
 import { root, execute, environment } from './run.mjs';
 
 if (process.platform !== 'win32') throw new Error('Native acceptance currently requires Windows.');
 const started = new Date();
 const fixture = JSON.parse(await readFile(path.join(root, '.local/native-fixture.json')));
 const validate = new Ajv({ strict: true }).addKeyword('x-release-version').compile(JSON.parse(await readFile(path.join(root, 'schemas/v0.0.0/local-media-gallery.schema.json'))));
+const settingsDirectory = await mkdtemp(path.join(root, '.local/native-settings-'));
+const settingsFile = path.join(settingsDirectory, 'settings.json');
 const binary = process.env.GALLERY_TEST_BINARY ?? path.join(root, 'target/debug/local-media-gallery.exe');
 const port = 44000 + Math.floor(Math.random() * 10000);
 const origin = `http://127.0.0.1:${port}`;
 let diagnostics = '';
 function launch(args) {
-  const app = spawn(binary, args, { cwd: root, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...environment, TAURI_WEBDRIVER_PORT: String(port) } });
+  const app = spawn(binary, args, { cwd: root, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), GALLERY_TEST_SETTINGS_DIR: settingsDirectory, GALLERY_TEST_PAGE_SIZE: "4" } });
   app.stdout.on('data', b => { diagnostics += b; }); app.stderr.on('data', b => { diagnostics += b; });
   app.on('error', error => { diagnostics += error.message; });
   return app;
@@ -39,7 +42,7 @@ async function request(route, body, method = body === undefined ? 'GET' : 'POST'
 const js = (script, args = []) => request(`/session/${session}/execute/sync`, { script, args });
 const snapshot = () => js('return await window.__TAURI_INTERNALS__.invoke("snapshot")');
 const visible = script => until(() => js(`return Boolean(${script})`), script);
-const click = text => js('const b=[...document.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0]); if(!b)throw Error("Missing button "+arguments[0]); b.click(); return true;', [text]);
+const click = text => js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b)throw Error("Missing button "+arguments[0]); b.click(); return true;', [text]);
 const open = name => js('const card=[...document.querySelectorAll(".media-card")].find(c=>c.dataset.name===arguments[0]); if(!card)throw Error("Missing card"); card.querySelector("button").click(); return true;', [name]);
 const select = (id, value) => js('const el=document.getElementById(arguments[0]); el.value=arguments[1]; el.dispatchEvent(new Event("change",{bubbles:true})); return true;', [id, value]);
 const input = (action, extra = []) => execute('C:/Program Files/PowerShell/7/pwsh.exe', ['-NoProfile', '-NonInteractive', '-File', path.join(root, 'scripts/native-input.ps1'), '-AppProcessId', String(child.pid), '-Action', action, ...extra]);
@@ -78,6 +81,14 @@ try {
     await js('await document.fonts.ready; return true;');
     assert.ok(await js('return Array.from(document.fonts).filter(f=>f.status==="loaded").length>=3'));
   });
+  await test('focused information starts collapsed and gallery media is suspended', async () => {
+    await open('image2.jpg'); await visible('document.querySelector("dialog")?.open');
+    assert.equal(await js('return [...document.querySelectorAll("dialog button")].find(b=>b.textContent.trim()==="Information").getAttribute("aria-expanded")'),'false');
+    assert.equal(await js('return document.querySelector(".item-facts") === null'), true, 'Metadata must be collapsed initially');
+    assert.equal(await js('return document.querySelectorAll(".media-card img, .media-card video, .metadata-probe").length'), 0);
+    assert.equal(await js('return [...document.querySelectorAll("dialog button")].every(b=>{const h=b.getBoundingClientRect().height;return h>=30&&h<=35})'),true,'Compact viewer buttons');
+    await click('Close viewer');
+  });
   await test('native folder picker cancellation preserves session', async () => {
     const before = await snapshot();
     await js('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Choose folder").focus(); return true;');
@@ -85,7 +96,10 @@ try {
     await visible('!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.includes("Choose folder")).disabled');
     assert.equal((await snapshot()).sessionId, before.sessionId);
   });
+  await click('Show controls');
   await test('sorting, filters and scoped empty state', async () => {
+    const fieldHeights=await js('return [...document.querySelectorAll(".collection-controls select")].map(el=>el.getBoundingClientRect().height)');
+    assert.equal(fieldHeights.length,3);assert.ok(fieldHeights.every(h=>h>=30&&h<=35),JSON.stringify(fieldHeights));
     const names = await js('return Array.from(document.querySelectorAll(".media-card")).map(c=>c.dataset.name)');
     assert.ok(names.indexOf('image2.jpg') < names.indexOf('image10.jpg'));
     await select('media-filter', 'video'); await visible('document.querySelectorAll(".media-card").length===2');
@@ -108,9 +122,12 @@ try {
     await select('media-sort', 'name'); await select('media-direction', 'asc');
   });
   await test('native image decoding, EXIF orientation and per-item information', async () => {
+    let firstInformation=true;
     for (const [name, dimensions] of Object.entries(fixture.expected.stills)) {
       await open(name); await visible('document.querySelector("dialog img")?.naturalWidth>0');
       assert.deepEqual(await js('const i=document.querySelector("dialog img"); return [i.naturalWidth,i.naturalHeight]'), dimensions);
+      if(firstInformation){await click('Information');firstInformation=false;assert.equal(await js('return [...document.querySelectorAll("dialog button")].find(b=>b.textContent.trim()==="Information").getAttribute("aria-expanded")'),'true');}
+      else assert.equal(await js('return Boolean(document.querySelector(".item-facts"))'),true,'Disclosure stays open across assets');
       assert.ok((await js('return document.querySelector(".item-facts").textContent')).includes(dimensions.join(' × ')));
       await click('Close viewer');
       const ratio = await js('const c=Array.from(document.querySelectorAll(".media-card")).find(c=>c.dataset.name===arguments[0]).querySelector(".media-surface").getBoundingClientRect(); return c.width/c.height;', [name]);
@@ -127,6 +144,14 @@ try {
     await visible('document.querySelector("dialog video")?.currentTime>0.15 && !document.querySelector("dialog video").paused');
     assert.equal(await js('return document.querySelector("dialog video").muted'), false);
     await js('const c=document.createElement("canvas"); c.width=32; c.height=18; c.getContext("2d").drawImage(document.querySelector("dialog video"),0,0,32,18); window.__nativeFrame=c.toDataURL(); return true;');
+    await js('window.__focusedNode=document.querySelector("dialog video");window.__focusedTime=window.__focusedNode.currentTime;return true;');
+    const beforeWidth=await js('return document.querySelector(".viewer-media").getBoundingClientRect().width');
+    const wasOpen=await js('return Boolean(document.querySelector(".item-facts"))');
+    await click('Information'); await pause(180);
+    assert.equal(await js('return document.querySelector("dialog video")===window.__focusedNode && !window.__focusedNode.paused && window.__focusedNode.currentTime>window.__focusedTime'),true);
+    const afterWidth=await js('return document.querySelector(".viewer-media").getBoundingClientRect().width');
+    assert.ok(wasOpen?afterWidth>beforeWidth:afterWidth<beforeWidth,'Information must resize canvas');
+    assert.equal(await js('return document.querySelectorAll(".media-card img,.media-card video,.metadata-probe").length'),0);
     await click('Pause'); assert.equal(await js('return document.querySelector("dialog video").paused'), true);
     await js('document.querySelector("dialog video").currentTime=2; return true;');
     await visible('Math.abs(document.querySelector("dialog video").currentTime-2)<0.2 && !document.querySelector("dialog video").seeking');
@@ -166,19 +191,29 @@ try {
     assert.equal((await fetch(url, { headers: { origin: 'https://outside.invalid' } })).status, 403);
     assert.equal((await fetch(url, { headers: { range: 'bytes=999999999-' } })).status, 416);
   });
-  await test('observed create, same-path replacement, removal and stale viewer cleanup', async () => {
+  await test('manual create, replacement, removal and stale viewer cleanup', async () => {
     const added = path.join(fixture.directory, 'temporary.jpg');
+    const baseline = await snapshot(); await pause(300);
+    await js('window.__idleCommands=[];window.__originalInvoke=window.__TAURI_INTERNALS__.invoke;window.__TAURI_INTERNALS__.invoke=(cmd,...args)=>{window.__idleCommands.push(cmd);return window.__originalInvoke(cmd,...args)};return true;');
     try {
-      await copyFile(path.join(fixture.directory, 'image2.jpg'), added); await until(() => js('return document.querySelectorAll(".media-card").length===13'), 'Observed addition', 5000);
+      await copyFile(path.join(fixture.directory, 'image2.jpg'), added);
+      await pause(1600);
+      assert.deepEqual(await js('return window.__idleCommands'),[],'Idle product must issue no native polling commands');
+      await js('window.__TAURI_INTERNALS__.invoke=window.__originalInvoke;return true;');
+      assert.equal((await snapshot()).revision, baseline.revision, 'Idle changes must not discover files');
+      assert.equal(await js('return document.querySelectorAll(".media-card").length'),12);
+      await click('Refresh'); await visible('document.querySelectorAll(".media-card").length===13');
       const before = await snapshot(); const old = before.items.find(i => i.name === 'temporary.jpg'); await open('temporary.jpg');
-      await copyFile(path.join(fixture.directory, 'A equal.jpg'), added);
-      await until(async () => (await snapshot()).items.find(i => i.name === 'temporary.jpg')?.revision !== old.revision, 'Native replacement revision', 5000);
-      await rm(added); await until(() => js('return document.querySelectorAll(".media-card").length===12 && !document.querySelector("dialog")'), 'Observed removal', 5000);
-      const stale = await fetch(`${before.mediaOrigin}/media/${before.sessionId}/${old.id}/${old.revision}`); assert.equal(stale.status, 404);
+      await copyFile(path.join(fixture.directory, 'A equal.jpg'), added); await pause(1200);
+      assert.equal((await snapshot()).items.find(i=>i.name==='temporary.jpg').revision,old.revision);
       await click('Refresh');
-      await visible('!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Refresh").disabled');
-      assert.equal((await snapshot()).items.length, 12);
-    } finally { await rm(added, { force: true }); }
+      await until(async () => (await snapshot()).items.find(i => i.name === 'temporary.jpg')?.revision !== old.revision, 'Manual replacement revision');
+      assert.equal(await js('return Boolean(document.querySelector("dialog"))'),true,'Existing selected item remains open');
+      await rm(added); await pause(1200); assert.equal((await snapshot()).items.length,13);
+      await click('Refresh'); await visible('document.querySelectorAll(".media-card").length===12 && !document.querySelector("dialog")');
+      const stale = await fetch(before.mediaOrigin+'/media/'+before.sessionId+'/'+old.id+'/'+old.revision); assert.equal(stale.status,404);
+      assert.equal((await snapshot()).items.length,12);
+    } finally { await rm(added,{force:true}); }
   });
   await test('native chooser selects empty directory and invalid selection preserves it', async () => {
     const empty = await mkdtemp(path.join(root, '.local/empty-'));
@@ -189,7 +224,8 @@ try {
     assert.equal((await snapshot()).sessionId, before.sessionId);
     await select('media-filter', 'video'); await visible('document.body.textContent.includes("No media found")');
     await copyFile(path.join(fixture.directory, 'image2.jpg'), path.join(empty, 'only-image.jpg'));
-    await visible('document.body.textContent.includes("No media match this filter")');
+    await pause(1200); assert.equal((await snapshot()).items.length,0);
+    await click('Refresh'); await visible('document.body.textContent.includes("No media match this filter")');
     await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [fixture.directory]);
     await visible('document.querySelectorAll(".media-card").length===2'); await select('media-filter', 'all');
   });
@@ -204,6 +240,62 @@ try {
     await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [fixture.directory]);
     await visible('document.querySelectorAll(".media-card").length===12');
   });
+  await test('bounded pagination, full sorting, cross-page viewer and geometry', async () => {
+    await click('Settings'); await select('page-size','4');
+    await visible('document.querySelectorAll(".media-card").length===4');
+    await select('media-sort','size'); await select('media-direction','desc');
+    const all=viewItems((await snapshot()).items,'all','size','desc');
+    const pageNames=()=>js('return [...document.querySelectorAll(".media-card")].map(c=>c.dataset.name)');
+    const first=await pageNames();
+    assert.deepEqual(first,all.slice(0,4).map(i=>i.name));
+    const admission=await js('const g=document.querySelector(".media-grid");return {active:Number(g.dataset.activeLoads),peak:Number(g.dataset.peakLoads)}');
+    assert.ok(admission.active<=4 && admission.peak<=4 && admission.peak>0,JSON.stringify(admission));
+    await click('Next page'); await visible('document.querySelectorAll(".media-card")[0]?.dataset.name!=='+JSON.stringify(first[0]));
+    const second=await pageNames();
+    assert.deepEqual(second,all.slice(4,8).map(i=>i.name));
+    await select('media-sort','name'); await select('media-direction','asc');
+    const cards=await pageNames(); await open(cards[3]); await click('Next');
+    assert.equal(await js('return document.querySelectorAll(".media-card img,.media-card video,.metadata-probe").length'),0);
+    const focusedName=await js('return document.querySelector("dialog h2").textContent');
+    assert.ok(!cards.includes(focusedName),'Viewer Next must cross page boundary');
+    await click('Close viewer'); await visible('!document.querySelector("dialog")');
+    await until(()=>js('return document.activeElement?.closest(".media-card")?.dataset.name===arguments[0]',[focusedName]),'Focused card restored across page');
+    assert.equal((await pageNames()).length,4);
+    await js('document.getElementById("page-jump").focus();return true;');
+    await input('keys',['-Keys','^a3{ENTER}']);
+    await until(()=>js('return document.getElementById("page-jump").value==="3"'),'Keyboard page jump');
+    const nameOrder=viewItems((await snapshot()).items,'all','name','asc');
+    assert.deepEqual(await pageNames(),nameOrder.slice(8,12).map(i=>i.name));
+    await select('page-size','48'); await select('media-sort','name'); await select('media-direction','asc');
+    await visible('document.querySelectorAll(".media-card").length===12');
+    await click('Hide controls');
+    await pause(300);
+    const geometry=await js('const bar=document.querySelector(".app-header").getBoundingClientRect();const grid=document.querySelector(".media-grid");const cards=[...grid.querySelectorAll(".media-card")].map(c=>{const r=c.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}});return {barHeight:bar.height,buttonHeights:[...document.querySelectorAll(".app-header button,.collection-navigation button")].map(b=>b.getBoundingClientRect().height),gap:getComputedStyle(grid).gap,cards,scrollbar:getComputedStyle(document.querySelector(".bb-app-frame__scroll")).scrollbarWidth}');
+    assert.ok(geometry.barHeight>=44 && geometry.barHeight<=49,JSON.stringify(geometry));
+    assert.ok(geometry.buttonHeights.every(h=>h>=30 && h<=35),JSON.stringify(geometry.buttonHeights));
+    assert.equal(geometry.scrollbar,'none');
+    const columns=new Map();
+    for(const card of geometry.cards){const key=Math.round(card.x);const col=columns.get(key)||[];col.push(card);columns.set(key,col);}
+    for(const col of columns.values()){col.sort((a,b)=>a.y-b.y);for(let i=1;i<col.length;i++) assert.ok(Math.abs(col[i].y-(col[i-1].y+col[i-1].h)-12)<2,'Vertical gap12');}
+    const xs=[...columns.keys()].sort((a,b)=>a-b);if(xs.length>1)assert.ok(Math.abs(xs[1]-xs[0]-columns.get(xs[0])[0].w-12)<2,'Horizontal gap12');
+    assert.ok(new Set(geometry.cards.map(c=>Math.round(c.y))).size>Math.ceil(geometry.cards.length/Math.max(1,xs.length)),'Masonry has staggered positions');
+    const beforeScroll=await js('const s=document.querySelector(".bb-app-frame__scroll");s.scrollTop=0;s.tabIndex=-1;s.focus();return s.scrollTop;');
+    await input('keys',['-Keys','{PGDN}']);
+    assert.ok(await js('return document.querySelector(".bb-app-frame__scroll").scrollTop>arguments[0]',[beforeScroll]),'Trusted PageDown scrolls gallery');
+    await visible('document.querySelector(".scroll-indicator")?.dataset.visible==="true"');
+    await pause(1200);assert.equal(await js('return document.querySelector(".scroll-indicator")?.dataset.visible'), 'false');
+    await click('Show controls');
+  });
+  await test('information persists immediately and survives restart',async()=>{
+    await open('image2.jpg');
+    if(await js('return !document.querySelector(".item-facts")')) await click('Information');
+    await until(async()=>JSON.parse(await readFile(settingsFile)).metadataExpanded===true,'Immediate information save');
+    await stop(); child=launch([fixture.directory]); await connect();
+    await visible('document.querySelectorAll(".media-card").length===12');
+    await open('image2.jpg'); await visible('document.querySelector(".item-facts")');
+    await click('Information'); await until(async()=>JSON.parse(await readFile(settingsFile)).metadataExpanded===false,'Immediate disclosure close save');
+    await click('Close viewer');
+  });
   await test('responsive native AppFrame and source integrity', async () => {
     await writeFile(path.join(root, '.local/native-gallery-wide.png'), Buffer.from(await request(`/session/${session}/screenshot`), 'base64'));
     await request(`/session/${session}/window/rect`, { width: 600, height: 720 });
@@ -211,6 +303,30 @@ try {
     const png = await request(`/session/${session}/screenshot`);
     await writeFile(path.join(root, '.local/native-gallery.png'), Buffer.from(png, 'base64'));
     await unchanged();
+  });
+  await test('all view preferences restore and invalid/write-failed state is observable',async()=>{
+    if(await js('return !document.getElementById("media-filter")')) await click('Show controls');
+    if(await js('return !document.getElementById("page-size")')) await click('Settings');
+    await select('page-size','24');await select('card-size','small');await select('scroll-indicator','always');
+    await select('media-filter','image');await select('media-sort','size');await select('media-direction','desc');
+    await click('Hide controls');
+    const wanted={pageSize:24,cardSize:'small',scrollIndicator:'always',filter:'image',sort:'size',direction:'desc',controlsExpanded:false};
+    await until(async()=>{const saved=JSON.parse(await readFile(settingsFile));return Object.entries(wanted).every(([k,v])=>saved[k]===v)},'All preferences saved before restart');
+    await stop();child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===10');
+    assert.ok(await js('return [...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="Show controls")'));
+    await click('Show controls');await click('Settings');
+    assert.ok(await js('return [...document.querySelectorAll(".settings-panel select")].every(el=>{const h=el.getBoundingClientRect().height;return h>=30&&h<=35})'),'Compact settings dropdowns');
+    for(const [id,value]of [['page-size','24'],['card-size','small'],['scroll-indicator','always'],['media-filter','image'],['media-sort','size'],['media-direction','desc']])assert.equal(await js('return document.getElementById(arguments[0]).value',[id]),value);
+    await select('media-filter','all');await select('media-sort','name');await select('media-direction','asc');await select('page-size','48');await select('card-size','medium');await select('scroll-indicator','auto');
+    await until(async()=>{const s=JSON.parse(await readFile(settingsFile));return s.filter==='all'&&s.sort==='name'&&s.direction==='asc'&&s.pageSize===48&&s.cardSize==='medium'&&s.scrollIndicator==='auto'&&s.controlsExpanded},'Restored normal test preferences');
+    const valid=await readFile(settingsFile);
+    await stop();await writeFile(settingsFile,'{broken');child=launch([fixture.directory]);await connect();await visible('document.body.textContent.includes("settings file was preserved")');
+    await click('Show controls');await select('media-filter','image');await pause(200);
+    assert.equal(await readFile(settingsFile,'utf8'),'{broken');assert.equal(await js('return document.querySelectorAll(".media-card").length'),10);
+    await stop();await writeFile(settingsFile,valid);await rm(path.join(settingsDirectory,'settings.lock'),{force:true});await mkdir(path.join(settingsDirectory,'settings.lock'));
+    child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');await open('image2.jpg');await click('Information');
+    await visible('document.querySelector("dialog")?.textContent.includes("could not be saved")');assert.equal(await js('return Boolean(document.querySelector("dialog .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
+    await stop();await rm(path.join(settingsDirectory,'settings.lock'),{recursive:true});child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('no-argument startup is explicit selection; unavailable startup is recoverable', async () => {
     await stop(); child = launch([]); await connect();

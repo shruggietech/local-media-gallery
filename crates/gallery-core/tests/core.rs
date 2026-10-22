@@ -7,6 +7,32 @@ fn media(dir: &Path, name: &str) {
 }
 
 #[test]
+fn opening_discovers_without_a_background_worker_and_snapshots_are_cached() {
+    let dir = TempDir::new().unwrap();
+    media(dir.path(), "before.jpg");
+    let engine = Engine::new();
+    let first = engine.open(dir.path()).unwrap();
+    assert_eq!(first.status, "complete");
+    assert_eq!(first.items.len(), 1);
+    media(dir.path(), "after.png");
+    fs::remove_file(dir.path().join("before.jpg")).unwrap();
+    let cached = engine.snapshot();
+    assert_eq!(cached.revision, first.revision);
+    assert_eq!(cached.items[0].name, "before.jpg");
+    let refreshed = engine.refresh(first.session_id.as_ref().unwrap()).unwrap();
+    assert_eq!(refreshed.items.len(), 1);
+    assert_eq!(refreshed.items[0].name, "after.png");
+    assert_ne!(refreshed.revision, first.revision);
+    assert_eq!(
+        engine
+            .refresh(first.session_id.as_ref().unwrap())
+            .unwrap()
+            .revision,
+        refreshed.revision
+    );
+}
+
+#[test]
 fn discovery_is_direct_optional_and_preserves_sources() {
     let dir = TempDir::new().unwrap();
     media(dir.path(), "image2.jpg");
@@ -17,7 +43,9 @@ fn discovery_is_direct_optional_and_preserves_sources() {
     media(&dir.path().join("nested"), "child.png");
     let engine = Engine::new();
     engine.open(dir.path()).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     let snap = engine.snapshot();
     assert_eq!(snap.items.len(), 2);
     assert_eq!(snap.status, "complete");
@@ -36,7 +64,9 @@ fn root_replacement_revokes_old_grants_and_bad_selection_preserves_current() {
     media(b.path(), "b.png");
     let engine = Engine::new();
     engine.open(a.path()).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     let first = engine.snapshot();
     let item = &first.items[0];
     assert!(
@@ -47,7 +77,9 @@ fn root_replacement_revokes_old_grants_and_bad_selection_preserves_current() {
     assert!(engine.open(&a.path().join("missing")).is_err());
     assert_eq!(engine.snapshot().session_id, first.session_id);
     engine.open(b.path()).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     assert!(
         engine
             .open_media(first.session_id.as_ref().unwrap(), &item.id, &item.revision)
@@ -64,11 +96,15 @@ fn mutations_and_relocation_need_no_catalog() {
     media(&original, "frame.jpg");
     let engine = Engine::new();
     engine.open(&original).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     let first = engine.snapshot();
     let old = first.items[0].clone();
     fs::write(original.join("frame.jpg"), b"changed and longer image").unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     assert_ne!(engine.snapshot().items[0].revision, old.revision);
     assert!(
         engine
@@ -76,7 +112,9 @@ fn mutations_and_relocation_need_no_catalog() {
             .is_err()
     );
     fs::remove_file(original.join("frame.jpg")).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     assert!(engine.snapshot().items.is_empty());
     engine
         .close(engine.snapshot().session_id.as_ref().unwrap())
@@ -85,7 +123,9 @@ fn mutations_and_relocation_need_no_catalog() {
     fs::rename(&original, &relocated).unwrap();
     media(&relocated, "new.webp");
     engine.open(&relocated).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     assert_eq!(engine.snapshot().items[0].name, "new.webp");
 }
 
@@ -110,7 +150,9 @@ fn labels_are_data_and_identifiers_cannot_be_paths() {
     media(dir.path(), "snow # 100% 雪.png");
     let engine = Engine::new();
     engine.open(dir.path()).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     let snap = engine.snapshot();
     assert_eq!(snap.items[0].name, "snow # 100% 雪.png");
     for id in [
@@ -137,7 +179,9 @@ fn symlinks_are_neither_discovered_nor_opened_after_replacement() {
         .unwrap();
     let engine = Engine::new();
     engine.open(dir.path()).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     let s = engine.snapshot();
     assert_eq!(s.items.len(), 1);
     fs::remove_file(dir.path().join("one.jpg")).unwrap();
@@ -186,7 +230,9 @@ fn windows_denied_child_is_partial_and_recovers_without_losing_siblings() {
         .unwrap();
     let engine = Engine::new();
     engine.open(dir.path()).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     let partial = engine.snapshot();
     assert_eq!(partial.items.len(), 2);
     assert_eq!(partial.status, "partial");
@@ -214,7 +260,9 @@ fn windows_denied_child_is_partial_and_recovers_without_losing_siblings() {
             .is_ok()
     );
     drop(lock);
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     assert_eq!(engine.snapshot().status, "complete");
     assert!(engine.snapshot().items.iter().all(|i| i.issue.is_none()));
 }
@@ -253,7 +301,9 @@ fn windows_links_are_excluded_and_cannot_replace_a_resource_grant() {
     .expect("Windows native link security test needs file-symlink creation");
     let engine = Engine::new();
     engine.open(dir.path()).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     let snapshot = engine.snapshot();
     assert_eq!(snapshot.items.len(), 1);
     fs::remove_file(dir.path().join("one.jpg")).unwrap();
@@ -284,7 +334,9 @@ async fn native_transport_enforces_host_origin_grants_ranges_and_cancellation() 
     media(dir.path(), "bytes.jpg");
     let engine = Engine::new();
     engine.open(dir.path()).unwrap();
-    engine.reconcile();
+    engine
+        .refresh(engine.snapshot().session_id.as_ref().unwrap())
+        .unwrap();
     let snapshot = engine.snapshot();
     let item = &snapshot.items[0];
     let uri = format!(

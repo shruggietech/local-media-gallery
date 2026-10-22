@@ -38,15 +38,17 @@ Thumbnail files are derived data. Deleting a cache must not remove required sett
 
 **PF-04:** The application MUST provide an automatic loading strategy that adapts work to observed responsiveness and the media involved. It must account for the difference between discovering an item, rendering its card, decoding an image, preparing a video frame and running a video decoder. Adding more items must not require admitting all of these activities simultaneously.
 
-Useful signals include visible area, decode/read latency, outstanding work, frame responsiveness and recent task failures. Optional platform memory/device hints may assist but must not be the only basis for a strategy that must work across different webviews. Work queues and active decoder counts require finite bounds.
+The current baseline applies structural bounds: the selected page mounts at most 24, 48 or 96 cards, with 48 the default. Image load/decode and video metadata work share at most four concurrent gallery admissions. Visible or nearby cards receive priority; unchanged item revisions reuse known facts. Page, session and focused-view transitions cancel obsolete work and unload sources. During focused viewing there are no background gallery media elements or metadata probes. These bounds do not establish a measured frame-rate or memory guarantee.
+
+More extensive responsiveness-based calibration remains future work. Useful signals include visible area, decode/read latency, outstanding work, frame responsiveness and recent task failures. Optional platform memory/device hints may assist but must not be the only basis for a strategy that must work across different webviews. Work queues and active decoder counts require finite bounds.
 
 A manual presentation/performance choice should remain available. **PF-05:** Adaptation MUST preserve the user's valid selection and browsing position and must not silently replace explicit settings with permanent device-specific values. Changing render overscan or prefetch work is distinct from unpredictably moving the user between pages. A portable automatic-mode choice should trigger fresh measurements on the recipient's machine.
 
 ## Discovery and metadata work
 
-Discovery should prioritize useful incremental observations rather than waiting for every optional metadata read. Metadata parsing and field projection need bounded work for large JSON documents. Expensive optional facts should not block basic filenames/type information for the rest of the collection.
+Discovery runs only on opening a directory or explicit Refresh, with no idle scanning or snapshot polling. This is separate from demand-driven reads for visible cards and the focused asset. Discovery should prioritize useful incremental observations rather than waiting for every optional metadata read. Metadata parsing and field projection need bounded work for large JSON documents. Expensive optional facts should not block basic filenames/type information for the rest of the collection.
 
-The core must reject stale results after gallery, filter or source-generation changes. Concurrency should be bounded at the shared backend resource boundary, not independently multiplied by each frontend component. Thousands of cards should not imply thousands of retained decoded originals or active file handles.
+The application must reject stale results after gallery, filter or source-generation changes. Concurrency should be bounded at the shared backend resource boundary, not independently multiplied by each frontend component. Thousands of cards should not imply thousands of retained decoded originals or active file handles.
 
 ## Measurement contract
 

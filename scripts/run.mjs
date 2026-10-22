@@ -2,15 +2,17 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { access, readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const app = path.join(root, 'apps/gallery');
 const localPython = path.join(root, '.local/python', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 export const python = process.env.PYTHON ?? (existsSync(localPython) ? localPython : 'python');
+const workspaceTemp = path.join(root, '.local/tmp');
+if (process.platform === 'win32') await mkdir(workspaceTemp, { recursive: true });
 export const environment = {
-  ...process.env, CI: 'true', NEXT_TELEMETRY_DISABLED: '1', npm_config_yes: 'false',
+  ...process.env, ...(process.platform === 'win32' ? { TMP: workspaceTemp, TEMP: workspaceTemp } : {}), CI: 'true', NEXT_TELEMETRY_DISABLED: '1', npm_config_yes: 'false',
   NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --require="${path.join(root, 'scripts/hide-console.cjs').replaceAll('\\', '/')}"`.trim(),
 };
 export function execute(file, args, options = {}) {

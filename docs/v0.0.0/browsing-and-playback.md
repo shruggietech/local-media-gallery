@@ -6,21 +6,27 @@ The gallery presents discovered images and videos as individually inspectable it
 
 **BP-01:** Users MUST be able to sort and filter by media type. Sorting must have a deterministic tie-breaker so repeated refreshes do not arbitrarily reorder equivalent items. Available criteria must identify whether values come from current file observations or optional metadata. A field's absence must be handled consistently without hiding the item.
 
-The local interface initially shows All media with filename ascending. All/Images/Videos filters and filename, modified-time and byte-size sorting are available in both directions. Filename ordering is case-insensitive and natural for numeric chunks, with exact names breaking ties. Missing facts sort last in both directions. Additional dimensions/duration/sidecar-derived sorting and filters remain U-05. A sidecar timestamp must not be labelled as a current filesystem timestamp without attribution.
+On first use the local interface shows All media with filename ascending. Explicit filter and sort choices are retained as global user preferences. All/Images/Videos filters and filename, modified-time and byte-size sorting are available in both directions. Filename ordering is case-insensitive and natural for numeric chunks, with exact names breaking ties. Missing facts sort last in both directions. Additional dimensions/duration/sidecar-derived sorting and filters remain U-05. A sidecar timestamp must not be labelled as a current filesystem timestamp without attribution.
 
-**BP-02:** A filter change or change in visible item count MUST retain a valid navigation state. If a previously selected page or position no longer exists, the interface must move to a defined valid state and show the resulting item count. No-match results must offer an understandable way to inspect or clear the active filters.
+**BP-02:** A filter change or change in visible item count MUST retain a valid navigation state. The entire discovered collection is sorted and filtered before pagination. The default page contains at most 48 cards, with 24 and 96 available as user preferences. Previous/Next page controls and a labelled page jump expose the current page and total. Sort, filter and page-size changes return to page one; refresh clamps a page that no longer exists. Empty results retain one valid page and show an explicit empty state. No-match results must offer an understandable way to inspect or clear the active filters.
 
 ## Cards and layout
 
 **BP-03:** Cards MUST accommodate media aspect ratios without unintended stretching. The gallery should obtain dimensions or useful placeholders early enough to reserve space, then replace placeholders without losing the user's location. Portrait, landscape, square and unusually long images must remain inspectable.
 
-The local interface uses a responsive grid with stable row-by-row order, intrinsic media proportions and uncropped previews. The layout must work at narrow and wide window sizes, varying display scale and keyboard zoom. Future card-size controls must describe a meaningful visual choice rather than exposing a hardcoded pixel value that breaks a small viewport. Alternate layout and density controls remain U-05.
+The local interface packs cards into the shortest available column, using intrinsic media proportions and uncropped previews. Horizontal and vertical gaps are 12 logical pixels at normal scale. Cards keep their logical sorted order in the document and keyboard sequence even though their vertical positions differ. Placeholder proportions may change when dimensions arrive, while the layout retains the user's valid position. Small, medium and large card-size preferences adjust the useful column width; the number of columns responds to available space. Narrow windows, display scaling and keyboard zoom must keep controls reachable and avoid horizontal overflow.
 
-Cropping for a preview, if offered, must be distinguishable from full-media viewing. The larger viewer must provide access to the full content and identify the current item. Metadata visibility must not depend solely on hover.
+Cropping for a preview, if offered, must be distinguishable from full-media viewing. The focused viewer must provide access to the full content and identify the current item. Metadata visibility must not depend solely on hover.
+
+The normal toolbar targets approximately 48 logical pixels in height and prioritizes folder identity, essential actions and a control expansion action. Fine-pointer desktop buttons and fields target approximately 32 logical pixels with restrained padding and icons. Coarse or mixed touch input retains at least 44 logical pixel targets; text scaling can increase controls naturally. Secondary controls are collapsed on first use. Enlarged text and narrow windows may increase its height to retain accessible controls. View settings expose page size, card size, control expansion and scrolling-indicator mode.
+
+The media canvas uses the available width with 12 logical pixel inner gutters. AppFrame owns gallery scrolling. The native gallery scrollbar and its reserved gutter are hidden. A non-interactive on-brand position indicator appears while scrolling and hides after idle by default; an always-visible preference is available. Wheel, touch and keyboard scrolling remain operational, visible keyboard focus remains available and reduced motion suppresses decorative fading.
 
 ## Item information
 
 **BP-04:** Every media item MUST expose an information view. Basic information includes the current filename, gallery-relative location, detected media category and whatever file/media facts could be obtained. The interface must identify unavailable values and the source of sidecar values. Optional fields must not be a condition for opening the information view.
+
+The focused asset is the dominant content. Information is collapsed on first use and opened through a labelled toggle that exposes its expanded state. Expanding information resizes the available asset canvas without cropping the content or replacing the active media element. A playing video must retain its playback position through the toggle. Disclosure is saved immediately as a global user preference and remains in that state through asset navigation, viewer reopening and application restart until explicitly changed. A save failure must remain visible while the current choice stays usable in memory.
 
 The information view must accommodate arbitrary nested sidecar content and selectable field inclusion as defined in [metadata and sidecars](metadata-and-sidecars.md). A compact card can show chosen summary fields while the details view retains access to the remaining values. Unknown fields must not be dropped merely because there is no curated label for them.
 
@@ -30,7 +36,9 @@ The information view must accommodate arbitrary nested sidecar content and selec
 
 An extension is a discovery hint, not proof of a codec. When a format cannot be displayed or played, the item should remain represented with an actionable explanation and inspectable information. Alternative opening or conversion actions require their own explicit behavior and remain U-04. The baseline does not promise every format accepted by an extension list will decode on every supported platform.
 
-Loading many videos must not automatically create an unbounded set of active decoders. Current cards use bounded viewport admission and media-type placeholders for video, with metadata probes for proportions. Playback starts only by user action in the selected viewer; closing it or replacing the item/root stops playback and releases its source. Native controls and a named Play/Pause action provide playback, with Previous/Next following the filtered order and Escape closing the viewer. Richer previews and autoplay preferences remain U-05. Resource adaptation must not silently change an explicit playback choice or pretend a paused item has finished playing.
+Loading many videos must not automatically create an unbounded set of active decoders. Only the active page mounts gallery cards. Visible and nearby cards share at most four concurrent image-load/decode or video-metadata admissions; cached unchanged facts can be reused. Video cards use placeholders and never autoplay. Leaving a page, changing sessions or opening the focused viewer cancels obsolete work and unloads media sources.
+
+While the focused viewer is open, gallery media elements and probes are absent. Playback starts only by user action in the selected viewer; closing it or replacing the item/root stops playback and releases its source. Native controls and a named Play/Pause action provide playback. Previous/Next follow the complete filtered sort order across page boundaries. Closing restores the corresponding gallery page and focused card. Escape closes the viewer. Richer previews and autoplay preferences remain U-05. Resource adaptation must not silently change an explicit playback choice or pretend a paused item has finished playing.
 
 ## Interaction, accessibility and feedback
 
@@ -42,6 +50,6 @@ The UI must distinguish loading, unsupported media, missing files and recoverabl
 
 ## Open decisions
 
-U-04 owns format/codec support, orientation and color behavior, and unsupported-media actions. U-05 owns layout, sort/filter defaults, preview/playback defaults and keyboard bindings. U-13 in [overview](overview.md#open-decisions) owns editing. Choosing a media library or layout dependency does not settle these choices by implication.
+U-04 owns format/codec support, orientation and color behavior, and unsupported-media actions. U-05 retains richer previews, autoplay policy and additional navigation/customization beyond the explicit defaults above. U-13 in [overview](overview.md#open-decisions) owns editing. Choosing a media library or layout dependency does not settle these choices by implication.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).

@@ -32,3 +32,22 @@ export interface MediaFacts {
   duration?: number;
   error?: string;
 }
+
+export interface ViewSettings {
+  version: '0.0.0';
+  formatVersion: 1;
+  pageSize: number;
+  cardSize: 'small' | 'medium' | 'large';
+  controlsExpanded: boolean;
+  scrollIndicator: 'auto' | 'always';
+  metadataExpanded: boolean;
+  filter: Filter;
+  sort: Sort;
+  direction: Direction;
+}
+export interface SettingsEnvelope {
+  settings: ViewSettings;
+  revision: string;
+  warning: string | null;
+  testPageSize?: 4;
+}

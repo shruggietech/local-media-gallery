@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "consumer": {
+    "brand": "localmedia-gallery",
+    "brand_version": "1.0.0"
+  },
+  "environment": {
+    "renderer": "web-react",
+    "host": "tauri"
+  },
+  "requirement": "Show an informational, non-interactive gallery scroll-position indicator during scrolling, idle-hidden by default with an always-visible preference, while AppFrame retains scrolling and focus ownership.",
+  "shared_concept": "Input-aware scroll-position indicator; delivered component recipes do not include a scrollbar or panning-indicator recipe.",
+  "evidence": [
+    "apps/gallery/src/app/gallery.tsx",
+    "apps/gallery/src/app/gallery.css",
+    "specs/003-responsive-gallery/spec.md#functional-requirements"
+  ],
+  "classification": "reusable-capability",
+  "upstream_resolution": null,
+  "submission_authorized": false
+}

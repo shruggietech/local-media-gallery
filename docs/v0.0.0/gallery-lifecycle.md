@@ -17,7 +17,7 @@ flowchart TB
   Access -->|No| Explain[Show access or missing-directory result]
   Access -->|Yes| Scan[Discover current entries incrementally]
   Scan --> Present[Present available items and scan progress]
-  Present --> Change[Observe changes or request refresh]
+  Present --> Change[User requests Refresh]
   Change --> Reconcile[Reconcile directory observations]
   Reconcile --> Present
   Present --> Close[Close or replace session]
@@ -28,15 +28,17 @@ flowchart TB
 
 An inaccessible child entry must be attributable without discarding successfully discovered siblings. The gallery must tolerate files disappearing, becoming unreadable or being replaced between enumeration and opening. The next valid observation governs whether an item can be loaded. In-progress copies must not be reported as permanently corrupt solely because the first read was incomplete.
 
-The current local browsing scope is direct regular-file image/video candidates, excluding subdirectories, linked descendants, dot-prefixed entries and Windows hidden/system/reparse entries. Recognized extensions nominate candidates; runtime decoding determines display/playback support. Names remain display data, with opaque native item identity. Notifications and periodic reconciliation refresh observations; file opens probe readability without decoding every original. Controls and media facts are session-only.
+The current local browsing scope is direct regular-file image/video candidates, excluding subdirectories, linked descendants, dot-prefixed entries and Windows hidden/system/reparse entries. Recognized extensions nominate candidates; runtime decoding determines display/playback support. Names remain display data, with opaque native item identity. Discovery runs only when opening a directory or explicitly selecting **Refresh**. There are no background watchers, periodic directory scans or collection-snapshot polling. File/media access requested for a visible card or focused asset can still occur without a directory scan. File opens probe readability without decoding every original. View preferences persist in the user configuration file; current media facts are cached within the session.
 
 **GL-03:** Directory traversal MUST terminate under the selected traversal policy and MUST NOT repeatedly follow a cycle. Recursion, external symlink traversal, nested galleries and mount boundaries require the explicit policy under U-03. An implementation must not accidentally decide those policies through the defaults of a filesystem library.
 
 ## Maintaining a current view
 
-**GL-04:** Additions, removals and relevant file changes MUST be discoverable without manual manifest regeneration. While a gallery remains open, the application must update its view automatically using notifications, reconciliation or their combination. A user-triggered refresh provides recovery and must not be the only intended response to ordinary directory changes.
+**GL-04:** Additions, removals and relevant file changes MUST be discoverable without manual manifest regeneration. Opening a directory and user-initiated **Refresh** MUST reconcile current directory observations. An open gallery MUST NOT scan automatically in the background. Its displayed collection remains the last requested discovery result until the user refreshes or reopens it.
 
-Filesystem notifications are observations that may be delayed, coalesced or missed. Opening/reopening and recovery from a lost watcher must reconcile against directory contents. A refresh must converge even if the previous cache was created elsewhere or there was no previous cache. Completion indicators must distinguish an initial scan from a later reconciliation.
+Refresh must converge even if there is no previous cache or the gallery moved. Refresh requests are serialized; completion applies only to the session that requested the work. Completion indicators must distinguish initial discovery from a later refresh and describe partial or failed results. A requested media read can fail if a file changed after discovery; show the item failure and offer Refresh without silently starting a scan.
+
+Automatic refresh remains a possible future advanced setting and must default off if introduced. It is not an available setting in the current interface.
 
 Changes invalidate affected derived data and sidecar associations. The application should preserve selection and browsing position when the selected item still exists. When it disappears, the interface explains the change and chooses a documented neighboring or empty state rather than retaining a playable-looking dead entry.
 
@@ -50,7 +52,7 @@ Preparing a gallery does not transfer ownership of its originals to the applicat
 
 **GL-06:** Renaming or moving the containing gallery directory MUST NOT require rebuilding a media manifest. Shared configuration and sidecar associations must be evaluated against the recipient's actual root. Missing caches can be rebuilt or bypassed. The recipient's application does not require access to the sender's per-user state.
 
-For example, a synthetic gallery containing `harbor.jpg`, `harbor.jpg_meta.json`, `clip.mp4` and optional settings can be extracted under a different parent directory and drive. Discovery should locate the current files. A later added `portrait.png` appears automatically; removing `clip.mp4` removes its available media entry without running a preparation command.
+For example, a synthetic gallery containing `harbor.jpg`, `harbor.jpg_meta.json`, `clip.mp4` and optional settings can be extracted under a different parent directory and drive. Discovery should locate the current files. After adding `portrait.png` or removing `clip.mp4`, selecting Refresh updates the available entries without running a preparation command.
 
 On Windows, the current capability-relative access implementation holds the selected directory against rename/removal while open. Use **Close folder** or close the application before moving it. Reopening the new location discovers the current contents and retires former-session resource grants without a manifest.
 

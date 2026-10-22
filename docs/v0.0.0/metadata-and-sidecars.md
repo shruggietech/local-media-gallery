@@ -45,7 +45,7 @@ This example does not establish required keys, casing, types or nesting. A futur
 
 Current file facts and sidecar-reported facts may disagree. Both can be useful, and the interface must attribute them. A stale stored path must not override the active gallery root. A timestamp must retain its source and available offset/unit information; an ambiguous value must not be silently interpreted as a verified capture date.
 
-**MD-05:** A sidecar change MUST invalidate affected metadata views and derived sort/filter values. The application must avoid applying results from an older sidecar read after a newer read has completed. File deletion, replacement and partial writes must be recoverable without corrupting the rest of the gallery.
+**MD-05:** A sidecar change observed during opening or explicit Refresh MUST invalidate affected metadata views and derived sort/filter values. Sidecar inspection must follow the manual discovery policy rather than introduce a background scan. The application must avoid applying results from an older sidecar read after a newer read has completed. File deletion, replacement and partial writes must be recoverable without corrupting the rest of the gallery.
 
 ## Parsing, limits and source preservation
 

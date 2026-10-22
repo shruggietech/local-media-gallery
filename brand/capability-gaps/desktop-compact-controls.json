@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "consumer": {
+    "brand": "localmedia-gallery",
+    "brand_version": "1.0.0"
+  },
+  "environment": {
+    "renderer": "web-react",
+    "host": "tauri"
+  },
+  "requirement": "Owner-observed native controls must become substantially smaller. Fine-pointer desktop buttons, inputs and selects use 32px minimum geometry with existing token spacing/radius; coarse or mixed pointer capability keeps at least 44px targets. This owner-authorized product override supersedes the pinned 44px invariant for precise desktop input.",
+  "shared_concept": "Compact desktop control density. Recipes list comfortable/compact densities, but delivered Button/IconButton/FormControls expose no density API and generated CSS fixes 44px minimum targets with 12px/16px padding.",
+  "evidence": [
+    "brand/kit/enforcement/component-recipes.json: Button/IconButton/FormControls densities and target44",
+    "brand/kit/enforcement/interface-canon.json: minimum_target_logical_units44",
+    "brand/kit/web/react/server.tsx: no density prop",
+    "brand/kit/web/components.css: fixed control geometry",
+    "apps/gallery/src/app/gallery.css",
+    "specs/003-responsive-gallery/plan.md#owner-refinement-after-native-candidate"
+  ],
+  "classification": "reusable-capability",
+  "upstream_resolution": null,
+  "submission_authorized": false
+}
