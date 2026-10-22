@@ -1,6 +1,8 @@
 name: Feature or work-slice proposal
 description: Define an outcome, acceptance and related requirements.
 title: "feat: "
+type: Feature
+labels: ["enhancement"]
 body:
   - type: textarea
     id: outcome
@@ -29,6 +31,6 @@ body:
       label: Affected areas
       description: Maintainers apply the corresponding area labels during triage.
       multiple: true
-      options: [gallery, media, configuration, platform, brand, documentation, tooling, release]
+      options: [gallery, media, configuration, platform, brand, docs, tooling, release, accessibility, testing, security, governance, cli, packaging, website, schema]
     validations:
       required: true

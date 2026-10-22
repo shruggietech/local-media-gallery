@@ -6,6 +6,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Added
 
+- Public source repository, comprehensive GitHub labels/topics, private vulnerability reporting and an empty linked delivery Project with table/board views. Repository configuration is recorded in `.github/bootstrap.json`.
+
 - Persistent global font-size presets: Default (100%, unchanged), Small (90%) and Smaller (80%), applied across application text without scaling media or control minimums. Existing user settings default to the current size.
 
 - Bounded gallery pages, shared media-load admission, variable-height masonry with 12px gaps, compact collapsible controls, a scrolling-only position indicator and a focused viewer that suspends gallery media work.
@@ -41,3 +43,4 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 - 2026-10-22: Refine the responsive gallery interface after the owner observed oversized native controls. Apply a product-scoped 32px fine-pointer minimum with existing 4px/8px spacing,8px radius and 16px readable type/icons; retain at least 44px for coarse/mixed pointer capability. This explicitly overrides the pinned 44px control invariant for precise desktop input because the delivered adapter exposes no compact-density prop. Keep governed kit bytes and enforcement unchanged, record local density and disclosure-ARIA capability gaps, and update native geometry acceptance. Keep AppFrame as the sole scroll/inset/focus owner while using a full-width 12px product media canvas instead of reading gutters. No upstream submission or publication is authorized.
 - 2026-10-22: Add optional-on-read `fontScale` to the current settings format with a default of 100, preserving prior preference files. Scale inherited body text while retaining the root rem baseline, existing media geometry and governed brand bytes. Extend small-fixture native qualification for text ratios, geometry, persistence and default restoration; move current evidence exclusions to this slice. Keep all work local.
+- 2026-10-22: Authorize first public source publication to `shruggietech/local-media-gallery`. Review tracked history and ignore rules, publish the existing development history, establish GitHub tracking and retain product-package/site releases as separate work.

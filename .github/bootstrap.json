@@ -1,0 +1,314 @@
+{
+  "repository": "shruggietech/local-media-gallery",
+  "description": "A lightweight desktop gallery for local images and videos, built with Rust, Tauri and Next.js.",
+  "topics": [
+    "media-gallery",
+    "image-viewer",
+    "video-player",
+    "local-first",
+    "offline",
+    "rust",
+    "tauri",
+    "nextjs",
+    "cross-platform"
+  ],
+  "settings": {
+    "has_issues": true,
+    "has_projects": true,
+    "has_wiki": false,
+    "has_discussions": false,
+    "allow_squash_merge": true,
+    "allow_merge_commit": false,
+    "allow_rebase_merge": false,
+    "allow_auto_merge": false,
+    "delete_branch_on_merge": true,
+    "squash_merge_commit_title": "PR_TITLE",
+    "squash_merge_commit_message": "PR_BODY"
+  },
+  "security": {
+    "private_vulnerability_reporting": true,
+    "dependency_alerts": true,
+    "secret_scanning": true,
+    "secret_scanning_push_protection": true
+  },
+  "project": {
+    "owner": "shruggietech",
+    "number": 8,
+    "title": "local-media-gallery Delivery",
+    "url": "https://github.com/orgs/shruggietech/projects/8",
+    "public": true,
+    "statuses": [
+      "Backlog",
+      "Ready",
+      "Specced",
+      "In progress",
+      "PR review",
+      "Release verification",
+      "Done"
+    ],
+    "text_fields": [
+      "Slice"
+    ],
+    "views": [
+      {
+        "name": "Delivery table",
+        "layout": "TABLE_LAYOUT",
+        "fields": [
+          "Title",
+          "Status",
+          "Labels",
+          "Milestone",
+          "Slice",
+          "Assignees",
+          "Linked pull requests",
+          "Parent issue",
+          "Sub-issues progress"
+        ]
+      },
+      {
+        "name": "Delivery board",
+        "layout": "BOARD_LAYOUT",
+        "fields": [
+          "Title",
+          "Labels",
+          "Slice",
+          "Assignees"
+        ],
+        "column_by": "Status"
+      }
+    ],
+    "readme": "# Local Media Gallery Delivery\n\nThis Project tracks delivery for `shruggietech/local-media-gallery`. It starts empty; issues and release commitments are added as work is agreed.\n\n- Issues describe independently closeable outcomes with acceptance criteria. Native issue types classify Task, Bug and Feature.\n- Status is the sole delivery lifecycle: Backlog, Ready, Specced, In progress, PR review, Release verification and Done.\n- Labels own priority, effort, affected areas, platforms and exceptional triage needs. Milestones own release commitments.\n- Slice groups compatible issues delivered through one Spec Kit specification, implementation and review cycle. Native relationships own hierarchy and dependencies.\n- Closed issues remain available as delivery history. Pull requests and verification evidence support closure.\n\nBacklog captures uncommitted work. Ready is defined and unblocked. Specced has an approved specification. In progress has active implementation. PR review has an open implementation pull request. Release verification is merged and awaiting release evidence. Done satisfies acceptance criteria or has a documented disposition.\n\nDelivery table is the audit view. Delivery board shows the delivery lifecycle. Labels and fields do not replace issue acceptance criteria.\n"
+  },
+  "labels": [
+    {
+      "name": "bug",
+      "color": "d73a4a",
+      "description": "Observed behavior differs from the documented contract"
+    },
+    {
+      "name": "enhancement",
+      "color": "a2eeef",
+      "description": "A proposed or planned product capability"
+    },
+    {
+      "name": "documentation",
+      "color": "0075ca",
+      "description": "Documentation, examples or specification changes"
+    },
+    {
+      "name": "priority: P0",
+      "color": "b60205",
+      "description": "Critical: immediate response or release stop"
+    },
+    {
+      "name": "priority: P1",
+      "color": "d93f0b",
+      "description": "High: address before lower-priority work"
+    },
+    {
+      "name": "priority: P2",
+      "color": "fbca04",
+      "description": "Normal: planned delivery work"
+    },
+    {
+      "name": "priority: P3",
+      "color": "c2e0c6",
+      "description": "Low: optional improvement or later work"
+    },
+    {
+      "name": "effort: XS",
+      "color": "ededed",
+      "description": "Very small, isolated change"
+    },
+    {
+      "name": "effort: S",
+      "color": "d4d4d4",
+      "description": "Small change with limited integration"
+    },
+    {
+      "name": "effort: M",
+      "color": "bbbbbb",
+      "description": "Moderate implementation and verification"
+    },
+    {
+      "name": "effort: L",
+      "color": "999999",
+      "description": "Large change spanning several contracts"
+    },
+    {
+      "name": "effort: XL",
+      "color": "777777",
+      "description": "Needs decomposition before implementation"
+    },
+    {
+      "name": "area: gallery",
+      "color": "c5def5",
+      "description": "Browsing, sorting, filtering, layout and focused viewing"
+    },
+    {
+      "name": "area: media",
+      "color": "c5def5",
+      "description": "Discovery, decoding, playback, metadata and sidecars"
+    },
+    {
+      "name": "area: configuration",
+      "color": "c5def5",
+      "description": "Preferences, persistence, state and migrations"
+    },
+    {
+      "name": "area: platform",
+      "color": "c5def5",
+      "description": "OS integration and runtime compatibility"
+    },
+    {
+      "name": "area: brand",
+      "color": "c5def5",
+      "description": "Upstream brand integration and delivered identity"
+    },
+    {
+      "name": "area: docs",
+      "color": "c5def5",
+      "description": "Versioned reference and user documentation"
+    },
+    {
+      "name": "area: tooling",
+      "color": "c5def5",
+      "description": "Maintainer tools, dependencies and automation"
+    },
+    {
+      "name": "area: release",
+      "color": "c5def5",
+      "description": "Release qualification, provenance and delivery"
+    },
+    {
+      "name": "area: accessibility",
+      "color": "c5def5",
+      "description": "Keyboard, assistive technology and readable interaction"
+    },
+    {
+      "name": "area: testing",
+      "color": "c5def5",
+      "description": "Fixtures, regression coverage and acceptance evidence"
+    },
+    {
+      "name": "area: security",
+      "color": "c5def5",
+      "description": "Access boundaries, vulnerability handling and data integrity"
+    },
+    {
+      "name": "area: governance",
+      "color": "c5def5",
+      "description": "Project policy, contribution and decision records"
+    },
+    {
+      "name": "area: cli",
+      "color": "c5def5",
+      "description": "Launch arguments, commands and terminal use"
+    },
+    {
+      "name": "area: packaging",
+      "color": "c5def5",
+      "description": "Full/Lite packages, installation and portable dependencies"
+    },
+    {
+      "name": "area: website",
+      "color": "c5def5",
+      "description": "Independent landing page and documentation website"
+    },
+    {
+      "name": "area: schema",
+      "color": "c5def5",
+      "description": "Application JSON Schema and interface contracts"
+    },
+    {
+      "name": "platform: windows",
+      "color": "0078d4",
+      "description": "Behavior specific to Windows"
+    },
+    {
+      "name": "platform: linux",
+      "color": "fcc624",
+      "description": "Behavior specific to Linux"
+    },
+    {
+      "name": "platform: macos",
+      "color": "9b59b6",
+      "description": "Behavior specific to macOS"
+    },
+    {
+      "name": "epic",
+      "color": "5319e7",
+      "description": "Parent outcome spanning independently closeable issues"
+    },
+    {
+      "name": "slice",
+      "color": "7057ff",
+      "description": "Compatible outcomes grouped into one Spec Kit delivery"
+    },
+    {
+      "name": "spec-kit",
+      "color": "7057ff",
+      "description": "Specification workflow, templates or planning integration"
+    },
+    {
+      "name": "dependencies",
+      "color": "0366d6",
+      "description": "Dependency updates and maintenance"
+    },
+    {
+      "name": "security",
+      "color": "b60205",
+      "description": "Security-relevant work; report vulnerabilities privately"
+    },
+    {
+      "name": "needs: decision",
+      "color": "d876e3",
+      "description": "An explicit product or technical decision is required"
+    },
+    {
+      "name": "needs: reproduction",
+      "color": "d876e3",
+      "description": "A minimal reproduction or evidence is needed"
+    },
+    {
+      "name": "needs: verification",
+      "color": "d876e3",
+      "description": "Observed behavior needs targeted verification"
+    },
+    {
+      "name": "good first issue",
+      "color": "7057ff",
+      "description": "Well-defined contribution suitable for a new contributor"
+    },
+    {
+      "name": "help wanted",
+      "color": "008672",
+      "description": "Maintainers welcome implementation help"
+    },
+    {
+      "name": "question",
+      "color": "d876e3",
+      "description": "A question or clarification request"
+    },
+    {
+      "name": "duplicate",
+      "color": "cfd3d7",
+      "description": "Already represented by another issue"
+    },
+    {
+      "name": "invalid",
+      "color": "e4e669",
+      "description": "Does not describe actionable work for this repository"
+    },
+    {
+      "name": "wontfix",
+      "color": "ffffff",
+      "description": "Not planned, with the disposition documented"
+    },
+    {
+      "name": "post-release",
+      "color": "fbca04",
+      "description": "Observation against a specific published release"
+    }
+  ]
+}

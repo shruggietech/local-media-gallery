@@ -1,6 +1,8 @@
 name: Bug report
 description: Report observed behavior in a specific version.
 title: "bug: "
+type: Bug
+labels: ["bug"]
 body:
   - type: input
     id: version
@@ -40,6 +42,6 @@ body:
       label: Affected areas
       description: Maintainers apply the corresponding area labels during triage.
       multiple: true
-      options: [gallery, media, configuration, platform, brand, documentation, tooling, release]
+      options: [gallery, media, configuration, platform, brand, docs, tooling, release, accessibility, testing, security, governance, cli, packaging, website, schema]
     validations:
       required: true

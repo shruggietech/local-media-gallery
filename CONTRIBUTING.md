@@ -4,7 +4,11 @@
 
 Read the [constitution](.specify/memory/constitution.md) and [documentation](docs/v0.0.0/index.md). The v0.0.0 specification records the selected Rust/Tauri and static Next.js direction, agreed behavior and remaining product decisions. Keep implementation proportional to that scope. Maintain authoritative open product decisions in the documentation and slice-specific planning in `specs/`; use Spec Kit for each implementation slice. Public documentation describes system contracts and does not link numbered planning artifacts.
 
-The repository is local. Local commits are authorized. Remote creation, first push, GitHub tracking setup and publication require owner authorization. Once published, use GitHub Issues, milestones and Projects as primary tracking, with Spec Kit artifacts for implementation decisions and tasks.
+Use [GitHub Issues](https://github.com/shruggietech/local-media-gallery/issues), milestones and the [repository Project](https://github.com/orgs/shruggietech/projects/8) as primary tracking, with Spec Kit artifacts for implementation decisions and tasks. Check existing issues before filing a report. Include the affected commit or version, operating system, reproduction steps, expected behavior and observed behavior. Remove private media, credentials and personal paths from reports. Follow [SECURITY.md](SECURITY.md) for vulnerability reports.
+
+## Tracking conventions
+
+[GitHub configuration](.github/bootstrap.json) records the repository settings, topics, label taxonomy and empty Project setup. Native issue types distinguish Bug, Feature and Task. Labels classify area, platform, priority, effort and triage needs; the Project Status field owns delivery progress. Milestones define agreed release commitments, and the Slice field groups issues delivered through one Spec Kit cycle. Do not duplicate lifecycle state in labels or populate delivery commitments merely to fill the board.
 
 ## Checks
 
@@ -35,6 +39,6 @@ Read `brand/kit/enforcement/consumer-contract.json` and `brand/kit/enforcement/I
 
 Console children on Windows must use `CREATE_NO_WINDOW` or an equivalent guarantee, redirected noninteractive I/O and disabled prompts. Direct Git and GitHub operations through the headless command runner are permitted. Stop any launcher that produces visible windows.
 
-## Commits and eventual pull requests
+## Commits and pull requests
 
-Use focused conventional commits. Update Unreleased in the changelog for behavior or workflow changes. For pull requests, describe changed behavior, checks and unverified limits. Follow the owner's merge authorization, squash merge and delete merged branches. Release notes contain short highlights and end with a link to the master changelog. Hosting and release automation will be configured when publication is authorized.
+Use focused conventional commits. Update Unreleased in the changelog for behavior or workflow changes. Link the related issue in each pull request and describe changed behavior, checks and unverified limits. Follow the owner's merge authorization, squash merge and delete merged branches. Release notes contain short highlights and end with a link to the master changelog. Repository publication does not create a product release; packages, signing, hosting and release automation remain separate work.

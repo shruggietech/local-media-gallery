@@ -1,41 +1,49 @@
 # Local Media Gallery
 
-A lightweight, interactive gallery for browsing local images and videos.
-
 Your media presented beautifully.
 
-## Start here
+A lightweight desktop gallery for browsing local images and videos, built with Rust, Tauri and a bundled static Next.js interface. Open a folder, browse its contents and focus on an asset without preparing a manifest.
 
-Read the [documentation](docs/v0.0.0/index.md) and [contribution guide](CONTRIBUTING.md). The local development application uses Rust, Tauri and a bundled static Next.js interface. It opens a directory through a native chooser or launch argument, discovers current direct image/video files, and supports sorting, filtering, viewing and file information. Browsing is readonly. Opening and explicit **Refresh** discover files; no background scanning runs. The interface uses bounded pages, tightly packed aspect-aware columns, a compact collapsible toolbar, and a focused viewer whose information panel starts collapsed. View choices, including information disclosure, save immediately in per-user `settings.json` beneath the platform application configuration directory (AppData on Windows). Windows is the first native verification host; Linux and macOS remain product targets.
+The application is in active development. No installable product package has been released. Windows is the first native verification host; Linux and macOS remain product targets.
 
-Full installation, lightweight Lite sharing packages, portable gallery settings, remembered-directory history, sidecar inspection, optional thumbnails, adaptive calibration, and the independent landing page and versioned documentation website remain future work. No product package has been released.
+## Available in development
 
-## Local development
+- Open a directory through a native folder chooser or launch argument. Browse direct image/video files without modifying originals.
+- Sort and filter the discovered collection, with bounded pages of 24, 48 or 96 items and tightly packed, aspect-aware columns.
+- Focus on an image or video while gallery media work is suspended. Expand file information when needed without interrupting playback.
+- Keep controls out of the way with a compact collapsible toolbar, an information panel that starts collapsed and a scroll indicator that appears while scrolling.
+- Save view preferences immediately in per-user `settings.json` beneath the platform application configuration directory (AppData on Windows). Global font size offers Default (100%), Small (90%) and Smaller (80%).
+- Discover additions, removals and changes with **Refresh**. Opening and explicit refresh are the only directory scans; no background scanner runs.
 
-Use Node.js 24+, Rust 1.96.0 with the Windows MSVC build tools/SDK, Python 3.12+, FFmpeg for the small synthetic verification fixture, and the installed WebView2 runtime. Recipients do not need Node or a browser application to run the built native application. Installer and Lite prerequisite delivery remain separate work.
+Settings are global for now; the application does not write settings into the media directory. Malformed or unsupported settings remain intact with a visible warning and usable in-memory defaults.
+
+## Build and run on Windows
+
+Install Node.js 24+, Python 3.12+, Rust 1.96.0, the MSVC C++ build tools/Windows SDK and the WebView2 runtime. The Rust toolchain is pinned in this repository. FFmpeg is also needed for the small synthetic native-verification fixture.
 
 ```text
+git clone https://github.com/shruggietech/local-media-gallery.git
+cd local-media-gallery
 npm ci
 npm run prepare:local
-npm run check
-npm run check:docs
-npm test
 npm run build:app
-npm run check:app
-npm run qualify
 ```
 
-`prepare:local` creates an ignored Python environment and downloads an official checksum-verified Node 24.11.0 proof-tool runtime on Windows x64. These exact brand verification prerequisites are separate from the application build runtime. It does not install the product. `qualify` prepares both normal and instrumented local builds, then times the required checks and real native acceptance with twelve media candidates. Native testing briefly operates the application window and folder chooser. It does not use a personal media collection or establish large-collection performance.
+Launch `target/debug/local-media-gallery.exe`, optionally followed by one directory. With no directory, it opens a selection screen. `npm run app -- DIRECTORY` rebuilds and runs it for development. The built application uses WebView2 and does not require Node.js or a separate browser application.
 
-Launch the built application with `target/debug/local-media-gallery.exe`, optionally followed by one directory. With no directory it opens a selection screen. `npm run app -- DIRECTORY` rebuilds and runs it for development. Use **Close folder** before moving an open gallery on Windows; its directory capability deliberately holds the root while selected. No manifest needs rebuilding after reopening the moved directory. Select **Refresh** to discover additions, removals and changed files in an already open gallery.
+`prepare:local` creates an ignored Python environment and downloads an official checksum-verified Node 24.11.0 runtime for brand proof tools on Windows x64. It does not install the product. Installer and Lite prerequisite delivery remain future work.
 
-Pages default to 48 items, with 24 and 96 available under view settings. Sorting and filtering apply to the whole discovered collection. Gallery media work is suspended while an asset is focused, and expanding information keeps that media mounted and preserves playback. **Settings → Global font size** retains the current size as Default (100%) and offers Small (90%) and Smaller (80%), saved immediately across restarts. User preferences are global for now; no settings are written into the media directory. Malformed or unsupported settings remain intact with a visible warning and usable in-memory defaults.
+Use **Close folder** before moving an open gallery on Windows; its directory capability holds the selected root while open. Reopen the moved directory to discover its current contents without rebuilding a manifest.
 
-Spec Kit is installed with Codex skills under `.agents/skills/`, templates and Python helpers under `.specify/`, and a [project constitution](.specify/memory/constitution.md). Start feature work with `$speckit-specify` after agreeing the intended behavior, then clarify, plan, generate tasks and analyze before implementation. Internal planning lives in `specs/`.
+## Documentation and development
+
+The [technical specification](docs/v0.0.0/index.md) defines the product contracts and unresolved decisions. The [contribution guide](CONTRIBUTING.md) covers required checks, small-fixture Windows verification, Spec Kit and brand maintenance. Read the [changelog](CHANGELOG.md) for implemented changes.
+
+Full installation, lightweight Lite sharing packages, portable gallery settings, remembered-directory history, sidecar inspection, optional thumbnails and adaptive calibration remain planned work. The independent landing page and versioned documentation website have not been built.
 
 ## Brand maintenance
 
-The brand comes from [ShruggieTech's brand repository](https://github.com/shruggietech/shruggie-brand), which publishes [brand.shruggie.tech](https://brand.shruggie.tech/). The updater verifies archive and manifest hashes, records provenance in `brand/lock.json`, and preserves the delivered kit bytes.
+The brand comes from [ShruggieTech's brand repository](https://github.com/shruggietech/shruggie-brand), which publishes [brand.shruggie.tech](https://brand.shruggie.tech/). The updater verifies archive and manifest hashes, records provenance in `brand/lock.json` and preserves the delivered kit bytes.
 
 ```text
 npm run brand:verify
@@ -47,7 +55,9 @@ npm run brand:update
 
 ## Contributing and support
 
-Use the local contribution workflow for now. GitHub Issues, milestones and Projects become the tracking system after repository publication is authorized. See [security reporting](SECURITY.md), [community conduct](CODE_OF_CONDUCT.md) and the [changelog](CHANGELOG.md).
+Report bugs and propose features through [GitHub Issues](https://github.com/shruggietech/local-media-gallery/issues). Follow the [contribution guide](CONTRIBUTING.md) for changes. GitHub Issues, milestones and the [repository Project](https://github.com/orgs/shruggietech/projects/8) provide primary work tracking; Spec Kit records implementation decisions and tasks.
+
+Report vulnerabilities through the [security policy](SECURITY.md). See the [community conduct policy](CODE_OF_CONDUCT.md).
 
 ## License
 
