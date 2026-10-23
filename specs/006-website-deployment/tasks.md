@@ -42,8 +42,8 @@
 
 - [x] T013 Update docs/v0.0.0/website-and-documentation.md, README.md, CONTRIBUTING.md and CHANGELOG.md with authoritative contracts, runnable commands and dated deployment decision (FR-009/010).
 - [x] T014 Run repository/product/site qualification with readiness, terminal times, exact source/artifact evidence and integrity checks; record in specs/006-website-deployment/verification.md (FR-001..009).
-- [ ] T015 Commit/push S006, open and attach official PR, set Project Slice S006/status and exact environment bootstrap permission, then wait for terminal CI/deployment (FR-004/010).
-- [ ] T016 Verify live DNS/provider/HTTPS/all-file/browser behavior, respond to every actual review and resolve threads within at most two rounds; record evidence in specs/006-website-deployment/verification.md and hand off before merge (FR-001..010).
+- [x] T015 Commit/push S006, open and attach official PR, set Project Slice S006/status and exact environment bootstrap permission, then wait for terminal CI/deployment (FR-004/010).
+- [x] T016 Verify live DNS/provider/HTTPS/all-file/browser behavior, respond to every actual review and resolve threads within at most two rounds; record evidence in specs/006-website-deployment/verification.md and hand off before merge (FR-001..010).
 
 ## Dependencies and execution
 
