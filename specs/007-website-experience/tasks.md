@@ -40,7 +40,7 @@ Branch: codex/007-website-experience. Complete #36 and all children #37 through 
 - [x] T019 [US5] Enforce preimplementation cold-response/output/font/SVG budgets and throttled lab samples in scripts/test-site.mjs and check-site.mjs, retaining evidence in .local (SC-007).
 - [x] T020 [US5] Reorder browser readiness before SVG builds in scripts/ci.mjs, preserve qualification accounting and upload visual/performance evidence in .github/workflows/ci.yml (FR-014, SC-008).
 - [x] T021 [US5] Run full repository, source, site and Windows product qualification; inspect screenshots and record concrete coverage/limits in specs/007-website-experience/verification.md (SC-001..008).
-- [ ] T022 [US5] Commit, automatically push and publish/attach official PR closing #36..45 on merge; update Project8 slice/status (FR-015).
+- [x] T022 [US5] Commit, automatically push and publish/attach official PR closing #36..45 on merge; update Project8 slice/status (FR-015).
 - [ ] T023 [US5] Scope existing Pages bootstrap to the exact branch/PR, wait for final-head hosted CI and verify live source/artifact identity/bytes/rendered behavior (FR-014, SC-009).
 - [ ] T024 [US5] Respond to every review comment, implement necessary fixes and resolve threads with at most one second-round @Codex request, then confirm final-head CI/live and hand off for owner review/merge (FR-015, SC-009).
 

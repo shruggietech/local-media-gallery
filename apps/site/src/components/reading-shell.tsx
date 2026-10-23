@@ -96,18 +96,27 @@ function ReadingToc({ items, compact = false }: { items: TOCItemType[]; compact?
     };
   }, [items]);
   useEffect(() => {
-    const link = list.current?.querySelector<HTMLElement>('[aria-current="location"]');
-    if (!link || !list.current) return;
-    setMarker({ top: link.offsetTop, height: link.offsetHeight });
-    const container = list.current.parentElement!;
-    if (
-      link.offsetTop < container.scrollTop ||
-      link.offsetTop + link.offsetHeight > container.scrollTop + container.clientHeight
-    )
-      container.scrollTo({
-        top: Math.max(0, link.offsetTop - container.clientHeight / 2),
-        behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
-      });
+    const element = list.current;
+    if (!element) return;
+    const container = element.parentElement!;
+    const measure = () => {
+      const link = element.querySelector<HTMLElement>('[aria-current="location"]');
+      if (!link) return;
+      setMarker({ top: link.offsetTop, height: link.offsetHeight });
+      if (
+        link.offsetTop < container.scrollTop ||
+        link.offsetTop + link.offsetHeight > container.scrollTop + container.clientHeight
+      )
+        container.scrollTo({
+          top: Math.max(0, link.offsetTop - container.clientHeight / 2),
+          behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    observer.observe(container);
+    return () => observer.disconnect();
   }, [active]);
   const links = (
     <nav aria-label={compact ? 'Page contents compact' : 'Page contents'}>

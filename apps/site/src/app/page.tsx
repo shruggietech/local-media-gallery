@@ -98,17 +98,17 @@ export default function Home() {
             {
               title: 'Open a folder',
               text: 'Choose a directory of local images and videos. The originals stay where you keep them.',
-              topic: 'overview',
+              href: docs.overview,
             },
             {
               title: 'Find your rhythm',
               text: 'Move through the collection as a gallery, with images and videos in one view.',
-              topic: 'interfaces-and-contracts',
+              href: docs.interfaces,
             },
             {
               title: 'Keep it in focus',
               text: 'Open an item for a closer look, then return to the collection without losing your place.',
-              topic: 'interfaces-and-contracts',
+              href: docs.interfaces,
             },
           ].map((step, i) => (
             <li key={step.title}>
@@ -117,10 +117,7 @@ export default function Home() {
                 <h3>{step.title}</h3>
                 <p>{step.text}</p>
               </div>
-              <a
-                href={'/docs/' + docs.version + '/' + step.topic + '/'}
-                aria-label={'Read about ' + step.title.toLowerCase()}
-              >
+              <a href={step.href} aria-label={'Read about ' + step.title.toLowerCase()}>
                 ↗
               </a>
             </li>

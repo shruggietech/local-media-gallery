@@ -144,6 +144,7 @@ test('real snapshot model preserves historical references/assets and rejects mis
     version: 'v2.0.0',
     status: 'specification',
     overview: '/docs/v2.0.0/?missing=overview',
+    interfaces: '/docs/v2.0.0/?missing=interfaces-and-contracts',
   });
   await put('site/snapshots/v1.0.0/reference.source', 'tampered');
   await assert.rejects(createModel(base, manifest), /hash mismatch/);

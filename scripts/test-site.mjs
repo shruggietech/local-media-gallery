@@ -148,6 +148,16 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.compact-toc').getAttribute('open'), null);
   assert.equal(await page.locator(':focus').textContent(), 'On this page');
+  await page.setViewportSize({ width: 1440, height: 844 });
+  await page.waitForFunction(
+    () => document.querySelector('.reading-toc .toc-marker').getBoundingClientRect().height > 0,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.compact-toc summary').click();
+  await page.waitForFunction(
+    () => document.querySelector('.compact-toc .toc-marker').getBoundingClientRect().height > 0,
+  );
+  await page.keyboard.press('Escape');
   const menu = page.getByRole('button', { name: 'Open Sidebar' });
   await menu.click();
   const drawer = page.getByRole('dialog', { name: 'Documentation navigation' });
