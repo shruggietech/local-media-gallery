@@ -37,7 +37,7 @@
     "ajv": "8.17.1",
     "eslint": "10.13.0",
     "stylelint": "17.16.0",
-    "typescript": "5.9.3",
+    "typescript": "7.0.2",
     "markdown-it": "15.0.3",
     "playwright": "1.56.1",
     "cheerio": "1.1.2",
