@@ -45,6 +45,10 @@ Post-design PASS. The pre-merge deployment is explicitly authorized and restrict
 7. Use bounded provider/DNS/TLS readiness with terminal pending/failure evidence. Network preparation waits are accounted separately from local qualification. Final live crawl compares every checked file and browser behavior; no insecure certificate bypass.
 8. Run test-first fixtures, all local parity checks and existing native acceptance where elected. Push/open official PR automatically, let automatic reviews form round one, fix/respond/resolve all actual comments, optionally invoke one second `@codex review`, and stop before merge.
 
+## Observed operational clarification
+
+2026-10-23: The domain remained certificate-ineligible in actual TLS despite successful GitHub DNS health and a bounded wait. GitHub explicitly documents a provisioning restart by removing/re-saving the custom domain. For this one retry, retain organization Pages verification/TXT, DNS and the deployed site, reassign only the same hostname and verify restoration from snapshots. Organization verification prevents other accounts claiming the hostname during the brief reassignment. Permanent retirement/rollback keeps its DNS-withdrawal requirement. This reversible provider recovery stays within the owner's authorized end-to-end setup; it creates no new domain or access.
+
 ## Complexity Tracking
 
 No exceptions. Public deployment metadata is separate from product release metadata, preserving #31/#26's release-publication boundary.

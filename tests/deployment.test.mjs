@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm, symlink } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -104,6 +107,22 @@ test('Pages rollback rejects concurrent changes and pending writes, and recovers
   await assert.rejects(rollbackPages(pagesProvider(bound), { ...journal, state: 'pending' }, options), /pending|uncertain/i);
   const completed = { ...journal, rollback: { state: 'pending' } }; const restored = pagesProvider(null);
   await rollbackPages(restored, completed, options); assert.equal(completed.state, 'rolled-back'); assert.equal(restored.writes.length, 0);
+});
+
+test('actual DNS rollback CLI works with GitHub unavailable and no GitHub executable', async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const base = path.join(root, '.local/site-deployment'); await mkdir(base, { recursive: true });
+  const directory = await mkdtemp(path.join(base, 'cli-fixture-')); const preload = path.join(directory, 'cloudflare-fixture.mjs'); const journalPath = path.join(directory, 'dns.json');
+  const after = address('fixture-record');
+  await writeFile(journalPath, JSON.stringify({ version: 1, entries: [{ kind: 'create', before: null, after, state: 'applied' }] }));
+  await writeFile(preload, `import fs from 'node:fs/promises';let records=${JSON.stringify([after])};const events=[];globalThis.fetch=async(input,options={})=>{const url=new URL(input);if(url.origin!=='https://api.cloudflare.com')throw new Error('Unexpected network provider');let result;if(url.pathname==='/client/v4/zones')result=[{id:'fixture-zone',status:'active',account:{id:'fixture-account'}}];else if(url.pathname==='/client/v4/zones/fixture-zone/dns_records/fixture-record'&&options.method==='DELETE'){records=[];events.push('delete');result={id:'fixture-record'};}else if(url.pathname==='/client/v4/zones/fixture-zone/dns_records')result=records;else throw new Error('Unexpected fixture request');await fs.writeFile(${JSON.stringify(path.join(directory, 'events.json'))},JSON.stringify(events));return Response.json({success:true,result});};\n`);
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== 'path'));
+  Object.assign(env, { PATH: '', GH_TOKEN: '', GITHUB_TOKEN: '', GH_CONFIG_DIR: directory, CF_DNS_API_TOKEN: 'fixture-not-a-credential', CLOUDFLARE_REGISTRAR_API_TOKEN: 'fixture-not-a-credential', CLOUDFLARE_ACCOUNT_ID: 'fixture-account' });
+  try {
+    const result = await promisify(execFile)(process.execPath, ['--import', pathToFileURL(preload).href, path.join(root, 'scripts/configure-domain.mjs'), 'rollback', journalPath], { cwd: root, env, windowsHide: true, timeout: 15000 });
+    assert.match(result.stdout, /Rolled back owned DNS/); assert.deepEqual(JSON.parse(await readFile(path.join(directory, 'events.json'), 'utf8')), ['delete']);
+    assert.equal(JSON.parse(await readFile(journalPath, 'utf8')).entries[0].state, 'rolled-back');
+  } finally { assert.ok(directory.startsWith(base + path.sep)); await rm(directory, { recursive: true }); }
 });
 
 async function artifact() {

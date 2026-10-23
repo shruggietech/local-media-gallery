@@ -51,8 +51,9 @@ const api = {
   delete: id => cloudflare(endpoint + '/' + id, { method: 'DELETE' }),
 };
 const pagesEndpoint = `repos/${policy.repository}/pages`;
-const records = await api.list(); const pages = await github(pagesEndpoint, { allow404: true });
+const records = await api.list();
 if (command === 'preflight') {
+  const pages = await github(pagesEndpoint, { allow404: true });
   const account = process.env.CLOUDFLARE_ACCOUNT_ID; assert.ok(account, 'Missing Cloudflare account');
   const registration = await cloudflare(`accounts/${account}/registrar/domains/${policy.domain}`, { registrar: true });
   const registrar = Object.fromEntries(['name', 'current_registrar', 'last_known_status', 'name_servers', 'ds_records', 'auto_renew', 'privacy', 'locked'].map(key => [key, registration[key]]));
@@ -61,6 +62,7 @@ if (command === 'preflight') {
   try { await writeFile(path.join(directory, 'baseline.json'), JSON.stringify(snapshot, null, 2) + '\n', { flag: 'wx' }); } catch (error) { if (error.code !== 'EEXIST') throw error; }
   console.log(JSON.stringify({ domain: zone.name, zone: zone.status, nameservers: zone.name_servers, registrar: registrar.current_registrar, locked: registrar.locked, autoRenew: registrar.auto_renew, dnssec: snapshot.dnssec.status, records: records.length, pages: pages ? { cname: pages.cname, build_type: pages.build_type, https_enforced: pages.https_enforced } : null }));
 } else if (command === 'bind') {
+  const pages = await github(pagesEndpoint, { allow404: true });
   const journalFile = path.join(directory, `pages-binding-${Date.now()}.json`);
   const before = pages; const journal = { version: 1, kind: 'pages-binding', before, desired: { build_type: 'workflow', cname: policy.domain }, state: 'pending' }; await save(journalFile, journal);
   if (!pages) await github(pagesEndpoint, { method: 'POST', body: { build_type: 'workflow' } });
@@ -74,6 +76,7 @@ if (command === 'preflight') {
     await save(path.join(directory, 'dns-plan.json'), { observed: new Date().toISOString(), changes });
     console.log(JSON.stringify({ domain: policy.domain, changes: changes.map(change => ({ kind: change.kind, before: recordValue(change.before), after: recordValue(change.after) })) }, null, 2));
   } else {
+    const pages = await github(pagesEndpoint, { allow404: true });
     assert.equal(pages?.cname, policy.domain, 'Assign repository Pages domain before DNS routing');
     assert.equal(pages?.build_type, 'workflow', 'Pages custom Actions required');
     assert.equal(pages?.protected_domain_state, 'verified', 'Verify organization Pages ownership before DNS routing');
