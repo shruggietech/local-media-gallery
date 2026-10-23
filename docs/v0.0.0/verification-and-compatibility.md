@@ -48,6 +48,8 @@ These checks cover repository integrity, documentation structure/references and 
 
 The independent landing page must be tested for its own content, release pointers, navigation and runtime payload. Documentation checks include topic-preserving version changes, explicit missing-topic fallback, version-scoped search and historical asset/fragment resolution.
 
+Website presentation checks include both themes, mobile/tablet/desktop screenshots, 320 CSS-pixel reflow, enlarged text, native anchors/history, active final-section navigation, copy success/failure, described diagrams, icon/social resources and route canonicalization. Automated accessibility scans supplement directed keyboard, focus and contrast checks; they do not establish complete assistive-technology coverage. Cold laboratory samples record fixed viewport/network/CPU conditions and decoded/gzip asset budgets. Field Core Web Vitals require actual field observations and are reported separately.
+
 ## Hosted and native automation
 
 Hosted qualification exposes three stable required checks: repository, product-windows and website. They reuse the repository's npm commands with pinned Actions, read-only repository permissions and credential-free checkout. Each record identifies the exact Git revision, source digest, terminal outcomes and produced artifact hashes. Dependency installation and build readiness belong to preparation; timed qualification starts after readiness.

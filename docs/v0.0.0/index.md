@@ -1,6 +1,6 @@
 # Local Media Gallery technical specification
 
-v0.0.0 remains an unreleased specification baseline with a local Rust/Tauri gallery implementation; the independent landing page and documentation website have a local static build, while installable Full/Lite packages and live domain deployment remain pending.
+v0.0.0 is an unreleased specification baseline with a local Rust/Tauri gallery implementation and a live website at https://localmedia.gallery; installable Full/Lite packages have not been published.
 
 Local Media Gallery presents local images and videos through a Rust/Tauri application with a statically exported Next.js interface. Full installation provides system integration and persistent user state. Lite provides lightweight, on-demand directory browsing and gallery sharing on supported hosts. The product targets Windows, Linux and macOS.
 
@@ -58,6 +58,6 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 
 ## Document maintenance
 
-These Markdown files are the versioned source for the future documentation website. Maintain one authoritative definition for each contract and link to it from other chapters. The independent landing page has its own content and layout outside this versioned tree. Software, documentation and application-owned master JSON Schema versions must align when those artifacts are released together; external sidecars remain free-form.
+These Markdown files are the versioned source for the live documentation website. Maintain one authoritative definition for each contract and link to it from other chapters. The independent landing page has its own content and layout outside this versioned tree. Software, documentation and application-owned master JSON Schema versions must align when those artifacts are released together; external sidecars remain free-form.
 
 The chapter structure draws on [arc42](https://docs.arc42.org/home/) for architecture coverage and [Diataxis](https://diataxis.fr/) for separating reference, explanation and eventual task-oriented guidance. These are organizational references, not claims of certification or obligations to reproduce a template.
