@@ -4,6 +4,7 @@ import { mkdir, copyFile, writeFile, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { root, node, environment } from './run.mjs';
 import { createModel } from './site-content.mjs';
+import { renderDiagrams } from './site-diagrams.mjs';
 import { sourceIdentity } from './provenance.mjs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -21,15 +22,48 @@ for (const file of model.raw) {
   await copyFile(path.join(root, file.source), destination);
 }
 for (const snapshot of model.manifest.snapshots) {
-  await writeFile(path.join(site, 'public/search', `${snapshot.version}.json`), JSON.stringify(model.search.filter(entry => entry.version === snapshot.version)) + '\n');
+  await writeFile(
+    path.join(site, 'public/search', `${snapshot.version}.json`),
+    JSON.stringify(model.search.filter((entry) => entry.version === snapshot.version)) + '\n',
+  );
 }
-await writeFile(path.join(site, 'src/generated/model.json'), JSON.stringify(model) + '\n');
 await node(path.join(root, 'scripts/stage-brand.mjs'), ['site']);
-await node(path.join(root, 'node_modules/eslint/bin/eslint.js'), ['src', '--config', 'eslint.config.mjs'], { cwd: site });
-await node(path.join(root, 'node_modules/stylelint/bin/stylelint.mjs'), ['src/**/*.css', '--config', '../../brand/kit/enforcement/stylelint.config.json'], { cwd: site });
-await node(path.join(root, 'node_modules/next/dist/bin/next'), ['build', '--webpack'], { cwd: site, env: environment });
-for (const name of ['tsconfig.json', 'next-env.d.ts']) await writeFile(path.join(site, name), (await readFile(path.join(site, name), 'utf8')).replaceAll('\r\n', '\n'));
+await renderDiagrams(root, model);
+await writeFile(path.join(site, 'src/generated/model.json'), JSON.stringify(model) + '\n');
+await node(path.join(root, 'node_modules/eslint/bin/eslint.js'), ['src', '--config', 'eslint.config.mjs'], {
+  cwd: site,
+});
+await node(
+  path.join(root, 'node_modules/stylelint/bin/stylelint.mjs'),
+  ['src/**/*.css', '--config', '../../brand/kit/enforcement/stylelint.config.json'],
+  { cwd: site },
+);
+await node(path.join(root, 'node_modules/next/dist/bin/next'), ['build', '--webpack'], {
+  cwd: site,
+  env: environment,
+});
+for (const name of ['tsconfig.json', 'next-env.d.ts'])
+  await writeFile(
+    path.join(site, name),
+    (await readFile(path.join(site, name), 'utf8')).replaceAll('\r\n', '\n'),
+  );
 await writeFile(path.join(site, 'out/.nojekyll'), '');
-const revision = (await promisify(execFile)('git', ['rev-parse', 'HEAD'], { cwd: root, windowsHide: true })).stdout.trim();
-await writeFile(path.join(site, 'out/deployment.json'), JSON.stringify({ version: 1, revision, source: await sourceIdentity(), versions: model.manifest.snapshots.map(snapshot => snapshot.version) }, null, 2) + '\n');
-console.log(`Exported ${model.pages.length} reference pages and independent landing with ${model.raw.length} exact raw sources.`);
+const revision = (
+  await promisify(execFile)('git', ['rev-parse', 'HEAD'], { cwd: root, windowsHide: true })
+).stdout.trim();
+await writeFile(
+  path.join(site, 'out/deployment.json'),
+  JSON.stringify(
+    {
+      version: 1,
+      revision,
+      source: await sourceIdentity(),
+      versions: model.manifest.snapshots.map((snapshot) => snapshot.version),
+    },
+    null,
+    2,
+  ) + '\n',
+);
+console.log(
+  `Exported ${model.pages.length} reference pages and independent landing with ${model.raw.length} exact raw sources.`,
+);

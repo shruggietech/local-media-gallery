@@ -4,7 +4,12 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+Website architecture and presentation updated on 2026-10-23; product packages remain unpublished.
+
 ### Added
+
+- Redesigned the website with Next.js/Fumadocs, a composed gallery landing page, system/light/dark themes, pinned active contents, build-time Shiki highlighting with exact-source copy controls, described static Mermaid diagrams, and governed favicon/social metadata.
+- Added responsive visual, accessibility and cold laboratory performance qualification for the website.
 
 - Official GitHub Pages deployment at localmedia.gallery with verified ownership, DNS-only routing, HTTPS, exact qualified artifacts, live byte acceptance and recoverable provider reconciliation.
 - Independent branded static website with complete versioned documentation, local search, retained source references, readable changelog and generic JSON Schema pages.
@@ -51,3 +56,5 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - 2026-10-23: Use a separate Next.js static website, build-time Markdown-it/code highlighting, docs-only Mermaid and a validated retained-version manifest. Keep historical reference bytes snapshot-owned and require explicit dated material corrections. Hosted Windows build evidence remains distinct from interactive native acceptance. Qualification now records failed/timed-out steps and enforces child deadlines before its finalization reserve. Native keyboard automation confirms process-scoped foreground activation before sending input.
 - 2026-10-23: Publish the existing checked static website through a pinned OIDC Pages job gated by repository, Windows product and website qualification. Reuse the owned Cloudflare registration/zone, retain organization verification TXT and preserve unrelated DNS, registrar settings and DNSSEC. Serialize production deployment, reject retired revisions and restrict the authorized pre-merge bootstrap to its exact environment ref. Keep rollback snapshots private and verify live bytes against qualified source identity; product-release promotion remains separate.
 - 2026-10-23: Distinguish permanent website unbinding from a documented certificate-provisioning retry of the same organization-verified hostname. The retry preserves domain ownership TXT, DNS and the deployed site with verified restoration; permanent retirement and rollback retain DNS withdrawal.
+- 2026-10-23: Adopt the owner-selected Next.js/Fumadocs/Shiki website stack with the existing inert Markdown adapter and static Pages export. Render described themed Mermaid SVG during preparation rather than shipping its runtime. Retain governed AppFrame scrolling, use native modal compact navigation, and scope framework CSS to the required layouts. Verify browser readiness before SVG preparation and retain hosted visual, accessibility and cold laboratory performance evidence.
+- 2026-10-23: Correct the Windows native qualification helper to recognize completed folder pickers whose HWND remains alive while hidden; retain exact selected-directory and subsequent media-refresh assertions.

@@ -1,0 +1,18 @@
+{
+  "1086908960284df0ef429a41b4494d99a4c3d6a576579775d9ff75ccbcba0611": {
+    "title": "System boundaries",
+    "description": "The installed product reads local media and uses application-owned caches. The website provides documentation independently of the installed product and its media files."
+  },
+  "839423e927181e12077bd5f7d74d41df3b1a2c90c9774ea9b1deddbac29ada55": {
+    "title": "Gallery lifecycle",
+    "description": "Opening a directory resolves its root and settings, then checks access. Discovery produces a gallery session; inaccessible directories produce an actionable error. Refresh updates the session, and closing releases its resources."
+  },
+  "c0e0cecb316da2a8b39ec4d1a7384feeb1650ff8d08a7902138968afec7331fa": {
+    "title": "Installation, verification and recovery",
+    "description": "Installation inspects ownership, versions and integration before selecting an explicit action. Staged changes are verified before commit; failures invoke recovery and rollback. Conflicts require resolution before any replacement."
+  },
+  "9b81e0d684cb77fdc80946f151df926217bdc665ff9582f3064bdf3f090cf961": {
+    "title": "Optional thumbnail generation",
+    "description": "Optional thumbnail generation inspects existing artifacts and plans bounded work. Each output is validated before commit. Cancellation, stale inputs and failed validation discard unfinished outputs while preserving original media."
+  }
+}
