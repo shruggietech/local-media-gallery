@@ -66,3 +66,9 @@ apps/gallery/out/
 apps/gallery/public/brand/
 apps/gallery/src-tauri/gen/
 *.tsbuildinfo
+
+# Generated independent website.
+apps/site/.next/
+apps/site/out/
+apps/site/public/
+apps/site/src/generated/

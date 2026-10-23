@@ -22,7 +22,7 @@ The website does not provide a mandatory runtime service for local galleries. Na
 
 When product releases exist, latest documentation must correspond to the current published product release. A pre-product documentation snapshot must retain its specification context and must not imply downloadable product artifacts. Alias mechanics may use generated static pages or supported routing; the static hosting target must not depend on unsupported server-only redirect behavior.
 
-Source names such as `overview.md` are authored files; rendered topic URLs omit implementation-only source details. The renderer must correctly rewrite chapter, image, fragment and reference links for their versioned output location. The exact navigation/version metadata representation is U-12.
+Source names such as `overview.md` are authored files; rendered topic URLs omit implementation-only source details. The renderer must correctly rewrite chapter, image, fragment and reference links for their versioned output location. The version manifest declares an ordered topic list for each retained snapshot and identifies the selected documentation entry. Snapshot versions and topic identifiers are unique; a build rejects missing chapters or sources.
 
 ## Version selection and historical behavior
 
@@ -38,7 +38,7 @@ Older documentation describes its corresponding release. Retention is not a prom
 
 The release record must bind software version, documentation snapshot and master application schema version when released together. Historical schema examples must continue to use their matching schema snapshots. Latest aliases and landing downloads must not advance to a candidate before the corresponding publication is verified.
 
-Website build compatibility may require renderer adapters for old Markdown conventions. Such adaptations must preserve the historical meaning. Material corrections to an archived contract require an explicit correction policy under U-12; they must not silently rewrite what a release claimed. Historical/version-change prose remains in the master changelog.
+Website build compatibility may require renderer adapters for old Markdown conventions. Such adaptations must preserve the historical meaning. Material corrections to an archived contract require a dated correction record and changelog entry. Renderer compatibility changes may alter presentation while preserving historical meaning; they must not silently rewrite what a release claimed. Historical/version-change prose remains in the master changelog.
 
 ## Changelog, JSON and public boundaries
 
@@ -54,8 +54,18 @@ Public navigation must exclude internal planning, issue-tracking artifacts and i
 
 Glossary terms must have precise definitions, primary learning references and relevant local usage links. Major releases require a documentation vocabulary rescan and glossary refresh. A change in site tooling is not permission to change historical product semantics.
 
+## Rendering and snapshot contract
+
+The site uses an independent static Next.js workspace. Markdown-it parses Markdown and tables with raw HTML disabled. Code highlighting occurs during the build; Mermaid is bundled locally and loaded only by documentation pages containing diagrams. Diagram source remains available if rendering fails. The landing page does not import documentation search, diagram or highlighting runtimes.
+
+A validated JSON version manifest owns the selected documentation version, ordered retained snapshots/topics and optional matching schema/examples. Snapshot-owned assets and captured external brand references retain byte hashes. A build rejects missing or duplicate topics, mismatched schema versions, unsafe links and unpublished local targets. Only inventoried public documents and references are copied into the output; internal planning is excluded.
+
+Search indexes are generated locally from each snapshot's parsed source text. The interface identifies the selected version and limits displayed results to twenty matching chapters. Search unavailability leaves chapter navigation usable. Version changes preserve the topic when available; an unavailable topic opens the selected version's index with an explicit explanation.
+
+Documentation entry and latest aliases are generated static pages with visible version context and explicit-version links. A pre-product baseline remains labelled as a specification. A released latest version requires a matching published release record; candidate records and mismatched artifacts are rejected. Release-linked promotion and external deployment remain separate delivery work.
+
 ## Open decisions
 
-U-12 owns the Markdown/docs framework, search integration, navigation/version metadata, alias implementation and archived-correction policy. Next.js, independent landing composition, retained version selection and release-linked recompilation/checking are agreed requirements. Site implementation and external publication are separate delivery work.
+U-12 is resolved by these rendering, search, metadata, alias and correction contracts. No further documentation-framework decision remains open for the current site.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).

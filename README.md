@@ -64,3 +64,9 @@ Report vulnerabilities through the [security policy](SECURITY.md). See the [comm
 Source code and original documentation use [Apache 2.0](LICENSE). Upstream assets retain their own notices; see [NOTICE](NOTICE) and the kit's licensing files.
 
 A [ShruggieTech](https://shruggie.tech/) project
+
+## Website development
+
+Run `npm run build:site`, `npm run check:site` and `npm run test:site` for the independent static website. Install the pinned Chromium test runtime with `node node_modules/playwright/cli.js install chromium` first. The export is `apps/site/out`; it can be served by an ordinary static web server. Domain deployment is separate.
+
+The version manifest is `site/versions.json`. Retain complete documentation snapshots and snapshot-owned reference/assets, with matching versioned schemas and examples. Do not substitute current content under a historical version label.

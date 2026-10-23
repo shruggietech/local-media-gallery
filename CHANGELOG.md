@@ -4,7 +4,14 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Decisions
+
+- 2026-10-23: Use a separate Next.js static website, build-time Markdown-it/code highlighting, docs-only Mermaid and a validated retained-version manifest. Keep historical reference bytes snapshot-owned and require explicit dated material corrections. Hosted Windows build evidence remains distinct from interactive native acceptance. Qualification now records failed/timed-out steps and enforces child deadlines before its finalization reserve. Native keyboard automation confirms process-scoped foreground activation before sending input.
+
 ### Added
+
+- Independent branded static website with complete versioned documentation, local search, retained source references, readable changelog and generic JSON Schema pages.
+- Pinned hosted repository, Windows product and website qualification workflows, plus a separately elected automated Windows desktop path and exact source/artifact evidence.
 
 - Public source repository, comprehensive GitHub labels/topics, private vulnerability reporting and an empty linked delivery Project with table/board views. Repository configuration is recorded in `.github/bootstrap.json`.
 

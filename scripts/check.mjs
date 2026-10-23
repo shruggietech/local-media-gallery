@@ -17,7 +17,7 @@ async function inspect(relative = '') {
     const name = relative ? `${relative}/${entry.name}` : entry.name;
     if (skip.has(name)) continue;
     if (entry.isDirectory() && ['node_modules', '.next', 'target', 'out'].includes(entry.name)) continue;
-    if (['apps/gallery/public/brand', 'apps/gallery/src-tauri/gen'].includes(name)) continue;
+    if (['apps/gallery/public/brand', 'apps/gallery/src-tauri/gen', 'apps/site/public', 'apps/site/src/generated'].includes(name)) continue;
     assert.ok(!entry.isSymbolicLink(), `Unexpected symlink: ${name}`);
     if (entry.isDirectory()) { await inspect(name); continue; }
     if (!textExtensions.has(extname(name)) && !rootText.has(name)) continue;

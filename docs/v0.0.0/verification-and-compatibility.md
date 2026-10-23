@@ -48,6 +48,14 @@ These checks cover repository integrity, documentation structure/references and 
 
 The independent landing page must be tested for its own content, release pointers, navigation and runtime payload. Documentation checks include topic-preserving version changes, explicit missing-topic fallback, version-scoped search and historical asset/fragment resolution.
 
+## Hosted and native automation
+
+Hosted qualification exposes three stable required checks: repository, product-windows and website. They reuse the repository's npm commands with pinned Actions, read-only repository permissions and credential-free checkout. Each record identifies the exact Git revision, source digest, terminal outcomes and produced artifact hashes. Dependency installation and build readiness belong to preparation; timed qualification starts after readiness.
+
+The Windows hosted job establishes native compilation, Rust/unit, frontend and brand evidence. It does not certify interactive desktop input or assistive technology. The separate desktop qualification workflow targets a provisioned Windows x64 runner labelled gallery-desktop, started in an isolated logged-in desktop session with MSVC/SDK/WebView2, Python and FFmpeg available. Running that worker as a Windows service does not provide an interactive desktop. The workflow drives existing small-fixture native automation without an attended owner walkthrough. No self-hosted runner availability is implied by defining this path.
+
+Apply the actual passing check names to the repository policy after hosted success; preserve squash-only merge and merged-branch deletion. Native evidence remains identified separately from hosted evidence and requires its actual elected environment.
+
 ## Qualification accounting
 
 **VC-03:** Release qualification MUST begin after verified prerequisite readiness, target 660 seconds and enforce a 900-second hard limit. Target-only overruns are advisory. Provisional finalization must retain fifteen seconds for terminal results and final acceptance. Functional, integrity, provenance and elected checks remain mandatory; a timing target does not waive a required failure.

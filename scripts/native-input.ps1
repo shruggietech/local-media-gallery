@@ -31,7 +31,7 @@ public static class GalleryNativeInput {
         uint foreground = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
         bool targetAttached = current != target && AttachThreadInput(current, target, true);
         bool foregroundAttached = foreground != current && foreground != target && AttachThreadInput(current, foreground, true);
-        try { SetForegroundWindow(window); SetFocus(control); return GetForegroundWindow() == window; }
+        try { SetForegroundWindow(window); if (control != IntPtr.Zero) SetFocus(control); return GetForegroundWindow() == window; }
         finally {
             if (foregroundAttached) AttachThreadInput(current, foreground, false);
             if (targetAttached) AttachThreadInput(current, target, false);
@@ -47,6 +47,12 @@ $condition = [System.Windows.Automation.PropertyCondition]::new(
 $window = [System.Windows.Automation.AutomationElement]::FromHandle($app.MainWindowHandle)
 [void][GalleryNativeInput]::SetForegroundWindow($app.MainWindowHandle)
 if ($Action -eq 'keys') {
+    $focusDeadline = [DateTime]::UtcNow.AddSeconds(5)
+    do {
+        $focused = [GalleryNativeInput]::FocusControl($app.MainWindowHandle, [IntPtr]::Zero)
+        if (-not $focused) { Start-Sleep -Milliseconds 100 }
+    } until ($focused -or [DateTime]::UtcNow -gt $focusDeadline)
+    if (-not $focused) { throw 'Cannot confirm the application is foreground; keyboard input was withheld.' }
     [System.Windows.Forms.SendKeys]::SendWait($Keys)
     return
 }

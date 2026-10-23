@@ -1,0 +1,12 @@
+{
+  "name": "@local-media-gallery/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "mermaid": "12.2.0"
+  }
+}
