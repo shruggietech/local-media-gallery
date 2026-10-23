@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { renderMarkdown, rewriteLink, switchTopic, renderSchema, validateRelease, validateManifest, searchEntries, createModel, hash, confinedRead } from '../scripts/site-content.mjs';
 import { root } from '../scripts/run.mjs';
-import { aliasRoutes } from '../apps/site/src/lib/navigation.mjs';
+import { aliasRoutes, landingDocs } from '../apps/site/src/lib/navigation.mjs';
 
 test('Markdown parses tables, nested lists, code, safe headings and inert HTML', () => {
   const result = renderMarkdown("# Title\n\n## Same\n\n## Same\n\n| A | B |\n| --- | --- |\n| x | y |\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n", x => x);
@@ -62,6 +62,7 @@ test('real snapshot model preserves historical references/assets and rejects mis
   assert.equal(model.raw.find(entry => entry.path === '/raw/v1.0.0/references/reference.txt').sha256, hash('old-v1.0.0'));
   assert.equal(switchTopic(manifest.snapshots, 'v2.0.0', 'extra').missing, true);
   assert.deepEqual(aliasRoutes(manifest), ['/docs/', '/docs/latest/']);
+  assert.deepEqual(landingDocs(manifest), { version: 'v2.0.0', status: 'specification', overview: '/docs/v2.0.0/?missing=overview' });
   await put('site/snapshots/v1.0.0/reference.source', 'tampered');
   await assert.rejects(createModel(base, manifest), /hash mismatch/);
   await put('site/snapshots/v1.0.0/reference.source', 'old-v1.0.0');

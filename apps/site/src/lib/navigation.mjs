@@ -9,6 +9,13 @@ export function aliasRoutes(manifest) {
   return ['/docs/', '/docs/latest/', ...selected.topics.filter(topic => topic !== 'index').map(topic => `/docs/latest/${topic}/`)];
 }
 
+/** @param {{latest: string, snapshots: {version: string, status: string, topics: string[]}[]}} manifest */
+export function landingDocs(manifest) {
+  const selected = manifest.snapshots.find(snapshot => snapshot.version === manifest.latest);
+  if (!selected) throw new Error('Unknown latest version');
+  return { version: selected.version, status: selected.status, overview: switchTopic(manifest.snapshots, selected.version, 'overview').href };
+}
+
 /** @param {{ version: string, topics: string[] }[]} versions @param {string} version @param {string} topic */
 export function switchTopic(versions, version, topic) {
   const snapshot = versions.find(entry => entry.version === version);

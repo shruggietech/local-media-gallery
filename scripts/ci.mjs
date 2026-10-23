@@ -7,6 +7,7 @@ import { root, node, cargo, execute, exportInterface } from './run.mjs';
 import { qualification } from './qualification.mjs';
 import { sourceIdentity } from './provenance.mjs';
 import { hash } from './site-content.mjs';
+import assert from 'node:assert/strict';
 
 const scope = process.argv[2];
 if (!['repository', 'product-windows', 'website'].includes(scope)) throw new Error('Unknown CI scope');
@@ -14,7 +15,11 @@ const npm = process.env.npm_execpath ?? path.join(path.dirname(process.execPath)
 const command = name => () => execute(process.execPath, [npm, 'run', name]);
 await mkdir(path.join(root, '.local'), { recursive: true });
 const record = await qualification({
-  prepare: async () => {
+  identify: async () => {
+    const revision = (await promisify(execFile)('git', ['rev-parse', 'HEAD'], { cwd: root, windowsHide: true })).stdout.trim();
+    return { revision, source: await sourceIdentity(), scope, evidence: scope === 'product-windows' ? 'Hosted Windows compile/unit/frontend/brand, not interactive native acceptance' : scope };
+  },
+  prepare: async context => {
     // Workflow dependency installation is included in preparation accounting below.
     if (scope === 'product-windows') {
       await node(path.join(root, 'scripts/prepare.mjs'));
@@ -28,8 +33,7 @@ const record = await qualification({
       if (process.env.GALLERY_SITE_BROWSER) await access(process.env.GALLERY_SITE_BROWSER);
       else await node(path.join(root, 'node_modules/playwright/cli.js'), ['install', 'chromium', '--no-shell']);
     }
-    const revision = (await promisify(execFile)('git', ['rev-parse', 'HEAD'], { cwd: root, windowsHide: true })).stdout.trim();
-    return { revision, source: await sourceIdentity(), scope, evidence: scope === 'product-windows' ? 'Hosted Windows compile/unit/frontend/brand, not interactive native acceptance' : scope };
+    assert.deepEqual(await sourceIdentity(), context.source, 'Preparation changed qualified source');
   },
   steps: (scope === 'repository' ? ['check', 'test', 'check:docs'] : scope === 'website' ? ['check:site', 'test:site'] : ['check:app']).map(name => ({ name: `npm run ${name}`, run: command(name) })),
 });

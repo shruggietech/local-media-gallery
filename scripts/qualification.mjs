@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { setExecutionDeadline } from './run.mjs';
 
-export async function qualification({ prepare, steps, now = Date.now, targetSeconds = 660, hardLimitSeconds = 900, reserveSeconds = 15 }) {
+export async function qualification({ identify = async () => undefined, prepare, steps, now = Date.now, targetSeconds = 660, hardLimitSeconds = 900, reserveSeconds = 15 }) {
   const started = now(); const timestamp = value => new Date(value).toISOString();
   const record = { preparationStarted: timestamp(started), readinessVerified: null, terminalFinished: null, preparationSeconds: 0, qualificationSeconds: 0, combinedSeconds: 0, targetSeconds, hardLimitSeconds, provisionalFinalizationReserveSeconds: reserveSeconds, targetAdvisory: false, result: 'preparation-failed', steps: steps.map(step => ({ name: step.name, result: 'not-run' })), failure: null };
   let ready = null;
   try {
-    record.context = await prepare();
+    record.context = await identify();
+    const prepared = await prepare(record.context);
+    if (prepared !== undefined) record.context = { ...record.context, ...prepared };
     ready = now(); record.readinessVerified = timestamp(ready); record.result = 'pass';
     const deadline = ready + (hardLimitSeconds - reserveSeconds) * 1000;
     // The real process runner terminates the child tree before finalization reserve.

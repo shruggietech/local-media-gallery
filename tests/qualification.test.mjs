@@ -17,6 +17,8 @@ test('deadline prevents later admission and late success is not on-time success'
 });
 
 test('preparation failures do not claim qualification readiness', async () => {
-  const record = await qualification({ prepare: async () => { throw new Error('missing tool'); }, steps: [] });
+  const context = { revision: 'abc123', source: { sha256: 'digest' } };
+  const record = await qualification({ identify: async () => context, prepare: async () => { throw new Error('missing tool'); }, steps: [] });
   assert.equal(record.readinessVerified, null); assert.equal(record.result, 'preparation-failed'); assert.equal(record.qualificationSeconds, 0);
+  assert.deepEqual(record.context, context, 'Preparation failure must retain source identity');
 });

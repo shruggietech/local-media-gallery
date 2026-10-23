@@ -14,12 +14,12 @@ Website contract tests failed on the missing content module before implementatio
 
 | Measurement | Result |
 | --- | --- |
-| Preparation started | 2026-10-23T07:09:48.914Z |
-| Verified readiness | 2026-10-23T07:10:35.990Z |
-| Terminal completion | 2026-10-23T07:12:06.904Z |
-| Preparation | 47.076 seconds |
-| Qualification | 90.914 seconds |
-| Combined | 137.99 seconds |
+| Preparation started | 2026-10-23T07:20:13.928Z |
+| Verified readiness | 2026-10-23T07:21:05.770Z |
+| Terminal completion | 2026-10-23T07:22:46.689Z |
+| Preparation | 51.842 seconds |
+| Qualification | 100.919 seconds |
+| Combined | 152.761 seconds |
 | Target / hard limit / reserve | 660 / 900 / 15 seconds |
 | Target advisory | None |
 
@@ -27,9 +27,9 @@ Every elected step passed: repository integrity, thirty Node tests, documentatio
 
 Website evidence covers 39 exported HTML pages, 1,620 local links/fragments, 28 exact raw sources and 328 artifact hashes. Browser acceptance exercised landing availability, keyboard/focus, local search/navigation, rendered Mermaid SVG, missing-topic explanation, static aliases, schema-reference anchors, narrow/wide reading and reduced motion. Browser runtime was Chromium 156.0.8078.4, explicitly supplied from an existing local installation after an attempted download stalled. The Playwright driver is pinned; CI prepares its corresponding Chromium separately. Screenshots were inspected for landing and documentation layout.
 
-Native evidence used twelve synthetic candidates and retained the existing Windows input/picker/codec/settings coverage. Normal binary SHA-256 is ee5c7c59f5c1396476048b05d8bb59ffbd875fbd857e88ebda4007eed453ff60. The test binary hash is 0b9feca60ad8e4fa4c9c454ab046774058ecc02bd4b22c1262aebb07d0040811.
+Native evidence used twelve synthetic candidates and retained the existing Windows input/picker/codec/settings coverage. Normal binary SHA-256 is 2da8fc8f54eb62c5b240aaf5609ae1e90d8d53e522b67df9b1afa298ce494aee. The test binary hash is 61361b8f0274906ed35678232ccf24520d78de4b6443296a097398d64518657f.
 
-Source identity: 30e5a730ae3d5b84cdb5dd4e4d334123eb33e4179206d5c624129a32e2524805, 887 files. Only this verification file and tasks.md are excluded for evidence finalization. Governed kit bytes remain unchanged. Terminal JSON records and all website artifact hashes are retained under ignored .local output and uploaded by the hosted workflow.
+Source identity: b755a8e56e7ccaee73d514515ac589bdd3ca31f6c313a7ca4922fb5a7a4a3868, 887 files. Only this verification file and tasks.md are excluded for evidence finalization. Governed kit bytes remain unchanged. Terminal JSON records and all website artifact hashes are retained under ignored .local output and uploaded by the hosted workflow.
 
 ## Retained failed attempt
 
@@ -40,3 +40,7 @@ A later full run passed repository/product/site checks but failed the native pic
 Hosted product-windows certifies compilation, unit/frontend and brand checks, not interactive native acceptance. The dispatch-only gallery-desktop worker path requires a provisioned logged-in Windows desktop and is not claimed provisioned or exercised. Linux/macOS native runtime, physical touch, assistive technology, installers, Lite packages, large collections, live Pages/domain/TLS and product publication remain unqualified or separate issues. No package or domain is advertised as published.
 
 No implementation scope deviation remains against #28/#29/#30. Issue #6 additionally requires real hosted success and required-check policy readback, which are post-push gates. PR review resolution and final-head CI remain required before owner merge handoff.
+
+## First external review
+
+The opening Codex review reported two P2 findings. CI/native qualification now capture source identity before fallible preparation and retain it on failure, with a regression proving the failure record keeps provenance. Landing documentation version/status and overview destination now derive from the selected manifest snapshot, including an explicit missing-topic fallback. The corresponding regressions and full local qualification passed before the correction push. Hosted final-head checks, policy readback and the bounded follow-up review remain delivery gates.

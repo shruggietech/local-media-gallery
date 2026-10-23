@@ -12,6 +12,7 @@ const npm = process.env.npm_execpath ?? path.join(path.dirname(process.execPath)
 let source;
 const commands = ['check', 'test', 'check:docs', 'check:app', 'check:site', 'test:site'];
 const record = await qualification({
+  identify: async () => { source = await sourceIdentity(); return { source, evidence: 'Windows x64 native and rendered website' }; },
   prepare: async () => {
     await mkdir(binaryDirectory, { recursive: true });
     if (process.env.GALLERY_SITE_BROWSER) await access(process.env.GALLERY_SITE_BROWSER);
@@ -25,7 +26,7 @@ const record = await qualification({
     await copyFile(path.join(root, 'target/debug/local-media-gallery.exe'), path.join(binaryDirectory, 'local-media-gallery.exe'));
     await cargo(['test', '--locked', '--workspace', '--no-run']);
     await cargo(['clippy', '--locked', '--workspace', '--all-targets', '--', '-D', 'warnings']);
-    source = await sourceIdentity(); return { source, evidence: 'Windows x64 native and rendered website' };
+    assert.deepEqual(await sourceIdentity(), source, 'Preparation changed qualified source');
   },
   steps: [
     ...commands.map(name => ({ name: 'npm run ' + name, run: () => execute(process.execPath, [npm, 'run', name]) })),
