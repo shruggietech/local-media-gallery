@@ -78,6 +78,10 @@ jobs:
           node-version: 24.11.0
           cache: npm
       - run: npm ci
+      - name: Use primary Ubuntu archive for browser prerequisites
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          printf '%s\n' 'Acquire::Retries "2";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/80-browser-downloads
       - run: node node_modules/playwright/cli.js install --with-deps chromium --no-shell
       - run: npm run ci -- website
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -88,6 +92,7 @@ jobs:
             .local/ci-website.json
             .local/site-artifact.json
             .local/site-browser.json
+            .local/site-visual/
           include-hidden-files: true
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

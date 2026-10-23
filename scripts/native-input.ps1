@@ -18,7 +18,7 @@ public static class GalleryNativeInput {
     [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr handle, uint message, IntPtr wparam, IntPtr lparam);
     [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)] public static extern IntPtr ReplaceText(IntPtr handle, uint message, IntPtr wparam, string text);
     [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)] public static extern IntPtr ReadText(IntPtr handle, uint message, IntPtr count, StringBuilder text);
-    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr handle);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr handle);
     [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr handle, uint flags);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern IntPtr SetFocus(IntPtr handle);
@@ -90,10 +90,12 @@ if ($Action -eq 'select-picker') {
     }
     [void][GalleryNativeInput]::SendMessage([IntPtr]$button.Current.NativeWindowHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero)
     Start-Sleep -Milliseconds 100
-    if (-not [GalleryNativeInput]::IsWindow([IntPtr]$button.Current.NativeWindowHandle)) { return }
+    # Common dialogs can retain a hidden HWND after completing selection.
+    if (-not [GalleryNativeInput]::IsWindowVisible($dialogHandle)) { return }
     $leaf = Split-Path -Leaf $Directory
     $deadline = [DateTime]::UtcNow.AddSeconds(8)
     do {
+        if (-not [GalleryNativeInput]::IsWindowVisible($dialogHandle)) { return }
         $address = @($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
             [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
             $_.Current.Name -like 'Address:*' -and $_.Current.Name.EndsWith($leaf)

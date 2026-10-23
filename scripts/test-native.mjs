@@ -220,6 +220,7 @@ try {
     await click('Choose folder'); await input('select-picker', ['-Directory', empty]);
     await visible('document.querySelectorAll(".media-card").length===0 && document.body.textContent.includes("No media found")');
     const before = await snapshot();
+    assert.equal(path.relative(path.toNamespacedPath(empty), before.root), '', 'Picker selected the exact requested directory');
     assert.ok(await js('try { await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]}); return false; } catch { return true; }', [empty + '/absent']));
     assert.equal((await snapshot()).sessionId, before.sessionId);
     await select('media-filter', 'video'); await visible('document.body.textContent.includes("No media found")');

@@ -2,7 +2,7 @@
 
 ## Independent website surfaces
 
-The public website uses Next.js. It has a landing page that introduces the product and a documentation surface that explains version-specific behavior. **WD-01:** The landing page MUST have its own content, layout and navigation entry points outside the versioned documentation source tree. It must be usable without mounting the documentation layout or loading documentation-only search/diagram/highlighting runtimes.
+The public website uses Next.js with Fumadocs for its versioned reading shell and Shiki for build-time code highlighting. It has a landing page that introduces the product and a documentation surface that explains version-specific behavior. **WD-01:** The landing page MUST have its own content, layout and navigation entry points outside the versioned documentation source tree. It must be usable without mounting the documentation layout or loading documentation-only search/diagram/highlighting runtimes.
 
 Shared brand tokens, assets and selected components are appropriate. Independent composition does not require separate domains or infrastructure. The landing page can provide product explanation, edition/platform choices, download information, documentation links and support/license access. Its release/download assertions must come from verified release records; absent or unpublished packages must not receive fabricated download destinations.
 
@@ -56,13 +56,19 @@ Glossary terms must have precise definitions, primary learning references and re
 
 ## Rendering and snapshot contract
 
-The site uses an independent static Next.js workspace. Markdown-it parses Markdown and tables with raw HTML disabled. Code highlighting occurs during the build; Mermaid is bundled locally and loaded only by documentation pages containing diagrams. Diagram source remains available if rendering fails. The landing page does not import documentation search, diagram or highlighting runtimes.
+The site uses an independent static Next.js workspace. Markdown-it parses Markdown and tables with raw HTML disabled. Shiki highlights code during the build with governed theme tokens. Copy controls preserve exact source whitespace and communicate success or failure; examples remain readable without scripting. Mermaid diagrams are rendered as strict, described light/dark SVG during preparation with local fonts, unique identifiers and local-only references. They remain readable without scripting, with source disclosure and a local overflow region for legible inspection. Invalid diagrams fail the build; neither Mermaid nor Shiki ships as a reader runtime. The landing page does not import documentation search, diagram or highlighting runtimes.
 
 A validated JSON version manifest owns the selected documentation version, ordered retained snapshots/topics and optional matching schema/examples. Snapshot-owned assets and captured external brand references retain byte hashes. A build rejects missing or duplicate topics, mismatched schema versions, unsafe links and unpublished local targets. Only inventoried public documents and references are copied into the output; internal planning is excluded.
 
 Search indexes are generated locally from each snapshot's parsed source text. The interface identifies the selected version and limits displayed results to twenty matching chapters. Search unavailability leaves chapter navigation usable. Version changes preserve the topic when available; an unavailable topic opens the selected version's index with an explicit explanation.
 
 Documentation entry and latest aliases are generated static pages with visible version context and explicit-version links. A pre-product baseline remains labelled as a specification. A released latest version requires a matching published release record; candidate records and mismatched artifacts are rejected. Release-linked product promotion remains separate from baseline website publication.
+
+## Reading presentation and discovery
+
+The governed browser AppFrame owns root scrolling. Chapter navigation and the active page contents remain available on wide displays; compact navigation supports keyboard dismissal on narrow displays. Native heading anchors retain fragments and browser history. Reduced motion removes animated scrolling and active-marker transitions. System, light and dark preferences use delivered fonts, semantic colors and remembered explicit selection where storage is available. Prose links retain visible multiline underlines and focus cues.
+
+Each public HTML route has accurate title, description, canonical HTTPS and social metadata. Distinct retained versions are self-canonical; generated entry/latest aliases canonicalize to their explicit equivalent and are omitted from the sitemap. Error pages are not indexed. Governed favicons, manifest dependencies and social artwork are staged byte-for-byte. Metadata never invents package availability, ratings or social identities.
 
 ## Publication and recovery
 
