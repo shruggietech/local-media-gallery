@@ -6,6 +6,8 @@ import { root } from './run.mjs';
 import { verifyInstalled } from './sync-brand-kit.mjs';
 
 await verifyInstalled(path.join(root, 'brand'));
+const surface = process.argv[2] ?? 'gallery';
+if (!['gallery', 'site'].includes(surface)) throw new Error('Unknown brand staging surface');
 const names = [
   'fonts/fonts.css',
   ...['SpaceGrotesk-Medium', 'SpaceGrotesk-Bold', 'Geist-Regular', 'Geist-Medium', 'GeistMono-Regular'].map(name => `fonts/woff2/${name}.woff2`),
@@ -26,12 +28,12 @@ names.push(...await filesWithin('fonts/licenses'));
 const inventory = [];
 for (const name of names) {
   const source = path.join(root, 'brand/kit', name);
-  const target = path.join(root, 'apps/gallery/public/brand', name);
+  const target = path.join(root, `apps/${surface}/public/brand`, name);
   await mkdir(path.dirname(target), { recursive: true });
   await copyFile(source, target);
   const bytes = await readFile(target);
   inventory.push({ path: name, sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length });
 }
 await mkdir(path.join(root, '.local'), { recursive: true });
-await import('node:fs/promises').then(fs => fs.writeFile(path.join(root, '.local/staged-brand.json'), JSON.stringify(inventory, null, 2) + '\n'));
+await import('node:fs/promises').then(fs => fs.writeFile(path.join(root, surface === 'gallery' ? '.local/staged-brand.json' : '.local/staged-brand-site.json'), JSON.stringify(inventory, null, 2) + '\n'));
 console.log(`Staged ${names.length} exact brand assets and notices.`);

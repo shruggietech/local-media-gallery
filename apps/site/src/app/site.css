@@ -1,0 +1,50 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bb-surface-background); color: var(--bb-text-primary); font-family: var(--bb-typography-body-family); line-height: 1.6; }
+a { color: var(--bb-text-muted); text-underline-offset: var(--lo-space-1); }
+a:hover { text-decoration-thickness: var(--bb-border-strong); }
+:focus-visible { outline: var(--bb-focus-width) solid var(--bb-focus-ring); outline-offset: var(--bb-focus-offset); }
+h1, h2, h3, h4 { font-family: var(--bb-typography-display-family); font-weight: 500; line-height: 1.2; overflow-wrap: anywhere; }
+h1 { font-size: clamp(2rem, 5vw, 4rem); }
+h2 { margin-block-start: var(--lo-space-7); }
+code, pre { font-family: var(--bb-typography-mono-family); font-weight: 400; }
+pre, table, .diagram { max-width: 100%; overflow: auto; }
+pre { padding: var(--lo-space-4); background: var(--bb-surface-card); border-radius: var(--lo-radius-md); }
+pre code { white-space: pre; }
+table { display: block; border-collapse: collapse; }
+th, td { text-align: left; border: var(--bb-border-default) solid var(--bb-text-muted); padding: var(--lo-space-2) var(--lo-space-3); min-width: 8rem; }
+th, strong { font-weight: 500; }
+img, svg { max-width: 100%; }
+.site-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--lo-space-4); padding: var(--lo-space-4) var(--bb-layout-gutter-compact); }
+.identity, .site-header nav, .landing-actions, .site-footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--lo-space-5); }
+.identity { text-decoration: none; font-family: var(--bb-typography-display-family); font-weight: 500; color: var(--bb-text-primary); }
+.identity img { width: var(--lo-space-7); height: var(--lo-space-7); }
+.site-footer { padding-block: var(--lo-space-7); margin-block-start: var(--lo-space-7); border-top: var(--bb-border-default) solid var(--bb-text-muted); }
+.site-footer p { flex-basis: 100%; }
+.landing { max-width: var(--bb-layout-narrow-max); padding-block: var(--lo-space-8); }
+.landing h1 { margin-block: var(--lo-space-5); }
+.lead { font-size: 1.5rem; }
+.landing-actions { margin-block: var(--lo-space-6); }
+.primary-link { display: inline-block; background: var(--bb-action-primary); color: var(--bb-text-on-action); padding: var(--lo-space-3) var(--lo-space-4); border-radius: var(--lo-radius-md); text-decoration: none; }
+.docs-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--lo-space-7); padding-block: var(--lo-space-6); }
+.docs-layout aside { min-width: 0; }
+.docs-layout aside nav ol { padding-inline-start: var(--lo-space-5); }
+.docs-layout aside nav li { margin-block: var(--lo-space-2); }
+.docs-controls { display: grid; gap: var(--lo-space-4); }
+.docs-controls input, .docs-controls select { width: 100%; max-width: 100%; }
+.prose { min-width: 0; overflow-wrap: anywhere; }
+.prose > div > h1:first-child { margin-block-start: var(--lo-space-4); }
+.prose pre { overflow-wrap: normal; }
+.reference-layout { max-width: var(--bb-layout-narrow-max); margin-inline: auto; }
+.raw-link, .version-label { font-family: var(--bb-typography-mono-family); }
+.diagram { margin: var(--lo-space-5) 0; padding: var(--lo-space-4); background: var(--bb-surface-card); border-radius: var(--lo-radius-xl); }
+.diagram-output svg { height: auto; }
+summary { cursor: pointer; min-height: var(--bb-interaction-target-minimum); }
+.prose dl { border-inline-start: var(--bb-border-default) solid var(--bb-text-muted); padding-inline-start: var(--lo-space-4); }
+.prose dd { margin-inline-start: var(--lo-space-5); }
+.prose dt { font-family: var(--bb-typography-mono-family); color: var(--bb-text-muted); }
+.hljs-keyword, .hljs-attr, .hljs-title { color: var(--bb-text-muted); }
+.hljs-string, .hljs-number, .hljs-literal { color: var(--bb-cue-information); }
+.hljs-comment { color: var(--bb-text-muted); }
+@media (width <= 720px) { .docs-layout { grid-template-columns: minmax(0, 1fr); gap: var(--lo-space-6); } .site-header nav { gap: var(--lo-space-4); } .landing { padding-block: var(--lo-space-6); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: var(--bb-motion-reduced) !important; transition-duration: var(--bb-motion-reduced) !important; } }

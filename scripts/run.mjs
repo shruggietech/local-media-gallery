@@ -13,13 +13,25 @@ const workspaceTemp = path.join(root, '.local/tmp');
 if (process.platform === 'win32') await mkdir(workspaceTemp, { recursive: true });
 export const environment = {
   ...process.env, ...(process.platform === 'win32' ? { TMP: workspaceTemp, TEMP: workspaceTemp } : {}), CI: 'true', NEXT_TELEMETRY_DISABLED: '1', npm_config_yes: 'false',
+  PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH ?? path.join(root, '.local/browsers'),
   NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --require="${path.join(root, 'scripts/hide-console.cjs').replaceAll('\\', '/')}"`.trim(),
 };
+let executionDeadline = null;
+export function setExecutionDeadline(value) { executionDeadline = value; }
 export function execute(file, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(file, args, { cwd: root, env: environment, windowsHide: true, shell: false, stdio: 'inherit', ...options });
-    child.once('error', reject);
-    child.once('exit', (code, signal) => code === 0 ? resolve() : reject(new Error(`${path.basename(file)} exited ${code ?? signal}`)));
+    if (executionDeadline !== null && Date.now() >= executionDeadline) return reject(new Error('Qualification deadline reached before child admission'));
+    const child = spawn(file, args, { cwd: root, env: environment, windowsHide: true, shell: false, stdio: 'inherit', detached: process.platform !== 'win32', ...options });
+    let timedOut = false;
+    const timer = executionDeadline === null ? null : setTimeout(() => {
+      timedOut = true;
+      if (process.platform === 'win32') {
+        const terminator = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, shell: false, stdio: 'ignore' });
+        terminator.once('error', () => child.kill());
+      } else { try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); } }
+    }, Math.max(1, executionDeadline - Date.now()));
+    child.once('error', error => { clearTimeout(timer); reject(error); });
+    child.once('exit', (code, signal) => { clearTimeout(timer); timedOut ? reject(new Error(`Qualification deadline terminated ${path.basename(file)} (${code ?? signal})`)) : code === 0 ? resolve() : reject(new Error(`${path.basename(file)} exited ${code ?? signal}`)); });
   });
 }
 export const node = (script, args = [], options = {}) => execute(process.execPath, [script, ...args], options);

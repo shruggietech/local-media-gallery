@@ -1,0 +1,305 @@
+{
+  "schema_version": 5,
+  "brand": {
+    "slug": "localmedia-gallery",
+    "title": "Local Media Gallery",
+    "affiliation": {
+      "ownership": "shruggietech-owned",
+      "showcase": "public",
+      "parent": "ShruggieTech",
+      "inheritance": "independent",
+      "endorsement": "shruggietech-project",
+      "service_credit": "none"
+    },
+    "brand_version": "1.0.0"
+  },
+  "bundle": {
+    "schema_version": 1,
+    "package": {
+      "id": "localmedia-gallery-brand-1.0.0-bb3.1.0",
+      "filename": "localmedia-gallery-brand-1.0.0-bb3.1.0.zip",
+      "brand_slug": "localmedia-gallery",
+      "brand_version": "1.0.0",
+      "brandbuilder_version": "3.1.0"
+    },
+    "versions": {
+      "canon_version": "2.1.0",
+      "interface_canon_version": "1.0.1",
+      "component_recipe_version": "1.1.0",
+      "web_react_adapter_version": "1.1.0",
+      "egui_adapter_version": "1.0.2",
+      "wordpress_adapter_version": "1.0.0",
+      "compiler_version": "3.1.0",
+      "brand_version": "1.0.0"
+    },
+    "source_revision": "2589678e971ae654579e9dbb9575661775c4a6ec",
+    "publication": {
+      "status": "candidate",
+      "version": "3.1.0",
+      "tag": "v3.1.0"
+    },
+    "checksum_authority": {
+      "algorithm": "sha256",
+      "manifest": "manifest.json",
+      "release_checksums": null
+    }
+  },
+  "versions": {
+    "canon_version": "2.1.0",
+    "interface_canon_version": "1.0.1",
+    "component_recipe_version": "1.1.0",
+    "web_react_adapter_version": "1.1.0",
+    "egui_adapter_version": "1.0.2",
+    "wordpress_adapter_version": "1.0.0",
+    "compiler_version": "3.1.0",
+    "brand_version": "1.0.0"
+  },
+  "version_semantics": {
+    "canon_version": "Brand Canon governing identity and inherited brand values.",
+    "interface_canon_version": "Interface Canon governing renderer-neutral UI semantics.",
+    "component_recipe_version": "Bounded shared component grammar and behavior contract.",
+    "web_react_adapter_version": "Generated Web/React implementation contract.",
+    "egui_adapter_version": "Generated Rust and egui implementation contract.",
+    "wordpress_adapter_version": "Generated native WordPress implementation and theme package contract.",
+    "compiler_version": "BrandBuilder distribution that generated this contract.",
+    "brand_version": "Consumer brand source contract version."
+  },
+  "compatibility": {
+    "policy_version": "2.3.1",
+    "status": "compatible",
+    "validated_versions": {
+      "brand": "1.0.0",
+      "brand_canon": "2.1.0",
+      "compiler": "3.1.0",
+      "component_recipes": "1.1.0",
+      "egui_adapter": "1.0.2",
+      "interface_canon": "1.0.1",
+      "web_react_adapter": "1.1.0",
+      "wordpress_adapter": "1.0.0"
+    },
+    "rules_checked": 17
+  },
+  "environment": {
+    "renderer": "renderer-neutral",
+    "host": "none",
+    "supported_targets": [
+      "web",
+      "native",
+      "wordpress"
+    ],
+    "viewport_profiles": [
+      "compact",
+      "medium",
+      "expanded",
+      "unbounded"
+    ],
+    "adapter_versions": {
+      "web-tokens": "1.1.0",
+      "web-react": "1.1.0",
+      "egui": "1.0.2",
+      "wordpress": "1.0.0",
+      "nextjs-compatibility": "3.1.0"
+    }
+  },
+  "authority": {
+    "brand_source": "brand.json",
+    "bundle": "enforcement/bundle.json",
+    "release_impact": "enforcement/release-impact.json",
+    "migration_summary": "enforcement/MIGRATION.md",
+    "interface_canon": "enforcement/interface-canon.json",
+    "component_recipes": "enforcement/component-recipes.json",
+    "version_policy": "enforcement/version-policy.json",
+    "web_adapter": "web/adapter.json",
+    "support_matrix": "web/support-matrix.json",
+    "egui_adapter": "native/egui/adapter.json",
+    "egui_support_matrix": "native/egui/support-matrix.json",
+    "wordpress_adapter": "wordpress/adapter.json",
+    "wordpress_support_matrix": "wordpress/support-matrix.json",
+    "wordpress_theme_zip": "wordpress/localmedia-gallery-stbb-theme.zip",
+    "instructions": "enforcement/IMPLEMENTATION.md",
+    "documentation_contract": "enforcement/documentation-contract.json",
+    "documentation_facts": "enforcement/documentation-facts.json",
+    "precedence": [
+      "brand.json",
+      "enforcement/bundle.json",
+      "enforcement/release-impact.json",
+      "enforcement/interface-canon.json",
+      "enforcement/component-recipes.json",
+      "enforcement/version-policy.json",
+      "enforcement/documentation-contract.json",
+      "enforcement/consumer-contract.json",
+      "human instructions that do not conflict"
+    ],
+    "permitted_exceptions": [
+      "token definition files may contain governed literals",
+      "renderer metadata may contain documented platform-required literals"
+    ]
+  },
+  "verification": {
+    "entry_points": [
+      "python3 enforcement/brandbuilder/templates/verify.py .",
+      "python3 enforcement/brandbuilder/templates/validate_glyph.py brand.json"
+    ],
+    "success": "zero verifier problems and zero glyph failures"
+  },
+  "recovery": {
+    "distribution": "shruggie-brandbuilder-3.1.0.skill",
+    "path": "enforcement/distributions/shruggie-brandbuilder-3.1.0.skill",
+    "sha256": "893a4db143379f68a6b66bed13bc0d648b9931ef11a176570367ebab21b867ed",
+    "extract_to": "enforcement/brandbuilder",
+    "sources": [
+      {
+        "kind": "delivered-bundle",
+        "path": "enforcement/distributions/shruggie-brandbuilder-3.1.0.skill",
+        "network_required": false
+      },
+      {
+        "kind": "authoritative-release",
+        "version": "3.1.0",
+        "network_requires_authorization": true
+      }
+    ],
+    "instruction": "Verify the delivered SHA-256, then extract the exact archive into the empty enforcement/brandbuilder directory. Never substitute another version."
+  },
+  "capability_gap": {
+    "template_path": "enforcement/capability-gap.example.json",
+    "submission_requires_authorization": true
+  },
+  "provenance": [
+    {
+      "path": "brand.json",
+      "bytes": 15707,
+      "sha256": "3e4a41ea8ca950d040aa4b65988adbb8610b09cc1d3ec38ee6f79a16ab64af06"
+    },
+    {
+      "path": "enforcement/AGENTS.md",
+      "bytes": 1221,
+      "sha256": "69276c2c016e378b71477e8564b2fc5cf710517f1d3e6772d6f4982e73c03da1"
+    },
+    {
+      "path": "enforcement/IMPLEMENTATION.md",
+      "bytes": 9326,
+      "sha256": "e65c45510de42afbd685e40969d3ec57aa734e653a143d33fb3c7193bdfb8d49"
+    },
+    {
+      "path": "enforcement/MIGRATION.md",
+      "bytes": 1914,
+      "sha256": "2f6aa43bf7a5772dd3594c8566d92286d0c983c0bb8749450cbb725d15d35d00"
+    },
+    {
+      "path": "enforcement/bundle.json",
+      "bytes": 862,
+      "sha256": "8ca00ce36cf3130942689f8a0e702b7a6412d5c8d114fe789dc0c06e46bf9c17"
+    },
+    {
+      "path": "enforcement/release-impact.json",
+      "bytes": 2203,
+      "sha256": "17f8f9b12076e616504f3a086281a77228753f2224f405d7c6cbaa8d5b696563"
+    },
+    {
+      "path": "enforcement/release-impact.schema.json",
+      "bytes": 1637,
+      "sha256": "e003c6f69e02bf08bbd63ad7f06878f34852aea306b254bd9df1597363bad56d"
+    },
+    {
+      "path": "enforcement/interface-canon.json",
+      "bytes": 9218,
+      "sha256": "c284941eab30038f28b04b871c1663e63aff0e9a2f7597d00ca291e5f764947a"
+    },
+    {
+      "path": "enforcement/interface-canon.schema.json",
+      "bytes": 7313,
+      "sha256": "b21d2a7b62cd302df62e8d4a3d0a1033f98a8d75d3a193fced61429cf40c656d"
+    },
+    {
+      "path": "enforcement/component-recipes.json",
+      "bytes": 23406,
+      "sha256": "c56f8eeac54670f4ca53d1bd06c8a02acfd59f94f8f0aed92bdfdc4947ccd241"
+    },
+    {
+      "path": "enforcement/component-recipes.schema.json",
+      "bytes": 2793,
+      "sha256": "280f5fad0174b16ccea1f91e19c100345c6a2185aef4ac2e8794f575cc3971e4"
+    },
+    {
+      "path": "enforcement/version-policy.json",
+      "bytes": 9019,
+      "sha256": "e38b81db614e133a321fe2e9a55a74907d47adcf798d0af0b74193844313602b"
+    },
+    {
+      "path": "enforcement/consumer-contract.schema.json",
+      "bytes": 8902,
+      "sha256": "5cf3b76bda8dd61fdfe3a80625c6e0bff9830adf68e8ba521a7ae644a74e4bad"
+    },
+    {
+      "path": "enforcement/documentation-contract.json",
+      "bytes": 16577,
+      "sha256": "3868c22254e041ed62d7bfe045d8c0eadc449cd7f0ce03de009070ab9607afff"
+    },
+    {
+      "path": "enforcement/documentation-contract.schema.json",
+      "bytes": 3427,
+      "sha256": "048bc07459f8dc2c50cef183fb0b8208702470033e41d83591d37d6cb4d313cb"
+    },
+    {
+      "path": "enforcement/documentation-facts.json",
+      "bytes": 6730,
+      "sha256": "5bdb9e557ca6b5d6ae61e054d3839e7ee665ddfa865f49c684d878ddc5c456b3"
+    },
+    {
+      "path": "web/adapter.json",
+      "bytes": 1860,
+      "sha256": "ed791d31774e84aa1ca8292ff9afaf5c44dfaa156d978cf5dbf664209fcad778"
+    },
+    {
+      "path": "web/support-matrix.json",
+      "bytes": 3041,
+      "sha256": "2b4045f5c9302440b8fb80df634295c3be4b096aa141a0f08c675f0f9680668b"
+    },
+    {
+      "path": "native/egui/Cargo.lock",
+      "bytes": 19856,
+      "sha256": "bf68e925a9463abb15da7853ac1c161957fe88d79e68c57c9b5fc610ff48730b"
+    },
+    {
+      "path": "native/egui/adapter.json",
+      "bytes": 2026,
+      "sha256": "0e319cfc576b21501f44b7a52b7f7f5ead0e38cdc6f272e712f7850411a82af7"
+    },
+    {
+      "path": "native/egui/support-matrix.json",
+      "bytes": 7817,
+      "sha256": "3843ba994a45fe46f649bf00b6440efffbb883e0c0a29c6bd7048603454e962d"
+    },
+    {
+      "path": "wordpress/adapter.json",
+      "bytes": 3257,
+      "sha256": "85930e14def6c6154b153b38d35c8e355a36639f0ea5cdbc0fd4f7b85993cce9"
+    },
+    {
+      "path": "wordpress/support-matrix.json",
+      "bytes": 3535,
+      "sha256": "891d4ba9dc51144ccfad450b39c87cae3122b33e289fe8fa59e57e0c05c167ba"
+    },
+    {
+      "path": "wordpress/localmedia-gallery-stbb-theme.zip",
+      "bytes": 293766,
+      "sha256": "85cc64c10efd3b857f6113c7b4ea4734897e978c2307ae95cdfb3acdb6ca9e0c"
+    },
+    {
+      "path": "wordpress/theme-inventory.json",
+      "bytes": 4614,
+      "sha256": "e9f89585de072dd66909055be121f627cebe1da393b3d164af32b47797854d36"
+    },
+    {
+      "path": "enforcement/capability-gap.example.json",
+      "bytes": 458,
+      "sha256": "46004405e3ac21be51b246856f9c69edfad5b243f4ca3620c4c67e87e75f7d98"
+    },
+    {
+      "path": "enforcement/distributions/shruggie-brandbuilder-3.1.0.skill",
+      "bytes": 552452,
+      "sha256": "893a4db143379f68a6b66bed13bc0d648b9931ef11a176570367ebab21b867ed"
+    }
+  ]
+}

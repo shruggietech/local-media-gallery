@@ -1,6 +1,6 @@
 # Local Media Gallery technical specification
 
-v0.0.0 remains an unreleased specification baseline with a local Rust/Tauri gallery implementation; installable Full/Lite packages and the independent landing page/documentation website remain pending.
+v0.0.0 remains an unreleased specification baseline with a local Rust/Tauri gallery implementation; the independent landing page and documentation website have a local static build, while installable Full/Lite packages and live domain deployment remain pending.
 
 Local Media Gallery presents local images and videos through a Rust/Tauri application with a statically exported Next.js interface. Full installation provides system integration and persistent user state. Lite provides lightweight, on-demand directory browsing and gallery sharing on supported hosts. The product targets Windows, Linux and macOS.
 
@@ -48,8 +48,13 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 | U-09 | Thumbnail encoders, video frame selection, portable cache placement and optional media-tool distribution | [Thumbnails and performance](thumbnails-and-performance.md#open-decisions) |
 | U-10 | Benchmark fixtures, reference hardware, time/memory/package budgets and adaptation thresholds | [Thumbnails and performance](thumbnails-and-performance.md#open-decisions) |
 | U-11 | Diagnostic fields, export/redaction defaults, log retention and exceptional recovery actions | [Security and reliability](security-and-reliability.md#open-decisions) |
-| U-12 | Documentation renderer/search integration, metadata file format and archived-document correction policy | [Website and documentation](website-and-documentation.md#open-decisions) |
 | U-13 | Exact initial editing actions and their confirmation, undo and write behavior | [Overview](overview.md#open-decisions) |
+
+### Resolved decisions
+
+| ID | Resolved contract | Owning chapter |
+| --- | --- | --- |
+| U-12 | Static rendering, local search, version metadata, aliases and explicit archive corrections | [Website and documentation](website-and-documentation.md#rendering-and-snapshot-contract) |
 
 ## Document maintenance
 

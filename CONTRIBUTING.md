@@ -25,7 +25,7 @@ npm run check:app
 npm run qualify
 ```
 
-These validate repository integrity, documentation structure/references, importer and JSON contracts, pure view logic, Rust discovery/access/streaming, TypeScript, brand lint/proofs, static export and actual Windows WebView2 behavior. Native testing uses twelve candidates and real Windows input/picker controls; allow the automated app to finish its interaction. No personal collection or bulk fixture is needed. Native WebDriver is feature-gated out of the normal application. The independent landing page and documentation-site build remain future work.
+These validate repository integrity, documentation structure/references, importer and JSON contracts, pure view logic, Rust discovery/access/streaming, TypeScript, brand lint/proofs, static export and actual Windows WebView2 behavior. Native testing uses twelve candidates and real Windows input/picker controls; allow the automated app to finish its interaction. No personal collection or bulk fixture is needed. Native WebDriver is feature-gated out of the normal application. The independent website uses `npm run build:site`, `npm run check:site` and `npm run test:site`. Install its pinned Chromium runtime before rendered checks.
 
 The exact pinned brand verifier runs in an ignored temporary copy with verified recovery bytes, Node 24.11.0 and Pillow 12.3.0, using the delivered approved proof matrix. It checks all 36 verifier conditions and the glyph validator without changing `brand/kit`. Other hosts may supply `GALLERY_PROOF_NODE` pointing to an actual native Node 24.11.0 runtime; no Linux/macOS native qualification is claimed.
 
@@ -42,3 +42,9 @@ Console children on Windows must use `CREATE_NO_WINDOW` or an equivalent guarant
 ## Commits and pull requests
 
 Use focused conventional commits. Update Unreleased in the changelog for behavior or workflow changes. Link the related issue in each pull request and describe changed behavior, checks and unverified limits. Follow the owner's merge authorization, squash merge and delete merged branches. Release notes contain short highlights and end with a link to the master changelog. Repository publication does not create a product release; packages, signing, hosting and release automation remain separate work.
+
+## Hosted checks
+
+Required check names are `repository`, `product-windows` and `website`. Each uses `npm run ci -- <scope>` for readiness, terminal results and separate preparation/qualification/combined accounting. Hosted dependency installation is included from the workflow preparation timestamp. Site and product artifacts carry hashes tied to the exact revision. The public website is built and uploaded for review without deploying the domain.
+
+The separate `Windows desktop qualification` dispatch workflow requires a provisioned self-hosted Windows x64 worker labelled `gallery-desktop` in a logged-in desktop session. Install MSVC/Windows SDK, WebView2 and FFmpeg before registering the runner. Run the worker interactively in a dedicated desktop account, not as a Windows service; no owner walkthrough is needed. Do not run untrusted pull-request code on that worker. The workflow is manual-dispatch only and uses the selected trusted ref. Hosted compile checks and this native runtime path provide distinct evidence.
