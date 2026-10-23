@@ -30,9 +30,13 @@
 ## Phase 5: Qualification and authorized publication
 
 - [x] T013 Complete local repository/app/brand/native/site qualification with exact artifact/source evidence and separate timings (FR-001 through FR-009/012).
-- [ ] T014 Commit/push official PR, attach PR, map Project Slice S005, wait for hosted results and apply/read back required checks after passing (FR-007/010/012).
+- [x] T014 Commit/push official PR, attach PR, map Project Slice S005, wait for hosted results and apply/read back required checks after passing (FR-007/010/012).
 - [ ] T015 Respond to every review finding, resolve individual threads and if needed request at most one second round; verify final-head terminal CI and hand off before merge (FR-012).
 
 ## Dependencies and execution
 
 T001 precedes all work. T003 runs red before T004/T009. T004 precedes T005/T006; T005/T006 precede T007/T008. T009/T010 integrate completed command definitions. T012 gates source implementation. T013 precedes T014; T015 is the final delivery gate. No parallel source mutations are planned.
+
+## Delivery status
+
+T014 completed on d45907a: all three hosted checks passed and repository-only required-check ruleset 25705117 was applied/read back. The four issues remain open in Project PR review for owner merge. T015 remains incomplete because the security-only request was routed into an additional code review and no distinct security receipt exists. Both original findings were fixed, individually replied to and resolved; the later code receipts have no findings. No further review triggers are authorized or planned in this run.

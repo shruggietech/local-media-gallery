@@ -44,3 +44,25 @@ No implementation scope deviation remains against #28/#29/#30. Issue #6 addition
 ## First external review
 
 The opening Codex review reported two P2 findings. CI/native qualification now capture source identity before fallible preparation and retain it on failure, with a regression proving the failure record keeps provenance. Landing documentation version/status and overview destination now derive from the selected manifest snapshot, including an explicit missing-topic fallback. The corresponding regressions and full local qualification passed before the correction push. Hosted final-head checks, policy readback and the bounded follow-up review remain delivery gates.
+
+## Hosted qualification and repository policy
+
+Run 39917547060 passed all three checks associated with PR head d45907acf88a8bce11fe359732f2043dbf469447. GitHub checked out its synthetic merge 2db7fd902e2459a6e4445b16b3b9e35c77a79260. Every hosted scope recorded the same source digest as local qualification (b755a8e56e7ccaee73d514515ac589bdd3ca31f6c313a7ca4922fb5a7a4a3868).
+
+| Scope | Preparation | Qualification | Combined |
+| --- | --- | --- | --- |
+| Repository | 20.864 seconds | 1.141 seconds | 22.005 seconds |
+| Website | 84.068 seconds | 4.629 seconds | 88.697 seconds |
+| Windows product | 385.206 seconds | 60.575 seconds | 445.781 seconds |
+
+Hosted website evidence records 326 platform-produced artifact files. Windows product evidence records the actual executable hash. These differ from local artifacts and are identified separately; no cross-platform native claim is inferred. All scope records and static output are retained as Actions artifacts.
+
+Repository ruleset 25705117 (required qualification) was created only after actual passing checks and read back active. It binds repository, product-windows and website to GitHub Actions application 15368 with strict status requirements, default-branch scope and no bypass actors. The inherited organization PR gate and existing squash-only/merged-branch deletion settings remain intact.
+
+## External review execution and remaining gate
+
+The opening code review on 1ba7039 found two P2 issues, both fixed in d45907a, individually replied to and resolved. The intended final code review on d45907a returned no major issues (receipt 6359807294). A combined request did not start a separate security review; a security-only command on the same revision was then routed into another code-review execution, which also returned no major issues (receipt 6359861129). The service summary leaves security_review status null.
+
+That security-only command caused an unintended third code-review execution, a deviation from the intended two-round cap. No further review commands were sent. A clean code receipt and thumbs-up do not establish independent security review. T015 remains open for the missing security receipt/owner disposition; the slice is not reported fully complete or merge-ready. No merge, product release or domain deployment occurred.
+
+This delivery-record update changes only the two declared source-identity exclusions. Final-head CI must still finish after its push; the public PR carries the live terminal status.
