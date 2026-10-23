@@ -7,14 +7,16 @@ import { serve } from './static-server.mjs';
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= path.join(root, '.local/browsers');
 const { chromium } = await import('playwright');
 
-const server = await serve(path.join(root, 'apps/site/out'));
+const server = process.env.GALLERY_SITE_ORIGIN ? { url: process.env.GALLERY_SITE_ORIGIN.replace(/\/$/, ''), close: async () => {} } : await serve(path.join(root, 'apps/site/out'));
+const live = Boolean(process.env.GALLERY_SITE_ORIGIN);
+if (live) assert.equal(server.url, 'https://localmedia.gallery', 'Unexpected live browser acceptance origin');
 const browser = await chromium.launch({ headless: true, channel: 'chromium', executablePath: process.env.GALLERY_SITE_BROWSER });
 const results = []; const failures = [];
 try {
   const context = await browser.newContext({ reducedMotion: 'reduce' });
   const page = await context.newPage();
   page.on('pageerror', error => failures.push(error.message));
-  const requests = []; page.on('request', request => requests.push(request.url()));
+  const requests = []; page.on('request', request => { requests.push(request.url()); if (live && request.url().startsWith('http:')) failures.push('Mixed content: ' + request.url()); });
   await page.goto(server.url); await page.getByRole('heading', { name: 'Your media presented beautifully.' }).waitFor();
   assert.match(await page.locator('body').innerText(), /No installable Full or Lite packages/);
   assert.ok(!requests.some(url => url.includes('/search/') || url.includes('mermaid')), 'Landing requested documentation runtime');
@@ -52,6 +54,6 @@ try {
   await mkdir(path.join(root, '.local'), { recursive: true });
   await page.screenshot({ path: path.join(root, '.local/site-desktop.png'), fullPage: true });
   assert.deepEqual(failures, [], 'Browser runtime errors');
-  await writeFile(path.join(root, '.local/site-browser.json'), JSON.stringify({ result: 'pass', browser: browser.version(), terminalFinished: new Date().toISOString(), results }, null, 2) + '\n');
+  await writeFile(path.join(root, live ? '.local/site-browser-live.json' : '.local/site-browser.json'), JSON.stringify({ result: 'pass', browser: browser.version(), origin: server.url, terminalFinished: new Date().toISOString(), results }, null, 2) + '\n');
   console.log(`Passed ${results.length} rendered website acceptance groups.`);
 } finally { await browser.close(); await server.close(); }

@@ -39,7 +39,7 @@ Use **Close folder** before moving an open gallery on Windows; its directory cap
 
 The [technical specification](docs/v0.0.0/index.md) defines the product contracts and unresolved decisions. The [contribution guide](CONTRIBUTING.md) covers required checks, small-fixture Windows verification, Spec Kit and brand maintenance. Read the [changelog](CHANGELOG.md) for implemented changes.
 
-Full installation, lightweight Lite sharing packages, portable gallery settings, remembered-directory history, sidecar inspection, optional thumbnails and adaptive calibration remain planned work. The independent landing page and versioned documentation website have not been built.
+Full installation, lightweight Lite sharing packages, portable gallery settings, remembered-directory history, sidecar inspection, optional thumbnails and adaptive calibration remain planned work. The independent [official website](https://localmedia.gallery) provides the landing page, retained versioned documentation, changelog and schema references.
 
 ## Brand maintenance
 
@@ -67,6 +67,6 @@ A [ShruggieTech](https://shruggie.tech/) project
 
 ## Website development
 
-Run `npm run build:site`, `npm run check:site` and `npm run test:site` for the independent static website. Install the pinned Chromium test runtime with `node node_modules/playwright/cli.js install chromium` first. The export is `apps/site/out`; it can be served by an ordinary static web server. Domain deployment is separate.
+Run `npm run build:site`, `npm run check:site` and `npm run test:site` for the independent static website. Install the pinned Chromium test runtime with `node node_modules/playwright/cli.js install chromium` first. The export is `apps/site/out`; it can be served by an ordinary static web server. GitHub Pages publishes the exact checked artifact after all required qualification jobs pass.
 
 The version manifest is `site/versions.json`. Retain complete documentation snapshots and snapshot-owned reference/assets, with matching versioned schemas and examples. Do not substitute current content under a historical version label.

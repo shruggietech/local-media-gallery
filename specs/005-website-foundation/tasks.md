@@ -31,7 +31,7 @@
 
 - [x] T013 Complete local repository/app/brand/native/site qualification with exact artifact/source evidence and separate timings (FR-001 through FR-009/012).
 - [x] T014 Commit/push official PR, attach PR, map Project Slice S005, wait for hosted results and apply/read back required checks after passing (FR-007/010/012).
-- [ ] T015 Respond to every review finding, resolve individual threads and if needed request at most one second round; verify final-head terminal CI and hand off before merge (FR-012).
+- [x] T015 Respond to every review finding, resolve individual threads and if needed request at most one second round; verify final-head terminal CI and hand off before merge (FR-012).
 
 ## Dependencies and execution
 
@@ -39,4 +39,4 @@ T001 precedes all work. T003 runs red before T004/T009. T004 precedes T005/T006;
 
 ## Delivery status
 
-T014 completed on d45907a: all three hosted checks passed and repository-only required-check ruleset 25705117 was applied/read back. The four issues remain open in Project PR review for owner merge. T015 remains incomplete because the security-only request was routed into an additional code review and no distinct security receipt exists. Both original findings were fixed, individually replied to and resolved; the later code receipts have no findings. No further review triggers are authorized or planned in this run.
+PR #33 was squash-merged as 8609b996a4036307754927714dd8224f7621116f on 2026-10-23. All three merged-main qualification checks passed. Issues #6, #28, #29 and #30 are closed and their Project items are Done. Both original review findings were fixed, replied to and resolved.
