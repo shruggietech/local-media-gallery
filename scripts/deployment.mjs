@@ -6,6 +6,22 @@ import path from 'node:path';
 
 const hostname = value => value.toLowerCase().replace(/\.$/, '');
 const hash = value => createHash('sha256').update(value).digest('hex');
+export const publicResolvers = ['https://cloudflare-dns.com/dns-query', 'https://dns.google/resolve'];
+const resolverAddresses = ['https://1.1.1.1/dns-query', 'https://8.8.8.8/resolve'];
+export async function publicDnsQuery(endpoint, type, name, { fetcher = fetch } = {}) {
+  const index = publicResolvers.indexOf(endpoint); assert.ok(index >= 0, 'Unknown public resolver');
+  const request = base => fetcher(`${base}?${new URLSearchParams({ name, type: String(type) })}`, { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(15000) });
+  let actual = endpoint; let response;
+  try { response = await request(actual); } catch (error) {
+    if (!['ENOTFOUND', 'EAI_AGAIN'].includes(error.cause?.code)) throw error;
+    // The same public resolver's IP certificate is validated normally. Never bypass TLS errors.
+    actual = resolverAddresses[index]; response = await request(actual);
+  }
+  assert.ok(response.ok, 'Public DNS lookup failed'); const value = await response.json();
+  assert.equal(hostname(value.Question?.[0]?.name ?? ''), hostname(name), 'Public DNS question mismatch');
+  assert.equal(value.Question[0].type, type, 'Public DNS question type mismatch');
+  return { ...value, endpoint: actual };
+}
 export function recordValue(record) {
   if (!record) return null;
   const type = record.type.toUpperCase();
@@ -60,6 +76,33 @@ export async function rollbackDns(api, journal, persist) {
     entry.state = 'rolled-back'; await persist(journal);
   }
   journal.rollbackFinished = new Date().toISOString(); await persist(journal);
+}
+
+export function pagesValue(pages) {
+  if (!pages) return null;
+  const value = { build_type: pages.build_type, cname: pages.cname ?? null, https_enforced: pages.https_enforced ?? false };
+  if (pages.build_type === 'legacy' && pages.source) value.source = { branch: pages.source.branch, path: pages.source.path };
+  return value;
+}
+export async function rollbackPages(api, journal, { domain, records, ensureWithdrawn, persist }) {
+  const before = pagesValue(journal.before); const after = pagesValue(journal.after);
+  const current = pagesValue(await api.get());
+  if (journal.state === 'rolled-back' || (journal.rollback?.state === 'pending' && JSON.stringify(current) === JSON.stringify(before))) {
+    assert.deepEqual(current, before, 'Pages changed after rollback; conflict');
+    journal.state = 'rolled-back'; journal.rollback = { state: 'complete', terminalFinished: new Date().toISOString() }; await persist(journal); return;
+  }
+  assert.equal(journal.state, 'applied', 'Pending Pages binding has uncertain outcome; readback required');
+  assert.ok(after, 'Missing applied Pages binding'); assert.equal(after.cname, domain, 'Pages journal outside owned domain');
+  assert.deepEqual(current, after, 'Pages changed after binding; rollback conflict');
+  if (!before || before.cname !== after.cname) {
+    assert.ok(!records.some(record => hostname(record.name) === domain && ['A', 'AAAA', 'CNAME'].includes(record.type)), 'Withdraw website DNS before Pages unbinding');
+    assert.equal(typeof ensureWithdrawn, 'function', 'Public DNS withdrawal verification required'); await ensureWithdrawn();
+  }
+  assert.deepEqual(pagesValue(await api.get()), after, 'Pages changed during rollback preparation; conflict');
+  journal.rollback = { state: 'pending', started: new Date().toISOString() }; await persist(journal);
+  if (JSON.stringify(before) !== JSON.stringify(after)) { if (before) await api.update(before); else await api.delete(); }
+  assert.deepEqual(pagesValue(await api.get()), before, 'Pages restore readback mismatch');
+  journal.state = 'rolled-back'; journal.rollback.state = 'complete'; journal.rollback.terminalFinished = new Date().toISOString(); await persist(journal);
 }
 
 export function safeArtifactPath(value) {

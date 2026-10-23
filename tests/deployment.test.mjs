@@ -5,11 +5,19 @@ import { mkdtemp, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { planDns, applyDnsPlan, rollbackDns, recordValue, verifyArtifact, verifyLiveInventory } from '../scripts/deployment.mjs';
+import { planDns, applyDnsPlan, rollbackDns, rollbackPages, recordValue, verifyArtifact, verifyLiveInventory, publicDnsQuery, publicResolvers } from '../scripts/deployment.mjs';
 
 const digest = text => createHash('sha256').update(text).digest('hex');
 const policy = { domain: 'localmedia.gallery', ipv4: ['185.199.108.153'], ipv6: ['2606:50c0:8000::153'] };
 const address = (id, content = policy.ipv4[0], extra = {}) => ({ id, type: 'A', name: policy.domain, content, ttl: 300, proxied: false, ...extra });
+test('public DNS hostname fallback keeps TLS validation and rejects wrong questions or certificate failures', async () => {
+  const requested = []; const body = { Status: 0, Question: [{ name: policy.domain + '.', type: 1 }], Answer: [] };
+  const fetcher = async (url, options) => { requested.push({ url, options }); if (requested.length === 1) throw new Error('fetch failed', { cause: { code: 'ENOTFOUND' } }); return Response.json(body); };
+  const value = await publicDnsQuery(publicResolvers[0], 1, policy.domain, { fetcher }); assert.equal(value.endpoint, 'https://1.1.1.1/dns-query');
+  assert.ok(requested.every(request => request.url.startsWith('https:') && request.options.signal));
+  let calls = 0; await assert.rejects(publicDnsQuery(publicResolvers[1], 1, policy.domain, { fetcher: async () => { calls++; throw new Error('certificate failure', { cause: { code: 'ERR_TLS_CERT_ALTNAME_INVALID' } }); } }), /certificate/); assert.equal(calls, 1);
+  await assert.rejects(publicDnsQuery(publicResolvers[0], 1, policy.domain, { fetcher: async () => Response.json({ ...body, Question: [{ name: 'other.example.org', type: 1 }] }) }), /question mismatch/i);
+});
 function provider(records = []) {
   const state = new Map(records.map(record => [record.id, structuredClone(record)])); let serial = 0; const writes = [];
   return { state, writes, list: async () => [...state.values()], get: async id => state.get(id) ?? null,
@@ -62,6 +70,40 @@ test('DNS address reconciliation preserves comments and tags and detects metadat
   assert.equal(changes.find(change => change.kind === 'update').after.comment, 'retain');
   api.state.set('annotated', { ...existing, comment: 'concurrent edit' });
   await assert.rejects(applyDnsPlan(api, changes, async () => {}), /conflict/i); assert.equal(api.writes.length, 0);
+});
+
+function pagesProvider(initial) {
+  let current = structuredClone(initial); const writes = [];
+  return { writes, get: async () => structuredClone(current),
+    update: async value => { current = structuredClone(value); writes.push(['update', value]); },
+    delete: async () => { current = null; writes.push(['delete']); },
+  };
+}
+const bound = { build_type: 'workflow', cname: policy.domain, https_enforced: false };
+test('Pages binding rollback restores prior settings and is idempotent', async () => {
+  const before = { build_type: 'legacy', cname: 'previous.example.org', https_enforced: true, source: { branch: 'pages', path: '/docs' } };
+  const journal = { before, desired: bound, after: bound, state: 'applied' }; const api = pagesProvider(bound);
+  let withdrawn = 0; await rollbackPages(api, journal, { domain: policy.domain, records: [], ensureWithdrawn: async () => { withdrawn++; }, persist: async () => {} });
+  assert.deepEqual(await api.get(), before); assert.equal(withdrawn, 1);
+  await rollbackPages(api, journal, { domain: policy.domain, records: [], ensureWithdrawn: async () => {}, persist: async () => {} }); assert.equal(api.writes.length, 1);
+});
+
+test('Pages creation rollback deletes only after provider and public DNS withdrawal', async () => {
+  const journal = { before: null, desired: bound, after: bound, state: 'applied' }; const api = pagesProvider(bound);
+  await assert.rejects(rollbackPages(api, journal, { domain: policy.domain, records: [address('active')], ensureWithdrawn: async () => {}, persist: async () => {} }), /DNS|withdraw/i);
+  await assert.rejects(rollbackPages(api, journal, { domain: policy.domain, records: [], ensureWithdrawn: async () => { throw new Error('public DNS still routes traffic'); }, persist: async () => {} }), /public DNS/i);
+  assert.equal(api.writes.length, 0);
+  await rollbackPages(api, journal, { domain: policy.domain, records: [], ensureWithdrawn: async () => {}, persist: async () => {} }); assert.equal(await api.get(), null);
+});
+
+test('Pages rollback rejects concurrent changes and pending writes, and recovers a completed uncertain restore', async () => {
+  const journal = { before: null, desired: bound, after: bound, state: 'applied' };
+  const changed = pagesProvider({ ...bound, cname: 'concurrent.example.org' });
+  const options = { domain: policy.domain, records: [], ensureWithdrawn: async () => {}, persist: async () => {} };
+  await assert.rejects(rollbackPages(changed, journal, options), /conflict|changed/i); assert.equal(changed.writes.length, 0);
+  await assert.rejects(rollbackPages(pagesProvider(bound), { ...journal, state: 'pending' }, options), /pending|uncertain/i);
+  const completed = { ...journal, rollback: { state: 'pending' } }; const restored = pagesProvider(null);
+  await rollbackPages(restored, completed, options); assert.equal(completed.state, 'rolled-back'); assert.equal(restored.writes.length, 0);
 });
 
 async function artifact() {

@@ -5,7 +5,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { verifyArtifact, verifyLiveInventory } from './deployment.mjs';
+import { verifyArtifact, verifyLiveInventory, publicDnsQuery, publicResolvers } from './deployment.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const policy = JSON.parse(await readFile(path.join(root, 'site/deployment.json'), 'utf8'));
@@ -18,14 +18,15 @@ const destination = path.join(root, '.local/site-live.json'); await mkdir(path.d
 async function query(resolver, type, name) {
   try { return await resolver.resolve(name, type); } catch (error) { if (['ENODATA', 'ENOTFOUND'].includes(error.code)) return []; throw error; }
 }
+const observedResolvers = new Map();
 async function doh(endpoint, type, name) {
-  const response = await fetch(`${endpoint}?name=${encodeURIComponent(name)}&type=${type}`, { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(15000) });
-  assert.ok(response.ok, 'Public DNS lookup failed'); const value = await response.json(); assert.equal(value.Status, 0, 'Validating resolver returned DNS failure');
+  const value = await publicDnsQuery(endpoint, type, name); observedResolvers.set(endpoint, value.endpoint);
+  assert.equal(value.Status, 0, 'Validating resolver returned DNS failure');
   return (value.Answer ?? []).filter(answer => answer.type === type).map(answer => answer.data.replace(/\.$/, '').toLowerCase()).sort();
 }
 async function dnsReadiness() {
   const observations = [];
-  const resolvers = ['https://cloudflare-dns.com/dns-query', 'https://dns.google/resolve'];
+  const resolvers = publicResolvers;
   let nameservers;
   for (const endpoint of resolvers) {
     const ns = await doh(endpoint, 2, policy.domain); assert.equal(ns.length, 2, 'Expected two authoritative nameservers');
@@ -35,7 +36,7 @@ async function dnsReadiness() {
     const ds = await doh(endpoint, 43, policy.domain); assert.deepEqual(ds, [], 'DNSSEC delegation changed from verified unsigned baseline');
     const caa = await doh(endpoint, 257, policy.domain); assert.ok(caa.length === 0 || caa.some(value => /issue\s+"letsencrypt\.org"/.test(value)), 'CAA excludes Pages certificate issuer');
     const txt = await doh(endpoint, 16, `_github-pages-challenge-shruggietech.${policy.domain}`); assert.ok(txt.length > 0, 'Ownership TXT absent');
-    observations.push({ resolver: endpoint, nameservers: ns, ds, caa, ownershipTXT: true });
+    observations.push({ resolver: observedResolvers.get(endpoint), nameservers: ns, ds, caa, ownershipTXT: true });
   }
   try {
     const before = JSON.parse(await readFile(path.join(root, '.local/site-deployment/baseline.json'), 'utf8'));

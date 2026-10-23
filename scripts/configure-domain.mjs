@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { planDns, applyDnsPlan, rollbackDns, recordValue } from './deployment.mjs';
+import { planDns, applyDnsPlan, rollbackDns, rollbackPages, recordValue, publicDnsQuery, publicResolvers } from './deployment.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const policy = JSON.parse(await readFile(path.join(root, 'site/deployment.json'), 'utf8'));
@@ -62,7 +62,7 @@ if (command === 'preflight') {
   console.log(JSON.stringify({ domain: zone.name, zone: zone.status, nameservers: zone.name_servers, registrar: registrar.current_registrar, locked: registrar.locked, autoRenew: registrar.auto_renew, dnssec: snapshot.dnssec.status, records: records.length, pages: pages ? { cname: pages.cname, build_type: pages.build_type, https_enforced: pages.https_enforced } : null }));
 } else if (command === 'bind') {
   const journalFile = path.join(directory, `pages-binding-${Date.now()}.json`);
-  const before = pages; const journal = { before, desired: { build_type: 'workflow', cname: policy.domain }, state: 'pending' }; await save(journalFile, journal);
+  const before = pages; const journal = { version: 1, kind: 'pages-binding', before, desired: { build_type: 'workflow', cname: policy.domain }, state: 'pending' }; await save(journalFile, journal);
   if (!pages) await github(pagesEndpoint, { method: 'POST', body: { build_type: 'workflow' } });
   if (!pages || pages.cname !== policy.domain || pages.build_type !== 'workflow') await github(pagesEndpoint, { method: 'PUT', body: journal.desired });
   const after = await github(pagesEndpoint); assert.equal(after.cname, policy.domain); assert.equal(after.build_type, 'workflow');
@@ -99,6 +99,22 @@ if (command === 'preflight') {
   assert.ok(journalArgument, 'Rollback requires a private journal path');
   const journalFile = path.resolve(root, journalArgument); assert.ok(journalFile.startsWith(directory + path.sep), 'Rollback journal must be in private deployment directory');
   const journal = JSON.parse(await readFile(journalFile, 'utf8'));
-  assert.ok(journal.entries.every(entry => [entry.before, entry.after].filter(Boolean).every(record => (record.name === policy.domain && ['A', 'AAAA', 'CNAME'].includes(record.type)) || (record.name === '_deployment-check.' + policy.domain && record.type === 'TXT'))), 'Rollback record outside owned web scope');
-  await rollbackDns(api, journal, value => save(journalFile, value)); console.log('Rolled back owned DNS changes. Ownership TXT retained.');
+  if (journal.kind === 'pages-binding' || (!Array.isArray(journal.entries) && Object.hasOwn(journal, 'before') && Object.hasOwn(journal, 'desired'))) {
+    assert.equal(journal.desired.cname, policy.domain); assert.equal(journal.desired.build_type, 'workflow');
+    const ensureWithdrawn = async () => {
+      for (const resolver of publicResolvers) {
+        for (const type of [1, 28, 5]) {
+          const value = await publicDnsQuery(resolver, type, policy.domain);
+          assert.ok([0, 3].includes(value.Status), 'Public DNS withdrawal not verified');
+          assert.ok(!(value.Answer ?? []).some(answer => [...policy.ipv4, ...policy.ipv6].includes(answer.data.toLowerCase()) || /(?:^|\.)github\.io\.?$/i.test(answer.data)), 'Public DNS still routes to Pages; keep binding');
+        }
+      }
+    };
+    await rollbackPages({ get: () => github(pagesEndpoint, { allow404: true }), update: body => github(pagesEndpoint, { method: 'PUT', body }), delete: () => github(pagesEndpoint, { method: 'DELETE' }) }, journal, { domain: policy.domain, records, ensureWithdrawn, persist: value => save(journalFile, value) });
+    console.log('Restored prior Pages configuration with compare-before-restore and DNS withdrawal verification. Ownership TXT retained.');
+  } else {
+    assert.ok(Array.isArray(journal.entries), 'Invalid DNS rollback journal');
+    assert.ok(journal.entries.every(entry => [entry.before, entry.after].filter(Boolean).every(record => (record.name === policy.domain && ['A', 'AAAA', 'CNAME'].includes(record.type)) || (record.name === '_deployment-check.' + policy.domain && record.type === 'TXT'))), 'Rollback record outside owned web scope');
+    await rollbackDns(api, journal, value => save(journalFile, value)); console.log('Rolled back owned DNS changes. Ownership TXT retained.');
+  }
 }
