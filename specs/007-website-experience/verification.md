@@ -45,3 +45,11 @@ A directed compact-to-wide resize test also reproduced a zero-height active TOC 
 Fresh complete qualification passed at 2026-10-23T16:19:43.957Z: preparation53.669s, qualification161.231s, combined214.9s. Source SHA256 25545c3f89d25cf4019a2e320d57b0a6bd7fa30cccbbdb7b3272591a5f29eeae. All49 Node tests,11 Rust core tests,19 native groups and all mandatory site/product/provenance checks passed. Browser matrix 46.267s with14 clean axe scans and all fixed budgets.
 
 Initial hosted run39984536330 passed repository, product-windows, website and deploy-pages. Its checked merge artifact3648bab2b32d04f155a4eb42bca9bff6aa12c790 matched local qualified source8506ffc4b26b98dbd104d0518aeed0fc4d89a796a988e6a15c4f26606f284f44. Live authoritative/public DNS, trusted HTTPS, redirect and all280 hosted artifact files passed exact-byte acceptance. This initial receipt does not substitute for final follow-up-head CI/live checks.
+
+## Second and final review correction
+
+The second review of83a1d8a completed on2026-10-23 and raised one P2 (comment4361808310): the missing-topic notice was inside the closed mobile sidebar. A browser regression failed against that build without opening the menu. The notice now has one owner in visible article content and uses the current URL query through a localized Suspense boundary. The sidebar retains only version/search controls; the notice is not duplicated.
+
+Fresh full qualification passed at 2026-10-23T16:31:22.148Z, source SHA256 2dcea7be62f1c325163d50fbd9ad7717449947a55ae38bdde6b3268a81f05900: preparation48.17s, qualification138.748s, combined186.918s. All49 Node tests,11 Rust core tests,19 native groups and all repository/product/site/provenance gates passed. The browser matrix passed in46.435s, including closed-drawer notice visibility and14 clean axe scans.
+
+Hosted follow-up run39986062598 passed all four jobs; merge artifactbab498a118cc457abe719203f4e255a3dda90a4c matched source25545c3f89d25cf4019a2e320d57b0a6bd7fa30cccbbdb7b3272591a5f29eeae. Its DNS/HTTPS/redirect and280-file live-byte acceptance passed. Final correction-head hosted/live checks follow. Exactly two review rounds were requested; no third request will be made.

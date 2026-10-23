@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 'use client';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Field, TextInput, FormControls } from '@brand/web/react/server';
 import { switchTopic, searchEntries } from '../lib/navigation.mjs';
 
@@ -18,13 +19,7 @@ export function DocsControls({
   const [query, setQuery] = useState('');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [error, setError] = useState('');
-  const [fallback, setFallback] = useState('');
   useEffect(() => {
-    const missing = new URLSearchParams(window.location.search).get('missing');
-    if (missing)
-      setFallback(
-        `The topic “${missing}” is unavailable in ${version}. This is the selected version’s index.`,
-      );
     const controller = new AbortController();
     fetch(`/search/${version}.json`, { signal: controller.signal })
       .then((response) => {
@@ -53,7 +48,6 @@ export function DocsControls({
           ))}
         </ul>
       </noscript>
-      {fallback ? <p role="status">{fallback}</p> : null}
       <Field
         id="docs-version"
         label="Documentation version"
@@ -96,4 +90,13 @@ export function DocsControls({
       ) : null}
     </section>
   );
+}
+
+export function MissingTopicNotice({ version }: { version: string }) {
+  const missing = useSearchParams().get('missing');
+  return missing ? (
+    <p role="status" className="missing-topic-notice">
+      The topic “{missing}” is unavailable in {version}. This is the selected version’s index.
+    </p>
+  ) : null;
 }

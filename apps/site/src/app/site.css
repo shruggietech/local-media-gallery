@@ -984,3 +984,11 @@ pre {
 .bb-app-frame__scroll {
   min-width: 0;
 }
+
+.missing-topic-notice {
+  border-inline-start: var(--bb-border-strong) solid var(--primary);
+  padding: var(--lo-space-3) var(--lo-space-4);
+  background: var(--card);
+  border-radius: var(--lo-radius-sm);
+  font-size: 0.9rem;
+}

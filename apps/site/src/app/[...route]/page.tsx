@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { model } from '../../lib/model';
 import { aliasRoutes } from '../../lib/navigation.mjs';
 import { routeMetadata } from '../../lib/metadata';
-import { DocsControls } from '../../components/docs-controls';
+import { DocsControls, MissingTopicNotice } from '../../components/docs-controls';
 import { ReadingShell } from '../../components/reading-shell';
 import { CodeTools } from '../../components/code-tools';
 import type { Root } from 'fumadocs-core/page-tree';
@@ -37,6 +38,11 @@ export default async function Reference({ params }: { params: Promise<{ route: s
   const snapshot = model.manifest.snapshots.find((entry) => entry.version === page.version);
   const body = (
     <>
+      {snapshot && page.topic === 'index' ? (
+        <Suspense fallback={null}>
+          <MissingTopicNotice version={snapshot.version} />
+        </Suspense>
+      ) : null}
       {requested !== route ? (
         <p className="alias-note">
           Documentation entry for {model.manifest.latest}. <a href={route}>Open the explicit version URL</a>.

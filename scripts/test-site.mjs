@@ -189,10 +189,10 @@ try {
   await page.getByRole('link', { name: 'Metadata and sidecars (v0.0.0)', exact: true }).click();
   assert.match(page.url(), /metadata-and-sidecars/);
   await go('/docs/v0.0.0/?missing=older-topic');
-  await menu.click();
-  await page.getByRole('status').filter({ hasText: 'older-topic' }).waitFor();
-  await page.keyboard.press('Escape');
-  await page.getByRole('dialog', { name: 'Documentation navigation' }).waitFor({ state: 'hidden' });
+  const missingNotice = page.getByRole('status').filter({ hasText: 'older-topic' });
+  await missingNotice.waitFor({ timeout: 5000 });
+  assert.ok((await missingNotice.boundingBox()).y < 844, 'Missing-topic notice is visible in the article');
+  assert.equal(await page.locator('dialog[open]').count(), 0, 'Fallback does not require opening navigation');
   results.push('Compact TOC keyboard dismissal and mobile version-scoped search navigation/fallback');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await go('/docs/v0.0.0/metadata-and-sidecars/');
