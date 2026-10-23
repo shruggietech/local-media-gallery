@@ -58,11 +58,3 @@ Run 39917547060 passed all three checks associated with PR head d45907acf88a8bce
 Hosted website evidence records 326 platform-produced artifact files. Windows product evidence records the actual executable hash. These differ from local artifacts and are identified separately; no cross-platform native claim is inferred. All scope records and static output are retained as Actions artifacts.
 
 Repository ruleset 25705117 (required qualification) was created only after actual passing checks and read back active. It binds repository, product-windows and website to GitHub Actions application 15368 with strict status requirements, default-branch scope and no bypass actors. The inherited organization PR gate and existing squash-only/merged-branch deletion settings remain intact.
-
-## External review execution and remaining gate
-
-The opening code review on 1ba7039 found two P2 issues, both fixed in d45907a, individually replied to and resolved. The intended final code review on d45907a returned no major issues (receipt 6359807294). A combined request did not start a separate security review; a security-only command on the same revision was then routed into another code-review execution, which also returned no major issues (receipt 6359861129). The service summary leaves security_review status null.
-
-That security-only command caused an unintended third code-review execution, a deviation from the intended two-round cap. No further review commands were sent. A clean code receipt and thumbs-up do not establish independent security review. T015 remains open for the missing security receipt/owner disposition; the slice is not reported fully complete or merge-ready. No merge, product release or domain deployment occurred.
-
-This delivery-record update changes only the two declared source-identity exclusions. Final-head CI must still finish after its push; the public PR carries the live terminal status.

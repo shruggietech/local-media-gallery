@@ -7,7 +7,7 @@ permissions:
   contents: read
 concurrency:
   group: qualification-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   repository:
     name: repository
@@ -97,3 +97,65 @@ jobs:
           path: apps/site/out/
           include-hidden-files: true
           if-no-files-found: error
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: success()
+        with:
+          name: github-pages-${{ github.sha }}
+          path: apps/site/out/
+          include-hidden-files: true
+  deploy-pages:
+    name: deploy-pages
+    needs: [repository, product-windows, website]
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == vars.PAGES_BOOTSTRAP_BRANCH)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages-production
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: website-static-${{ github.sha }}
+          path: .local/qualified-site
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: website-evidence-${{ github.sha }}
+          path: .local/website-evidence
+      - name: Verify exact qualified artifact
+        run: node scripts/verify-deployment.mjs .local/qualified-site .local/website-evidence/ci-website.json "$GITHUB_SHA"
+      - name: Reject retired publishing revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/pull/*/merge ]]; then
+            number="${GITHUB_REF#refs/pull/}"
+            number="${number%/merge}"
+            current="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$number" --jq 'select(.state == "open") | .merge_commit_sha')"
+          else
+            current="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          fi
+          test "$current" = "$GITHUB_SHA"
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        id: deployment
+        with:
+          artifact_name: github-pages-${{ github.sha }}

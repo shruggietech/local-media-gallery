@@ -4,6 +4,9 @@ import { mkdir, copyFile, writeFile, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { root, node, environment } from './run.mjs';
 import { createModel } from './site-content.mjs';
+import { sourceIdentity } from './provenance.mjs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const model = await createModel(root);
 const site = path.join(root, 'apps/site');
@@ -27,4 +30,6 @@ await node(path.join(root, 'node_modules/stylelint/bin/stylelint.mjs'), ['src/**
 await node(path.join(root, 'node_modules/next/dist/bin/next'), ['build', '--webpack'], { cwd: site, env: environment });
 for (const name of ['tsconfig.json', 'next-env.d.ts']) await writeFile(path.join(site, name), (await readFile(path.join(site, name), 'utf8')).replaceAll('\r\n', '\n'));
 await writeFile(path.join(site, 'out/.nojekyll'), '');
+const revision = (await promisify(execFile)('git', ['rev-parse', 'HEAD'], { cwd: root, windowsHide: true })).stdout.trim();
+await writeFile(path.join(site, 'out/deployment.json'), JSON.stringify({ version: 1, revision, source: await sourceIdentity(), versions: model.manifest.snapshots.map(snapshot => snapshot.version) }, null, 2) + '\n');
 console.log(`Exported ${model.pages.length} reference pages and independent landing with ${model.raw.length} exact raw sources.`);

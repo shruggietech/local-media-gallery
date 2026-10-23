@@ -62,7 +62,15 @@ A validated JSON version manifest owns the selected documentation version, order
 
 Search indexes are generated locally from each snapshot's parsed source text. The interface identifies the selected version and limits displayed results to twenty matching chapters. Search unavailability leaves chapter navigation usable. Version changes preserve the topic when available; an unavailable topic opens the selected version's index with an explicit explanation.
 
-Documentation entry and latest aliases are generated static pages with visible version context and explicit-version links. A pre-product baseline remains labelled as a specification. A released latest version requires a matching published release record; candidate records and mismatched artifacts are rejected. Release-linked promotion and external deployment remain separate delivery work.
+Documentation entry and latest aliases are generated static pages with visible version context and explicit-version links. A pre-product baseline remains labelled as a specification. A released latest version requires a matching published release record; candidate records and mismatched artifacts are rejected. Release-linked product promotion remains separate from baseline website publication.
+
+## Publication and recovery
+
+The official website is hosted by GitHub Pages at https://localmedia.gallery. Its custom Actions deployment consumes the exact successfully checked static output after repository, product and website qualification pass. A public deployment identity binds the output to its source revision and digest. Publishing credentials do not rebuild site content; production deployments are serialized and retired revisions are rejected.
+
+Organization Pages domain verification retains its generated TXT record. Repository Pages settings own the canonical apex binding; DNS-only web records follow the current official Pages destinations. Registrar lock, renewal, privacy, DNSSEC and unrelated DNS services remain unchanged. Initial publication does not imply that an installable product exists.
+
+Live acceptance checks authoritative and independent public DNS, trusted HTTPS, HTTP redirection, every retained route and exact static bytes, plus rendered navigation/search/diagrams and mixed content. Provider readiness and qualification are distinct outcomes. Failed or pending checks never become a publication-success assertion. Private provider snapshots and compare-before-restore journals support idempotent reconciliation and recovery; concurrent edits are preserved. Ownership TXT remains during rollback. Permanent retirement or rollback to a different binding withdraws website DNS before unbinding. A provider-documented certificate-provisioning retry may briefly reassign the same organization-verified hostname while retaining its ownership TXT, DNS and deployed Pages site; it requires before/after snapshots and verified restoration.
 
 ## Open decisions
 

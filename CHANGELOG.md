@@ -4,12 +4,9 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-### Decisions
-
-- 2026-10-23: Use a separate Next.js static website, build-time Markdown-it/code highlighting, docs-only Mermaid and a validated retained-version manifest. Keep historical reference bytes snapshot-owned and require explicit dated material corrections. Hosted Windows build evidence remains distinct from interactive native acceptance. Qualification now records failed/timed-out steps and enforces child deadlines before its finalization reserve. Native keyboard automation confirms process-scoped foreground activation before sending input.
-
 ### Added
 
+- Official GitHub Pages deployment at localmedia.gallery with verified ownership, DNS-only routing, HTTPS, exact qualified artifacts, live byte acceptance and recoverable provider reconciliation.
 - Independent branded static website with complete versioned documentation, local search, retained source references, readable changelog and generic JSON Schema pages.
 - Pinned hosted repository, Windows product and website qualification workflows, plus a separately elected automated Windows desktop path and exact source/artifact evidence.
 
@@ -51,3 +48,6 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - 2026-10-22: Refine the responsive gallery interface after the owner observed oversized native controls. Apply a product-scoped 32px fine-pointer minimum with existing 4px/8px spacing,8px radius and 16px readable type/icons; retain at least 44px for coarse/mixed pointer capability. This explicitly overrides the pinned 44px control invariant for precise desktop input because the delivered adapter exposes no compact-density prop. Keep governed kit bytes and enforcement unchanged, record local density and disclosure-ARIA capability gaps, and update native geometry acceptance. Keep AppFrame as the sole scroll/inset/focus owner while using a full-width 12px product media canvas instead of reading gutters. No upstream submission or publication is authorized.
 - 2026-10-22: Add optional-on-read `fontScale` to the current settings format with a default of 100, preserving prior preference files. Scale inherited body text while retaining the root rem baseline, existing media geometry and governed brand bytes. Extend small-fixture native qualification for text ratios, geometry, persistence and default restoration; move current evidence exclusions to this slice. Keep all work local.
 - 2026-10-22: Authorize first public source publication to `shruggietech/local-media-gallery`. Review tracked history and ignore rules, publish the existing development history, establish GitHub tracking and retain product-package/site releases as separate work.
+- 2026-10-23: Use a separate Next.js static website, build-time Markdown-it/code highlighting, docs-only Mermaid and a validated retained-version manifest. Keep historical reference bytes snapshot-owned and require explicit dated material corrections. Hosted Windows build evidence remains distinct from interactive native acceptance. Qualification now records failed/timed-out steps and enforces child deadlines before its finalization reserve. Native keyboard automation confirms process-scoped foreground activation before sending input.
+- 2026-10-23: Publish the existing checked static website through a pinned OIDC Pages job gated by repository, Windows product and website qualification. Reuse the owned Cloudflare registration/zone, retain organization verification TXT and preserve unrelated DNS, registrar settings and DNSSEC. Serialize production deployment, reject retired revisions and restrict the authorized pre-merge bootstrap to its exact environment ref. Keep rollback snapshots private and verify live bytes against qualified source identity; product-release promotion remains separate.
+- 2026-10-23: Distinguish permanent website unbinding from a documented certificate-provisioning retry of the same organization-verified hostname. The retry preserves domain ownership TXT, DNS and the deployed site with verified restoration; permanent retirement and rollback retain DNS withdrawal.
