@@ -1,5 +1,7 @@
 # S008 verification
 
+Implementation and both review rounds are complete. All implementation-head hosted checks passed. Owner handoff follows green CI on the final delivery-record commit.
+
 ## Planning and baseline
 
 2026-10-24: actual branch codex/008-portable-gallery-state, selector specs/008-portable-gallery-state, issues #8/#9. Installed Spec Kit phases completed through blocking analysis (30 requirements/success criteria mapped to 22 tasks). The checklist helper required a plan earlier than the protocol; resolved its installed template through the paths-only helper without changing phase order. Clarified interrupted writes as a valid prior document or a fully committed replacement.
@@ -53,3 +55,13 @@ Reviewed feature head 219eb0e passed hosted run 40127065952 completely (reposito
 Final CI-enforced source qualification passed at 2026-10-24T19:59:29.478Z: 59.062s preparation, 176.156s qualification, 235.218s combined. Source SHA-256 d9f64a3d3927412d0179aa54b2af6f4acf03ba984b646ae0708e6dca437178ce (939 files). All 30 native tests and 21 rendered Windows groups passed again, alongside all other elected checks. This changes only CI enforcement relative to the reviewed feature implementation. Final-head hosted acceptance and delivery-record finalization remain pending.
 
 The updated Windows CI election was executed locally and passed both check:app and its new native shell/persistent-state unit step (30 tests), with 34.250s preparation, 35.178s qualification and 69.428s combined. Its source digest matches the final full qualification d9f64a3d3927412d0179aa54b2af6f4acf03ba984b646ae0708e6dca437178ce. Hosted enforcement on the next PR head remains pending.
+
+## Final implementation acceptance and handoff
+
+Implementation head 6c5bd017bfc8592bde279fc7fdb66cafab043b34 passed hosted run 40127994619: repository, website and Windows product succeeded; deploy-pages correctly skipped. The downloaded Windows receipt explicitly passed both check:app and native shell/persistent-state unit tests, and qualified source d9f64a3d3927412d0179aa54b2af6f4acf03ba984b646ae0708e6dca437178ce at synthetic merge 207329f8dcb4f45bb2dd4a99e02aa174b6087354. Windows preparation 440.699s, qualification 81.449s, combined 522.148s.
+
+All 22 Spec Kit tasks are complete through implementation acceptance and review resolution. Final delivery records change only this file and tasks.md, the two explicit current-slice provenance exclusions. The final chat handoff must confirm green checks on that final receipt commit, a clean synchronized branch, unchanged qualified source, no unresolved review threads and issues #8/#9 linked for closure by owner merge.
+
+Exactly two review rounds were used. The first finding was reproduced, fixed, replied to and resolved; the second reported no major issues. Subsequent changes are limited to the separately qualified/tested CI enforcement step and delivery records. No third review is requested. Project8 remains S008 / PR review and milestone M1 remains open. PR #47 stays open for owner final review, squash merge and remote branch deletion. No merge, tag, release, package publication or DNS change was performed.
+
+Native macOS/Linux runtime, large collections, installers and Lite dependency closure remain unverified by this Windows functional election. These are the existing qualification limits, not additional owner approval gates.

@@ -40,7 +40,7 @@ Branch: codex/008-portable-gallery-state. Feature: specs/008-portable-gallery-st
 - [x] T019 Update authoritative docs/v0.0.0 state/interface/lifecycle/architecture/verification/glossary and CHANGELOG.md with policy/migration/provenance decisions, preserving baseline version and public-doc separation (FR-020, SC-002/003/004/005).
 - [x] T020 Add only S008 delivery-record exclusions in scripts/provenance.mjs and record the dated decision in CHANGELOG.md; run full qualification and retain exact timing/source evidence in specs/008-portable-gallery-state/verification.md (FR-021/022, SC-007).
 - [x] T021 Commit, automatically push/open/attach official PR closing #8/#9 and set Project8 Slice S008/status in the existing milestone (FR-022, SC-008).
-- [ ] T022 Wait applicable exact-head hosted CI, respond/fix/resolve every review finding with at most two review rounds, complete final receipts and hand off for owner final review/merge in specs/008-portable-gallery-state/verification.md (FR-022, SC-007/008).
+- [x] T022 Wait applicable exact-head hosted CI, respond/fix/resolve every review finding with at most two review rounds, complete final receipts and hand off for owner final review/merge in specs/008-portable-gallery-state/verification.md (FR-022, SC-007/008).
 
 ## Dependencies and execution order
 
