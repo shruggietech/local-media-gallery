@@ -39,3 +39,19 @@ Product convergence audit:14 functional requirements,9 user acceptance scenarios
 2026-10-24: Corrected-source rendered preflight passed25 groups. The portable initialization barrier remained held while the first useful discovery batch published, rendered Cancel and Close completed, and a replacement root displayed all12 fixture media. Releasing the retired read never applied its portable font scale; source portable bytes stayed exact. The native-only barrier string was added to normal-artifact exclusion. Full qualification starts after these final contract/test edits.
 
 2026-10-24T21:54:22.799Z: Corrected-source full qualification PASS. Preparation started2026-10-24T21:50:39.054Z, readiness2026-10-24T21:51:38.835Z; preparation59.781s, qualification163.964s, combined223.745s. All ten elected steps passed within target660/hard900/reserve15. Source SHA-256 d1f9c69d9eeaff3b8d2f7542d031ee96e70298ebbc2ef37e933d538c141cb0a0, 952 files. Counts55 Node,21 Windows core,33 native shell/state and25 rendered Windows groups; blocked read and blocked write responsiveness, source/portable/brand integrity and normal profile-barrier exclusion are green. The implementation convergence audit checked14FR,9 acceptance scenarios,5 buildable SC,10 plan decisions and5 constitution principles, with zero missing/partial/contradicting/unrequested product gaps. Operational review/final CI tasks remain pending.
+
+2026-10-24T21:55:17Z: Published corrected commit8d532943e6471f337d65ea418568b4df4d5e6d3d. Replied individually to comment4368602170 (reply4368653530) and resolved threadPRRT_kwDOVUAZgc6v74_j. Explicit second/final review request is comment6390015183. Hosted corrected-head run40136305849 is in progress. Post-commit source identity matches the full local qualification exactly.
+
+## Corrected-head hosted acceptance
+
+Run40136305849 passed on PR head8d532943e6471f337d65ea418568b4df4d5e6d3d and synthetic merge5650686ca2639961b79e4b701457037044fb1857. Downloaded all three receipts; each has the exact locally qualified source digest d1f9c69d9eeaff3b8d2f7542d031ee96e70298ebbc2ef37e933d538c141cb0a0. Windows hosted evidence is compile/unit/frontend/brand, separately from local WebView2 acceptance. Pages deployment skipped as expected for a PR.
+
+| Scope | Preparation seconds | Qualification seconds | Combined seconds | Terminal UTC |
+| --- | --- | --- | --- | --- |
+| product-windows | 456.614 | 97.562 | 554.176 | 2026-10-24T22:04:34.473Z |
+| repository | 22.4 | 1.666 | 24.066 | 2026-10-24T21:55:35.066Z |
+| website | 75.992 | 59.148 | 135.14 | 2026-10-24T21:57:27.140Z |
+
+Tracking verification: PR48 is official/open/mergeable; GitHub recognizes closing references for both #10 and #11. Both issues remain OPEN in Project8 status PR review with Slice S009 until the owner merges. Corrected-head check rollup is SUCCESS, with repository/product-windows/website SUCCESS and deploy-pages SKIPPED. The sole round1 thread is resolved.
+
+2026-10-24T23:13:27Z: The second/final code review still reports running on8d53294 with no new comments and only the bot eyes reaction, independently confirmed through both connector reads and direct GitHub GraphQL. This is not a completed-review receipt. T022/T025 remain pending; no additional review is authorized or requested. Publishing this delivery-only receipt does not change the qualified product/source digest. Its own final-head CI must pass before any handoff.
