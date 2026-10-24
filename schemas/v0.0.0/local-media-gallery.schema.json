@@ -212,6 +212,438 @@
           "default": 100
         }
       }
+    },
+    "settingsChoices": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "pageSize": {
+          "enum": [
+            24,
+            48,
+            96
+          ]
+        },
+        "cardSize": {
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ]
+        },
+        "controlsExpanded": {
+          "type": "boolean"
+        },
+        "scrollIndicator": {
+          "enum": [
+            "auto",
+            "always"
+          ]
+        },
+        "metadataExpanded": {
+          "type": "boolean"
+        },
+        "filter": {
+          "enum": [
+            "all",
+            "image",
+            "video"
+          ]
+        },
+        "sort": {
+          "enum": [
+            "name",
+            "modified",
+            "size"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        },
+        "fontScale": {
+          "enum": [
+            80,
+            90,
+            100
+          ],
+          "default": 100
+        }
+      }
+    },
+    "settingsPatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pageSize": {
+          "enum": [
+            24,
+            48,
+            96
+          ]
+        },
+        "cardSize": {
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ]
+        },
+        "controlsExpanded": {
+          "type": "boolean"
+        },
+        "scrollIndicator": {
+          "enum": [
+            "auto",
+            "always"
+          ]
+        },
+        "metadataExpanded": {
+          "type": "boolean"
+        },
+        "filter": {
+          "enum": [
+            "all",
+            "image",
+            "video"
+          ]
+        },
+        "sort": {
+          "enum": [
+            "name",
+            "modified",
+            "size"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        },
+        "fontScale": {
+          "enum": [
+            80,
+            90,
+            100
+          ],
+          "default": 100
+        }
+      }
+    },
+    "portableSettings": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "product",
+        "kind",
+        "version",
+        "formatVersion",
+        "choices"
+      ],
+      "properties": {
+        "product": {
+          "const": "local-media-gallery"
+        },
+        "kind": {
+          "const": "gallery-settings"
+        },
+        "version": {
+          "const": "0.0.0"
+        },
+        "formatVersion": {
+          "const": 1
+        },
+        "choices": {
+          "$ref": "#/$defs/settingsChoices"
+        }
+      }
+    },
+    "recentDirectory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "displayPath",
+        "lastActivityMs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "displayPath": {
+          "type": "string"
+        },
+        "lastActivityMs": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      }
+    },
+    "settingsEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "settings",
+        "revision",
+        "sessionId",
+        "warning",
+        "sources",
+        "savedTo",
+        "layers",
+        "recents",
+        "destinations"
+      ],
+      "properties": {
+        "settings": {
+          "$ref": "#/$defs/settings"
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "warning": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pageSize",
+            "cardSize",
+            "controlsExpanded",
+            "scrollIndicator",
+            "metadataExpanded",
+            "filter",
+            "sort",
+            "direction",
+            "fontScale"
+          ],
+          "properties": {
+            "pageSize": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "cardSize": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "controlsExpanded": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "scrollIndicator": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "metadataExpanded": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "filter": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "sort": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "direction": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "fontScale": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            }
+          }
+        },
+        "savedTo": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pageSize": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "cardSize": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "controlsExpanded": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "scrollIndicator": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "metadataExpanded": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "filter": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "sort": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "direction": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "fontScale": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            }
+          }
+        },
+        "layers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "session",
+            "user",
+            "remembered",
+            "portable"
+          ],
+          "properties": {
+            "session": {
+              "$ref": "#/$defs/settingsChoices"
+            },
+            "user": {
+              "$ref": "#/$defs/settingsChoices"
+            },
+            "remembered": {
+              "$ref": "#/$defs/settingsChoices"
+            },
+            "portable": {
+              "$ref": "#/$defs/settingsChoices"
+            }
+          }
+        },
+        "recents": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/recentDirectory"
+          }
+        },
+        "destinations": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "session": {
+              "type": "string"
+            },
+            "user": {
+              "type": "string"
+            },
+            "remembered": {
+              "type": "string"
+            },
+            "portable": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   }
 }

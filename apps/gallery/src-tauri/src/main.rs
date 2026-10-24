@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+mod gallery_state;
+mod history;
+mod portable;
 mod settings;
 use gallery_core::{Engine, GalleryError, Snapshot};
-use settings::{SettingsEnvelope, SettingsStore};
+use gallery_state::{Envelope, GalleryState};
+use settings::SettingsStore;
 use std::{
     ffi::OsString,
     path::PathBuf,
@@ -90,30 +94,90 @@ fn publish(app: &tauri::AppHandle, runtime: &Runtime) -> Snapshot {
     snapshot
 }
 #[tauri::command]
-fn load_settings(
+async fn load_settings(
     window: WebviewWindow,
-    settings: State<Arc<SettingsStore>>,
-) -> Result<SettingsEnvelope, GalleryError> {
+    store: State<'_, Arc<GalleryState>>,
+    session_id: Option<String>,
+) -> Result<Envelope, GalleryError> {
     main_window(&window)?;
-    Ok(settings.envelope())
+    let store = Arc::clone(store.inner());
+    tauri::async_runtime::spawn_blocking(move || store.load(session_id.as_deref()))
+        .await
+        .map_err(|_| GalleryError::new("internal", "Presentation state could not be loaded."))?
+}
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SaveRequest {
+    session_id: Option<String>,
+    expected_revision: String,
+    destination: String,
+    patch: serde_json::Value,
+    remove: Option<String>,
+    clear: bool,
 }
 #[tauri::command]
 async fn save_settings(
     window: WebviewWindow,
-    store: State<'_, Arc<SettingsStore>>,
-    expected_revision: String,
-    settings: serde_json::Value,
-) -> Result<SettingsEnvelope, GalleryError> {
+    store: State<'_, Arc<GalleryState>>,
+    request: SaveRequest,
+) -> Result<Envelope, GalleryError> {
     main_window(&window)?;
     let store = Arc::clone(store.inner());
-    tauri::async_runtime::spawn_blocking(move || store.save(settings, &expected_revision))
-        .await
-        .map_err(|_| {
-            GalleryError::new(
-                "internal",
-                "Preferences could not be saved. Changes remain in memory.",
-            )
-        })?
+    tauri::async_runtime::spawn_blocking(move || {
+        store.change(
+            request.session_id.as_deref(),
+            &request.expected_revision,
+            &request.destination,
+            request.patch,
+            request.remove.as_deref(),
+            request.clear,
+        )
+    })
+    .await
+    .map_err(|_| {
+        GalleryError::new(
+            "internal",
+            "Presentation state could not be saved. Your choice remains temporary.",
+        )
+    })?
+}
+#[tauri::command]
+async fn forget_history(
+    window: WebviewWindow,
+    store: State<'_, Arc<GalleryState>>,
+    session_id: Option<String>,
+    expected_revision: String,
+    id: Option<String>,
+) -> Result<Envelope, GalleryError> {
+    main_window(&window)?;
+    let store = Arc::clone(store.inner());
+    tauri::async_runtime::spawn_blocking(move || {
+        store.forget(id.as_deref(), session_id.as_deref(), &expected_revision)
+    })
+    .await
+    .map_err(|_| GalleryError::new("internal", "History could not be changed."))?
+}
+#[tauri::command]
+async fn reopen_recent(
+    window: WebviewWindow,
+    store: State<'_, Arc<GalleryState>>,
+    runtime: State<'_, Runtime>,
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<Snapshot, GalleryError> {
+    main_window(&window)?;
+    let store = Arc::clone(store.inner());
+    let engine = runtime.engine.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = store.recent_path(&id)?;
+        let snapshot = engine.open(&path)?;
+        store.load(snapshot.session_id.as_deref())?;
+        Ok::<(), GalleryError>(())
+    })
+    .await
+    .map_err(|_| GalleryError::new("internal", "The recent directory could not open."))??;
+    *runtime.startup_error.lock().unwrap() = None;
+    Ok(publish(&app, &runtime))
 }
 #[tauri::command]
 fn startup(window: WebviewWindow, runtime: State<Runtime>) -> Result<Snapshot, GalleryError> {
@@ -129,14 +193,20 @@ fn snapshot(window: WebviewWindow, runtime: State<Runtime>) -> Result<Snapshot, 
 async fn open_gallery(
     window: WebviewWindow,
     runtime: State<'_, Runtime>,
+    store: State<'_, Arc<GalleryState>>,
     path: String,
     app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
     let engine = runtime.engine.clone();
-    tauri::async_runtime::spawn_blocking(move || engine.open(&PathBuf::from(path)))
-        .await
-        .map_err(|_| GalleryError::new("internal", "Directory selection failed."))??;
+    let store = Arc::clone(store.inner());
+    tauri::async_runtime::spawn_blocking(move || {
+        let snapshot = engine.open(&PathBuf::from(path))?;
+        store.load(snapshot.session_id.as_deref())?;
+        Ok::<(), GalleryError>(())
+    })
+    .await
+    .map_err(|_| GalleryError::new("internal", "Directory selection failed."))??;
     *runtime.startup_error.lock().unwrap() = None;
     Ok(publish(&app, &runtime))
 }
@@ -145,6 +215,7 @@ async fn choose_directory(
     window: WebviewWindow,
     app: tauri::AppHandle,
     runtime: State<'_, Runtime>,
+    store: State<'_, Arc<GalleryState>>,
 ) -> Result<Option<Snapshot>, GalleryError> {
     main_window(&window)?;
     let picker = app
@@ -162,9 +233,14 @@ async fn choose_directory(
         .into_path()
         .map_err(|_| GalleryError::new("invalid_root", "Choose a local directory."))?;
     let engine = runtime.engine.clone();
-    tauri::async_runtime::spawn_blocking(move || engine.open(&path))
-        .await
-        .map_err(|_| GalleryError::new("internal", "Directory selection failed."))??;
+    let store = Arc::clone(store.inner());
+    tauri::async_runtime::spawn_blocking(move || {
+        let snapshot = engine.open(&path)?;
+        store.load(snapshot.session_id.as_deref())?;
+        Ok::<(), GalleryError>(())
+    })
+    .await
+    .map_err(|_| GalleryError::new("internal", "Directory selection failed."))??;
     *runtime.startup_error.lock().unwrap() = None;
     Ok(Some(publish(&app, &runtime)))
 }
@@ -235,6 +311,8 @@ fn main() {
             snapshot,
             load_settings,
             save_settings,
+            forget_history,
+            reopen_recent,
             open_gallery,
             choose_directory,
             refresh,
@@ -253,7 +331,11 @@ fn main() {
                 }
                 Err(error) => SettingsStore::unavailable(format!("The user settings directory is unavailable: {error}. Preferences remain in memory.")),
             };
-            app.manage(Arc::new(settings));
+            let history_path=history::location(app.path().app_local_data_dir().ok());
+            #[cfg(feature="native-tests")]
+            let history_path=std::env::var_os("GALLERY_TEST_HISTORY_DIR").map(PathBuf::from).map(|p|p.join("history.sqlite3")).or(history_path);
+            let engine=app.state::<Runtime>().engine.clone();
+            app.manage(Arc::new(GalleryState::new(engine,settings,history::History::new(history_path,cfg!(feature="native-tests")))));
             if let Some(listener) = listener {
                 let engine = app.state::<Runtime>().engine.clone();
                 let handle = app.handle().clone();

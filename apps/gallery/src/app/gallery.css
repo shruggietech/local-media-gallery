@@ -88,3 +88,12 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
   .viewer-information { padding-inline-start: 0; padding-block-start: var(--lo-space-3); border-inline-start: 0; border-block-start: var(--bb-border-default) solid var(--bb-action-primary); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none; transition: none; scroll-behavior: auto; } }
+
+.save-destination .bb-field { margin: 0; }
+.save-destination select { max-width: 12rem; }
+.state-controls { margin-block: var(--lo-space-3); padding: var(--lo-space-3); }
+.state-controls summary { cursor: pointer; }
+.setting-sources > div { display: grid; grid-template-columns: minmax(8rem, 1fr) 3fr; gap: var(--lo-space-2); margin-block: var(--lo-space-2); }
+.setting-sources dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--lo-space-2); }
+.recent-folders { padding: 0; list-style: none; }
+.recent-folders li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lo-space-2); overflow-wrap: anywhere; }

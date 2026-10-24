@@ -2,81 +2,92 @@
 
 ## State ownership
 
-**CS-01:** The application MUST distinguish intentional user preferences, machine-local convenience state and disposable derived data. Losing a cache or remembered-location record must not make a gallery impossible to discover. Portable presentation must not depend on the sender's installed user profile.
+**CS-01:** Intentional preferences, machine-local history and disposable derived data have separate ownership. Losing history must not prevent discovery. An ordinary open reads portable settings without creating files in the gallery. Discovery and refresh remain manual.
 
-| State | Purpose | Portability and lifetime |
+| Layer | Purpose | Lifetime |
 | --- | --- | --- |
-| Built-in defaults | Starting behavior for unspecified preferences | Defined by the application version |
-| Installed user settings | Deliberate preferences for that user | Stored in the user's platform application-data locations |
-| Remembered directory state | Recall choices for a normalized absolute location | Machine-local; proposed inactivity expiry |
-| Gallery `settings.json` | Deliberate presentation choices intended to travel | Travels with the gallery; does not expire with local history |
-| Derived cache | Thumbnails and reusable inspection results | Rebuildable; portable or machine-local placement remains to be selected |
-| Session overrides | Choices made for a particular invocation/session | Lifetime and persistence must be visible |
-
-An initial open does not require creating a configuration file. The current local interface saves explicit view choices immediately to the user configuration directory and identifies that scope. It does not write settings into the selected media directory. Future portable save operations must identify their destination before writing, particularly when sharing a gallery or using a read-only directory.
+| Built-in defaults | Unspecified presentation | Application version |
+| Installed user settings | Deliberate user defaults | User profile |
+| Remembered directory choices | Presentation for a canonical native location | Machine-local, 90 days of inactivity |
+| Portable gallery settings | Presentation intended to travel | Gallery-local, no history expiry |
+| Temporary session choices | Current explicit intent | Until cleared or the root changes |
 
 ## Current user preferences
 
-The application uses a UTF-8 `settings.json` in Tauri's application configuration directory for `tech.shruggie.local-media-gallery`. On Windows this is `%APPDATA%\tech.shruggie.local-media-gallery\settings.json`. Linux uses the user configuration directory (`$XDG_CONFIG_HOME`, otherwise `~/.config`) and macOS uses the user Library Application Support directory, each beneath the same application identifier. These are user-level paths, independent of the selected gallery. Native Linux/macOS behavior still requires platform verification.
+The flat UTF-8 settings.json remains compatible with earlier builds. Its version is 0.0.0 and formatVersion is 1. The user file is in Tauri's app_config_dir for tech.shruggie.local-media-gallery: Windows uses Roaming AppData, Linux the user configuration location, and macOS Application Support. No user file is created until an explicit user-default change. Legacy omission of fontScale means 100 without rewriting the file. Compatible unknown properties survive saves.
 
-The current flat document identifies product `version` as `0.0.0` and `formatVersion` as `1`. It contains the following preferences. All are global to this user; they are not remembered per directory.
-
-| Field | Values | First-use default |
+| Field | Values | Default |
 | --- | --- | --- |
-| `fontScale` | `100`, `90`, `80` (percent) | `100` |
-| `pageSize` | `24`, `48`, `96` | `48` |
-| `cardSize` | `small`, `medium`, `large` | `medium` |
-| `controlsExpanded` | Boolean | `false` |
-| `scrollIndicator` | `auto`, `always` | `auto` |
-| `metadataExpanded` | Boolean | `false` |
-| `filter` | `all`, `image`, `video` | `all` |
-| `sort` | `name`, `modified`, `size` | `name` |
-| `direction` | `asc`, `desc` | `asc` |
+| fontScale | 100, 90, 80 (percent) | 100 |
+| pageSize | 24, 48, 96 | 48 |
+| cardSize | small, medium, large | medium |
+| controlsExpanded | Boolean | false |
+| scrollIndicator | auto, always | auto |
+| metadataExpanded | Boolean | false |
+| filter | all, image, video | all |
+| sort | name, modified, size | name |
+| direction | asc, desc | asc |
 
-Global font size offers Default (100%), Small (90%) and Smaller (80%). The current text size remains the default. The choice affects application text, including controls, filenames and focused information, and persists immediately. Media sizes, card widths/gaps and control minimum hit areas retain their existing geometry; text-dependent captions can reflow. Browser/OS text scaling still applies. Native operating-system dialogs and built-in media controls retain platform styling.
-
-A file from an earlier build may omit `fontScale`; it loads as `100` without changing the file until an explicit preference save. Other existing preferences and compatible unknown fields are retained.
-
-A missing file supplies these defaults without creating a file. A changed preference takes effect in memory immediately and queues a native save. Metadata disclosure is saved on every explicit toggle. Defaults include manual refresh only; there is no automatic-refresh preference in this document.
-
-## Portable settings
-
-**CS-02:** A gallery MUST support persistent custom presentation in a gallery-local `settings.json`. Media references and field selections stored for sharing must use relocatable relationships or stable semantics rather than required sender-specific absolute paths. Defaults need not be expanded into an exhaustive file when the user has changed only a few choices.
-
-Portable settings remain a future preparation capability, separate from the current per-user file. They can hold intentional choices such as sort/filter configuration, card presentation, metadata inclusions and performance mode. Their exact key names, nesting and version envelope remain U-07; the current user-settings representation does not establish the portable contract.
-
-Unknown keys must be treated according to the documented compatibility policy. A reader must not discard unrecognized future values and then save a reduced document over the original. Saving requires conflict detection if another session changed the file after it was read. A failed save must leave the previous valid settings available.
-
-## Installed locations
-
-**CS-03:** Windows installed settings MUST reside under AppData. The current preference file uses the application configuration location described above. Machine-local directory histories and performance observations must not be treated as portable collection metadata. macOS and Linux use their equivalent user-specific application locations. Future history/cache locations and their Windows Roaming/Local allocation remain U-07.
-
-The location design should separate durable configuration, persistent session/history state and disposable caches. Linux's [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir/latest/) distinguishes these categories. macOS [Library directory guidance](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileSystemOverview/FileSystemOverview.html) supplies the corresponding platform reference. These references guide future history/cache locations; the current user preference path is defined above.
-
-## Remembered directory state and decay
-
-The owner-proposed design uses SQLite for absolute-path lookup, saved per-directory choices and recent-location suggestions. [SQLite](https://sqlite.org/about.html) is an embedded database, so this option does not imply a separately installed database server. Adoption, driver selection and data layout remain U-07.
-
-**CS-04:** If remembered-location state is implemented, it MUST remain a convenience rather than an authoritative media catalog. A directory moved to a new absolute path may receive a new local history entry while its portable gallery continues to work. Path lookup must respect the platform's actual case and alias behavior; blind lowercasing is not a universal identity rule.
-
-An inactivity-based decay policy must define which event refreshes activity, when cleanup runs and how unavailable locations are treated. Expiry may remove remembered overrides/history but MUST NOT remove media, sidecars or gallery-local settings. No retention duration is selected by this specification. Recent-location ordering, access frequency and manual forgetting are also unresolved details.
+Font scale changes app text, including controls, filenames and focused information. Media sizes, card geometry and minimum hit areas retain their geometry; captions can reflow. Platform dialogs and built-in media controls retain platform styling. The private native test build may elect page size 4; ordinary builds and public schemas reject it.
 
 ## Resolution and persistence
 
-Every effective setting needs an identifiable source. **CS-05:** A conflict between session options, gallery settings, remembered directory choices and user defaults MUST be resolved through one documented precedence policy, shared by both host and interface. The current interface resolves built-in defaults, then a valid user preference file, then the active explicit choice. Changes to the active choice are persisted immediately. Gallery-local settings and remembered-directory overrides are not yet resolved by this implementation; their future precedence remains U-07.
+**CS-05:** One native resolver applies layers in this order (later wins): built-in defaults, user defaults, remembered directory choices, portable gallery settings, temporary session choices. Omission inherits; an explicit false or a value equal to the app default is still intentional. Every field has an effective source.
 
-Automatic performance observations should be re-evaluated on the recipient's machine. A portable preference for automatic mode can travel; a sender's measured decoder budget must not be assumed suitable everywhere. A setting that has never been explicitly saved must not be represented as a user-approved portable choice.
+The visible Save changes to selector is available with collection controls collapsed and inside the focused viewer. Its options are User defaults, Temporary session, Remember this folder and Portable gallery. Folder targets require an open root. The selector resets to User defaults when the root changes. A change immediately applies as temporary intent and saves only the intentionally changed fields to the chosen persistent layer. A successful save is attributed alongside the temporary source. A failure leaves the current choice temporary, with a warning.
+
+Settings sources and recent folders shows provenance and saved overrides for each field. Removing a remembered or portable field also clears its temporary choice and reveals inheritance. Clear temporary choices removes only the session layer. Saving a lower-priority layer never changes precedence: portable settings may cover remembered choices after temporary choices are cleared.
+
+## Portable settings
+
+**CS-02:** The fixed gallery-local settings.json contains sparse portable presentation, independent of the sender's profile or absolute paths:
+
+```json
+{
+  "product": "local-media-gallery",
+  "kind": "gallery-settings",
+  "version": "0.0.0",
+  "formatVersion": 1,
+  "choices": { "fontScale": 90, "metadataExpanded": false }
+}
+```
+
+All presentation fields above are permitted in choices; none is required. Compatible unknown root and choice properties are preserved. An unrelated settings.json, malformed JSON, invalid known value, unsupported release/format or document exceeding one MiB is preserved and disables portable saving until repaired and reopened. Other layers continue to work. Read-only galleries remain browsable; attempted portable saves explain their failure.
+
+The host reads and writes fixed child names through the held directory capability. It rejects symlinks, Windows reparse destinations and multiply linked settings/coordination files. An explicit portable save may create .local-media-gallery-settings.lock and a temporary .local-media-gallery-*.tmp file. The coordination file remains to preserve lock identity. Temporary files use exclusive creation, synchronization and capability-relative replacement. Reads alone create neither file. A crash may leave an orphan temporary file; the app does not consume it as settings.
+
+## Installed locations
+
+**CS-03:** Machine history is independent of portable data and user settings. Its history.sqlite3 location is:
+
+| Platform | Location |
+| --- | --- |
+| Windows | Tauri app_local_data_dir, under Local AppData, then state/history.sqlite3 |
+| macOS | App-specific Application Support, then state/history.sqlite3 |
+| Linux | Absolute XDG_STATE_HOME/tech.shruggie.local-media-gallery/history.sqlite3, otherwise HOME/.local/state/tech.shruggie.local-media-gallery/history.sqlite3 |
+
+Relative XDG_STATE_HOME values are ignored. See the [XDG directory specification](https://specifications.freedesktop.org/basedir/latest/) and [Tauri path resolver](https://docs.rs/tauri/latest/tauri/path/struct.PathResolver.html). Linux/macOS native runtime behavior still requires platform qualification.
+
+## Remembered directory state and decay
+
+**CS-04:** Bundled SQLite stores convenience state, never an authoritative media catalog. No external database executable, server or runtime installation is required. The locations table stores an opaque ID, lossless native canonical path, encoding tag, display label, sparse choices, content revision and activity time. Windows paths use UTF-16LE code units; Unix paths use native bytes. Labels never authorize reopening. Before binding machine state, handle-derived device/file identity is compared with the current canonical location. A mismatch leaves history unused with a warning; portable access remains relative to the held root. This check does not claim universal filesystem identity across every platform or volume. Canonicalization follows platform path semantics without blind lowercasing. Moving a gallery may create a new local identity; its portable settings still travel.
+
+Activity means a successful root open or an explicit remembered-folder save. Refresh, ordinary settings reads and failed recent opens do not refresh activity. Times are nonnegative epoch milliseconds, exposed as decimal strings; a clock rollback never decreases activity. At exactly 90 days of inactivity a row expires. Requested writes delete at most 256 expired rows per operation. There is no timer, watcher or background filesystem probing. Expired rows are excluded from reads even if cleanup has not reached them. Opening an expired target resets its old choices and revision inside the activity transaction independently of the cleanup batch. An old expired choices revision cannot save inherited intent back into history. Active remembered contributions are checked for expiry on requested state resolution; there is no timer-driven UI change.
+
+At most 20 recent folders are shown, newest activity first, with opaque ID ascending as the tie-break. Reopening resolves the opaque ID natively and uses ordinary root opening. An unavailable location reports failure while preserving both its record and the usable current root.
+
+Forget and Clear directory history are idempotent database-row operations. They immediately remove an active remembered contribution and re-resolve settings while retaining temporary choices. They never delete media, sidecars, portable settings or caches. A forgotten root is not re-added merely by reading settings; a later successful open or remembered save can add it again.
 
 ## Corruption, migration and concurrency
 
-**CS-06:** Invalid settings MUST be reported without silently overwriting them. Where browsing can continue with defaults or in-memory state, the application must explain that fallback and any unsaved changes. Read-only directories must remain browsable when their media are readable.
+**CS-06:** Invalid stored data is reported and preserved. Missing stores are initialized only when owned by this application. Existing zero-byte, foreign, corrupt or future-version databases are not silently recreated, renamed or downgraded. The supported database has application_id 0x4c4d4701 and user_version 1. Reads validate identity, schema and accessed rows; this is not a whole-database integrity audit. No historical database migration is needed for the first schema; unsupported versions require an explicit future migration.
 
-Current settings documents are limited to one MiB to bound preference parsing and writes; oversized originals remain untouched with a warning. Current settings reads validate all known fields and the supported product/format versions. Malformed documents, invalid known values and unsupported versions remain untouched, with a warning and usable defaults in memory. Saving is blocked while that stored document needs repair or removal; browsing and in-memory choices remain available. There is no automatic reset or migration that overwrites such a file. Compatible unknown properties are retained through subsequent saves.
+SQLite uses rollback journaling, parameterized statements, short immediate transactions and a 250ms busy timeout. Schema checks run read-only before writing and again in the transaction. Conditional row revisions prevent one instance overwriting another's remembered choices; merely opening a folder preserves the choices revision. Store contention falls back to usable temporary choices with a warning.
 
-Native writes are serialized and use a temporary file, synchronization and recoverable replacement. A content revision check under cross-process file coordination rejects a stale writer instead of discarding a newer saved document. A conflict or write failure leaves the prior file intact and shows that the current choices could not be saved. Future stores still require declared migration behavior; an unsupported older writer must not silently downgrade a newer store. Backup and migration policies beyond the current format remain U-07.
+Settings writes are bounded to one MiB. User and portable saves coordinate cooperating instances, compare the loaded bytes and replace a synchronized complete temporary document. Failures before replacement preserve the prior bytes. Interruption may leave the valid prior document or the fully committed replacement, never an intentionally partial document. An editor ignoring the lock can race the final comparison and rename; this is not a filesystem-wide compare-and-swap guarantee. Root retirement is serialized with bounded state operations; retired-session writes are rejected.
 
 ## Open decisions
 
-U-07 retains portable-settings representation, precedence across future state scopes, SQLite adoption, history/cache locations, retention duration, activity semantics and broader migrations. The current global user file and failure behavior are defined above. The portable `settings.json` name, AppData requirement and separation from machine-local remembered paths are agreed.
+U-07 retains disposable cache placement and future migration/backup policies. Portable representation, precedence, bundled SQLite adoption, machine-history locations and inactivity semantics are defined above.
 
 See [interfaces and contracts](interfaces-and-contracts.md), [verification and compatibility](verification-and-compatibility.md), the [index](index.md) and the [glossary](glossary.md).

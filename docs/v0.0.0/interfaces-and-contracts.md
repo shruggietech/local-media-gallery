@@ -28,7 +28,9 @@ The native boundary needs operations for root selection/opening, discovery/query
 
 Opening and Refresh return their completed discovery snapshots, and native completion notifications synchronize explicitly initiated changes. Reading a snapshot returns cached observations and does not scan. The interface does not poll snapshots or schedule discovery. Session ordering must prevent an older completion from replacing a newer user selection.
 
-User preferences use `load_settings` and `save_settings`. Loading returns the validated `settings`, an opaque content `revision` and an optional `warning`. Saving supplies `settings` and `expectedRevision`, then returns the updated envelope. The native host owns the destination; the renderer does not provide an arbitrary file path. Stale revisions, unsupported documents and write failures are reported without truncating the prior file. See [configuration and state](configuration-and-state.md#current-user-preferences) for fields and persistence.
+Presentation state uses load_settings with sessionId (null for no root). It returns settings, revision, sessionId, warning, per-field sources, savedTo attribution, sparse layers, recents and available destinations. save_settings accepts one request object containing sessionId, expectedRevision, destination, patch, remove and clear. A patch contains only intentionally changed known fields. Removal names one remembered/portable field with an empty patch; clear resets temporary choices with an empty patch and no removal. Invalid combinations are rejected. Root identity and revision bind mutations to the state that prepared them. The host owns every destination; the renderer supplies no arbitrary settings path.
+
+forget_history takes sessionId, expectedRevision and an opaque recent id (null clears history). reopen_recent takes only an opaque id, decodes its native path internally and uses ordinary root opening. Failed recent opens preserve the current root. All persistence operations run off the UI thread. Public schema definitions settingsChoices, settingsPatch, portableSettings and recentDirectory describe the storage and result boundaries. See [configuration and state](configuration-and-state.md) for precedence, fields and failure behavior.
 
 Long-running jobs require finite admission, observable progress and cancellation. Totals may initially be unknown; the UI must not invent a completed percentage from an unmeasured total. A terminal outcome should identify what completed, failed or remains resumable. Exact IPC transport, batching, job persistence and identifiers are U-08.
 
@@ -68,6 +70,6 @@ The optional `fontScale` preference accepts `100`, `90` or `80` percent, default
 
 ## Open decisions
 
-U-08 retains Full/Lite command syntax, preparation/installation operations and broader error/exit-code compatibility. The current readonly snapshot, preference boundary and local opening syntax are defined above. U-07 retains future portable settings and broader state formats. Semantic requirements above constrain future contracts.
+U-08 retains Full/Lite command syntax, preparation/installation operations and broader error/exit-code compatibility. The current readonly snapshot, preference boundary and local opening syntax are defined above. U-07 retains future cache and migration policies. Semantic requirements above constrain future contracts.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).

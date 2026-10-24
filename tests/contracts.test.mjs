@@ -37,3 +37,23 @@ test('font scale contract accepts legacy settings and exactly three supported pr
   for(const fontScale of [80,90,100]) assert.ok(valid({...settings,fontScale}), JSON.stringify(valid.errors));
   for(const fontScale of [0,79,95,101,80.5,-1,'90',null,true]) assert.equal(valid({...settings,fontScale}),false, 'Invalid fontScale '+JSON.stringify(fontScale));
 });
+
+test('portable settings contract distinguishes sparse intent and compatible unknown data', () => {
+  const ajv = new Ajv2020({strict:true}).addKeyword('x-release-version').addSchema(schema);
+  const valid = ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/portableSettings'});
+  const portable = {product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{fontScale:90,metadataExpanded:false},futureEnvelope:{enabled:true}};
+  assert.ok(valid(portable), JSON.stringify(valid.errors));
+  assert.ok(valid({...portable,choices:{}}));
+  assert.ok(valid({...portable,choices:{fontScale:100,futureField:{nested:[false,0,null,'']}}}));
+  for(const changed of [{...portable,product:'other'},{...portable,kind:'settings'},{...portable,formatVersion:2},{...portable,version:'0.0.1'},{...portable,choices:{fontScale:95}},{...portable,choices:{metadataExpanded:null}},{...portable,choices:{pageSize:4}}])assert.equal(valid(changed),false,JSON.stringify(changed));
+});
+
+test('sparse patch and recent contracts reject ambiguous or lossy values',()=>{
+  const ajv=new Ajv2020({strict:true}).addKeyword('x-release-version').addSchema(schema);
+  const patch=ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/settingsPatch'});
+  assert.equal(patch({metadataExpanded:false,fontScale:100}),true);
+  for(const value of [{},{unknown:true},{version:'0.0.0'},{fontScale:95},{metadataExpanded:null}])assert.equal(patch(value),false);
+  const recent=ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/recentDirectory'});
+  assert.equal(recent({id:'opaque',displayPath:'Gallery',lastActivityMs:'9223372036854775807'}),true);
+  for(const value of [-1,123,'-1','01','1.5'])assert.equal(recent({id:'opaque',displayPath:'Gallery',lastActivityMs:value}),false);
+});

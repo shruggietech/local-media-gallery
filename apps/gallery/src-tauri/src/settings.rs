@@ -10,6 +10,50 @@ use std::{
 };
 
 const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
+pub const FIELDS: &[&str] = &[
+    "pageSize",
+    "cardSize",
+    "fontScale",
+    "controlsExpanded",
+    "scrollIndicator",
+    "metadataExpanded",
+    "filter",
+    "sort",
+    "direction",
+];
+
+/// Validate sparse intent against the same contract as legacy preferences.
+/// Compatible unknown fields survive in storage, but never become UI settings.
+pub fn validate_choices(
+    value: &Value,
+    test_page_size: bool,
+) -> Result<Map<String, Value>, GalleryError> {
+    let choices = value
+        .as_object()
+        .ok_or_else(|| GalleryError::new("settings_invalid", "Choices must be an object."))?;
+    let mut merged = serde_json::to_value(Settings::default()).unwrap();
+    for (key, value) in choices {
+        if FIELDS.contains(&key.as_str()) {
+            merged[key] = value.clone();
+        }
+    }
+    Settings::parse(merged, test_page_size)?;
+    Ok(choices.clone())
+}
+
+pub fn validate_patch(
+    value: &Value,
+    test_page_size: bool,
+) -> Result<Map<String, Value>, GalleryError> {
+    let patch = validate_choices(value, test_page_size)?;
+    if patch.is_empty() || patch.keys().any(|key| !FIELDS.contains(&key.as_str())) {
+        return Err(GalleryError::new(
+            "settings_invalid",
+            "Change one or more known presentation fields.",
+        ));
+    }
+    Ok(patch)
+}
 
 fn default_font_scale() -> u8 {
     100
@@ -86,7 +130,7 @@ impl Default for Settings {
     }
 }
 impl Settings {
-    fn parse(value: Value, test_page_size: bool) -> Result<Self, GalleryError> {
+    pub(crate) fn parse(value: Value, test_page_size: bool) -> Result<Self, GalleryError> {
         let settings: Self = serde_json::from_value(value).map_err(|e| {
             GalleryError::new(
                 "settings_invalid",
@@ -155,6 +199,27 @@ fn read_document(path: &Path) -> std::io::Result<Option<Vec<u8>>> {
     Ok(Some(bytes))
 }
 impl SettingsStore {
+    pub fn choices(&self) -> Map<String, Value> {
+        let state = self.state.lock().unwrap();
+        if state.blocked {
+            return Map::new();
+        }
+        state
+            .bytes
+            .as_ref()
+            .and_then(|bytes| serde_json::from_slice::<Value>(bytes).ok())
+            .and_then(|value| value.as_object().cloned())
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|(key, _)| FIELDS.contains(&key.as_str()))
+            .collect()
+    }
+    pub fn patch(&self, patch: &Map<String, Value>) -> Result<(), GalleryError> {
+        let envelope = self.envelope();
+        let mut value = serde_json::to_value(&envelope.settings).unwrap();
+        value.as_object_mut().unwrap().extend(patch.clone());
+        self.save(value, &envelope.revision).map(|_| ())
+    }
     pub fn load(path: PathBuf, test_page_size: bool) -> Self {
         let mut envelope = SettingsEnvelope {
             settings: Settings::default(),

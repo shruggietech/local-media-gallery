@@ -445,3 +445,56 @@ async fn native_transport_enforces_host_origin_grants_ranges_and_cancellation() 
         .unwrap();
     assert_eq!(stale.status(), 404);
 }
+
+#[test]
+fn root_gate_serializes_retirement_and_rejects_old_authority() {
+    use std::sync::{Arc, Barrier, mpsc};
+    let temp = TempDir::new().unwrap();
+    let engine = Engine::new();
+    let id = engine.open(temp.path()).unwrap().session_id.unwrap();
+    let entered = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let worker = engine.clone();
+    let worker_id = id.clone();
+    let wait = entered.clone();
+    let finish = release.clone();
+    let writer = std::thread::spawn(move || {
+        worker
+            .with_current_root(Some(&worker_id), |root| {
+                let (dir, path) = root.unwrap();
+                assert!(path.is_absolute());
+                wait.wait();
+                finish.wait();
+                dir.write("state-fixture", b"committed").unwrap();
+                Ok(())
+            })
+            .unwrap()
+    });
+    entered.wait();
+    let (sent, received) = mpsc::channel();
+    let closer = engine.clone();
+    let close_id = id.clone();
+    let close = std::thread::spawn(move || {
+        closer.close(&close_id).unwrap();
+        sent.send(()).unwrap();
+    });
+    assert!(
+        received
+            .recv_timeout(std::time::Duration::from_millis(30))
+            .is_err()
+    );
+    release.wait();
+    writer.join().unwrap();
+    close.join().unwrap();
+    assert_eq!(
+        fs::read(temp.path().join("state-fixture")).unwrap(),
+        b"committed"
+    );
+    assert!(engine.with_current_root(Some(&id), |_| Ok(())).is_err());
+    engine
+        .with_current_root(None, |root| {
+            assert!(root.is_none());
+            Ok(())
+        })
+        .unwrap();
+}

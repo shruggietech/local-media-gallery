@@ -4,9 +4,13 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Website architecture and presentation updated on 2026-10-23; product packages remain unpublished.
+Portable presentation and machine-local history updated on 2026-10-24; product packages remain unpublished.
 
 ### Added
+
+- Sparse portable gallery settings, machine-local remembered folder choices and recents, one precedence resolver, visible save destinations, field provenance, inheritance removal and temporary reset.
+- Bundled SQLite history schema 1 with lossless native paths, 90-day activity expiry, 20 recent folders, row-only forgetting and conservative unsupported-store fallback.
+- Dated state decisions (2026-10-24): preserve the flat user format, identify portable product/kind/format explicitly, coordinate bounded writes through held roots, and exclude only the current slice tasks and verification delivery records from source hashing so evidence finalization does not invalidate qualified code. All feature requirements, code, tests and contracts remain hashed.
 
 - Redesigned the website with Next.js/Fumadocs, a composed gallery landing page, system/light/dark themes, pinned active contents, build-time Shiki highlighting with exact-source copy controls, described static Mermaid diagrams, and governed favicon/social metadata.
 - Added responsive visual, accessibility and cold laboratory performance qualification for the website.

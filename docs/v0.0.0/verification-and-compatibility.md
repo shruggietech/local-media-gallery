@@ -85,3 +85,7 @@ Release notes contain short user-relevant highlights, any necessary migration ac
 Resolve U-01/U-02 before asserting a full platform/edition matrix, U-04 before codec claims and U-10 before numerical performance claims. Other open decisions must be resolved before their affected contracts are presented as complete. This allows scoped implementation to proceed without substituting a plan for delivered behavior.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
+
+## Persistent state qualification
+
+Native tests exercise sparse precedence, explicit defaults/false, compatible unknown values, competing revisions, invalid and oversized portable documents, linked destinations, exact 90-day expiry, clock rollback, the 20-entry recent limit and bounded cleanup. Rendered Windows acceptance exercises independent folder choices, portable conflict warnings, inheritance removal, row-only forgetting, unavailable recent folders and relocation into a fresh user/history profile. Original media bytes are compared. Normal builds exclude private history/settings test redirection. Linux/macOS runtime paths and very large history stores require separate platform/scale qualification. These functional fixtures do not establish power-loss durability or a filesystem-wide compare-and-swap against arbitrary editors.

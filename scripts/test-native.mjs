@@ -12,14 +12,15 @@ if (process.platform !== 'win32') throw new Error('Native acceptance currently r
 const started = new Date();
 const fixture = JSON.parse(await readFile(path.join(root, '.local/native-fixture.json')));
 const validate = new Ajv({ strict: true }).addKeyword('x-release-version').compile(JSON.parse(await readFile(path.join(root, 'schemas/v0.0.0/local-media-gallery.schema.json'))));
-const settingsDirectory = await mkdtemp(path.join(root, '.local/native-settings-'));
-const settingsFile = path.join(settingsDirectory, 'settings.json');
+let settingsDirectory = await mkdtemp(path.join(root, '.local/native-settings-'));
+let historyDirectory = await mkdtemp(path.join(root, '.local/native-history-'));
+let settingsFile = path.join(settingsDirectory, 'settings.json');
 const binary = process.env.GALLERY_TEST_BINARY ?? path.join(root, 'target/debug/local-media-gallery.exe');
 const port = 44000 + Math.floor(Math.random() * 10000);
 const origin = `http://127.0.0.1:${port}`;
 let diagnostics = '';
 function launch(args) {
-  const app = spawn(binary, args, { cwd: root, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), GALLERY_TEST_SETTINGS_DIR: settingsDirectory, GALLERY_TEST_PAGE_SIZE: "4" } });
+  const app = spawn(binary, args, { cwd: root, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), GALLERY_TEST_SETTINGS_DIR: settingsDirectory, GALLERY_TEST_HISTORY_DIR: historyDirectory, GALLERY_TEST_PAGE_SIZE: "4" } });
   app.stdout.on('data', b => { diagnostics += b; }); app.stderr.on('data', b => { diagnostics += b; });
   app.on('error', error => { diagnostics += error.message; });
   return app;
@@ -80,6 +81,9 @@ try {
     assert.equal(await js('return document.querySelector("h1").textContent'), 'Local Media Gallery');
     await js('await document.fonts.ready; return true;');
     assert.ok(await js('return Array.from(document.fonts).filter(f=>f.status==="loaded").length>=3'));
+  });
+  await test('state save destination is visible before opening controls', async () => {
+    assert.equal(await js('return Boolean(document.querySelector("[data-save-destination]"))'), true, 'A reader must see where explicit choices will be saved even with controls collapsed');
   });
   await test('focused information starts collapsed and gallery media is suspended', async () => {
     await open('image2.jpg'); await visible('document.querySelector("dialog")?.open');
@@ -358,6 +362,69 @@ try {
     child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');await open('image2.jpg');await click('Information');
     await visible('document.querySelector("dialog")?.textContent.includes("could not be saved")');assert.equal(await js('return Boolean(document.querySelector("dialog .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
     await stop();await rm(path.join(settingsDirectory,'settings.lock'),{recursive:true});child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
+  });
+  await test('folder choices, portable intent, provenance, inheritance and failed recents', async () => {
+    const stateRoot = await mkdtemp(path.join(root, '.local/native-state-'));
+    const a = path.join(stateRoot, 'gallery-a'); const b = path.join(stateRoot, 'gallery-b');
+    await mkdir(a); await mkdir(b);
+    await copyFile(path.join(fixture.directory, 'image2.jpg'), path.join(a, 'image.jpg'));
+    await copyFile(path.join(fixture.directory, 'image2.jpg'), path.join(b, 'image.jpg'));
+    const openRoot = async directory => {
+      await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [directory]);
+      await visible('document.getElementById("save-destination") && !document.getElementById("save-destination").disabled');
+    };
+    const state = async () => js('const s=await window.__TAURI_INTERNALS__.invoke("snapshot");return await window.__TAURI_INTERNALS__.invoke("load_settings",{sessionId:s.sessionId})');
+    const settings = async () => { if (await js('return !document.getElementById("font-scale")')) await click('Settings'); };
+    await openRoot(a); await settings(); await select('save-destination','remembered'); await select('font-scale','90');
+    await until(async () => (await state()).layers.remembered.fontScale === 90, 'Folder A remembered');
+    assert.equal((await state()).savedTo.fontScale,'remembered');
+    const retired=await state();
+    await openRoot(b);
+    assert.equal(await js('try{await window.__TAURI_INTERNALS__.invoke("save_settings",{request:{sessionId:arguments[0].sessionId,expectedRevision:arguments[0].revision,destination:"portable",patch:{fontScale:80},remove:null,clear:false}});return "accepted"}catch(error){return error.code}',[retired]),'stale_session');
+    await settings(); assert.equal(await js('return document.getElementById("save-destination").value'),'user');
+    assert.equal(await js('return document.getElementById("font-scale").value'),'100');
+    await select('save-destination','remembered'); await select('font-scale','80');
+    await until(async () => (await state()).layers.remembered.fontScale === 80, 'Folder B independent');
+    await openRoot(a); await settings(); assert.equal(await js('return document.getElementById("font-scale").value'),'90');
+    await select('save-destination','portable'); await select('font-scale','100');
+    const portableFile=path.join(a,'settings.json');
+    await until(async()=>JSON.parse(await readFile(portableFile)).choices.fontScale===100,'Explicit default written sparsely');
+    assert.deepEqual(JSON.parse(await readFile(portableFile)).choices,{fontScale:100});
+    await js('document.querySelector(".state-controls").open=true;return true;');
+    await click('Inherit Global font size from below Portable gallery');
+    await until(async()=>(await state()).settings.fontScale===90,'Removal clears temporary field and reveals remembered choice');
+    await select('font-scale','80'); await until(async()=>JSON.parse(await readFile(portableFile)).choices.fontScale===80,'Portable choice');
+    const edited=JSON.parse(await readFile(portableFile));edited.compatible={keep:true};edited.choices.futureChoice=[false,0,null];
+    const editedBytes=JSON.stringify(edited);await writeFile(portableFile,editedBytes);
+    await select('card-size','large');await visible('document.body.textContent.includes("Portable settings changed")');
+    assert.equal(await readFile(portableFile,'utf8'),editedBytes);
+    await openRoot(a);await settings();await select('save-destination','portable');await select('card-size','large');
+    await until(async()=>JSON.parse(await readFile(portableFile)).choices.cardSize==='large','Reloaded compatible document saved');
+    assert.deepEqual(JSON.parse(await readFile(portableFile)).compatible,{keep:true});
+    assert.deepEqual(JSON.parse(await readFile(portableFile)).choices.futureChoice,[false,0,null]);
+    await select('save-destination','remembered');await select('media-filter','video');
+    await until(async()=>(await state()).layers.remembered.filter==='video','Remembered filter');
+    await js('document.querySelector(".state-controls").open=true;return true;');await click('Clear temporary choices');
+    await until(async()=>(await state()).sources.filter==='remembered','Remembered source visible');
+    const rows=(await state()).recents;const aRow=rows.find(r=>r.displayPath.endsWith('gallery-a'));const bRow=rows.find(r=>r.displayPath.endsWith('gallery-b'));
+    await click('Forget '+aRow.displayPath);await until(async()=>(await state()).settings.filter==='all','Forget re-resolves active layer');
+    assert.equal((await state()).settings.fontScale,80);assert.equal((await state()).sources.fontScale,'portable');
+    await rename(b,b+'-moved');await click(bRow.displayPath);
+    await visible('document.body.textContent.includes("Cannot open this directory")');
+    assert.ok((await snapshot()).root.endsWith('gallery-a'));assert.ok((await state()).recents.some(r=>r.id===bRow.id));
+    assert.ok(JSON.parse(await readFile(portableFile)).choices.fontScale===80);await unchanged();
+    await stop();
+    const originalSettings=settingsDirectory;const originalHistory=historyDirectory;
+    settingsDirectory=await mkdtemp(path.join(root,'.local/native-fresh-user-'));settingsFile=path.join(settingsDirectory,'settings.json');
+    historyDirectory=await mkdtemp(path.join(root,'.local/native-fresh-history-'));
+    const relocated=path.join(stateRoot,'relocated');await mkdir(relocated);
+    await copyFile(path.join(a,'image.jpg'),path.join(relocated,'image.jpg'));await copyFile(portableFile,path.join(relocated,'settings.json'));
+    child=launch([relocated]);await connect();await visible('document.querySelectorAll(".media-card").length===1');
+    await until(async()=>(await state()).sources.fontScale==='portable','Fresh profile portable source');assert.equal((await state()).settings.fontScale,80);
+    assert.deepEqual((await state()).layers.user,{});assert.deepEqual((await state()).layers.remembered,{});
+    assert.deepEqual(await readFile(path.join(relocated,'image.jpg')),await readFile(path.join(a,'image.jpg')));
+    await stop();settingsDirectory=originalSettings;settingsFile=path.join(settingsDirectory,'settings.json');historyDirectory=originalHistory;
+    child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('no-argument startup is explicit selection; unavailable startup is recoverable', async () => {
     await stop(); child = launch([]); await connect();

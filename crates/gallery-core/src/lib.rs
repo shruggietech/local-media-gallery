@@ -171,6 +171,25 @@ impl Default for Engine {
     }
 }
 impl Engine {
+    /// Run a bounded state operation while the selected root cannot be retired.
+    /// Paths here are native identities; the snapshot label is never authority.
+    pub fn with_current_root<T>(
+        &self,
+        expected: Option<&str>,
+        operation: impl FnOnce(Option<(&Dir, &Path)>) -> Result<T, GalleryError>,
+    ) -> Result<T, GalleryError> {
+        let hub = self.inner.hub.lock().unwrap();
+        match (&hub.session, expected) {
+            (None, None) => operation(None),
+            (Some(session), Some(id)) if session.id == id && !session.cancel.is_cancelled() => {
+                operation(Some((&session.dir, &session.root)))
+            }
+            _ => Err(GalleryError::new(
+                "stale_session",
+                "The selected directory changed. Retry in the current gallery.",
+            )),
+        }
+    }
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Inner {
