@@ -51,4 +51,15 @@ export interface SettingsEnvelope {
   revision: string;
   warning: string | null;
   testPageSize?: 4;
+  sessionId: string | null;
+  sources: Record<SettingField, SettingSource>;
+  savedTo: Partial<Record<SettingField, SaveDestination>>;
+  layers: Record<'user' | 'remembered' | 'portable' | 'session', SettingsPatch>;
+  recents: RecentDirectory[];
+  destinations: Partial<Record<SaveDestination, string>>;
 }
+export type SettingField = Exclude<keyof ViewSettings, 'version' | 'formatVersion'>;
+export type SettingsPatch = Partial<Pick<ViewSettings, SettingField>>;
+export type SaveDestination = 'session' | 'user' | 'remembered' | 'portable';
+export type SettingSource = 'default' | SaveDestination;
+export interface RecentDirectory { id: string; displayPath: string; lastActivityMs: string }

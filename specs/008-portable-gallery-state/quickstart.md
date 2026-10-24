@@ -1,0 +1,8 @@
+# S008 validation guide
+
+1. Verify Rust/MSVC, Node, Python fixture tools and the native WebView2 driver prerequisites through the existing hidden launcher/readiness preparation. Do not run visible console helpers.
+2. Run focused native state/document/history tests and Node schema contracts, retaining the initial failing regressions before implementation. Exercise every precedence layer and sparse/default distinction, guarded writes, unknown/future/corrupt bytes, native path round trips, concurrent writers and exact expiry.
+3. Build the normal and native-test binaries and run the extended small native fixture. Choose explicit write destinations, inspect each source and unsaved warning, save portable choices in A, close and relocate/copy to a fresh profile, and prove independent A/B remembered choices via visible recents.
+4. Use per-field inheritance, clear temporary, forget and clear history; verify current layer recomputation and exact preservation of media/portable/cache bytes. Attempt unavailable recent roots and stale-session mutations without replacing the usable gallery.
+5. Run npm run check, npm test and full npm run qualify through the verified hidden launcher, including all existing product/site/provenance checks. Record preparation, qualification, combined and terminal timestamps; compare exact source identities. Target660s, hard900s, reserve15s apply to qualification after readiness.
+6. Commit/push and open an official PR closing #8 and #9. Wait terminal applicable CI and up to two review rounds, fix/respond/resolve every finding, then present final exact-head evidence for owner review and squash merge. Do not merge, release, publish packages or change DNS.

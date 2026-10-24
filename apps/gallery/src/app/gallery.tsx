@@ -8,12 +8,13 @@ import { listen } from '@tauri-apps/api/event';
 import { AppFrame, Button, EmptyState, Field, FormControls, IconButton, StatusBadge } from '@brand/web/react/server';
 import { AppFrameEnvironmentBridge } from '@brand/web/react/environment';
 import { FolderOpen, Image as ImageIcon, Video, RefreshCw, ChevronLeft, ChevronRight, SlidersHorizontal, Settings, X, Info } from 'lucide-react';
-import type { Direction, Filter, MediaFacts, MediaItem, SettingsEnvelope, Snapshot, Sort, ViewSettings } from '../lib/types';
+import type { Direction, Filter, MediaFacts, MediaItem, Snapshot, Sort, ViewSettings } from '../lib/types';
 import { formatBytes, formatModified, masonryLayout, mediaUrl, pageItems, viewItems } from '../lib/view';
 import { createAdmissionQueue } from '../lib/admission';
+import { useGalleryState } from '../lib/use-gallery-state';
+import { SaveDestinationControl, StateControls } from '../lib/state-controls';
 
 const initial: Snapshot = { version: '0.0.0', sessionId: null, root: null, status: 'selection', revision: '0', mediaOrigin: '', items: [], issues: [] };
-const defaults: ViewSettings = { version: '0.0.0', formatVersion: 1, fontScale: 100, pageSize: 48, cardSize: 'medium', controlsExpanded: false, scrollIndicator: 'auto', metadataExpanded: false, filter: 'all', sort: 'name', direction: 'asc' };
 const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);
@@ -132,7 +133,7 @@ function ScrollIndicator({ mode, contentKey }: { mode: ViewSettings['scrollIndic
   return <div className="scroll-indicator" data-visible={metrics.overflow && (mode === 'always' || scrolling)} aria-hidden="true" style={{ top: metrics.top, height: metrics.height }}><span className="scroll-indicator__thumb" style={{ height: metrics.thumb, transform: 'translateY(' + metrics.offset + 'px)' }} /></div>;
 }
 
-function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformation, previous, next, close, refresh, busy, warning }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; expanded: boolean; toggleInformation: () => void; previous: (() => void) | null; next: (() => void) | null; close: () => void; refresh: () => void; busy: boolean; warning: string }) {
+function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformation, previous, next, close, refresh, busy, warning, destinationControl }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; expanded: boolean; toggleInformation: () => void; previous: (() => void) | null; next: (() => void) | null; close: () => void; refresh: () => void; busy: boolean; warning: string; destinationControl: React.ReactNode }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -173,19 +174,19 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
         <dt>Duration</dt><dd>{item.kind !== 'video' ? 'Not applicable' : Number.isFinite(facts.duration) ? facts.duration?.toFixed(2) + ' seconds' : 'Unavailable'}</dd>
       </dl></section> : null}
     </div>
-    <footer><div className="viewer-actions"><Button variant="secondary" disabled={!previous} onClick={() => previous?.()}><ChevronLeft aria-hidden="true" />Previous</Button>{item.kind === 'video' ? <Button onClick={play}>{playing ? 'Pause' : 'Play'}</Button> : null}<Button variant="secondary" disabled={!next} onClick={() => next?.()}>Next<ChevronRight aria-hidden="true" /></Button></div>{warning ? <p role="status" className="media-error">{warning}</p> : null}{facts.error || item.issue || playError ? <p role="status" className="media-error">{facts.error || item.issue || playError}</p> : null}</footer>
+    <footer>{destinationControl}<div className="viewer-actions"><Button variant="secondary" disabled={!previous} onClick={() => previous?.()}><ChevronLeft aria-hidden="true" />Previous</Button>{item.kind === 'video' ? <Button onClick={play}>{playing ? 'Pause' : 'Play'}</Button> : null}<Button variant="secondary" disabled={!next} onClick={() => next?.()}>Next<ChevronRight aria-hidden="true" /></Button></div>{warning ? <p role="status" className="media-error">{warning}</p> : null}{facts.error || item.issue || playError ? <p role="status" className="media-error">{facts.error || item.issue || playError}</p> : null}</footer>
   </dialog>;
 }
 
 export default function Gallery() {
   const [snapshot, setSnapshot] = useState<Snapshot>(initial);
-  const [settings, setSettings] = useState<ViewSettings>(defaults);
+  const state = useGalleryState();
+  const { settings, ready: settingsReady, warning: settingsWarning, activate, change: changeSettings } = state;
+  const testPageSize = state.envelope?.testPageSize;
   useLayoutEffect(() => {
     document.documentElement.style.setProperty('--gallery-font-scale', String(settings.fontScale / 100));
     return () => { document.documentElement.style.removeProperty('--gallery-font-scale'); };
   }, [settings.fontScale]);
-  const settingsRef = useRef<ViewSettings>(defaults); const settingsRevision = useRef(''); const saves = useRef(Promise.resolve());
-  const [settingsReady, setSettingsReady] = useState(false); const [settingsWarning, setSettingsWarning] = useState(''); const [testPageSize, setTestPageSize] = useState<4 | undefined>();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [page, setPage] = useState(1); const [pageDraft, setPageDraft] = useState('1');
   const [selected, setSelected] = useState<string | null>(null);
@@ -198,10 +199,11 @@ export default function Gallery() {
     const old = latest.current;
     if (ticket !== undefined && ticket !== intent.current) return;
     if (old.sessionId === value.sessionId && BigInt(value.revision) < BigInt(old.revision)) return;
+    activate(value.sessionId);
     if (old.sessionId === value.sessionId && old.revision === value.revision && old.mediaOrigin === value.mediaOrigin && old.status === value.status && JSON.stringify(old.issues) === JSON.stringify(value.issues)) return;
     if (old.sessionId !== value.sessionId) { intent.current += 1; setSelected(null); setPage(1); returnTarget.current = null; }
     latest.current = value; activeKeys.current = new Set(value.items.map(keyOf)); setSnapshot(value);
-  }, []);
+  }, [activate]);
   useEffect(() => {
     setOverlay(document.getElementById('bb-overlay-root'));
     const preference = window.matchMedia('(prefers-color-scheme: light)');
@@ -213,26 +215,11 @@ export default function Gallery() {
         const stop = await listen<Snapshot>('gallery-changed', event => { if (alive) apply(event.payload); });
         if (!alive) { stop(); return; } unlisten = stop;
         const ticket = intent.current;
-        await Promise.all([
-          invoke<SettingsEnvelope>('load_settings').then(value => {
-            if (!alive) return;
-            settingsRef.current = value.settings; settingsRevision.current = value.revision; setSettings(value.settings); setSettingsWarning(value.warning || ''); setTestPageSize(value.testPageSize); setSettingsReady(true);
-          }).catch(error => { if (alive) { setSettingsWarning('Preferences could not be loaded: ' + errorText(error)); setSettingsReady(true); } }),
-          invoke<Snapshot>('startup').then(value => { if (alive) apply(value, ticket); }),
-        ]);
+        const value = await invoke<Snapshot>('startup'); if (alive) apply(value, ticket);
       } catch (error) { if (alive) setError('The native gallery is unavailable: ' + errorText(error)); }
     })();
     return () => { alive = false; unlisten?.(); preference.removeEventListener('change', theme); };
   }, [apply]);
-  const changeSettings = useCallback((patch: Partial<ViewSettings>) => {
-    const next = { ...settingsRef.current, ...patch }; settingsRef.current = next; setSettings(next);
-    saves.current = saves.current.then(async () => {
-      try {
-        const value = await invoke<SettingsEnvelope>('save_settings', { settings: next, expectedRevision: settingsRevision.current });
-        settingsRevision.current = value.revision; setSettingsWarning(value.warning || '');
-      } catch (error) { setSettingsWarning('Preferences could not be saved: ' + errorText(error)); }
-    });
-  }, []);
   useEffect(() => {
     const keep = new Set(snapshot.items.map(keyOf));
     setFacts(old => Object.fromEntries(Object.entries(old).filter(([key]) => keep.has(key))));
@@ -282,12 +269,19 @@ export default function Gallery() {
     catch (error) { setError(errorText(error)); }
     finally { setBusy(false); }
   };
-  const changeView = (patch: Partial<ViewSettings>) => { setPage(1); changeSettings(patch); };
+  const changeView = (patch: import('../lib/types').SettingsPatch) => { setPage(1); changeSettings(patch); };
   const goPage = (requested: number) => { setPage(pageItems(items, requested, settings.pageSize).page); document.querySelector('.bb-app-frame__scroll')?.scrollTo({ top: 0 }); };
   const images = snapshot.items.filter(item => item.kind === 'image').length;
   const status = snapshot.status === 'scanning' ? 'Scanning directory' : snapshot.status === 'partial' ? 'Partial discovery' : snapshot.status === 'unavailable' ? 'Directory unavailable' : snapshot.sessionId ? 'Discovery complete' : 'Choose a directory';
   const toggleControls = () => { if (settings.controlsExpanded) setSettingsOpen(false); changeSettings({ controlsExpanded: !settings.controlsExpanded }); };
-  const header = <header className="app-header"><div className="identity"><picture><source media="(prefers-color-scheme: light)" srcSet="/brand/logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-light.svg" /><img src="/brand/logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-dark.svg" alt="" /></picture><h1>Local Media Gallery</h1></div><span className="folder-title" title={snapshot.root || ''}>{snapshot.root || 'Choose a folder'}</span><div className="header-actions"><Button variant="ghost" onClick={() => void choose()} disabled={busy}><FolderOpen aria-hidden="true" />Choose folder</Button><Button variant="ghost" onClick={() => void refresh()} disabled={busy || !snapshot.sessionId}><RefreshCw aria-hidden="true" />Refresh</Button><IconButton label="Close folder" icon={<X />} onClick={() => void closeFolder()} disabled={busy || !snapshot.sessionId} /><DisclosureButton variant="ghost" expanded={settings.controlsExpanded} controls="collection-controls" disabled={!settingsReady} onClick={toggleControls}><SlidersHorizontal aria-hidden="true" />{settings.controlsExpanded ? 'Hide controls' : 'Show controls'}</DisclosureButton><DisclosureButton variant="ghost" expanded={settingsOpen && settings.controlsExpanded} controls="view-settings" disabled={!settingsReady} onClick={() => { setSettingsOpen(old => !old); if (!settings.controlsExpanded) changeSettings({ controlsExpanded: true }); }}><Settings aria-hidden="true" />Settings</DisclosureButton></div></header>;
+  const reopen = async (id: string) => {
+    const current = ++intent.current; setBusy(true); setError('');
+    try { apply(await invoke<Snapshot>('reopen_recent', { id }), current); }
+    catch (error) { if (current === intent.current) setError(errorText(error)); }
+    finally { setBusy(false); }
+  };
+  const destinationControl = (viewer = false) => <SaveDestinationControl value={state.destination} change={state.selectDestination} root={Boolean(snapshot.sessionId)} ready={settingsReady} viewer={viewer} />;
+  const header = <header className="app-header"><div className="identity"><picture><source media="(prefers-color-scheme: light)" srcSet="/brand/logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-light.svg" /><img src="/brand/logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-dark.svg" alt="" /></picture><h1>Local Media Gallery</h1></div><span className="folder-title" title={snapshot.root || ''}>{snapshot.root || 'Choose a folder'}</span><div className="header-actions">{destinationControl()}<Button variant="ghost" onClick={() => void choose()} disabled={busy}><FolderOpen aria-hidden="true" />Choose folder</Button><Button variant="ghost" onClick={() => void refresh()} disabled={busy || !snapshot.sessionId}><RefreshCw aria-hidden="true" />Refresh</Button><IconButton label="Close folder" icon={<X />} onClick={() => void closeFolder()} disabled={busy || !snapshot.sessionId} /><DisclosureButton variant="ghost" expanded={settings.controlsExpanded} controls="collection-controls" disabled={!settingsReady} onClick={toggleControls}><SlidersHorizontal aria-hidden="true" />{settings.controlsExpanded ? 'Hide controls' : 'Show controls'}</DisclosureButton><DisclosureButton variant="ghost" expanded={settingsOpen && settings.controlsExpanded} controls="view-settings" disabled={!settingsReady} onClick={() => { setSettingsOpen(old => !old); if (!settings.controlsExpanded) changeSettings({ controlsExpanded: true }); }}><Settings aria-hidden="true" />Settings</DisclosureButton></div></header>;
   return <AppFrame host="tauri" header={header}><AppFrameEnvironmentBridge layoutResizeCanBeIme={false} />
     {settings.controlsExpanded ? <section className="collection-controls" id="collection-controls" aria-label="Collection controls">
       <Field id="media-filter" label="Media type" control={<FormControls.Select value={settings.filter} onChange={event => changeView({ filter: event.target.value as Filter })}><option value="all">All media</option><option value="image">Images</option><option value="video">Videos</option></FormControls.Select>} />
@@ -300,8 +294,9 @@ export default function Gallery() {
       <Field id="page-size" label="Items per page" control={<FormControls.Select value={settings.pageSize} onChange={event => changeView({ pageSize: Number(event.target.value) })}>{testPageSize === 4 ? <option value="4">4 (native test)</option> : null}<option value="24">24</option><option value="48">48</option><option value="96">96</option></FormControls.Select>} />
       <Field id="card-size" label="Card size" control={<FormControls.Select value={settings.cardSize} onChange={event => changeSettings({ cardSize: event.target.value as ViewSettings['cardSize'] })}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></FormControls.Select>} />
       <Field id="scroll-indicator" label="Scroll indicator" control={<FormControls.Select value={settings.scrollIndicator} onChange={event => changeSettings({ scrollIndicator: event.target.value as ViewSettings['scrollIndicator'] })}><option value="auto">While scrolling</option><option value="always">Always visible</option></FormControls.Select>} />
-      <p className="muted">Choices are saved to your user settings. Gallery refresh is manual.</p>
+      <p className="muted">Each explicit change saves to the selected destination. Gallery refresh is manual.</p>
     </section> : null}
+    <StateControls envelope={state.envelope} remove={state.remove} clear={state.clear} forget={state.forget} reopen={id => void reopen(id)} busy={busy || !settingsReady} />
     {error ? <p role="alert" className="media-error">{error}</p> : null}
     {settingsWarning ? <p role="status" className="media-error">{settingsWarning}</p> : null}
     {snapshot.issues.length ? <div role="status" className="media-error">{snapshot.issues.map((issue, i) => <p key={issue + '/' + i}>{issue}</p>)}</div> : null}
@@ -311,6 +306,6 @@ export default function Gallery() {
       : <EmptyState id="gallery-empty" heading={snapshot.status === 'scanning' ? 'Finding media' : snapshot.status === 'unavailable' ? 'Directory unavailable' : !snapshot.sessionId ? 'Open a media directory' : settings.filter !== 'all' && snapshot.items.length ? 'No media match this filter' : 'No media found'} description={snapshot.status === 'unavailable' ? 'Choose a readable directory to continue.' : !snapshot.sessionId ? 'Choose a directory to browse its images and videos.' : settings.filter !== 'all' && snapshot.items.length ? 'Choose All media to see the current collection.' : 'Readable image and video files in this directory appear here. Use Refresh to check for changes.'} />}
     <footer className="app-footer">A ShruggieTech project</footer>
     <ScrollIndicator mode={settings.scrollIndicator} contentKey={snapshot.sessionId + '/' + snapshot.revision + '/' + paged.page + '/' + String(Boolean(selectedItem))} />
-    {overlay && selectedItem ? createPortal(<Viewer snapshot={snapshot} item={selectedItem} facts={facts[keyOf(selectedItem)] || emptyFacts} updateFacts={updateFacts} expanded={settings.metadataExpanded} toggleInformation={() => changeSettings({ metadataExpanded: !settings.metadataExpanded })} previous={index > 0 ? () => navigate(-1) : null} next={index < items.length - 1 ? () => navigate(1) : null} close={closeViewer} refresh={() => void refresh()} busy={busy} warning={settingsWarning} />, overlay) : null}
+    {overlay && selectedItem ? createPortal(<Viewer snapshot={snapshot} item={selectedItem} facts={facts[keyOf(selectedItem)] || emptyFacts} updateFacts={updateFacts} expanded={settings.metadataExpanded} toggleInformation={() => changeSettings({ metadataExpanded: !settings.metadataExpanded })} previous={index > 0 ? () => navigate(-1) : null} next={index < items.length - 1 ? () => navigate(1) : null} close={closeViewer} refresh={() => void refresh()} busy={busy} warning={settingsWarning} destinationControl={destinationControl(true)} />, overlay) : null}
   </AppFrame>;
 }

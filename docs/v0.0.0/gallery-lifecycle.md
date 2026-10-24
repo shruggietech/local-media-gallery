@@ -63,3 +63,7 @@ Temporary loss of a removable drive or network location is not proof that the us
 U-03 owns recursion defaults, symlink and mount traversal, nested gallery boundaries and supported network/removable storage behavior. U-08 owns exact launch/root-selection syntax and session identity. Decisions must preserve fresh discovery, cycle termination and the relocation contract. Item identity across a rename is not permission to require full-file hashing before first display.
 
 See [configuration and state](configuration-and-state.md), [security and reliability](security-and-reliability.md), the [index](index.md) and the [glossary](glossary.md).
+
+## State during root changes
+
+A successful root open loads portable and remembered choices using the native canonical identity and records local activity. Replacing or closing a root retires its temporary layer and resets the save destination to user defaults. A failed open preserves the usable root. Refresh updates media observations without refreshing history activity. State mutations hold the current root gate through their bounded commit, so a delayed command cannot write after its root retires. See [configuration and state](configuration-and-state.md).
