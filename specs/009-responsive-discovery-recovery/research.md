@@ -26,3 +26,7 @@ Alternatives: polling snapshots violates idle-command expectations and does not 
 
 Decision: native Windows local paths, deterministic barriers/failure injection, existing full app/site qualification. Report other native runtimes and physical mounted-storage outages as unqualified.
 Rationale: small fixtures can prove operation and integrity contracts without inventing physical-device evidence or a bulk acceptance gate. Generic OS-mounted storage follows the same implementation with explicit best-effort status.
+
+## Review convergence: profile reads and write retirement
+
+2026-10-24: Round1 exposed synchronous settings loading in the discovery observer, compounded by Hub ownership across portable/history I/O. Remove observer initialization. Use state -> commit gate -> short Hub ordering for state operations, and commit gate -> short Hub for root retirement/replacement. Read preparation holds only the state mutex and owned root capability; revalidate before any history touch and final cache installation. Preserve touch-before-recall expiry semantics. Build envelopes outside the commit gate. Actual state writes remain serialized before retirement, while snapshot/cancel/new-request control remains available. A deterministic stalled-read regression failed on the reviewed head and passed after this split; rendered acceptance also elects this boundary.

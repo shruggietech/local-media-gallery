@@ -142,6 +142,30 @@ try {
     await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[fixture.directory]);
     await until(async()=> (await snapshot()).status==='complete','Restore fixture root'); await visible('document.querySelectorAll(".media-card").length===12');
   });
+  await test('blocked portable initialization leaves discovery, Cancel, Close and replacement responsive', async () => {
+    const directory=await mkdtemp(path.join(root,'.local/discovery-profile-'));
+    for(const name of ['one.jpg','two.jpg','three.jpg']) await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(directory,name));
+    const portable=JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{fontScale:80}})+'\n';
+    await writeFile(path.join(directory,'settings.json'),portable);
+    const control=(action,config)=>js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:arguments[1]})',[action,config??null]);
+    await control('profile_arm'); await control('arm',{pauseAfter:3});
+    try {
+      await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[directory]);
+      await until(()=>control('profile_status'),'Portable initialization read barrier');
+      await until(()=>control('status'),'Discovery advances independently of profile read');
+      await visible('document.querySelectorAll(".media-card").length>0');
+      assert.equal((await snapshot()).status,'scanning');
+      await click('Cancel discovery'); await until(async()=>(await snapshot()).status==='cancelled','Cancel during blocked profile read',2000);
+      await click('Close folder'); await until(async()=>(await snapshot()).sessionId===null,'Close during blocked profile read',2000);
+      await control('release');
+      await openSettled(fixture.directory);
+      await visible('document.querySelectorAll(".media-card").length===12');
+      assert.equal(await control('profile_status'),true,'Retired profile read is still held while replacement publishes');
+    } finally { await control('release'); await control('profile_release'); }
+    await visible('[...document.querySelectorAll("button")].some(b=>b.textContent==="Show controls"&&!b.disabled)');
+    assert.equal(await js('return document.documentElement.style.getPropertyValue("--gallery-font-scale")'),'1','Retired portable font scale never applies');
+    assert.equal(await readFile(path.join(directory,'settings.json'),'utf8'),portable);
+  });
   await test('focused playback survives discovery cancellation and replacement rejects old publication', async () => {
     const control = (action,config) => js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:arguments[1]})',[action,config??null]);
     await open('clip silent.mp4'); await visible('document.querySelector("dialog")?.open');

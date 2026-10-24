@@ -23,3 +23,7 @@ Held Arc<Dir> plus canonical native path. Compare held and currently named direc
 ## Lifecycle
 
 Reserve -> opening/queued -> validate root -> scanning -> complete/partial/unavailable/failed. Cancel may atomically move a live operation to cancelled; close/root replacement retires it. Completion already committed wins over later Cancel. Newest generation supersedes old admission. Existing S008 state lifetimes follow session identity, never progress generations.
+
+## Profile preparation and root write authority
+
+A RootGrant owns a cloned held directory and native path, captured under a short Hub lock. Read preparation may outlive retirement but cannot mutate the live session cache or history without revalidation. A separate state commit mutex serializes actual settings/history writes and root installation/retirement. State operations acquire state, commit gate, then short Hub; no path acquires state while owning Hub/commit gate. Envelopes and portable reads run outside the commit gate. Publication never initializes settings.

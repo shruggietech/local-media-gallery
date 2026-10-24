@@ -46,8 +46,14 @@
 
 - [x] T019 Update lifecycle/architecture/interface/security/support/glossary docs, aligned JSON contracts and CHANGELOG.md (FR-010/FR-013).
 - [x] T020 Complete Spec Kit convergence and full qualification, preserving prep/qualification/combined/source evidence in specs/009-responsive-discovery-recovery/verification.md (FR-014/SC-005).
-- [ ] T021 Commit/push S009 and publish official PR closing #10/#11; attach PR and advance Project tracking (SC-005).
+- [x] T021 Commit/push S009 and publish official PR closing #10/#11; attach PR and advance Project tracking (SC-005).
 - [ ] T022 Resolve every review finding/thread within at most two review rounds, verify final-head CI and request owner final review/merge in specs/009-responsive-discovery-recovery/verification.md (SC-005).
+
+## Phase 7: Round1 convergence
+
+- [x] T023 Reproduce P1 stalled profile-read lock contention; separate observer publication, profile read preparation and root write admission in core/native state code.
+- [x] T024 Prove stalled-read controls and retired-state rejection in unit/rendered Windows tests, retain admitted-write retirement serialization, update contracts and rerun full qualification.
+- [ ] T025 Push the reviewed correction, reply and resolve its individual thread, request the single second review, and verify final-head terminal CI/reviews.
 
 ## Dependencies and execution
 

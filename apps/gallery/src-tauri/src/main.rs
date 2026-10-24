@@ -236,14 +236,17 @@ async fn refresh(
     Ok(publish(&app, &runtime))
 }
 #[tauri::command]
-fn close_gallery(
+async fn close_gallery(
     window: WebviewWindow,
-    runtime: State<Runtime>,
+    runtime: State<'_, Runtime>,
     session_id: String,
     app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
-    runtime.engine.close(&session_id)?;
+    let engine = runtime.engine.clone();
+    tauri::async_runtime::spawn_blocking(move || engine.close(&session_id))
+        .await
+        .map_err(|_| GalleryError::new("internal", "Close could not finish."))??;
     Ok(publish(&app, &runtime))
 }
 
@@ -275,10 +278,14 @@ fn cancel_discovery(
 fn test_discovery_control(
     window: WebviewWindow,
     runtime: State<Runtime>,
+    state: State<Arc<GalleryState>>,
     action: String,
     config: Option<gallery_core::TestDiscoveryConfig>,
 ) -> Result<bool, GalleryError> {
     main_window(&window)?;
+    if action.starts_with("profile_") {
+        return state.test_profile_read(&action);
+    }
     match action.as_str() {
         "arm" => runtime
             .engine
@@ -379,15 +386,8 @@ fn main() {
             let engine=app.state::<Runtime>().engine.clone();
             app.manage(Arc::new(GalleryState::new(engine,settings,history::History::new(history_path,cfg!(feature="native-tests")))));
             let handle = app.handle().clone();
-            let store = app.state::<Arc<GalleryState>>().inner().clone();
             let engine = app.state::<Runtime>().engine.clone();
-            let observer_engine = engine.clone();
-            let mut loaded = None;
             let worker = DiscoveryWorker::start(engine, move || {
-                let snapshot = observer_engine.snapshot();
-                if let Some(id) = snapshot.session_id.as_ref() {
-                    if loaded.as_ref() != Some(id) && store.load(Some(id)).is_ok() { loaded = Some(id.clone()); }
-                } else { loaded = None; }
                 publish(&handle, &handle.state::<Runtime>());
             })?;
             let _ = app.state::<Runtime>().worker.set(worker);

@@ -41,6 +41,8 @@ Requested discovery, recovery, portable presentation and machine-local history u
 
 ### Changed
 
+- Progress publication and profile reads no longer hold discovery control authority. A separate state commit gate preserves write-before-retirement ordering while Cancel, snapshots and new requests remain responsive; Close waits asynchronously only for an admitted write.
+
 - Reduced fine-pointer desktop buttons, inputs and selects to compact 32px controls with quieter action borders after owner feedback; coarse or mixed pointer capability retains at least 44px targets. Long folder labels truncate within the 48px toolbar; a full-width 12px media canvas and quieter ghost actions leave more room for content.
 - Directory discovery now runs only when opening a gallery or selecting Refresh. Removed automatic watchers, periodic reconciliation and collection-snapshot polling. Future automatic refresh remains an advanced feature that defaults off.
 - Focused information starts collapsed, expands by resizing the asset canvas and retains playback and disclosure state. Sorting/filtering apply before pagination, and viewer navigation crosses page boundaries.

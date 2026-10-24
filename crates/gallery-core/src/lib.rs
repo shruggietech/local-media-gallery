@@ -104,12 +104,18 @@ struct Hub {
 struct Inner {
     hub: Mutex<Hub>,
     scan: Mutex<()>,
+    state_gate: Mutex<()>,
     #[cfg(any(test, feature = "discovery-tests"))]
     controls: discovery::TestControls,
 }
 #[derive(Clone)]
 pub struct Engine {
     inner: Arc<Inner>,
+}
+/// Owned read capability. Capture again to validate before installing prepared state.
+pub struct RootGrant {
+    pub dir: Arc<Dir>,
+    pub path: std::path::PathBuf,
 }
 pub struct OpenedMedia {
     pub file: File,
@@ -162,18 +168,19 @@ impl Default for Engine {
     }
 }
 impl Engine {
-    /// Run a bounded state operation while the selected root cannot be retired.
-    /// Paths here are native identities; the snapshot label is never authority.
-    pub fn with_current_root<T>(
+    /// Capture read authority briefly, without retaining the discovery control lock.
+    pub fn capture_current_root(
         &self,
         expected: Option<&str>,
-        operation: impl FnOnce(Option<(&Dir, &Path)>) -> Result<T, GalleryError>,
-    ) -> Result<T, GalleryError> {
+    ) -> Result<Option<RootGrant>, GalleryError> {
         let hub = self.inner.hub.lock().unwrap();
         match (&hub.session, expected) {
-            (None, None) => operation(None),
+            (None, None) => Ok(None),
             (Some(session), Some(id)) if session.id == id && !session.cancel.is_cancelled() => {
-                operation(Some((&session.dir, &session.root)))
+                Ok(Some(RootGrant {
+                    dir: session.dir.clone(),
+                    path: session.root.clone(),
+                }))
             }
             _ => Err(GalleryError::new(
                 "stale_session",
@@ -181,11 +188,26 @@ impl Engine {
             )),
         }
     }
+    /// Admit a state write before root retirement. Filesystem I/O never holds Hub.
+    /// Read preparation must happen before entering this commit gate.
+    pub fn with_current_root<T>(
+        &self,
+        expected: Option<&str>,
+        operation: impl FnOnce(Option<(&Dir, &Path)>) -> Result<T, GalleryError>,
+    ) -> Result<T, GalleryError> {
+        let _commit = self.inner.state_gate.lock().unwrap();
+        let root = self.capture_current_root(expected)?;
+        operation(
+            root.as_ref()
+                .map(|root| (root.dir.as_ref(), root.path.as_path())),
+        )
+    }
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Inner {
                 hub: Mutex::new(Hub::default()),
                 scan: Mutex::new(()),
+                state_gate: Mutex::new(()),
                 #[cfg(any(test, feature = "discovery-tests"))]
                 controls: discovery::TestControls::default(),
             }),

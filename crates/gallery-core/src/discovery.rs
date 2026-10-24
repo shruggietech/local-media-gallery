@@ -192,6 +192,22 @@ impl Engine {
         hub.sequence += 1;
     }
     pub fn close(&self, id: &str) -> Result<(), GalleryError> {
+        // Cancel discovery before waiting for an already admitted state write.
+        {
+            let mut hub = self.inner.hub.lock().unwrap();
+            if hub.session.as_ref().is_none_or(|s| s.id != id) {
+                return Err(GalleryError::new(
+                    "stale_session",
+                    "This gallery session has ended.",
+                ));
+            }
+            if let Some(request) = hub.request.take() {
+                request.cancel.cancel();
+            }
+            hub.discovery = None;
+            hub.sequence += 1;
+        }
+        let _commit = self.inner.state_gate.lock().unwrap();
         let mut hub = self.inner.hub.lock().unwrap();
         if hub.session.as_ref().is_none_or(|s| s.id != id) {
             return Err(GalleryError::new(
@@ -343,6 +359,7 @@ impl Engine {
                     return Ok(());
                 }
                 root_identity(&dir, &root)?;
+                let _commit = self.inner.state_gate.lock().unwrap();
                 let mut hub = self.inner.hub.lock().unwrap();
                 if !Self::active(&hub, request) {
                     return Ok(());

@@ -40,6 +40,8 @@ pub struct GalleryState {
     user: SettingsStore,
     history: History,
     state: Mutex<Session>,
+    #[cfg(feature = "native-tests")]
+    read_gate: (Mutex<(bool, bool)>, std::sync::Condvar),
 }
 fn revision() -> String {
     uuid::Uuid::new_v4().simple().to_string()
@@ -74,40 +76,78 @@ impl GalleryState {
             user,
             history,
             state: Mutex::new(Session::default()),
+            #[cfg(feature = "native-tests")]
+            read_gate: (Mutex::new((false, false)), std::sync::Condvar::new()),
         }
     }
-    fn initialize(
+    #[cfg(feature = "native-tests")]
+    pub fn test_profile_read(&self, action: &str) -> Result<bool, GalleryError> {
+        let (lock, wake) = &self.read_gate;
+        let mut gate = lock.lock().unwrap();
+        match action {
+            "profile_arm" => *gate = (true, false),
+            "profile_release" => {
+                gate.0 = false;
+                wake.notify_all();
+            }
+            "profile_status" => {}
+            _ => {
+                return Err(GalleryError::new(
+                    "invalid_test_action",
+                    "Unknown profile read test action.",
+                ));
+            }
+        }
+        Ok(gate.1)
+    }
+    #[cfg(feature = "native-tests")]
+    fn pause_profile_read(&self) {
+        let (lock, wake) = &self.read_gate;
+        let mut gate = lock.lock().unwrap();
+        if gate.0 {
+            gate.1 = true;
+            while gate.0 {
+                gate = wake.wait(gate).unwrap();
+            }
+            gate.1 = false;
+        }
+    }
+    fn prepare(
         &self,
-        state: &mut Session,
         id: Option<&str>,
         root: Option<(&cap_std::fs::Dir, &std::path::Path)>,
-    ) {
-        if state.initialized && state.id.as_deref() == id {
-            return;
-        }
-        *state = Session {
+    ) -> Result<Session, GalleryError> {
+        let mut state = Session {
             initialized: true,
             id: id.map(str::to_owned),
             revision: revision(),
             ..Session::default()
         };
         if let Some((dir, path)) = root {
+            #[cfg(feature = "native-tests")]
+            self.pause_profile_read();
             state.portable = Some(Portable::load(
                 dir,
                 self.user.envelope().test_page_size.is_some(),
             ));
             if let Err(e) = root_identity(dir, path) {
                 state.warnings.push(e.message);
-                return;
+                return Ok(state);
             }
-            if let Err(e) = self.history.touch(path, now()) {
-                state.warnings.push(e.message);
-            }
+            // Touch is a write, admitted only while this root still owns authority.
+            // Keep touch before recall because expiry can replace its revision.
+            self.engine.with_current_root(id, |_| {
+                if let Err(e) = self.history.touch(path, now()) {
+                    state.warnings.push(e.message);
+                }
+                Ok(())
+            })?;
             match self.history.recall(path, now()) {
                 Ok(row) => state.remembered = row,
                 Err(e) => state.warnings.push(e.message),
             }
         }
+        Ok(state)
     }
     fn envelope(&self, state: &Session) -> Envelope {
         let time = now();
@@ -179,11 +219,34 @@ impl GalleryState {
         }
     }
     pub fn load(&self, id: Option<&str>) -> Result<Envelope, GalleryError> {
-        self.engine.with_current_root(id, |root| {
-            let mut state = self.state.lock().unwrap();
-            self.initialize(&mut state, id, root);
-            Ok(self.envelope(&state))
-        })
+        self.load_with_probe(id, || {})
+    }
+    fn load_with_probe(
+        &self,
+        id: Option<&str>,
+        before_read: impl FnOnce(),
+    ) -> Result<Envelope, GalleryError> {
+        // All state operations acquire state before the commit gate, never Hub -> state.
+        let mut state = self.state.lock().unwrap();
+        let root = self.engine.capture_current_root(id)?;
+        if !state.initialized || state.id.as_deref() != id {
+            before_read();
+            let prepared = self.prepare(
+                id,
+                root.as_ref()
+                    .map(|root| (root.dir.as_ref(), root.path.as_path())),
+            )?;
+            let envelope = self.envelope(&prepared);
+            self.engine.with_current_root(id, |_| {
+                *state = prepared;
+                Ok(())
+            })?;
+            Ok(envelope)
+        } else {
+            let envelope = self.envelope(&state);
+            self.engine.capture_current_root(id)?;
+            Ok(envelope)
+        }
     }
     pub fn change(
         &self,
@@ -194,9 +257,15 @@ impl GalleryState {
         remove: Option<&str>,
         clear: bool,
     ) -> Result<Envelope, GalleryError> {
+        self.load(id)?;
+        let mut state = self.state.lock().unwrap();
         self.engine.with_current_root(id, |root| {
-            let mut state = self.state.lock().unwrap();
-            self.initialize(&mut state, id, root);
+            if state.id.as_deref() != id {
+                return Err(GalleryError::new(
+                    "stale_session",
+                    "Presentation state belongs to another gallery.",
+                ));
+            }
             if state.revision != expected {
                 return Err(GalleryError::new(
                     "state_conflict",
@@ -293,8 +362,11 @@ impl GalleryState {
                 }
             }
             state.revision = revision();
-            Ok(self.envelope(&state))
-        })
+            Ok(())
+        })?;
+        let envelope = self.envelope(&state);
+        self.engine.capture_current_root(id)?;
+        Ok(envelope)
     }
     pub fn recent_path(&self, id: &str) -> Result<std::path::PathBuf, GalleryError> {
         self.history.reopen(id, now())
@@ -305,9 +377,15 @@ impl GalleryState {
         session: Option<&str>,
         expected: &str,
     ) -> Result<Envelope, GalleryError> {
-        self.engine.with_current_root(session, |root| {
-            let mut state = self.state.lock().unwrap();
-            self.initialize(&mut state, session, root);
+        self.load(session)?;
+        let mut state = self.state.lock().unwrap();
+        self.engine.with_current_root(session, |_| {
+            if state.id.as_deref() != session {
+                return Err(GalleryError::new(
+                    "stale_session",
+                    "Presentation state belongs to another gallery.",
+                ));
+            }
             if state.revision != expected {
                 return Err(GalleryError::new(
                     "state_conflict",
@@ -328,8 +406,11 @@ impl GalleryState {
                 Err(e) => state.warnings.push(e.message),
             }
             state.revision = revision();
-            Ok(self.envelope(&state))
-        })
+            Ok(())
+        })?;
+        let envelope = self.envelope(&state);
+        self.engine.capture_current_root(session)?;
+        Ok(envelope)
     }
 }
 
@@ -337,6 +418,63 @@ impl GalleryState {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn blocked_profile_read_does_not_block_discovery_controls_or_retirement() {
+        use std::sync::{Arc, Barrier, mpsc};
+        use std::time::Duration;
+        let temp = tempfile::tempdir().unwrap();
+        let a = temp.path().join("a");
+        let b = temp.path().join("b");
+        std::fs::create_dir(&a).unwrap();
+        std::fs::create_dir(&b).unwrap();
+        let engine = Engine::new();
+        let state = Arc::new(GalleryState::new(
+            engine.clone(),
+            SettingsStore::load(temp.path().join("user/settings.json"), false),
+            History::new(Some(temp.path().join("history/history.sqlite3")), false),
+        ));
+        let id = engine.open(&a).unwrap().session_id.unwrap();
+        let request = engine.begin_refresh(&id).unwrap();
+        let entered = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let reader = {
+            let (state, id, entered, release) =
+                (state.clone(), id.clone(), entered.clone(), release.clone());
+            std::thread::spawn(move || {
+                state.load_with_probe(Some(&id), || {
+                    entered.wait();
+                    release.wait();
+                })
+            })
+        };
+        entered.wait();
+        let (send, receive) = mpsc::channel();
+        let controls = {
+            let engine = engine.clone();
+            std::thread::spawn(move || {
+                engine.cancel_discovery(&request.id).unwrap();
+                assert_eq!(engine.snapshot().discovery.unwrap().phase, "cancelled");
+                engine.close(&id).unwrap();
+                assert!(engine.snapshot().session_id.is_none());
+                engine.open(&b).unwrap();
+                send.send(()).unwrap();
+            })
+        };
+        let responsive = receive.recv_timeout(Duration::from_secs(2)).is_ok();
+        release.wait();
+        controls.join().unwrap();
+        let result = reader.join().unwrap();
+        assert!(
+            responsive,
+            "profile reads must not hold the discovery control or root commit lock"
+        );
+        assert!(matches!(result, Err(GalleryError { ref code, .. }) if code == "stale_session"));
+        assert!(
+            state.history.list(now()).unwrap().is_empty(),
+            "retired read must not create a recent-directory row"
+        );
+        assert!(!a.join("settings.json").exists());
+    }
     #[test]
     fn precedence_explicit_defaults_false_and_omission() {
         let user = json!({"fontScale":90,"controlsExpanded":true,"sort":"size"});

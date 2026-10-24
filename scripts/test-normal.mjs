@@ -16,7 +16,7 @@ assert.ok(help.stdout.includes('[DIRECTORY]'));
 await assert.rejects(call(binary, ['--unknown-option'], { windowsHide: true }), error => error.code === 2);
 const port = 55000 + Math.floor(Math.random() * 5000);
 const binaryBytes=await readFile(binary);
-for(const name of ['GALLERY_TEST_SETTINGS_DIR','GALLERY_TEST_HISTORY_DIR','test_discovery_control','Synthetic directory iterator failure','Synthetic requested root failure']) assert.equal(binaryBytes.includes(Buffer.from(name)),false,'Private state redirection must be absent from normal binaries');
+for(const name of ['GALLERY_TEST_SETTINGS_DIR','GALLERY_TEST_HISTORY_DIR','test_discovery_control','Unknown profile read test action.','Synthetic directory iterator failure','Synthetic requested root failure']) assert.equal(binaryBytes.includes(Buffer.from(name)),false,'Private state redirection must be absent from normal binaries');
 const child = spawn(binary, [], { cwd: root, windowsHide: true, shell: false, stdio: 'ignore', env: { ...environment, TAURI_WEBDRIVER_PORT: String(port) } });
 child.on('error', error => { throw error; });
 try {
