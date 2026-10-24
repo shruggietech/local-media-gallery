@@ -47,12 +47,16 @@ const record = await qualification({
     }
     assert.deepEqual(await sourceIdentity(), context.source, 'Preparation changed qualified source');
   },
-  steps: (scope === 'repository'
+  steps: [...(scope === 'repository'
     ? ['check', 'test', 'check:docs']
     : scope === 'website'
       ? ['check:site', 'test:site']
       : ['check:app']
   ).map((name) => ({ name: `npm run ${name}`, run: command(name) })),
+  ...(scope === 'product-windows' ? [{
+    name: 'native shell and persistent-state unit tests',
+    run: () => cargo(['test', '--locked', '-p', 'local-media-gallery']),
+  }] : [])],
 });
 if (process.env.CI_PREPARATION_STARTED) {
   const start = new Date(process.env.CI_PREPARATION_STARTED).getTime();
