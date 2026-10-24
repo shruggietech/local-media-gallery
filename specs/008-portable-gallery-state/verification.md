@@ -29,3 +29,15 @@ Qualified source SHA-256 1118c20ec004c708c645aee431d3e44306b231f8f191a549e6b471a
 Native acceptance started 2026-10-24T19:35:41.068Z, finished 2026-10-24T19:36:52.992Z, binary SHA-256 ba2b5501d35e6735f9ca5a94f94b9bdd1d19d8054b0bee859d9a28cf35065d4b. Normal binary SHA-256 b48c84e9b2b12ebd39b1b68dd04a0c0dad33f91db1b8db28a46f7116ce41063b. The normal test launches selection without touching owner history. The native fixture isolates both user settings and machine history. Media fixture bytes remained unchanged. Windows-held-root rename denial and post-close stale writes are verified; the Unix held-root rename case is not claimed as Windows evidence.
 
 Changes in tasks.md and this verification record finalize delivery evidence without changing the qualified source digest. Hosted exact-head CI and review acceptance remain pending.
+
+## Published review
+
+PR #47: https://github.com/shruggietech/local-media-gallery/pull/47, initial head 8e304c647dac69649d0f7e56ab6a92ae8fc27894, base 0a039e6bc3fde68e5aa3395c48af6402e22ab283. Automatically pushed and opened as an official PR. Attached to this task; issues #8/#9 retain milestone M1 and are S008 / PR review on Project8. Initial automatic review round began on PR creation (Codex eyes reaction at 2026-10-24T19:38:57Z). Review rounds used: 1 of 2; no additional request yet. Hosted run 40126242541 is pending completion.
+
+## Review round 1 correction
+
+Codex completed review of 8e304c647dac69649d0f7e56ab6a92ae8fc27894 with one P2 finding (thread PRRT_kwDOVUAZgc6v7Hf1, comment 4368280580): reopening an expired target beyond a 256-row cleanup backlog could revive its old choices. A new 280-location regression failed with the reported revival before the fix. A related stale expired-save revision regression also failed before the fix.
+
+The target activity upsert now resets expired choices and rotates their content revision in the same transaction, independently of bounded general cleanup. Stale expired revisions cannot save old inherited intent. Requested resolver envelopes also exclude expired remembered contributions using one observation time. All 30 native state/shell tests passed after the fix. Full corrected-source qualification and second/final review are pending.
+
+Corrected-source full qualification passed at 2026-10-24T19:49:04.143Z: 61.151s preparation, 175.38s qualification, 236.531s combined. Source SHA-256 943acf6c9bffc39c28797949c4ba8b9cbaaabaf87cc6d0a611742c2b91ce60a4 (939 files). All elected checks passed again, now with 30 native state/shell tests and the same 21 rendered Windows groups. Initial-head hosted run 40126242541 completed successfully (repository, Windows product and website; Pages deployment correctly skipped for this PR). This initial-head pass is separate from corrected-head acceptance.

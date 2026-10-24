@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    history::{History, Recent, Remembered, now},
+    history::{History, Recent, Remembered, expired, now},
     portable::Portable,
     settings::{FIELDS, Settings, SettingsStore, validate_patch},
 };
@@ -127,12 +127,14 @@ impl GalleryState {
         }
     }
     fn envelope(&self, state: &Session) -> Envelope {
+        let time = now();
         let user = self.user.envelope();
         let user_choices = self.user.choices();
         let empty = Map::new();
         let remembered = state
             .remembered
             .as_ref()
+            .filter(|v| !expired(v.last_activity_ms, time))
             .map(|v| &v.choices)
             .unwrap_or(&empty);
         let portable = state
@@ -156,7 +158,7 @@ impl GalleryState {
         if let Some(w) = state.portable.as_ref().and_then(|v| v.warning.clone()) {
             warnings.push(w);
         }
-        let recents = match self.history.list(now()) {
+        let recents = match self.history.list(time) {
             Ok(rows) => rows,
             Err(e) => {
                 warnings.push(e.message);

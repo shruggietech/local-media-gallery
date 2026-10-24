@@ -28,6 +28,10 @@ pub struct Remembered {
     pub id: String,
     pub choices: Map<String, Value>,
     pub revision: String,
+    pub last_activity_ms: i64,
+}
+pub fn expired(last: i64, time: i64) -> bool {
+    time >= last && time.saturating_sub(last) >= AGE
 }
 pub fn now() -> i64 {
     SystemTime::now()
@@ -297,13 +301,14 @@ impl History {
             if id.is_empty() || revision.is_empty() {
                 return Err(error("A remembered row identity is invalid."));
             }
-            if time >= last && time - last >= AGE {
+            if expired(last, time) {
                 return Ok(None);
             }
             Ok(Some(Remembered {
                 id,
                 choices,
                 revision,
+                last_activity_ms: last,
             }))
         })
         .transpose()
@@ -315,7 +320,7 @@ impl History {
         self.write(time, |db| {
             let stored:Option<String> = db.query_row("SELECT CASE WHEN length(CAST(choices_json AS BLOB))<=1048576 THEN choices_json ELSE NULL END FROM locations WHERE native_path=?1",[&bytes],|r|r.get(0)).optional().map_err(error)?;
             if let Some(text)=stored { self.choices(text)?; }
-            db.execute("INSERT INTO locations VALUES(?1,?2,?3,?4,'{}',?5,?6) ON CONFLICT(native_path) DO UPDATE SET last_activity_ms=MAX(last_activity_ms,excluded.last_activity_ms)",params![uuid::Uuid::new_v4().simple().to_string(),tag,bytes,path.to_string_lossy(),time,uuid::Uuid::new_v4().simple().to_string()]).map_err(error)?;
+            db.execute("INSERT INTO locations VALUES(?1,?2,?3,?4,'{}',?5,?6) ON CONFLICT(native_path) DO UPDATE SET choices_json=CASE WHEN last_activity_ms<=?7 THEN '{}' ELSE choices_json END,revision=CASE WHEN last_activity_ms<=?7 THEN excluded.revision ELSE revision END,last_activity_ms=MAX(last_activity_ms,excluded.last_activity_ms)",params![uuid::Uuid::new_v4().simple().to_string(),tag,bytes,path.to_string_lossy(),time,uuid::Uuid::new_v4().simple().to_string(),time.saturating_sub(AGE)]).map_err(error)?;
             Ok(())
         })
     }
@@ -333,7 +338,7 @@ impl History {
             return Err(error("Remembered choices exceed one MiB."));
         }
         self.write(time, |db| {
-            let revision:Option<String>=db.query_row("SELECT revision FROM locations WHERE native_path=?1 AND path_encoding=?2",params![bytes,tag],|r|r.get(0)).optional().map_err(error)?;
+            let revision:Option<String>=db.query_row("SELECT revision FROM locations WHERE native_path=?1 AND path_encoding=?2 AND last_activity_ms>?3",params![bytes,tag,time.saturating_sub(AGE)],|r|r.get(0)).optional().map_err(error)?;
             if revision.as_deref()!=expected { return Err(GalleryError::new("history_conflict","Remembered choices changed in another instance. Reopen the gallery to reload them. Your choice remains temporary.")); }
             db.execute("INSERT INTO locations VALUES(?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(native_path) DO UPDATE SET choices_json=excluded.choices_json,last_activity_ms=MAX(last_activity_ms,excluded.last_activity_ms),revision=excluded.revision",params![uuid::Uuid::new_v4().simple().to_string(),tag,bytes,path.to_string_lossy(),text,time,uuid::Uuid::new_v4().simple().to_string()]).map_err(error)?;
             Ok(())
@@ -382,7 +387,7 @@ impl History {
             .map_err(error)?;
         let (tag, bytes, last) =
             row.ok_or_else(|| error("This recent directory was forgotten."))?;
-        if last < 0 || time >= last && time - last >= AGE {
+        if last < 0 || expired(last, time) {
             return Err(error("This recent directory expired."));
         }
         let path = decode(&tag, &bytes)?;
@@ -569,5 +574,74 @@ mod tests {
         let original = fs::read(&path).unwrap();
         assert!(store.touch(temp.path(), 101).is_err());
         assert_eq!(fs::read(&path).unwrap(), original);
+    }
+    #[test]
+    fn reopening_an_expired_target_beyond_the_cleanup_batch_drops_its_choices() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = History::new(Some(temp.path().join("history.sqlite3")), false);
+        for n in 0..280 {
+            store
+                .touch(&temp.path().join(n.to_string()), 100 + n)
+                .unwrap();
+        }
+        let target = temp.path().join("279");
+        let before = store.recall(&target, 400).unwrap().unwrap();
+        store
+            .save(
+                &target,
+                Some(&before.revision),
+                serde_json::json!({"fontScale":90}).as_object().unwrap(),
+                400,
+            )
+            .unwrap();
+        let prior = store.recall(&target, 400).unwrap().unwrap();
+        store.touch(&target, AGE + 1000).unwrap();
+        let recalled = store.recall(&target, AGE + 1000).unwrap().unwrap();
+        assert!(
+            recalled.choices.is_empty(),
+            "Expired target choices were revived beyond the bounded cleanup batch"
+        );
+        assert_ne!(recalled.revision, prior.revision);
+        let db = store.read().unwrap().unwrap();
+        let count: i64 = db
+            .query_row("SELECT count(*) FROM locations", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 24);
+    }
+
+    #[test]
+    fn an_expired_target_cannot_be_saved_with_its_old_choices_revision() {
+        let temp = tempfile::tempdir().unwrap();
+        let store = History::new(Some(temp.path().join("history.sqlite3")), false);
+        for n in 0..280 {
+            store
+                .touch(&temp.path().join(n.to_string()), 100 + n)
+                .unwrap();
+        }
+        let target = temp.path().join("279");
+        let row = store.recall(&target, 400).unwrap().unwrap();
+        store
+            .save(
+                &target,
+                Some(&row.revision),
+                serde_json::json!({"fontScale":90}).as_object().unwrap(),
+                400,
+            )
+            .unwrap();
+        let row = store.recall(&target, 400).unwrap().unwrap();
+        assert!(
+            store
+                .save(
+                    &target,
+                    Some(&row.revision),
+                    serde_json::json!({"fontScale":90,"cardSize":"large"})
+                        .as_object()
+                        .unwrap(),
+                    AGE + 1000
+                )
+                .is_err(),
+            "A stale expired revision must not resurrect inherited choices"
+        );
+        assert!(store.recall(&target, AGE + 1000).unwrap().is_none());
     }
 }
