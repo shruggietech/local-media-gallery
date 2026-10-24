@@ -36,7 +36,7 @@ Optional platform launchers and media tools are executable dependencies. Their v
 
 Recoverable operations need a defined result after process termination. Examples include leaving a valid previous settings file, identifying abandoned staging files, rediscovering a collection after cache loss and preserving completed thumbnails after cancellation. Recovery should not automatically repeat a write with unknown prior outcome as though it were idempotent.
 
-A disconnected external location must remain distinguishable from deletion. Persistent-store corruption must not trigger an unannounced reset that destroys deliberate preferences. Where in-memory/default behavior is possible, the application should offer continued browsing while clearly identifying what cannot be saved.
+A disconnected external location must remain distinguishable from deletion. Incomplete discovery retains unconfirmed observations as stale; it cannot infer deletion. Root identity checks compare held and currently named native directory identities, while actual media reads remain capability-relative and verify the opened file signature. Descendant hidden/system/reparse filtering uses capability-relative metadata. Cancellation and newer requests are rechecked before committing observations or revoking item grants. Persistent-store corruption must not trigger an unannounced reset that destroys deliberate preferences. Where in-memory/default behavior is possible, the application should offer continued browsing while clearly identifying what cannot be saved.
 
 ## Diagnostics
 
@@ -46,6 +46,6 @@ Exact log fields, redaction defaults, export interaction and retention are U-11.
 
 ## Open decisions
 
-U-11 owns diagnostic/export/retention details and exceptional recovery actions. U-03 owns traversal boundaries; U-07 owns persistent-store migration and concurrency; U-08 owns handler/transport specifics. These choices must preserve bounded access, attributable failures and source preservation without adding unrelated product-use restrictions.
+U-11 owns diagnostic/export/retention details and exceptional recovery actions. The initial traversal/storage policy is defined in [gallery lifecycle](gallery-lifecycle.md#open-decisions); U-07 owns persistent-store migration and concurrency; U-08 owns handler/transport specifics. These choices must preserve bounded access, attributable failures and source preservation without adding unrelated product-use restrictions.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).

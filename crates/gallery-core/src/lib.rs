@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Readonly gallery sessions. Display labels never authorize filesystem access.
+mod discovery;
 mod transport;
+#[cfg(any(test, feature = "discovery-tests"))]
+pub use discovery::TestDiscoveryConfig;
+pub use discovery::{DiscoveryRequest, DiscoveryState, root_identity};
 pub use transport::{byte_range, media_router, serve_media, serve_media_listener};
 
 use cap_fs_ext::{FollowSymlinks, OpenOptionsFollowExt};
@@ -15,10 +19,7 @@ use std::{
     fmt,
     fs::File,
     path::Path,
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::{Arc, Mutex},
     time::UNIX_EPOCH,
 };
 use tokio_util::sync::CancellationToken;
@@ -57,11 +58,14 @@ pub struct MediaItem {
     pub size: Option<String>,
     pub modified_ms: Option<String>,
     pub issue: Option<String>,
+    pub stale: bool,
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub version: String,
+    pub sequence: String,
+    pub discovery: Option<DiscoveryState>,
     pub session_id: Option<String>,
     pub root: Option<String>,
     pub status: String,
@@ -92,11 +96,16 @@ struct Session {
 struct Hub {
     session: Option<Session>,
     media_origin: String,
+    sequence: u64,
+    generation: u64,
+    request: Option<DiscoveryRequest>,
+    discovery: Option<DiscoveryState>,
 }
 struct Inner {
     hub: Mutex<Hub>,
     scan: Mutex<()>,
-    intent: AtomicU64,
+    #[cfg(any(test, feature = "discovery-tests"))]
+    controls: discovery::TestControls,
 }
 #[derive(Clone)]
 pub struct Engine {
@@ -129,24 +138,6 @@ fn candidate(name: &std::ffi::OsStr) -> Option<(&'static str, &'static str)> {
         "avi" => ("video", "video/x-msvideo"),
         _ => return None,
     })
-}
-fn hidden(root: &Path, name: &std::ffi::OsStr) -> bool {
-    if name.to_string_lossy().starts_with('.') {
-        return true;
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        // This observation only filters labels. All data opens use the capability handle below.
-        if let Ok(metadata) = std::fs::symlink_metadata(root.join(name))
-            && metadata.file_attributes() & (0x2 | 0x4 | 0x400) != 0
-        {
-            return true;
-        }
-    }
-    #[cfg(not(windows))]
-    let _ = root;
-    false
 }
 fn facts(metadata: &cap_std::fs::Metadata) -> (String, Option<String>, String) {
     let size = metadata.len().to_string();
@@ -195,255 +186,13 @@ impl Engine {
             inner: Arc::new(Inner {
                 hub: Mutex::new(Hub::default()),
                 scan: Mutex::new(()),
-                intent: AtomicU64::new(0),
+                #[cfg(any(test, feature = "discovery-tests"))]
+                controls: discovery::TestControls::default(),
             }),
         }
     }
     pub fn set_media_origin(&self, origin: String) {
         self.inner.hub.lock().unwrap().media_origin = origin;
-    }
-    pub fn open(&self, root: &Path) -> Result<Snapshot, GalleryError> {
-        let intent = self.inner.intent.fetch_add(1, Ordering::SeqCst) + 1;
-        let root = std::fs::canonicalize(root).map_err(|e| {
-            GalleryError::new(
-                "root_unavailable",
-                format!("Cannot open this directory: {e}"),
-            )
-        })?;
-        let dir = Dir::open_ambient_dir(&root, ambient_authority()).map_err(|e| {
-            GalleryError::new(
-                "root_unavailable",
-                format!("Cannot read this directory: {e}"),
-            )
-        })?;
-        // Probe enumeration before replacing a usable session.
-        dir.entries().map_err(|e| {
-            GalleryError::new(
-                "root_unavailable",
-                format!("Cannot list this directory: {e}"),
-            )
-        })?;
-        let mut hub = self.inner.hub.lock().unwrap();
-        if self.inner.intent.load(Ordering::SeqCst) != intent {
-            return Err(GalleryError::new(
-                "cancelled",
-                "A newer directory selection replaced this request.",
-            ));
-        }
-        if let Some(old) = hub.session.take() {
-            old.cancel.cancel();
-        }
-        let id = opaque();
-        hub.session = Some(Session {
-            id: id.clone(),
-            root,
-            dir: Arc::new(dir),
-            entries: HashMap::new(),
-            status: "scanning".into(),
-            issues: vec![],
-            revision: 0,
-            cancel: CancellationToken::new(),
-            items: vec![],
-        });
-        drop(hub);
-        self.reconcile(&id)?;
-        self.current_session(&id)
-    }
-    pub fn close(&self, id: &str) -> Result<(), GalleryError> {
-        let mut hub = self.inner.hub.lock().unwrap();
-        if hub.session.as_ref().is_some_and(|s| s.id == id) {
-            self.inner.intent.fetch_add(1, Ordering::SeqCst);
-            hub.session.take().unwrap().cancel.cancel();
-            Ok(())
-        } else {
-            Err(GalleryError::new(
-                "stale_session",
-                "This gallery session has ended.",
-            ))
-        }
-    }
-    pub fn refresh(&self, id: &str) -> Result<Snapshot, GalleryError> {
-        self.reconcile(id)?;
-        self.current_session(id)
-    }
-    fn current_session(&self, id: &str) -> Result<Snapshot, GalleryError> {
-        let snapshot = self.snapshot();
-        if snapshot.session_id.as_deref() == Some(id) {
-            Ok(snapshot)
-        } else {
-            Err(GalleryError::new(
-                "stale_session",
-                "This gallery session has ended.",
-            ))
-        }
-    }
-    pub fn snapshot(&self) -> Snapshot {
-        let hub = self.inner.hub.lock().unwrap();
-        let mut snapshot = Snapshot {
-            version: env!("CARGO_PKG_VERSION").into(),
-            session_id: None,
-            root: None,
-            status: "selection".into(),
-            revision: "0".into(),
-            media_origin: hub.media_origin.clone(),
-            items: vec![],
-            issues: vec![],
-        };
-        if let Some(s) = &hub.session {
-            snapshot.session_id = Some(s.id.clone());
-            snapshot.root = Some(s.root.to_string_lossy().into_owned());
-            snapshot.status = s.status.clone();
-            snapshot.revision = s.revision.to_string();
-            snapshot.items = s.items.clone();
-            snapshot.issues = s.issues.clone();
-        }
-        snapshot
-    }
-    fn reconcile(&self, expected_id: &str) -> Result<(), GalleryError> {
-        let _scan = self.inner.scan.lock().unwrap();
-        let (id, root, dir, old, cancel) = {
-            let hub = self.inner.hub.lock().unwrap();
-            let s = hub
-                .session
-                .as_ref()
-                .filter(|s| s.id == expected_id)
-                .ok_or_else(|| {
-                    GalleryError::new("stale_session", "This gallery session has ended.")
-                })?;
-            (
-                s.id.clone(),
-                s.root.clone(),
-                s.dir.clone(),
-                s.entries.clone(),
-                s.cancel.clone(),
-            )
-        };
-        let mut next = HashMap::new();
-        let mut issues = vec![];
-        let entries = dir.entries();
-        let unavailable = !root.is_dir() || entries.is_err();
-        if !unavailable {
-            for entry in entries.unwrap() {
-                if cancel.is_cancelled() {
-                    return Err(GalleryError::new(
-                        "stale_session",
-                        "This gallery session has ended.",
-                    ));
-                }
-                let entry = match entry {
-                    Ok(e) => e,
-                    Err(e) => {
-                        issues.push(format!("An entry could not be listed: {e}"));
-                        continue;
-                    }
-                };
-                let name = entry.file_name();
-                let Some((kind, mime)) = candidate(&name) else {
-                    continue;
-                };
-                if hidden(&root, &name) {
-                    continue;
-                }
-                let metadata = dir.symlink_metadata(&name);
-                if metadata
-                    .as_ref()
-                    .is_ok_and(|m| !m.is_file() || m.file_type().is_symlink())
-                {
-                    continue;
-                }
-                let (size, modified_ms, mut signature, mut issue) = match metadata {
-                    Ok(m) => {
-                        let (size, modified, signature) = facts(&m);
-                        (Some(size), modified, signature, None)
-                    }
-                    Err(e) => {
-                        let issue = format!("Cannot inspect this entry: {e}");
-                        issues.push(issue.clone());
-                        (None, None, "unreadable".into(), Some(issue))
-                    }
-                };
-                if issue.is_none() {
-                    let mut options = OpenOptions::new();
-                    options.read(true).follow(FollowSymlinks::No);
-                    if let Err(error) = dir.open_with(&name, &options) {
-                        let message = format!("Cannot read {}: {error}", name.to_string_lossy());
-                        issues.push(message.clone());
-                        issue = Some(message);
-                        signature.push_str(":unreadable");
-                    }
-                }
-                let prior = old.get(&name);
-                if let Some(prior) = prior.filter(|e| e.signature == signature) {
-                    next.insert(name, prior.clone());
-                    continue;
-                }
-                if let Some(prior) = prior {
-                    prior.cancel.cancel();
-                }
-                let label = name.to_string_lossy().into_owned();
-                let item = MediaItem {
-                    id: prior.map_or_else(opaque, |e| e.item.id.clone()),
-                    revision: opaque(),
-                    name: label.clone(),
-                    relative_path: label,
-                    kind: kind.into(),
-                    mime: mime.into(),
-                    size,
-                    modified_ms,
-                    issue,
-                };
-                next.insert(
-                    name.clone(),
-                    Entry {
-                        item,
-                        name,
-                        signature,
-                        cancel: cancel.child_token(),
-                    },
-                );
-            }
-        } else {
-            issues.push(
-                "The selected directory is unavailable. Choose it again when it returns.".into(),
-            );
-        }
-        let mut hub = self.inner.hub.lock().unwrap();
-        let s =
-            hub.session.as_mut().filter(|s| s.id == id).ok_or_else(|| {
-                GalleryError::new("stale_session", "This gallery session has ended.")
-            })?;
-        let status = if unavailable {
-            "unavailable"
-        } else if issues.is_empty() {
-            "complete"
-        } else {
-            "partial"
-        };
-        let changed = s.status != status
-            || s.issues != issues
-            || s.entries.len() != next.len()
-            || next.iter().any(|(k, v)| {
-                s.entries
-                    .get(k)
-                    .is_none_or(|e| e.item.revision != v.item.revision)
-            });
-        if !unavailable {
-            for (name, prior) in &s.entries {
-                if !next.contains_key(name) {
-                    prior.cancel.cancel();
-                }
-            }
-            s.items = next.values().map(|entry| entry.item.clone()).collect();
-            s.items
-                .sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
-            s.entries = next;
-        }
-        s.status = status.into();
-        s.issues = issues;
-        if changed {
-            s.revision += 1;
-        }
-        Ok(())
     }
     pub fn open_media(
         &self,
@@ -487,7 +236,7 @@ impl Engine {
         })?;
         if !metadata.is_file()
             || entry.cancel.is_cancelled()
-            || facts(&metadata).2 != entry.signature
+            || discovery::opened_signature(&metadata) != entry.signature
         {
             return Err(GalleryError::new(
                 "stale_item",

@@ -25,7 +25,7 @@ The gallery core owns root identity, discovered item records, scan generations, 
 
 The [Tauri process model](https://tauri.app/concept/process-model/) separates native application responsibilities from webview rendering. Platform engines are dependencies rather than user-selected browser applications. A framework's available capabilities do not automatically become product features or required permissions.
 
-**AR-02:** Expensive discovery, metadata inspection and thumbnail work MUST leave the UI event loop responsive. Work MUST be bounded and cancellable at meaningful boundaries. Changing galleries must prevent results from the previous gallery from being applied to the new one. Worker counts and queue limits are release-specific decisions under U-10.
+**AR-02:** Expensive discovery, metadata inspection and thumbnail work MUST leave the UI event loop responsive. Work MUST be bounded and cancellable at meaningful boundaries. Changing galleries must prevent results from the previous gallery from being applied to the new one. The current discovery worker count is one, with one replaceable newest pending request. Cancellation does not claim to interrupt a blocked OS call; it prevents further admission and publication after retirement. Broader metadata/thumbnail limits remain under U-10.
 
 ## Interface build and runtime data
 
@@ -39,7 +39,7 @@ An application's exported interface and the website may share brand bindings and
 
 **AR-04:** Current directory observations MUST govern item existence. Portable settings govern intentional shared presentation according to the shared native precedence contract. Sidecars contribute attributed metadata. Machine-local remembered paths assist installed use. Derived caches accelerate work and MUST NOT become the only source from which the collection can be reconstructed.
 
-The host assigns item references to a gallery session and resolves them to authorized filesystem resources. Opening and explicit Refresh produce the authoritative discovery snapshot; idle background scanning and collection polling are disabled. Sorting/filtering operate over that complete discovered record set before bounded pagination, while visible media loads on demand. The transport must avoid copying the entire collection's image/video bytes through ordinary JSON messages. Native media URLs or an equivalent bounded streaming mechanism are specified through [interfaces and contracts](interfaces-and-contracts.md).
+The host assigns item references to a gallery session and resolves them to authorized filesystem resources. Opening and explicit Refresh produce the authoritative discovery snapshot; idle background scanning and collection polling are disabled. Incremental observations merge into the current record set. Only complete enumeration removes unobserved prior items; incomplete results retain them with stale attribution. Sorting/filtering operate over the entire currently observed record set before bounded pagination, while visible media loads on demand. The transport must avoid copying the entire collection's image/video bytes through ordinary JSON messages. Native media URLs or an equivalent bounded streaming mechanism are specified through [interfaces and contracts](interfaces-and-contracts.md).
 
 Paths must retain their native meaning. Presentation-friendly separators, URI encoding and canonical filesystem identity are different operations. Replacing a drive prefix or applying string substitutions is not sufficient path handling.
 

@@ -9,13 +9,27 @@ export interface MediaItem {
   size: string | null;
   modifiedMs: string | null;
   issue: string | null;
+  stale: boolean;
+}
+
+export interface DiscoveryState {
+  id: string;
+  generation: string;
+  kind: 'open' | 'refresh';
+  phase: 'opening' | 'scanning' | 'complete' | 'partial' | 'cancelled' | 'failed' | 'unavailable';
+  entriesSeen: string;
+  mediaSeen: string;
+  requestedRoot: string | null;
+  message: string | null;
 }
 
 export interface Snapshot {
   version: string;
+  sequence: string;
+  discovery: DiscoveryState | null;
   sessionId: string | null;
   root: string | null;
-  status: 'selection' | 'scanning' | 'complete' | 'partial' | 'unavailable';
+  status: 'selection' | DiscoveryState['phase'];
   revision: string;
   mediaOrigin: string;
   items: MediaItem[];

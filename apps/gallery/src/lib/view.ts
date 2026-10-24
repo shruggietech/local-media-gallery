@@ -33,6 +33,25 @@ export function viewItems(items: MediaItem[], filter: Filter, sort: Sort, direct
 export function reconcileSelection(selected: string | null, items: MediaItem[]): string | null {
   return selected !== null && items.some(item => item.id === selected) ? selected : null;
 }
+export function acceptSnapshot(previous: Pick<Snapshot, 'sequence'>, next: Pick<Snapshot, 'sequence'>): boolean {
+  return /^\d+$/.test(next.sequence) && BigInt(next.sequence) >= BigInt(previous.sequence);
+}
+export function anchoredPage(previous: MediaItem[], next: MediaItem[], page: number, size: number, selected: string | null, remembered: string | null): { page: number; anchor: string | null; removed: boolean } {
+  const exists = new Set(next.map(item => item.id));
+  const original = selected && exists.has(selected) ? selected : remembered ?? pageItems(previous, page, size).items[0]?.id ?? null;
+  let anchor: string | null = original;
+  const removed = anchor !== null && !exists.has(anchor);
+  if (removed) {
+    const index = previous.findIndex(item => item.id === anchor); anchor = null;
+    for (let distance = 1; index >= 0 && distance < previous.length; distance += 1) {
+      const neighbor = [previous[index - distance], previous[index + distance]].find(item => item && exists.has(item.id));
+      if (neighbor) { anchor = neighbor.id; break; }
+    }
+  }
+  if (anchor === null) anchor = pageItems(next, page, size).items[0]?.id ?? null;
+  const index = next.findIndex(item => item.id === anchor);
+  return { page: index >= 0 ? Math.floor(index / size) + 1 : 1, anchor, removed };
+}
 export function mediaUrl(snapshot: Pick<Snapshot, 'sessionId' | 'mediaOrigin'>, item: MediaItem): string {
   if (!snapshot.sessionId || !snapshot.mediaOrigin) return '';
   return `${snapshot.mediaOrigin}/media/${[snapshot.sessionId, item.id, item.revision].map(encodeURIComponent).join('/')}`;

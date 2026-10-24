@@ -4,9 +4,13 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Portable presentation and machine-local history updated on 2026-10-24; product packages remain unpublished.
+Requested discovery, recovery, portable presentation and machine-local history updated on 2026-10-24; product packages remain unpublished.
 
 ### Added
+
+- Incremental requested discovery, visible progress and gallery/viewer cancellation, retained incomplete observations, explicit folder recovery, globally ordered snapshots and stable page anchors.
+- Discovery decisions (2026-10-24): one native worker and one newest pending request, handle-derived root/resource identity, direct-file traversal with explicit mounted-storage qualification boundaries, and normal-build exclusion of deterministic discovery barriers/failpoints.
+- Runtime snapshot consumers now require sequence/discovery and item stale attribution. These unreleased baseline contract additions preserve product/schema/documentation version 0.0.0.
 
 - Sparse portable gallery settings, machine-local remembered folder choices and recents, one precedence resolver, visible save destinations, field provenance, inheritance removal and temporary reset.
 - Bundled SQLite history schema 1 with lossless native paths, 90-day activity expiry, 20 recent folders, row-only forgetting and conservative unsupported-store fallback.

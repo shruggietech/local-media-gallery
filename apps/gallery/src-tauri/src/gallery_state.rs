@@ -4,8 +4,7 @@ use crate::{
     portable::Portable,
     settings::{FIELDS, Settings, SettingsStore, validate_patch},
 };
-use cap_fs_ext::MetadataExt as _;
-use gallery_core::{Engine, GalleryError};
+use gallery_core::{Engine, GalleryError, root_identity};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::{collections::BTreeMap, sync::Mutex};
@@ -67,22 +66,6 @@ pub fn resolve(
         Settings::parse(value, test).expect("validated layers"),
         sources,
     )
-}
-fn root_identity(dir: &cap_std::fs::Dir, path: &std::path::Path) -> Result<(), GalleryError> {
-    let observed = (|| -> std::io::Result<bool> {
-        let held = dir.dir_metadata()?;
-        let current = cap_std::fs::Dir::open_ambient_dir(path, cap_std::ambient_authority())?
-            .dir_metadata()?;
-        Ok(held.dev() == current.dev() && held.ino() == current.ino())
-    })();
-    if observed.unwrap_or(false) {
-        Ok(())
-    } else {
-        Err(GalleryError::new(
-            "history_identity_changed",
-            "This directory's native location changed. Machine-local choices were not read or saved; reopen its current location. Portable settings still use the held gallery.",
-        ))
-    }
 }
 impl GalleryState {
     pub fn new(engine: Engine, user: SettingsStore, history: History) -> Self {
