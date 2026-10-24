@@ -483,9 +483,28 @@ fn root_gate_serializes_retirement_and_rejects_old_authority() {
             .recv_timeout(std::time::Duration::from_millis(30))
             .is_err()
     );
+    // A blocked state write serializes retirement, but never owns discovery control.
+    let (control_sent, control_received) = mpsc::channel();
+    let controls = engine.clone();
+    let control = std::thread::spawn(move || {
+        let snapshot = controls.snapshot();
+        let request = controls
+            .begin_refresh(snapshot.session_id.as_deref().unwrap())
+            .unwrap();
+        controls.cancel_discovery(&request.id).unwrap();
+        control_sent.send(()).unwrap();
+    });
+    let responsive = control_received
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .is_ok();
     release.wait();
     writer.join().unwrap();
     close.join().unwrap();
+    control.join().unwrap();
+    assert!(
+        responsive,
+        "State writes must not hold the discovery control lock"
+    );
     assert_eq!(
         fs::read(temp.path().join("state-fixture")).unwrap(),
         b"committed"

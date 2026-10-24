@@ -6,7 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [features]
-native-tests = ["dep:tauri-plugin-wdio-webdriver"]
+native-tests = ["dep:tauri-plugin-wdio-webdriver", "gallery-core/discovery-tests"]
 
 [build-dependencies]
 tauri-build = { version = "=2.7.4", features = [] }

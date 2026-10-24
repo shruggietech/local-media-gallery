@@ -9,12 +9,12 @@ import { AppFrame, Button, EmptyState, Field, FormControls, IconButton, StatusBa
 import { AppFrameEnvironmentBridge } from '@brand/web/react/environment';
 import { FolderOpen, Image as ImageIcon, Video, RefreshCw, ChevronLeft, ChevronRight, SlidersHorizontal, Settings, X, Info } from 'lucide-react';
 import type { Direction, Filter, MediaFacts, MediaItem, Snapshot, Sort, ViewSettings } from '../lib/types';
-import { formatBytes, formatModified, masonryLayout, mediaUrl, pageItems, viewItems } from '../lib/view';
+import { formatBytes, formatModified, masonryLayout, mediaUrl, pageItems, viewItems, acceptSnapshot, anchoredPage } from '../lib/view';
 import { createAdmissionQueue } from '../lib/admission';
 import { useGalleryState } from '../lib/use-gallery-state';
 import { SaveDestinationControl, StateControls } from '../lib/state-controls';
 
-const initial: Snapshot = { version: '0.0.0', sessionId: null, root: null, status: 'selection', revision: '0', mediaOrigin: '', items: [], issues: [] };
+const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, sessionId: null, root: null, status: 'selection', revision: '0', mediaOrigin: '', items: [], issues: [] };
 const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);
@@ -79,7 +79,7 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
           onError={() => { updateFacts(key, { error: 'This image is unavailable or unsupported in the current runtime. Refresh to check the folder again.' }); settled.current?.(); }} />
         : <span className="media-placeholder">{item.kind === 'video' ? <Video aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}<span>{facts.error ? 'Media unavailable' : item.kind === 'video' ? 'Video' : 'Image'}</span></span>}
       </span>
-      <span className="media-caption"><span title={item.name}>{item.name}</span><StatusBadge status={facts.error || item.issue ? 'warning' : 'neutral'}>{facts.error || item.issue ? 'Unavailable' : item.kind === 'image' ? 'Image' : 'Video'}</StatusBadge></span>
+      <span className="media-caption"><span title={item.name}>{item.name}</span><StatusBadge status={facts.error || item.issue || item.stale ? 'warning' : 'neutral'}>{facts.error || item.issue ? 'Unavailable' : item.stale ? 'Not rechecked' : item.kind === 'image' ? 'Image' : 'Video'}</StatusBadge></span>
     </button>
     {needsVideoFacts && admitted && source && !facts.error ? <video className="metadata-probe" ref={video} src={source} crossOrigin="anonymous" preload="metadata" aria-hidden="true" tabIndex={-1}
       onLoadedMetadata={event => {
@@ -133,7 +133,7 @@ function ScrollIndicator({ mode, contentKey }: { mode: ViewSettings['scrollIndic
   return <div className="scroll-indicator" data-visible={metrics.overflow && (mode === 'always' || scrolling)} aria-hidden="true" style={{ top: metrics.top, height: metrics.height }}><span className="scroll-indicator__thumb" style={{ height: metrics.thumb, transform: 'translateY(' + metrics.offset + 'px)' }} /></div>;
 }
 
-function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformation, previous, next, close, refresh, busy, warning, destinationControl }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; expanded: boolean; toggleInformation: () => void; previous: (() => void) | null; next: (() => void) | null; close: () => void; refresh: () => void; busy: boolean; warning: string; destinationControl: React.ReactNode }) {
+function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformation, previous, next, close, refresh, busy, scanning, cancelDiscovery, warning, destinationControl }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; expanded: boolean; toggleInformation: () => void; previous: (() => void) | null; next: (() => void) | null; close: () => void; refresh: () => void; busy: boolean; scanning: boolean; cancelDiscovery: () => void; warning: string; destinationControl: React.ReactNode }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -147,6 +147,7 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
     const element = video.current; setPlaying(false); setPlayError('');
     return () => { if (element) { element.pause(); element.removeAttribute('src'); element.load(); } };
   }, [key]);
+  useEffect(() => { const element = video.current; if (!facts.error && element?.error) element.load(); }, [facts.error, key]);
   const play = async () => {
     const element = video.current; if (!element) return;
     try { if (element.paused) await element.play(); else element.pause(); }
@@ -154,7 +155,7 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
   };
   const source = mediaUrl(snapshot, item);
   return <dialog className="bb-dialog media-viewer" ref={dialog} aria-labelledby="viewer-title" aria-describedby="viewer-description" onCancel={event => { event.preventDefault(); close(); }}>
-    <header className="viewer-header"><h2 id="viewer-title" title={item.name}>{item.name}</h2><div className="header-actions"><DisclosureButton variant="ghost" expanded={expanded} controls="viewer-information" onClick={toggleInformation}><Info aria-hidden="true" />Information</DisclosureButton><Button variant="ghost" onClick={refresh} disabled={busy}><RefreshCw aria-hidden="true" />Refresh</Button><Button variant="secondary" onClick={close}>Close viewer</Button></div></header>
+    <header className="viewer-header"><h2 id="viewer-title" title={item.name}>{item.name}</h2><div className="header-actions"><DisclosureButton variant="ghost" expanded={expanded} controls="viewer-information" onClick={toggleInformation}><Info aria-hidden="true" />Information</DisclosureButton>{scanning ? <Button variant="secondary" onClick={cancelDiscovery}>Cancel discovery</Button> : null}<Button variant="ghost" onClick={refresh} disabled={busy || scanning}><RefreshCw aria-hidden="true" />Refresh</Button><Button variant="secondary" onClick={close}>Close viewer</Button></div></header>
     <p id="viewer-description" className="viewer-description">Focused media. Information is available from its toggle.</p>
     <div className="viewer-content" data-information={expanded}>
       <div className="viewer-media">
@@ -195,13 +196,33 @@ export default function Gallery() {
   const [overlay, setOverlay] = useState<HTMLElement | null>(null);
   const intent = useRef(0); const latest = useRef<Snapshot>(initial); const activeKeys = useRef(new Set<string>());
   const gridHeight = useRef(0); const returnScroll = useRef(0); const returnTarget = useRef<string | null>(null);
+  const anchor = useRef<string | null>(null);
+  const presentation = useRef({ settings, page, selected }); presentation.current = { settings, page, selected };
   const apply = useCallback((value: Snapshot, ticket?: number) => {
     const old = latest.current;
     if (ticket !== undefined && ticket !== intent.current) return;
-    if (old.sessionId === value.sessionId && BigInt(value.revision) < BigInt(old.revision)) return;
+    if (!acceptSnapshot(old, value)) return;
     activate(value.sessionId);
-    if (old.sessionId === value.sessionId && old.revision === value.revision && old.mediaOrigin === value.mediaOrigin && old.status === value.status && JSON.stringify(old.issues) === JSON.stringify(value.issues)) return;
-    if (old.sessionId !== value.sessionId) { intent.current += 1; setSelected(null); setPage(1); returnTarget.current = null; }
+    if (old.sequence === value.sequence && JSON.stringify(old) === JSON.stringify(value)) return;
+    if (old.sessionId !== value.sessionId) { intent.current += 1; setSelected(null); setPage(1); anchor.current = null; returnTarget.current = null; }
+    else {
+      const view = presentation.current;
+      const sorted = (items: MediaItem[]) => viewItems(items, view.settings.filter, view.settings.sort, view.settings.direction);
+      const anchored = anchoredPage(sorted(old.items), sorted(value.items), view.page, view.settings.pageSize, view.selected, anchor.current);
+      anchor.current = anchored.anchor; setPage(anchored.page);
+      if (anchored.removed && value.status === "complete") setNotice("The previous location changed. Showing a neighboring item or the empty view.");
+    }
+    if (old.sessionId === value.sessionId && value.discovery?.kind === 'refresh' && ['complete', 'partial'].includes(value.discovery.phase) && (old.discovery?.id !== value.discovery.id || old.discovery?.phase !== value.discovery.phase)) {
+      const confirmed = new Set(value.items.filter(item => !item.stale && !item.issue).map(keyOf));
+      setFacts(previous => {
+        let changed = false;
+        const entries = Object.entries(previous).map(([key, facts]) => {
+          if (!confirmed.has(key) || !facts.error) return [key, facts];
+          const clean = { ...facts }; delete clean.error; changed = true; return [key, clean];
+        });
+        return changed ? Object.fromEntries(entries) : previous;
+      });
+    }
     latest.current = value; activeKeys.current = new Set(value.items.map(keyOf)); setSnapshot(value);
   }, [activate]);
   useEffect(() => {
@@ -249,8 +270,8 @@ export default function Gallery() {
   }, [selected, paged.page]);
   const saveHeight = useCallback((height: number) => { gridHeight.current = height; }, []);
   const open = useCallback((id: string) => { returnScroll.current = document.querySelector('.bb-app-frame__scroll')?.scrollTop || 0; setSelected(id); }, []);
-  const closeViewer = () => { if (!selectedItem) return; returnTarget.current = selectedItem.id; setPage(Math.floor(index / settings.pageSize) + 1); setSelected(null); };
-  const navigate = (offset: number) => { const target = items[index + offset]; if (target) { setSelected(target.id); setPage(Math.floor((index + offset) / settings.pageSize) + 1); } };
+  const closeViewer = () => { if (!selectedItem) return; anchor.current = selectedItem.id; returnTarget.current = selectedItem.id; setPage(Math.floor(index / settings.pageSize) + 1); setSelected(null); };
+  const navigate = (offset: number) => { const target = items[index + offset]; if (target) { anchor.current = target.id; setSelected(target.id); setPage(Math.floor((index + offset) / settings.pageSize) + 1); } };
   const choose = async () => {
     const current = ++intent.current; setBusy(true); setError(''); setNotice('');
     try { const result = await invoke<Snapshot | null>('choose_directory'); if (result) apply(result, current); }
@@ -260,7 +281,7 @@ export default function Gallery() {
   const refresh = async () => {
     if (!snapshot.sessionId || busy) return; const current = intent.current; setBusy(true); setError('');
     try { const value = await invoke<Snapshot>('refresh', { sessionId: snapshot.sessionId }); apply(value, current); }
-    catch (error) { setError(errorText(error)); } finally { setBusy(false); }
+    catch (error) { if (current === intent.current) setError(errorText(error)); } finally { setBusy(false); }
   };
   const closeFolder = async () => {
     if (!snapshot.sessionId || busy) return;
@@ -269,10 +290,18 @@ export default function Gallery() {
     catch (error) { setError(errorText(error)); }
     finally { setBusy(false); }
   };
-  const changeView = (patch: import('../lib/types').SettingsPatch) => { setPage(1); changeSettings(patch); };
-  const goPage = (requested: number) => { setPage(pageItems(items, requested, settings.pageSize).page); document.querySelector('.bb-app-frame__scroll')?.scrollTo({ top: 0 }); };
+  const changeView = (patch: import('../lib/types').SettingsPatch) => { anchor.current = null; setPage(1); changeSettings(patch); };
+  const goPage = (requested: number) => { const destination = pageItems(items, requested, settings.pageSize); anchor.current = destination.items[0]?.id ?? null; setPage(destination.page); document.querySelector('.bb-app-frame__scroll')?.scrollTo({ top: 0 }); };
   const images = snapshot.items.filter(item => item.kind === 'image').length;
-  const status = snapshot.status === 'scanning' ? 'Scanning directory' : snapshot.status === 'partial' ? 'Partial discovery' : snapshot.status === 'unavailable' ? 'Directory unavailable' : snapshot.sessionId ? 'Discovery complete' : 'Choose a directory';
+  const scanning = snapshot.discovery?.phase === 'opening' || snapshot.discovery?.phase === 'scanning';
+  const stale = snapshot.items.filter(item => item.stale).length;
+  const status = snapshot.status === 'opening' ? 'Opening folder' : snapshot.status === 'scanning' ? 'Scanning directory' : snapshot.status === 'partial' ? 'Partial discovery' : snapshot.status === 'cancelled' ? 'Discovery cancelled' : snapshot.status === 'failed' ? 'Discovery failed' : snapshot.status === 'unavailable' ? 'Directory unavailable' : snapshot.sessionId ? 'Discovery complete' : 'Choose a directory';
+  const cancelDiscovery = async () => {
+    const operationId = latest.current.discovery?.id; if (!operationId) return;
+    const current = intent.current;
+    try { apply(await invoke<Snapshot>('cancel_discovery', { operationId }), current); }
+    catch (error) { if (current === intent.current) setError(errorText(error)); }
+  };
   const toggleControls = () => { if (settings.controlsExpanded) setSettingsOpen(false); changeSettings({ controlsExpanded: !settings.controlsExpanded }); };
   const reopen = async (id: string) => {
     const current = ++intent.current; setBusy(true); setError('');
@@ -281,7 +310,7 @@ export default function Gallery() {
     finally { setBusy(false); }
   };
   const destinationControl = (viewer = false) => <SaveDestinationControl value={state.destination} change={state.selectDestination} root={Boolean(snapshot.sessionId)} ready={settingsReady} viewer={viewer} />;
-  const header = <header className="app-header"><div className="identity"><picture><source media="(prefers-color-scheme: light)" srcSet="/brand/logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-light.svg" /><img src="/brand/logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-dark.svg" alt="" /></picture><h1>Local Media Gallery</h1></div><span className="folder-title" title={snapshot.root || ''}>{snapshot.root || 'Choose a folder'}</span><div className="header-actions">{destinationControl()}<Button variant="ghost" onClick={() => void choose()} disabled={busy}><FolderOpen aria-hidden="true" />Choose folder</Button><Button variant="ghost" onClick={() => void refresh()} disabled={busy || !snapshot.sessionId}><RefreshCw aria-hidden="true" />Refresh</Button><IconButton label="Close folder" icon={<X />} onClick={() => void closeFolder()} disabled={busy || !snapshot.sessionId} /><DisclosureButton variant="ghost" expanded={settings.controlsExpanded} controls="collection-controls" disabled={!settingsReady} onClick={toggleControls}><SlidersHorizontal aria-hidden="true" />{settings.controlsExpanded ? 'Hide controls' : 'Show controls'}</DisclosureButton><DisclosureButton variant="ghost" expanded={settingsOpen && settings.controlsExpanded} controls="view-settings" disabled={!settingsReady} onClick={() => { setSettingsOpen(old => !old); if (!settings.controlsExpanded) changeSettings({ controlsExpanded: true }); }}><Settings aria-hidden="true" />Settings</DisclosureButton></div></header>;
+  const header = <header className="app-header"><div className="identity"><picture><source media="(prefers-color-scheme: light)" srcSet="/brand/logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-light.svg" /><img src="/brand/logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-dark.svg" alt="" /></picture><h1>Local Media Gallery</h1></div><span className="folder-title" title={snapshot.root || ''}>{snapshot.root || 'Choose a folder'}</span><div className="header-actions">{destinationControl()}<Button variant="ghost" onClick={() => void choose()} disabled={busy}><FolderOpen aria-hidden="true" />Choose folder</Button><Button variant="ghost" onClick={() => void refresh()} disabled={busy || scanning || !snapshot.sessionId}><RefreshCw aria-hidden="true" />Refresh</Button><IconButton label="Close folder" icon={<X />} onClick={() => void closeFolder()} disabled={busy || !snapshot.sessionId} /><DisclosureButton variant="ghost" expanded={settings.controlsExpanded} controls="collection-controls" disabled={!settingsReady} onClick={toggleControls}><SlidersHorizontal aria-hidden="true" />{settings.controlsExpanded ? 'Hide controls' : 'Show controls'}</DisclosureButton><DisclosureButton variant="ghost" expanded={settingsOpen && settings.controlsExpanded} controls="view-settings" disabled={!settingsReady} onClick={() => { setSettingsOpen(old => !old); if (!settings.controlsExpanded) changeSettings({ controlsExpanded: true }); }}><Settings aria-hidden="true" />Settings</DisclosureButton></div></header>;
   return <AppFrame host="tauri" header={header}><AppFrameEnvironmentBridge layoutResizeCanBeIme={false} />
     {settings.controlsExpanded ? <section className="collection-controls" id="collection-controls" aria-label="Collection controls">
       <Field id="media-filter" label="Media type" control={<FormControls.Select value={settings.filter} onChange={event => changeView({ filter: event.target.value as Filter })}><option value="all">All media</option><option value="image">Images</option><option value="video">Videos</option></FormControls.Select>} />
@@ -297,15 +326,16 @@ export default function Gallery() {
       <p className="muted">Each explicit change saves to the selected destination. Gallery refresh is manual.</p>
     </section> : null}
     <StateControls envelope={state.envelope} remove={state.remove} clear={state.clear} forget={state.forget} reopen={id => void reopen(id)} busy={busy || !settingsReady} />
+    <section className="discovery-status" aria-label="Discovery status"><p role="status">{status}{snapshot.discovery ? ' (' + snapshot.discovery.entriesSeen + ' entries checked, ' + snapshot.discovery.mediaSeen + ' media observed)' : ''}{stale ? '. ' + stale + ' previous items not yet rechecked.' : ''}</p>{scanning ? <Button variant="secondary" onClick={() => void cancelDiscovery()}>Cancel discovery</Button> : snapshot.sessionId && snapshot.status !== 'complete' ? <Button variant="secondary" onClick={() => void refresh()} disabled={busy}>Retry discovery</Button> : null}</section>
     {error ? <p role="alert" className="media-error">{error}</p> : null}
     {settingsWarning ? <p role="status" className="media-error">{settingsWarning}</p> : null}
     {snapshot.issues.length ? <div role="status" className="media-error">{snapshot.issues.map((issue, i) => <p key={issue + '/' + i}>{issue}</p>)}</div> : null}
     {notice ? <p role="status">{notice}</p> : null}
     {snapshot.sessionId ? <nav className="collection-navigation" aria-label="Gallery pages"><p className="collection-count" role="status">{paged.start}-{paged.end} of {items.length} / {snapshot.items.length} discovered ({images} images, {snapshot.items.length - images} videos)</p><Button variant="ghost" disabled={paged.page <= 1} onClick={() => goPage(paged.page - 1)}>Previous page</Button><Field id="page-jump" label="Page" layout="inline" control={<FormControls.TextInput type="number" min={1} max={paged.pages} value={pageDraft} onChange={event => setPageDraft(event.target.value)} onBlur={() => goPage(Number(pageDraft))} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); goPage(Number(pageDraft)); } }} />} /><span>of {paged.pages}</span><Button variant="ghost" disabled={paged.page >= paged.pages} onClick={() => goPage(paged.page + 1)}>Next page</Button></nav> : null}
     {selectedItem ? <div className="gallery-placeholder" aria-hidden="true" style={{ height: gridHeight.current }} /> : items.length ? <MediaGrid key={snapshot.sessionId + '/' + paged.page + '/' + settings.pageSize + '/' + settings.filter + '/' + settings.sort + '/' + settings.direction} snapshot={snapshot} items={paged.items} facts={facts} updateFacts={updateFacts} open={open} cardSize={settings.cardSize} saveHeight={saveHeight} />
-      : <EmptyState id="gallery-empty" heading={snapshot.status === 'scanning' ? 'Finding media' : snapshot.status === 'unavailable' ? 'Directory unavailable' : !snapshot.sessionId ? 'Open a media directory' : settings.filter !== 'all' && snapshot.items.length ? 'No media match this filter' : 'No media found'} description={snapshot.status === 'unavailable' ? 'Choose a readable directory to continue.' : !snapshot.sessionId ? 'Choose a directory to browse its images and videos.' : settings.filter !== 'all' && snapshot.items.length ? 'Choose All media to see the current collection.' : 'Readable image and video files in this directory appear here. Use Refresh to check for changes.'} />}
+      : <EmptyState id="gallery-empty" heading={scanning ? 'Finding media' : snapshot.status === 'cancelled' ? 'Discovery cancelled' : snapshot.status === 'failed' ? 'Discovery failed' : snapshot.status === 'unavailable' ? 'Directory unavailable' : !snapshot.sessionId ? 'Open a media directory' : settings.filter !== 'all' && snapshot.items.length ? 'No media match this filter' : 'No media found'} description={snapshot.status === 'unavailable' ? 'Retry the folder explicitly when available, or choose its current location.' : snapshot.status === 'cancelled' ? 'Available observations are retained. Refresh to check the folder again.' : snapshot.status === 'partial' || snapshot.status === 'failed' ? 'Discovery is incomplete. Retry explicitly or choose another folder.' : !snapshot.sessionId ? 'Choose a directory to browse its images and videos.' : settings.filter !== 'all' && snapshot.items.length ? 'Choose All media to see the current collection.' : 'Readable image and video files in this directory appear here. Use Refresh to check for changes.'} />}
     <footer className="app-footer">A ShruggieTech project</footer>
     <ScrollIndicator mode={settings.scrollIndicator} contentKey={snapshot.sessionId + '/' + snapshot.revision + '/' + paged.page + '/' + String(Boolean(selectedItem))} />
-    {overlay && selectedItem ? createPortal(<Viewer snapshot={snapshot} item={selectedItem} facts={facts[keyOf(selectedItem)] || emptyFacts} updateFacts={updateFacts} expanded={settings.metadataExpanded} toggleInformation={() => changeSettings({ metadataExpanded: !settings.metadataExpanded })} previous={index > 0 ? () => navigate(-1) : null} next={index < items.length - 1 ? () => navigate(1) : null} close={closeViewer} refresh={() => void refresh()} busy={busy} warning={settingsWarning} destinationControl={destinationControl(true)} />, overlay) : null}
+    {overlay && selectedItem ? createPortal(<Viewer snapshot={snapshot} item={selectedItem} facts={facts[keyOf(selectedItem)] || emptyFacts} updateFacts={updateFacts} expanded={settings.metadataExpanded} toggleInformation={() => changeSettings({ metadataExpanded: !settings.metadataExpanded })} previous={index > 0 ? () => navigate(-1) : null} next={index < items.length - 1 ? () => navigate(1) : null} close={closeViewer} refresh={() => void refresh()} busy={busy} scanning={scanning} cancelDiscovery={() => void cancelDiscovery()} warning={settingsWarning} destinationControl={destinationControl(true)} />, overlay) : null}
   </AppFrame>;
 }

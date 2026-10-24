@@ -42,6 +42,11 @@ async function request(route, body, method = body === undefined ? 'GET' : 'POST'
 }
 const js = (script, args = []) => request(`/session/${session}/execute/sync`, { script, args });
 const snapshot = () => js('return await window.__TAURI_INTERNALS__.invoke("snapshot")');
+async function openSettled(directory) {
+  const ack = await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[directory]);
+  const id = ack.discovery.id;
+  return until(async()=>{const s=await snapshot();return s.discovery?.id===id&&!['opening','scanning'].includes(s.discovery.phase)?s:false;},'Requested folder terminal outcome');
+}
 const visible = script => until(() => js(`return Boolean(${script})`), script);
 const click = text => js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b)throw Error("Missing button "+arguments[0]); b.click(); return true;', [text]);
 const open = name => js('const card=[...document.querySelectorAll(".media-card")].find(c=>c.dataset.name===arguments[0]); if(!card)throw Error("Missing card"); card.querySelector("button").click(); return true;', [name]);
@@ -81,6 +86,125 @@ try {
     assert.equal(await js('return document.querySelector("h1").textContent'), 'Local Media Gallery');
     await js('await document.fonts.ready; return true;');
     assert.ok(await js('return Array.from(document.fonts).filter(f=>f.status==="loaded").length>=3'));
+  });
+  await test('incremental discovery, visible cancellation and queued retirement', async () => {
+    const directory = await mkdtemp(path.join(root, '.local/discovery-雪-'));
+    for (const name of ['one.jpg','two.jpg','three.jpg']) await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(directory,name));
+    const portable = JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{fontScale:90},unknown:{keep:[false,0,null]}})+'\n';
+    await writeFile(path.join(directory,'settings.json'),portable);
+    const control = (action, config) => js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:arguments[1]})',[action,config??null]);
+    await control('arm',{pauseAfter:2});
+    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[directory]);
+    await until(()=>control('status'),'Discovery barrier');
+    let value=await snapshot(); assert.equal(value.status,'scanning'); assert.ok(value.items.length>=1&&value.items.length<3); assert.ok(BigInt(value.discovery.entriesSeen)>=1n&&BigInt(value.discovery.entriesSeen)<=2n);
+    await visible('document.querySelector(".discovery-status")?.textContent.includes("Scanning directory")');
+    assert.equal(await js('return document.querySelector("#collection-controls")===null'),true,'Progress is visible with controls collapsed');
+    assert.equal(await js('return document.querySelector(".discovery-status").textContent.includes("%")'),false);
+    assert.equal(await js('return [...document.querySelectorAll("button")].find(b=>b.getAttribute("aria-label")==="Close folder").disabled'),false);
+    await js('const b=[...document.querySelectorAll(".discovery-status button")].find(b=>b.textContent==="Cancel discovery"); b.focus(); return true;');
+    await input('keys',['-Keys','{ENTER}']);
+    await until(async()=> (await snapshot()).status==='cancelled','Keyboard cancellation');
+    value=await snapshot(); const cancelledSequence=value.sequence; const observed=value.items.length;
+    await control('release'); await pause(100); assert.equal((await snapshot()).sequence,cancelledSequence); assert.equal((await snapshot()).items.length,observed);
+    await click('Retry discovery'); await until(async()=> (await snapshot()).status==='complete','Explicit retry');
+    assert.equal((await snapshot()).items.length,3);
+    await control('arm',{pauseAfter:1}); await click('Refresh'); await until(()=>control('status'),'Paused Refresh');
+    const id=(await snapshot()).sessionId;
+    await js('return await window.__TAURI_INTERNALS__.invoke("refresh",{sessionId:arguments[0]})',[id]);
+    await visible('document.querySelector(".discovery-status")?.textContent.includes("Scanning directory")');
+    await click('Cancel discovery'); const queued=await snapshot(); assert.equal(queued.status,'cancelled');
+    await control('release'); await pause(100); assert.equal((await snapshot()).sequence,queued.sequence);
+    await js('return await window.__TAURI_INTERNALS__.invoke("refresh",{sessionId:arguments[0]})',[id]);
+    await until(async()=> (await snapshot()).status==='complete','Refresh after queued cancellation');
+    await control('arm',{failAfter:1}); await rm(path.join(directory,'three.jpg'));
+    await click('Refresh'); await until(async()=> (await snapshot()).status==='partial','Partial iterator result');
+    value=await snapshot(); assert.equal(value.items.length,3); assert.ok(value.items.some(i=>i.stale));
+    await click('Retry discovery'); await until(async()=> (await snapshot()).status==='complete','Complete retry after partial'); assert.equal((await snapshot()).items.length,2);
+    await control('arm',{unavailable:true}); await click('Refresh'); await until(async()=> (await snapshot()).status==='unavailable','Unavailable result');
+    value=await snapshot(); assert.equal(value.items.length,2); assert.ok(value.items.every(i=>i.stale));
+    assert.equal(await readFile(path.join(directory,'settings.json'),'utf8'),portable);
+    await click('Show controls'); await select('media-filter','video'); await visible('document.querySelectorAll(".media-card").length===0');
+    await select('media-filter','all'); await visible('document.querySelectorAll(".media-card img").length>0');
+    const inaccessible=(await snapshot()); const staleItem=inaccessible.items[0];
+    assert.equal((await fetch(inaccessible.mediaOrigin+'/media/'+inaccessible.sessionId+'/'+staleItem.id+'/'+staleItem.revision+'?s009-root-failure')).status,404);
+    await js('for(const image of document.querySelectorAll(".media-card img")) image.src=image.src+"?s009-root-failure"; return true;');
+    await visible('[...document.querySelectorAll(".media-placeholder")].some(e=>e.textContent.includes("Media unavailable"))');
+    await click('Retry discovery'); await until(async()=> (await snapshot()).status==='complete','Explicit unavailable recovery');
+    await visible('document.querySelectorAll(".media-card img").length===2 && [...document.querySelectorAll(".media-card img")].every(i=>i.naturalWidth>0)');
+    await click('Hide controls');
+    assert.equal(await js('return document.documentElement.style.getPropertyValue("--gallery-font-scale")'),'0.9');
+    await control('arm',{internalFailure:true}); await click('Refresh'); await until(async()=> (await snapshot()).status==='failed','Internal failure result');
+    await click('Retry discovery'); await until(async()=> (await snapshot()).status==='complete','Failed-operation recovery');
+    for(const name of ['one.jpg','two.jpg']) assert.deepEqual(await readFile(path.join(directory,name)),await readFile(path.join(fixture.directory,'image2.jpg')));
+    await control('arm',{pauseAfter:1}); await click('Refresh'); await until(()=>control('status'),'Paused close');
+    await click('Close folder'); const closed=await snapshot(); assert.equal(closed.sessionId,null); assert.equal(closed.status,'selection');
+    await control('release'); await pause(100); assert.equal((await snapshot()).sequence,closed.sequence);
+    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[fixture.directory]);
+    await until(async()=> (await snapshot()).status==='complete','Restore fixture root'); await visible('document.querySelectorAll(".media-card").length===12');
+  });
+  await test('blocked portable initialization leaves discovery, Cancel, Close and replacement responsive', async () => {
+    const directory=await mkdtemp(path.join(root,'.local/discovery-profile-'));
+    for(const name of ['one.jpg','two.jpg','three.jpg']) await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(directory,name));
+    const portable=JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{fontScale:80}})+'\n';
+    await writeFile(path.join(directory,'settings.json'),portable);
+    const control=(action,config)=>js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:arguments[1]})',[action,config??null]);
+    await control('profile_arm'); await control('arm',{pauseAfter:3});
+    try {
+      await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[directory]);
+      await until(()=>control('profile_status'),'Portable initialization read barrier');
+      await until(()=>control('status'),'Discovery advances independently of profile read');
+      await visible('document.querySelectorAll(".media-card").length>0');
+      assert.equal((await snapshot()).status,'scanning');
+      await click('Cancel discovery'); await until(async()=>(await snapshot()).status==='cancelled','Cancel during blocked profile read',2000);
+      await click('Close folder'); await until(async()=>(await snapshot()).sessionId===null,'Close during blocked profile read',2000);
+      await control('release');
+      await openSettled(fixture.directory);
+      await visible('document.querySelectorAll(".media-card").length===12');
+      assert.equal(await control('profile_status'),true,'Retired profile read is still held while replacement publishes');
+    } finally { await control('release'); await control('profile_release'); }
+    await visible('[...document.querySelectorAll("button")].some(b=>b.textContent==="Show controls"&&!b.disabled)');
+    assert.equal(await js('return document.documentElement.style.getPropertyValue("--gallery-font-scale")'),'1','Retired portable font scale never applies');
+    assert.equal(await readFile(path.join(directory,'settings.json'),'utf8'),portable);
+  });
+  await test('focused playback survives discovery cancellation and replacement rejects old publication', async () => {
+    const control = (action,config) => js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:arguments[1]})',[action,config??null]);
+    await open('clip silent.mp4'); await visible('document.querySelector("dialog")?.open');
+    await js('const v=document.querySelector("dialog video"); window.__s009Focused=v; await new Promise(resolve=>{if(v.readyState>=1)resolve();else v.addEventListener("loadedmetadata",resolve,{once:true})}); v.currentTime=0.5; return true;');
+    await control('arm',{pauseAfter:2}); await click('Refresh'); await until(()=>control('status'),'Focused discovery barrier');
+    assert.equal(await js('return document.querySelector("dialog video")===window.__s009Focused'),true);
+    await click('Cancel discovery'); await until(async()=> (await snapshot()).status==='cancelled','Viewer cancellation');
+    assert.equal(await js('return document.querySelector("dialog video")===window.__s009Focused && Math.abs(window.__s009Focused.currentTime-0.5)<0.15'),true);
+    await control('release'); await click('Close viewer');
+    const old=await snapshot(); const other=await mkdtemp(path.join(root,'.local/discovery-replacement-'));
+    await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(other,'replacement.jpg'));
+    await control('arm',{pauseAfter:2}); await click('Refresh'); await until(()=>control('status'),'Replacement barrier');
+    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[other]);
+    const pending=await snapshot(); assert.equal(pending.discovery.phase,'opening'); assert.equal(pending.sessionId,old.sessionId);
+    await control('release'); await until(async()=> {const s=await snapshot();return s.status==='complete'&&s.items[0]?.name==='replacement.jpg';},'Newest queued folder');
+    const replacement=await snapshot(); assert.notEqual(replacement.sessionId,old.sessionId);
+    await pause(100); assert.equal((await snapshot()).sequence,replacement.sequence);
+    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[fixture.directory]);
+    await until(async()=> (await snapshot()).status==='complete','Restore fixture after replacement'); await visible('document.querySelectorAll(".media-card").length===12');
+  });
+  await test('rendered page anchor survives incremental predecessors and chooses a removal neighbor', async () => {
+    const directory=await mkdtemp(path.join(root,'.local/discovery-anchor-'));
+    for(let i=10;i<18;i++) await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(directory,'image'+i+'.jpg'));
+    await openSettled(directory); await visible('document.querySelectorAll(".media-card").length===8');
+    await click('Show controls'); await click('Settings'); await select('page-size','4');
+    await visible('document.querySelectorAll(".media-card").length===4'); await click('Next page');
+    await visible('document.getElementById("page-jump").value==="2"');
+    const anchor=await js('return document.querySelector(".media-card").dataset.name'); assert.equal(anchor,'image14.jpg');
+    for(let i=0;i<4;i++) await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(directory,'image'+i+'.jpg'));
+    await js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"arm",config:{pauseAfter:2}})');
+    await click('Refresh'); await until(()=>js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"status",config:null})'),'Anchored incremental barrier');
+    await visible('[...document.querySelectorAll(".media-card")].some(c=>c.dataset.name==="image14.jpg")');
+    await js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"release",config:null})');
+    await until(async()=> (await snapshot()).status==='complete','Anchored completion');
+    await visible('document.getElementById("page-jump").value==="3" && [...document.querySelectorAll(".media-card")].some(c=>c.dataset.name==="image14.jpg")');
+    await rm(path.join(directory,anchor)); await click('Refresh'); await until(async()=> (await snapshot()).status==='complete','Removed anchor completion');
+    await visible('document.getElementById("page-jump").value==="2" && [...document.querySelectorAll(".media-card")].some(c=>c.dataset.name==="image13.jpg")');
+    assert.equal(await js('return document.body.textContent.includes("previous location changed")'),true);
+    await select('page-size','48'); await click('Hide controls'); await openSettled(fixture.directory); await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('state save destination is visible before opening controls', async () => {
     assert.equal(await js('return Boolean(document.querySelector("[data-save-destination]"))'), true, 'A reader must see where explicit choices will be saved even with controls collapsed');
@@ -181,11 +305,11 @@ try {
     await input('keys', ['-Keys', ' ']); await visible('!window.__retiredMedia.paused');
     const before = await snapshot(); const item = before.items.find(i => i.kind === 'video');
     const empty = await mkdtemp(path.join(root, '.local/switch-'));
-    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [empty]);
+    await openSettled(empty);
     await visible('!document.querySelector("dialog") && document.body.textContent.includes("No media found")');
     assert.equal(await js('return window.__retiredMedia.paused && window.__retiredMedia.getAttribute("src")===null'), true);
     assert.equal((await fetch(`${before.mediaOrigin}/media/${before.sessionId}/${item.id}/${item.revision}`)).status, 404);
-    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [fixture.directory]); await visible('document.querySelectorAll(".media-card").length===12');
+    await openSettled(fixture.directory); await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('session-scoped native ranges and cross-origin denial', async () => {
     const value = await snapshot(); const item = value.items.find(i => i.name === 'clip audio.mp4');
@@ -225,13 +349,14 @@ try {
     await visible('document.querySelectorAll(".media-card").length===0 && document.body.textContent.includes("No media found")');
     const before = await snapshot();
     assert.equal(path.relative(path.toNamespacedPath(empty), before.root), '', 'Picker selected the exact requested directory');
-    assert.ok(await js('try { await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]}); return false; } catch { return true; }', [empty + '/absent']));
+    assert.equal((await openSettled(empty + '/absent')).discovery.phase,'unavailable');
     assert.equal((await snapshot()).sessionId, before.sessionId);
+    await click('Refresh'); await until(async()=> (await snapshot()).status==='complete','Retained folder explicit retry');
     await select('media-filter', 'video'); await visible('document.body.textContent.includes("No media found")');
     await copyFile(path.join(fixture.directory, 'image2.jpg'), path.join(empty, 'only-image.jpg'));
     await pause(1200); assert.equal((await snapshot()).items.length,0);
     await click('Refresh'); await visible('document.body.textContent.includes("No media match this filter")');
-    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [fixture.directory]);
+    await openSettled(fixture.directory);
     await visible('document.querySelectorAll(".media-card").length===2'); await select('media-filter', 'all');
   });
   await test('relocated directory reopens without a manifest and retires old grants', async () => {
@@ -239,10 +364,10 @@ try {
     await click('Close folder'); await visible('document.body.textContent.includes("No directory selected")');
     await rename(fixture.directory, moved);
     try {
-      await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [moved]); await visible('document.querySelectorAll(".media-card").length===12');
+      await openSettled(moved); await visible('document.querySelectorAll(".media-card").length===12');
       assert.equal((await fetch(`${before.mediaOrigin}/media/${before.sessionId}/${item.id}/${item.revision}`)).status, 404);
     } finally { await click('Close folder'); await visible('document.body.textContent.includes("No directory selected")'); await rename(moved, fixture.directory); }
-    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [fixture.directory]);
+    await openSettled(fixture.directory);
     await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('bounded pagination, full sorting, cross-page viewer and geometry', async () => {
@@ -370,7 +495,7 @@ try {
     await copyFile(path.join(fixture.directory, 'image2.jpg'), path.join(a, 'image.jpg'));
     await copyFile(path.join(fixture.directory, 'image2.jpg'), path.join(b, 'image.jpg'));
     const openRoot = async directory => {
-      await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [directory]);
+      await openSettled(directory);
       await visible('document.getElementById("save-destination") && !document.getElementById("save-destination").disabled');
     };
     const state = async () => js('const s=await window.__TAURI_INTERNALS__.invoke("snapshot");return await window.__TAURI_INTERNALS__.invoke("load_settings",{sessionId:s.sessionId})');
@@ -410,7 +535,7 @@ try {
     await click('Forget '+aRow.displayPath);await until(async()=>(await state()).settings.filter==='all','Forget re-resolves active layer');
     assert.equal((await state()).settings.fontScale,80);assert.equal((await state()).sources.fontScale,'portable');
     await rename(b,b+'-moved');await click(bRow.displayPath);
-    await visible('document.body.textContent.includes("Cannot open this directory")');
+    await visible('document.body.textContent.includes("Cannot open the selected folder")');
     assert.ok((await snapshot()).root.endsWith('gallery-a'));assert.ok((await state()).recents.some(r=>r.id===bRow.id));
     assert.ok(JSON.parse(await readFile(portableFile)).choices.fontScale===80);await unchanged();
     await stop();
@@ -433,7 +558,7 @@ try {
     await stop(); child = launch([path.join(root, '.local/absent-root-for-acceptance')]); await connect();
     await visible('document.body.textContent.includes("Directory unavailable")');
     assert.equal((await snapshot()).status, 'unavailable');
-    await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})', [fixture.directory]);
+    await openSettled(fixture.directory);
     await visible('document.querySelectorAll(".media-card").length===12');
     assert.equal((await snapshot()).issues.length, 0);
   });
