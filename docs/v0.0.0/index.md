@@ -41,7 +41,6 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 | U-02 | Full/Lite capability and dependency matrix beyond their agreed launch/state roles | [Overview](overview.md#open-decisions) |
 | U-04 | Tested image/video codecs, formats, orientation/color handling and unsupported-media actions | [Browsing and playback](browsing-and-playback.md#open-decisions) |
 | U-05 | Richer preview/autoplay behavior and additional navigation/customization beyond the defined browsing defaults | [Browsing and playback](browsing-and-playback.md#open-decisions) |
-| U-06 | Sidecar matching precedence, directory-wide indexes, duplicate-key handling and curated field mappings | [Metadata and sidecars](metadata-and-sidecars.md#open-decisions) |
 | U-07 | Disposable cache locations and future state migration/backup policies | [Configuration and state](configuration-and-state.md#open-decisions) |
 | U-08 | Executable/subcommand names, exact exit codes, IPC layouts, identifiers and application-schema dialect | [Interfaces and contracts](interfaces-and-contracts.md#open-decisions) |
 | U-09 | Thumbnail encoders, video frame selection, portable cache placement and optional media-tool distribution | [Thumbnails and performance](thumbnails-and-performance.md#open-decisions) |
@@ -54,6 +53,7 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 | ID | Resolved contract | Owning chapter |
 | --- | --- | --- |
 | U-03 | Direct-file traversal, root identity and explicit recovery, with mounted/native qualification boundaries | [Gallery lifecycle](gallery-lifecycle.md#open-decisions) |
+| U-06 | Attributed direct sidecar/index association, ordered duplicate members and explicit encoding policy | [Metadata and sidecars](metadata-and-sidecars.md#open-decisions) |
 | U-12 | Static rendering, local search, version metadata, aliases and explicit archive corrections | [Website and documentation](website-and-documentation.md#rendering-and-snapshot-contract) |
 
 ## Document maintenance

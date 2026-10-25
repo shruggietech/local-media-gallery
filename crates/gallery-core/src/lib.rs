@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Readonly gallery sessions. Display labels never authorize filesystem access.
 mod discovery;
+mod metadata;
+mod metadata_json;
 mod transport;
 #[cfg(any(test, feature = "discovery-tests"))]
 pub use discovery::TestDiscoveryConfig;
 pub use discovery::{DiscoveryRequest, DiscoveryState, root_identity};
+pub use metadata::{MetadataRead, MetadataRequest, MetadataResult};
+pub use metadata_json::{JsonNode, parse_metadata_json};
 pub use transport::{byte_range, media_router, serve_media, serve_media_listener};
 
 use cap_fs_ext::{FollowSymlinks, OpenOptionsFollowExt};
@@ -71,6 +75,7 @@ pub struct Snapshot {
     pub status: String,
     pub revision: String,
     pub media_origin: String,
+    pub metadata_revision: String,
     pub items: Vec<MediaItem>,
     pub issues: Vec<String>,
 }
@@ -86,6 +91,9 @@ struct Session {
     root: std::path::PathBuf,
     dir: Arc<Dir>,
     entries: HashMap<OsString, Entry>,
+    json: HashMap<OsString, metadata::JsonObservation>,
+    json_limited: bool,
+    metadata_revision: String,
     status: String,
     issues: Vec<String>,
     revision: u64,
@@ -105,6 +113,9 @@ struct Inner {
     hub: Mutex<Hub>,
     scan: Mutex<()>,
     state_gate: Mutex<()>,
+    metadata_admission: Arc<tokio::sync::Semaphore>,
+    #[cfg(any(test, feature = "discovery-tests"))]
+    metadata_control: metadata::TestControl,
     #[cfg(any(test, feature = "discovery-tests"))]
     controls: discovery::TestControls,
 }
@@ -208,6 +219,9 @@ impl Engine {
                 hub: Mutex::new(Hub::default()),
                 scan: Mutex::new(()),
                 state_gate: Mutex::new(()),
+                metadata_admission: Arc::new(tokio::sync::Semaphore::new(1)),
+                #[cfg(any(test, feature = "discovery-tests"))]
+                metadata_control: metadata::TestControl::default(),
                 #[cfg(any(test, feature = "discovery-tests"))]
                 controls: discovery::TestControls::default(),
             }),

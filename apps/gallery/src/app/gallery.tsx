@@ -13,8 +13,9 @@ import { formatBytes, formatModified, masonryLayout, mediaUrl, pageItems, viewIt
 import { createAdmissionQueue } from '../lib/admission';
 import { useGalleryState } from '../lib/use-gallery-state';
 import { SaveDestinationControl, StateControls } from '../lib/state-controls';
+import { MetadataInspector } from '../lib/metadata-inspector';
 
-const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, sessionId: null, root: null, status: 'selection', revision: '0', mediaOrigin: '', items: [], issues: [] };
+const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, sessionId: null, root: null, status: 'selection', revision: '0', mediaOrigin: '', metadataRevision: '0', items: [], issues: [] };
 const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);
@@ -133,7 +134,7 @@ function ScrollIndicator({ mode, contentKey }: { mode: ViewSettings['scrollIndic
   return <div className="scroll-indicator" data-visible={metrics.overflow && (mode === 'always' || scrolling)} aria-hidden="true" style={{ top: metrics.top, height: metrics.height }}><span className="scroll-indicator__thumb" style={{ height: metrics.thumb, transform: 'translateY(' + metrics.offset + 'px)' }} /></div>;
 }
 
-function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformation, previous, next, close, refresh, busy, scanning, cancelDiscovery, warning, destinationControl }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; expanded: boolean; toggleInformation: () => void; previous: (() => void) | null; next: (() => void) | null; close: () => void; refresh: () => void; busy: boolean; scanning: boolean; cancelDiscovery: () => void; warning: string; destinationControl: React.ReactNode }) {
+function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformation, previous, next, close, refresh, busy, scanning, cancelDiscovery, warning, destinationControl, summaryFields, changeSummary, settingsReady }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; expanded: boolean; toggleInformation: () => void; previous: (() => void) | null; next: (() => void) | null; close: () => void; refresh: () => void; busy: boolean; scanning: boolean; cancelDiscovery: () => void; warning: string; destinationControl: React.ReactNode; summaryFields: ViewSettings['summaryFields']; changeSummary: (fields:ViewSettings['summaryFields'])=>void; settingsReady:boolean }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -169,11 +170,11 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
             onError={() => updateFacts(key, { error: 'This image is unavailable or unsupported in the current runtime. Refresh to check the folder again.' })} /> : <ImageIcon aria-hidden="true" />}
       </div>
       {expanded ? <section className="viewer-information" id="viewer-information" aria-labelledby="information-title"><h3 id="information-title">Item information</h3><dl className="item-facts">
-        <dt>Filename</dt><dd>{item.name}</dd><dt>Relative location</dt><dd>{item.relativePath}</dd><dt>Media type</dt><dd>{item.kind} ({item.mime}, filename hint)</dd>
+        <dt>Source</dt><dd>Current filesystem observations; dimensions and duration from the native media runtime.</dd><dt>Filename</dt><dd>{item.name}</dd><dt>Relative location</dt><dd>{item.relativePath}</dd><dt>Media type</dt><dd>{item.kind} ({item.mime}, filename hint)</dd>
         <dt>File size</dt><dd>{formatBytes(item.size)}</dd><dt>Modified</dt><dd>{formatModified(item.modifiedMs)}</dd>
         <dt>Dimensions</dt><dd>{facts.width && facts.height ? facts.width + ' × ' + facts.height : 'Unavailable'}</dd>
         <dt>Duration</dt><dd>{item.kind !== 'video' ? 'Not applicable' : Number.isFinite(facts.duration) ? facts.duration?.toFixed(2) + ' seconds' : 'Unavailable'}</dd>
-      </dl></section> : null}
+      </dl><MetadataInspector snapshot={snapshot} item={item} fields={summaryFields} change={changeSummary} ready={settingsReady} /></section> : null}
     </div>
     <footer>{destinationControl}<div className="viewer-actions"><Button variant="secondary" disabled={!previous} onClick={() => previous?.()}><ChevronLeft aria-hidden="true" />Previous</Button>{item.kind === 'video' ? <Button onClick={play}>{playing ? 'Pause' : 'Play'}</Button> : null}<Button variant="secondary" disabled={!next} onClick={() => next?.()}>Next<ChevronRight aria-hidden="true" /></Button></div>{warning ? <p role="status" className="media-error">{warning}</p> : null}{facts.error || item.issue || playError ? <p role="status" className="media-error">{facts.error || item.issue || playError}</p> : null}</footer>
   </dialog>;
@@ -336,6 +337,6 @@ export default function Gallery() {
       : <EmptyState id="gallery-empty" heading={scanning ? 'Finding media' : snapshot.status === 'cancelled' ? 'Discovery cancelled' : snapshot.status === 'failed' ? 'Discovery failed' : snapshot.status === 'unavailable' ? 'Directory unavailable' : !snapshot.sessionId ? 'Open a media directory' : settings.filter !== 'all' && snapshot.items.length ? 'No media match this filter' : 'No media found'} description={snapshot.status === 'unavailable' ? 'Retry the folder explicitly when available, or choose its current location.' : snapshot.status === 'cancelled' ? 'Available observations are retained. Refresh to check the folder again.' : snapshot.status === 'partial' || snapshot.status === 'failed' ? 'Discovery is incomplete. Retry explicitly or choose another folder.' : !snapshot.sessionId ? 'Choose a directory to browse its images and videos.' : settings.filter !== 'all' && snapshot.items.length ? 'Choose All media to see the current collection.' : 'Readable image and video files in this directory appear here. Use Refresh to check for changes.'} />}
     <footer className="app-footer">A ShruggieTech project</footer>
     <ScrollIndicator mode={settings.scrollIndicator} contentKey={snapshot.sessionId + '/' + snapshot.revision + '/' + paged.page + '/' + String(Boolean(selectedItem))} />
-    {overlay && selectedItem ? createPortal(<Viewer snapshot={snapshot} item={selectedItem} facts={facts[keyOf(selectedItem)] || emptyFacts} updateFacts={updateFacts} expanded={settings.metadataExpanded} toggleInformation={() => changeSettings({ metadataExpanded: !settings.metadataExpanded })} previous={index > 0 ? () => navigate(-1) : null} next={index < items.length - 1 ? () => navigate(1) : null} close={closeViewer} refresh={() => void refresh()} busy={busy} scanning={scanning} cancelDiscovery={() => void cancelDiscovery()} warning={settingsWarning} destinationControl={destinationControl(true)} />, overlay) : null}
+    {overlay && selectedItem ? createPortal(<Viewer snapshot={snapshot} item={selectedItem} facts={facts[keyOf(selectedItem)] || emptyFacts} updateFacts={updateFacts} expanded={settings.metadataExpanded} toggleInformation={() => changeSettings({ metadataExpanded: !settings.metadataExpanded })} previous={index > 0 ? () => navigate(-1) : null} next={index < items.length - 1 ? () => navigate(1) : null} close={closeViewer} refresh={() => void refresh()} busy={busy} scanning={scanning} cancelDiscovery={() => void cancelDiscovery()} warning={settingsWarning} destinationControl={destinationControl(true)} summaryFields={settings.summaryFields} changeSummary={fields=>changeSettings({summaryFields:fields})} settingsReady={settingsReady} />, overlay) : null}
   </AppFrame>;
 }

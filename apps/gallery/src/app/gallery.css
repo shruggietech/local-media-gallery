@@ -100,3 +100,16 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 
 .discovery-status { display: flex; align-items: center; flex-wrap: wrap; gap: var(--lo-space-3); margin-block-end: var(--lo-space-3); }
 .discovery-status p { margin: 0; }
+
+/* Metadata uses the existing information scroll owner and semantic brand tokens. */
+.metadata-inspector { margin-block-start: var(--lo-space-4); }
+.metadata-document, .metadata-summary-field { border-block-start: var(--bb-border-default) solid var(--bb-action-primary); padding-block: var(--lo-space-3); overflow-wrap: anywhere; }
+.metadata-document h4, .metadata-summary h4 { font: inherit; margin-block: var(--lo-space-2); }
+.metadata-node { margin-block: var(--lo-space-2); overflow-wrap: anywhere; }
+.metadata-children { padding-inline-start: var(--lo-space-3); border-inline-start: var(--bb-border-default) solid var(--bb-action-primary); }
+.metadata-leaf, .metadata-value { display: grid; gap: var(--lo-space-2); min-inline-size: 0; }
+.metadata-leaf .bb-button, .metadata-node > details > .metadata-children > .bb-button { justify-self: start; }
+.metadata-inspector code, .metadata-raw { font-family: var(--bb-typography-mono-family); font-weight: 400; white-space: pre-wrap; overflow-wrap: anywhere; }
+.metadata-inspector summary { cursor: pointer; padding-block: var(--lo-space-2); }
+.metadata-inspector summary:focus-visible { outline: var(--bb-focus-width) solid var(--bb-focus-ring); outline-offset: var(--bb-focus-offset); }
+.metadata-raw { max-inline-size: 100%; }

@@ -32,6 +32,7 @@ export interface Snapshot {
   status: 'selection' | DiscoveryState['phase'];
   revision: string;
   mediaOrigin: string;
+  metadataRevision: string;
   items: MediaItem[];
   issues: string[];
 }
@@ -56,6 +57,7 @@ export interface ViewSettings {
   controlsExpanded: boolean;
   scrollIndicator: 'auto' | 'always';
   metadataExpanded: boolean;
+  summaryFields: SummaryField[];
   filter: Filter;
   sort: Sort;
   direction: Direction;
@@ -77,3 +79,13 @@ export type SettingsPatch = Partial<Pick<ViewSettings, SettingField>>;
 export type SaveDestination = 'session' | 'user' | 'remembered' | 'portable';
 export type SettingSource = 'default' | SaveDestination;
 export interface RecentDirectory { id: string; displayPath: string; lastActivityMs: string }
+
+export type FieldStep = {kind:'key'; key:string; occurrence:number} | {kind:'index'; index:number};
+export interface SummaryField { source:string; path:FieldStep[] }
+export type JsonNode = {type:'null'} | {type:'boolean';value:boolean} | {type:'string';value:string} | {type:'number';value:string} | {type:'array';items:JsonNode[]} | {type:'object';members:{key:string;value:JsonNode}[]};
+export interface MetadataDocument {
+  source:string; label:string; basis:string; rank:number; ambiguous:boolean; stale:boolean;
+  status:'ready'|'invalid'|'limited'|'encoding'|'unreadable'|'changed'; message:string|null;
+  node:JsonNode|null; sourceText:string|null; recordPath:string|null;
+}
+export interface MetadataResult {sessionId:string;itemId:string;itemRevision:string;metadataRevision:string;documents:MetadataDocument[];limitations:string[]}

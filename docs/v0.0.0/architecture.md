@@ -43,6 +43,8 @@ The host assigns item references to a gallery session and resolves them to autho
 
 Paths must retain their native meaning. Presentation-friendly separators, URI encoding and canonical filesystem identity are different operations. Replacing a drive prefix or applying string substitutions is not sufficient path handling.
 
+Metadata JSON has a separate bounded observation catalog populated by the same requested enumeration. Focused expanded Information demand-reads it with one native admission permit, without reading directories or holding discovery/state-write authority over I/O. A separate metadata epoch and frontend lifetime check reject obsolete reads while media observation identity stays stable. Ordered typed JSON values preserve duplicate fields and numeric spelling across the host boundary. See [metadata](metadata-and-sidecars.md) for association, limits and source preservation.
+
 ## Lifetime and failure boundaries
 
 The application owns the lifetime of its windows, workers, transient media access and state writers. **AR-05:** Closing or cancelling a session MUST stop admitting new work and release resources when in-flight work reaches a safe boundary. Partial scans, cancelled jobs and unavailable directories must remain distinguishable from completed work.

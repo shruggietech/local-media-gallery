@@ -11,7 +11,10 @@ import { root, execute, environment } from './run.mjs';
 if (process.platform !== 'win32') throw new Error('Native acceptance currently requires Windows.');
 const started = new Date();
 const fixture = JSON.parse(await readFile(path.join(root, '.local/native-fixture.json')));
-const validate = new Ajv({ strict: true }).addKeyword('x-release-version').compile(JSON.parse(await readFile(path.join(root, 'schemas/v0.0.0/local-media-gallery.schema.json'))));
+const ownedSchema=JSON.parse(await readFile(path.join(root, 'schemas/v0.0.0/local-media-gallery.schema.json')));
+const ownedAjv=new Ajv({strict:true}).addKeyword('x-release-version');
+const validate=ownedAjv.compile(ownedSchema);
+const validateMetadata=ownedAjv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/metadataResult'});
 let settingsDirectory = await mkdtemp(path.join(root, '.local/native-settings-'));
 let historyDirectory = await mkdtemp(path.join(root, '.local/native-history-'));
 let settingsFile = path.join(settingsDirectory, 'settings.json');
@@ -550,6 +553,119 @@ try {
     assert.deepEqual(await readFile(path.join(relocated,'image.jpg')),await readFile(path.join(a,'image.jpg')));
     await stop();settingsDirectory=originalSettings;settingsFile=path.join(settingsDirectory,'settings.json');historyDirectory=originalHistory;
     child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
+  });
+  const metadataRoot=await mkdtemp(path.join(root,'.local/metadata-雪-'));
+  const metadataFile=path.join(metadataRoot,'clip.mp4_meta.json');
+  const metadataSettings=path.join(metadataRoot,'settings.json');
+  const metadataControl=action=>js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:null})',[action]);
+  const inspect=async name=>js('const s=await window.__TAURI_INTERNALS__.invoke("snapshot");const i=s.items.find(i=>i.name===arguments[0]);return await window.__TAURI_INTERNALS__.invoke("inspect_metadata",{request:{sessionId:s.sessionId,itemId:i.id,itemRevision:i.revision,metadataRevision:s.metadataRevision}})',[name]);
+  const currentState=()=>js('const s=await window.__TAURI_INTERNALS__.invoke("snapshot");return await window.__TAURI_INTERNALS__.invoke("load_settings",{sessionId:s.sessionId})');
+  const metadataSources=[
+    ['clip.mp4_meta.json','{"Title":"Harbor","Exact":900719925474099312345,"n":1.00e+999,"n":-0,"Nil":null,"False":false,"Zero":0,"Empty":"","Array":[],"Object":{},"Nested":{"a/b~":[{"value":"<script>window.__s010Pwn=true</script>"}]}}'],
+    ['clip.mp4.json','false'],
+    ['clip.json','['+Array.from({length:60},(_,i)=>String(i)).join(',')+']'],
+    ['photo.json','{"Title":"Ambiguous stem"}'],
+    ['photo.jpg.json','{broken'],
+    ['index.json','{"Items":[{"StorageName":"clip.mp4","Name":"original.mp4","Metadata":[{"Source":"camera","Type":"capture","Data":{"Exact":9007199254740993}}]},{"Name":"deleted.jpg"},{"IsDirectory":true,"Items":[{"Name":"clip.mp4","Wrong":true}]},{"Name":"../clip.mp4"}]}'],
+    ['unrelated.json','{"Title":"Unrelated"}'],
+  ];
+  for(const [name,text] of metadataSources)await writeFile(path.join(metadataRoot,name),text);
+  for(const [from,to]of [['clip silent.mp4','clip.mp4'],['image2.jpg','photo.jpg'],['image2.jpg','photo.png']])await copyFile(path.join(fixture.directory,from),path.join(metadataRoot,to));
+  await writeFile(metadataSettings,JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{metadataExpanded:false,fontScale:100,filter:'all',sort:'name',direction:'asc'},futureEnvelope:{keep:true}}));
+  await test('metadata demand, exact native transport, attributed nested data and lazy keyboard inspection',async()=>{
+    await metadataControl('metadata_arm');
+    await openSettled(metadataRoot);await visible('document.querySelectorAll(".media-card").length===3');
+    assert.equal(await metadataControl('metadata_status'),false,'Cards must not read sidecars');
+    await open('clip.mp4');await visible('document.querySelector("dialog video")?.readyState>=1');
+    assert.equal(await js('return document.querySelector(".metadata-inspector")===null'),true,'Information remains collapsed');
+    await click('Information');await until(()=>metadataControl('metadata_status'),'Demand-only metadata barrier');
+    assert.equal((await snapshot()).status,'complete','Snapshot remains responsive during metadata read');
+    await metadataControl('metadata_release');await visible('document.querySelectorAll(".metadata-document").length===4');
+    const value=await inspect('clip.mp4');assert.ok(validateMetadata(value),JSON.stringify(validateMetadata.errors));
+    assert.equal(value.documents.length,4);assert.equal(value.documents[0].node.members.find(m=>m.key==='Exact').value.value,'900719925474099312345');
+    assert.equal(value.documents[0].node.members.filter(m=>m.key==='n')[0].value.value,'1.00e+999');
+    assert.equal(value.documents[0].node.members.filter(m=>m.key==='n')[1].value.value,'-0');
+    assert.equal(value.documents[1].node.value,false);assert.ok(value.limitations.some(s=>s.includes('stale')));
+    assert.equal(value.documents.some(d=>d.label==='unrelated.json'),false);
+    await js('document.querySelector("[data-metadata-source=full-name-meta] details").open=true;return true;');
+    await visible('document.querySelector("[data-metadata-source=full-name-meta]").textContent.includes("900719925474099312345")');
+    await js('const el=document.querySelector("[data-metadata-source=full-name-meta] summary");el.focus();return true;');
+    await input('keys',['-Keys','{ENTER}']);
+    await visible('!document.querySelector("[data-metadata-source=full-name-meta] details").open');
+    await input('keys',['-Keys','{ENTER}']);
+    await visible('document.querySelector("[data-metadata-source=full-name-meta] details").open');
+    await js('document.querySelector("[data-metadata-source=stem-json] details").open=true;return true;');
+    await visible('document.querySelector("[data-metadata-source=stem-json]").textContent.includes("10 remaining")');
+    await click('Show next 50 fields (10 remaining)');
+    assert.equal(await js('return document.querySelector("[data-metadata-source=stem-json]").querySelectorAll(".metadata-leaf").length'),60);
+    await js('for(const d of document.querySelector("[data-metadata-source=full-name-meta]").querySelectorAll("details"))d.open=true;return true;');
+    for(let i=0;i<3;i++){await pause(20);await js('for(const d of document.querySelector("[data-metadata-source=full-name-meta]").querySelectorAll("details"))d.open=true;return true;');}
+    await visible('document.querySelector(".metadata-inspector").textContent.includes("<script>window.__s010Pwn=true</script>")');
+    assert.equal(await js('return !window.__s010Pwn && document.querySelector(".metadata-inspector script")===null'),true);
+    await select('viewer-save-destination','portable');
+    await click('Include summary field full-name-meta $["Exact"]');
+    await until(async()=>JSON.parse(await readFile(metadataSettings)).choices.summaryFields?.length===1,'Portable exact summary persisted');
+    await visible('document.querySelector(".metadata-summary").textContent.includes("900719925474099312345")');
+    const photo=await inspect('photo.jpg');assert.ok(validateMetadata(photo));assert.ok(photo.documents.some(d=>d.ambiguous));assert.ok(photo.documents.some(d=>d.status==='invalid'));
+  });
+  await test('sidecar-only Refresh, failed reads and stale completion preserve focused video',async()=>{
+    await js('const v=document.querySelector("dialog video");window.__s010Video=v;window.__s010Reloads=0;v.addEventListener("emptied",()=>window.__s010Reloads++);v.loop=true;v.currentTime=0.4;const b=[...document.querySelectorAll("dialog button")].find(b=>b.textContent==="Play");b.focus();return true;');
+    await input('keys',['-Keys','{ENTER}']);await visible('document.querySelector("dialog video").currentTime>0.5');
+    const before=await snapshot();
+    const updated=metadataSources[0][1].replace('900719925474099312345','900719925474099312346');
+    await writeFile(metadataFile,updated);await click('Refresh');
+    await visible('document.querySelector(".metadata-summary")?.textContent.includes("900719925474099312346")');
+    const after=await snapshot();assert.equal(after.items.find(i=>i.name==='clip.mp4').revision,before.items.find(i=>i.name==='clip.mp4').revision);
+    assert.notEqual(after.metadataRevision,before.metadataRevision);
+    assert.equal(await js('return document.querySelector("dialog video")===window.__s010Video && !window.__s010Video.paused && window.__s010Reloads===0'),true);
+    await metadataControl('metadata_arm');await click('Retry metadata inspection');await until(()=>metadataControl('metadata_status'),'Held old metadata read');
+    await writeFile(metadataFile,updated.replace('900719925474099312346','900719925474099312347'));await click('Refresh');
+    await visible('document.querySelector(".metadata-inspector")?.textContent.includes("still running")');
+    await metadataControl('metadata_release');await pause(100);await click('Retry metadata inspection');
+    await visible('document.querySelector(".metadata-summary")?.textContent.includes("900719925474099312347")');
+    assert.equal(await js('return document.querySelector("dialog video")===window.__s010Video && window.__s010Reloads===0'),true);
+    await writeFile(metadataFile,'{broken');await click('Refresh');await visible('document.querySelector("[data-metadata-source=full-name-meta]")?.dataset.metadataStatus==="invalid"');
+    assert.equal(await js('return document.querySelector("dialog video")===window.__s010Video && !window.__s010Video.paused'),true);
+    await writeFile(metadataFile,metadataSources[0][1]);await click('Refresh');await visible('document.querySelector("[data-metadata-source=full-name-meta]")?.dataset.metadataStatus==="ready"');
+    await metadataControl('metadata_arm');await click('Retry metadata inspection');await until(()=>metadataControl('metadata_status'),'Root-retired read');
+    await click('Close viewer');await openSettled(fixture.directory);await metadataControl('metadata_release');await pause(100);
+    assert.equal(await js('return document.querySelector(".metadata-inspector")===null'),true);
+    assert.equal((await snapshot()).items.length,12);
+  });
+  await test('summary choices persist through all destinations and portable relocation without media changes',async()=>{
+    await openSettled(metadataRoot);await visible('document.getElementById("save-destination") && !document.getElementById("save-destination").disabled');
+    await open('clip.mp4');await click('Information');await visible('document.querySelectorAll(".metadata-document").length===4');
+    await js('document.querySelector("[data-metadata-source=full-name-meta] details").open=true;return true;');
+    const title='Include summary field full-name-meta $["Title"]';const removeTitle='Remove summary field full-name-meta $["Title"]';
+    for(const [target,include] of [['user',true],['session',false],['remembered',true],['portable',false]]) {
+      await select('viewer-save-destination',target);await click(include?title:removeTitle);
+      await until(async()=>{const layer=(await currentState()).layers[target].summaryFields;return Array.isArray(layer) && layer.some(f=>f.path[0]?.key==='Title')===include;},'Summary destination '+target);
+    }
+    await select('viewer-save-destination','portable');
+    await click('Include summary field full-name-meta $["Empty"]');
+    await until(async()=>JSON.parse(await readFile(metadataSettings)).choices.summaryFields?.length===2,'Final portable summary');
+    await click('Close viewer');if(await js('return !document.getElementById("font-scale")'))await click('Settings');
+    await select('save-destination','session');await select('font-scale','80');
+    await open('clip.mp4');await visible('document.querySelector(".metadata-summary")?.textContent.includes("900719925474099312345")');
+    const textSize=await js('return parseFloat(getComputedStyle(document.querySelector(".metadata-summary code")).fontSize)');
+    assert.ok(textSize<14&&textSize>=10,'Metadata follows global text scaling: '+textSize);
+    await click('Close viewer');
+    const originalSettings=settingsDirectory;const originalHistory=historyDirectory;
+    await stop();settingsDirectory=await mkdtemp(path.join(root,'.local/metadata-fresh-user-'));settingsFile=path.join(settingsDirectory,'settings.json');historyDirectory=await mkdtemp(path.join(root,'.local/metadata-fresh-history-'));
+    const relocated=metadataRoot+'-relocated';await mkdir(relocated);
+    for(const name of ['clip.mp4','clip.mp4_meta.json','settings.json'])await copyFile(path.join(metadataRoot,name),path.join(relocated,name));
+    child=launch([relocated]);await connect();await visible('document.querySelectorAll(".media-card").length===1');
+    assert.equal((await currentState()).sources.summaryFields,'portable');assert.equal((await currentState()).settings.summaryFields.length,2);
+    await open('clip.mp4');await click('Information');await visible('document.querySelector(".metadata-summary")?.textContent.includes("900719925474099312345")');
+    assert.ok(await js('return document.querySelector(".metadata-summary").textContent.includes(\'""\')'));
+    await request('/session/'+session+'/window/rect',{width:600,height:720});
+    assert.equal(await js('return document.querySelector(".viewer-information").scrollWidth<=document.querySelector(".viewer-information").clientWidth+1'),true);
+    await stop();settingsDirectory=originalSettings;settingsFile=path.join(settingsDirectory,'settings.json');historyDirectory=originalHistory;
+    child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
+    for(const [name,text]of metadataSources)assert.equal(await readFile(path.join(metadataRoot,name),'utf8'),text,'Inspection preserves '+name);
+    for(const [from,to]of [['clip silent.mp4','clip.mp4'],['image2.jpg','photo.jpg'],['image2.jpg','photo.png']])assert.deepEqual(await readFile(path.join(metadataRoot,to)),await readFile(path.join(fixture.directory,from)));
+    assert.deepEqual(JSON.parse(await readFile(metadataSettings)).futureEnvelope,{keep:true});
+    await unchanged();
   });
   await test('no-argument startup is explicit selection; unavailable startup is recoverable', async () => {
     await stop(); child = launch([]); await connect();

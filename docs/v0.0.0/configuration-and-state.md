@@ -14,7 +14,7 @@
 
 ## Current user preferences
 
-The flat UTF-8 settings.json remains compatible with earlier builds. Its version is 0.0.0 and formatVersion is 1. The user file is in Tauri's app_config_dir for tech.shruggie.local-media-gallery: Windows uses Roaming AppData, Linux the user configuration location, and macOS Application Support. No user file is created until an explicit user-default change. Legacy omission of fontScale means 100 without rewriting the file. Compatible unknown properties survive saves.
+The flat UTF-8 settings.json remains compatible with earlier builds. Its version is 0.0.0 and formatVersion is 1. The user file is in Tauri's app_config_dir for tech.shruggie.local-media-gallery: Windows uses Roaming AppData, Linux the user configuration location, and macOS Application Support. No user file is created until an explicit user-default change. Legacy omission of fontScale means 100 and omission of summaryFields means an empty selection, without rewriting the file. Compatible unknown properties survive saves.
 
 | Field | Values | Default |
 | --- | --- | --- |
@@ -24,11 +24,14 @@ The flat UTF-8 settings.json remains compatible with earlier builds. Its version
 | controlsExpanded | Boolean | false |
 | scrollIndicator | auto, always | auto |
 | metadataExpanded | Boolean | false |
+| summaryFields | Up to 32 relative source-role/typed field-address choices | [] |
 | filter | all, image, video | all |
 | sort | name, modified, size | name |
 | direction | asc, desc | asc |
 
 Font scale changes app text, including controls, filenames and focused information. Media sizes, card geometry and minimum hit areas retain their geometry; captions can reflow. Platform dialogs and built-in media controls retain platform styling. The private native test build may elect page size 4; ordinary builds and public schemas reject it.
+
+Summary choices follow [metadata inspection](metadata-and-sidecars.md#inspection-and-field-inclusion). An empty array is deliberate intent, while omission inherits. The complete array is one ordinary field; source provenance, removal and every save destination use the same resolver. Invalid addresses/duplicate choices or unsupported limits reject the write without replacing prior bytes.
 
 ## Resolution and persistence
 
