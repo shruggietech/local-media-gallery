@@ -38,6 +38,14 @@ forget_history takes sessionId, expectedRevision and an opaque recent id (null c
 
 Long-running jobs require finite admission, observable progress and cancellation. Totals may initially be unknown; the UI must not invent a completed percentage from an unmeasured total. A terminal outcome should identify what completed, failed or remains resumable. Exact IPC transport, batching, job persistence and identifiers are U-08.
 
+## Metadata inspection interface
+
+inspect_metadata accepts request {sessionId,itemId,itemRevision,metadataRevision} from the main window. The native snapshot adds metadataRevision (0 without a root, otherwise an opaque token). The host obtains one metadata admission permit and captures observations before spawning blocking work. Busy/stale requests fail explicitly; they do not queue more blocking reads. All file/parsing work runs outside discovery and state-write authority.
+
+The result carries the four request identities, documents and limitations. Each document contains source, label, basis, rank, ambiguous, stale, status, message, node, sourceText and recordPath. Status is ready, invalid, limited, encoding, unreadable or changed. A node is tagged null, boolean, string, number, array or object; numeric value is lexical text, array items are ordered, and object members are ordered {key,value} entries that preserve duplicate keys. Raw source is a quoted UTF-8 string, never embedded untyped JSON numeric values. A missing selector result is absence, separately displayed from a null node.
+
+The metadataNode, metadataDocument, metadataResult, fieldStep and summaryField owned schema definitions describe these boundaries. They do not validate external sidecars. summaryFields is optional in old format-1 user documents and defaults empty, then follows ordinary sparse settings behavior. [Metadata policy](metadata-and-sidecars.md) owns association, budgets, exact values, encoding and request freshness. CLI/process/job choices elsewhere in U-08 remain open.
+
 ## Media delivery and item references
 
 **IF-04:** Media access MUST be scoped to the selected root and the declared link/traversal policy. An item reference from another session, stale generation or unrelated root must not be accepted merely because it resembles a filename. Presentation labels are not file-access authority.

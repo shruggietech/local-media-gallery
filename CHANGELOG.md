@@ -4,9 +4,11 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Requested discovery, recovery, portable presentation and machine-local history updated on 2026-10-24; product packages remain unpublished.
+Sidecar metadata and summary presentation updated on 2026-10-25; product packages remain unpublished.
 
 ### Added
+
+- Attributed JSON sidecar/index inspection with lossless numeric tokens, ordered duplicate members, bounded native reads, lazy nested information and portable summary-field choices. Sidecar-only Refresh preserves healthy playback.
 
 - Incremental requested discovery, visible progress and gallery/viewer cancellation, retained incomplete observations, explicit folder recovery, globally ordered snapshots and stable page anchors.
 - Discovery decisions (2026-10-24): one native worker and one newest pending request, handle-derived root/resource identity, direct-file traversal with explicit mounted-storage qualification boundaries, and normal-build exclusion of deterministic discovery barriers/failpoints.
@@ -68,3 +70,5 @@ Requested discovery, recovery, portable presentation and machine-local history u
 - 2026-10-23: Distinguish permanent website unbinding from a documented certificate-provisioning retry of the same organization-verified hostname. The retry preserves domain ownership TXT, DNS and the deployed site with verified restoration; permanent retirement and rollback retain DNS withdrawal.
 - 2026-10-23: Adopt the owner-selected Next.js/Fumadocs/Shiki website stack with the existing inert Markdown adapter and static Pages export. Render described themed Mermaid SVG during preparation rather than shipping its runtime. Retain governed AppFrame scrolling, use native modal compact navigation, and scope framework CSS to the required layouts. Verify browser readiness before SVG preparation and retain hosted visual, accessibility and cold laboratory performance evidence.
 - 2026-10-23: Correct the Windows native qualification helper to recognize completed folder pickers whose HWND remains alive while hidden; retain exact selected-directory and subsequent media-refresh assertions.
+
+- 2026-10-25: Keep metadata observation revisions separate from media identity, observe direct JSON during requested discovery and demand-read only focused expanded information. Use an ordered bounded lexical tree and quoted source/number text rather than map-based JSON conversion. Define explicit filename/index precedence, duplicate/encoding/resource policies and source-role/typed field selectors through the existing settings resolver, with lossless native-component identifiers for non-Unicode index filenames. Add owned metadata schemas, native/WebView regressions and normal-build test-hook exclusion; retain version 0.0.0 and existing package/platform qualification boundaries.

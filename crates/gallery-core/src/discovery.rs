@@ -53,7 +53,7 @@ pub fn root_identity(dir: &Dir, path: &Path) -> Result<(), GalleryError> {
     }
 }
 
-fn visible(name: &std::ffi::OsStr, metadata: &cap_std::fs::Metadata) -> bool {
+pub(super) fn visible(name: &std::ffi::OsStr, metadata: &cap_std::fs::Metadata) -> bool {
     if name.to_string_lossy().starts_with('.')
         || !metadata.is_file()
         || metadata.file_type().is_symlink()
@@ -77,6 +77,14 @@ pub(super) fn opened_signature(metadata: &cap_std::fs::Metadata) -> String {
         metadata.dev(),
         metadata.ino()
     )
+}
+
+#[derive(Clone, Copy)]
+struct DiscoveryTerminal<'a> {
+    phase: &'a str,
+    media: &'a HashSet<OsString>,
+    json: &'a HashMap<OsString, metadata::JsonObservation>,
+    json_limited: bool,
 }
 
 fn rebuild(session: &mut Session) {
@@ -145,6 +153,12 @@ impl Engine {
                 "stale_session",
                 "This gallery session has ended.",
             ));
+        }
+        if let Some(s) = hub.session.as_mut() {
+            s.metadata_revision = opaque();
+            for document in s.json.values_mut() {
+                document.stale = true;
+            }
         }
         Ok(self.reserve(&mut hub, Target::Refresh(session.into())))
     }
@@ -240,6 +254,7 @@ impl Engine {
             status: "selection".into(),
             revision: "0".into(),
             media_origin: hub.media_origin.clone(),
+            metadata_revision: "0".into(),
             items: vec![],
             issues: vec![],
         };
@@ -248,6 +263,7 @@ impl Engine {
             snapshot.root = Some(s.root.to_string_lossy().into_owned());
             snapshot.status = s.status.clone();
             snapshot.revision = s.revision.to_string();
+            snapshot.metadata_revision = s.metadata_revision.clone();
             snapshot.items = s.items.clone();
             snapshot.issues = s.issues.clone();
         }
@@ -375,6 +391,9 @@ impl Engine {
                     root: root.clone(),
                     dir: dir.clone(),
                     entries: HashMap::new(),
+                    json: HashMap::new(),
+                    json_limited: false,
+                    metadata_revision: opaque(),
                     status: "scanning".into(),
                     issues: vec![],
                     revision: 0,
@@ -428,6 +447,9 @@ impl Engine {
         })?;
         let mut seen = HashSet::new();
         let mut batch = Vec::new();
+        let mut json_batch = Vec::new();
+        let mut seen_json = HashMap::new();
+        let mut json_count = 0usize;
         let mut issues = Vec::new();
         let mut entries_seen = 0usize;
         let mut media_seen = 0usize;
@@ -457,9 +479,13 @@ impl Engine {
             let observed = (|| -> Result<Option<(OsString, Entry)>, String> {
                 let entry = entry.map_err(|e| format!("An entry could not be listed: {e}"))?;
                 let name = entry.file_name();
-                let Some((kind, mime)) = candidate(&name) else {
+                let media_kind = candidate(&name);
+                let is_json = Path::new(&name)
+                    .extension()
+                    .is_some_and(|e| e.eq_ignore_ascii_case("json"));
+                if media_kind.is_none() && !is_json {
                     return Ok(None);
-                };
+                }
                 if !self.is_active(request) {
                     return Ok(None);
                 }
@@ -506,6 +532,21 @@ impl Engine {
                         }
                     }
                 }
+                if is_json {
+                    json_count += 1;
+                    let document = metadata::JsonObservation {
+                        name: name.clone(),
+                        signature,
+                        issue,
+                        stale: false,
+                    };
+                    if seen_json.len() < metadata::MAX_CATALOG {
+                        seen_json.insert(name.clone(), document.clone());
+                    }
+                    json_batch.push((name, document));
+                    return Ok(None);
+                }
+                let (kind, mime) = media_kind.unwrap();
                 let prior = old.get(&name);
                 if let Some(prior) = prior.filter(|p| p.signature == signature) {
                     let mut entry = prior.clone();
@@ -564,6 +605,7 @@ impl Engine {
                     request,
                     &id,
                     &mut batch,
+                    &mut json_batch,
                     entries_seen,
                     media_seen,
                     &issues,
@@ -589,10 +631,16 @@ impl Engine {
             request,
             &id,
             &mut batch,
+            &mut json_batch,
             entries_seen,
             media_seen,
             &issues,
-            Some((status, &seen)),
+            Some(DiscoveryTerminal {
+                phase: status,
+                media: &seen,
+                json: &seen_json,
+                json_limited: json_count > metadata::MAX_CATALOG,
+            }),
         ) {
             observer();
         }
@@ -604,10 +652,11 @@ impl Engine {
         request: &DiscoveryRequest,
         id: &str,
         batch: &mut Vec<(OsString, Entry)>,
+        json_batch: &mut Vec<(OsString, metadata::JsonObservation)>,
         entries_seen: usize,
         media_seen: usize,
         issues: &[String],
-        terminal: Option<(&str, &HashSet<OsString>)>,
+        terminal: Option<DiscoveryTerminal<'_>>,
     ) -> bool {
         let mut hub = self.inner.hub.lock().unwrap();
         if !Self::active(&hub, request) {
@@ -628,7 +677,20 @@ impl Engine {
             }
             s.entries.insert(name, entry);
         }
-        if let Some(("complete", seen)) = terminal {
+        if !json_batch.is_empty() || terminal.is_some() {
+            s.metadata_revision = opaque();
+        }
+        for (name, document) in json_batch.drain(..) {
+            if s.json.len() < metadata::MAX_CATALOG || s.json.contains_key(&name) {
+                s.json.insert(name, document);
+            } else {
+                s.json_limited = true;
+            }
+        }
+        if let Some(terminal) = terminal.filter(|t| t.phase == "complete") {
+            s.json = terminal.json.clone();
+            s.json_limited = terminal.json_limited;
+            let seen = terminal.media;
             s.entries.retain(|name, entry| {
                 let keep = seen.contains(name);
                 if !keep {
@@ -638,14 +700,18 @@ impl Engine {
                 keep
             });
         }
-        s.status = terminal.map_or("scanning", |(status, _)| status).into();
+        s.status = terminal
+            .map_or("scanning", |terminal| terminal.phase)
+            .into();
         s.issues = issues.to_vec();
         if changed {
             s.revision += 1;
         }
         rebuild(s);
         let state = hub.discovery.as_mut().unwrap();
-        state.phase = terminal.map_or("scanning", |(status, _)| status).into();
+        state.phase = terminal
+            .map_or("scanning", |terminal| terminal.phase)
+            .into();
         state.entries_seen = entries_seen.to_string();
         state.media_seen = media_seen.to_string();
         hub.sequence += 1;

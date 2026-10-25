@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SaveDestination, SettingField, SettingsEnvelope, SettingsPatch, ViewSettings } from './types';
 
-export const defaults: ViewSettings = { version: '0.0.0', formatVersion: 1, fontScale: 100, pageSize: 48, cardSize: 'medium', controlsExpanded: false, scrollIndicator: 'auto', metadataExpanded: false, filter: 'all', sort: 'name', direction: 'asc' };
+export const defaults: ViewSettings = { version: '0.0.0', formatVersion: 1, fontScale: 100, pageSize: 48, cardSize: 'medium', controlsExpanded: false, scrollIndicator: 'auto', metadataExpanded: false, summaryFields: [], filter: 'all', sort: 'name', direction: 'asc' };
 const message = (error: unknown) => typeof error === 'object' && error && 'message' in error ? String(error.message) : String(error);
 export function useGalleryState() {
   const [settings, setSettings] = useState(defaults);

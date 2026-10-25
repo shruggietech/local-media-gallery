@@ -6,7 +6,7 @@ mod history;
 mod portable;
 mod settings;
 use discovery::DiscoveryWorker;
-use gallery_core::{Engine, GalleryError, Snapshot};
+use gallery_core::{Engine, GalleryError, MetadataRequest, MetadataResult, Snapshot};
 use gallery_state::{Envelope, GalleryState};
 use settings::SettingsStore;
 use std::{
@@ -101,6 +101,18 @@ async fn load_settings(
     tauri::async_runtime::spawn_blocking(move || store.load(session_id.as_deref()))
         .await
         .map_err(|_| GalleryError::new("internal", "Presentation state could not be loaded."))?
+}
+#[tauri::command]
+async fn inspect_metadata(
+    window: WebviewWindow,
+    runtime: State<'_, Runtime>,
+    request: MetadataRequest,
+) -> Result<MetadataResult, GalleryError> {
+    main_window(&window)?;
+    let prepared = runtime.engine.metadata_request(request)?;
+    tauri::async_runtime::spawn_blocking(move || prepared.read())
+        .await
+        .map_err(|_| GalleryError::new("internal", "Metadata inspection could not finish."))?
 }
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -283,6 +295,9 @@ fn test_discovery_control(
     config: Option<gallery_core::TestDiscoveryConfig>,
 ) -> Result<bool, GalleryError> {
     main_window(&window)?;
+    if action.starts_with("metadata_") {
+        return runtime.engine.test_metadata_control(&action);
+    }
     if action.starts_with("profile_") {
         return state.test_profile_read(&action);
     }
@@ -335,6 +350,7 @@ fn main() {
         startup,
         snapshot,
         load_settings,
+        inspect_metadata,
         save_settings,
         forget_history,
         reopen_recent,
@@ -350,6 +366,7 @@ fn main() {
         startup,
         snapshot,
         load_settings,
+        inspect_metadata,
         save_settings,
         forget_history,
         reopen_recent,

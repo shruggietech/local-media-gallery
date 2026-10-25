@@ -15,7 +15,8 @@
     "revision",
     "mediaOrigin",
     "items",
-    "issues"
+    "issues",
+    "metadataRevision"
   ],
   "properties": {
     "version": {
@@ -83,6 +84,10 @@
           "$ref": "#/$defs/discovery"
         }
       ]
+    },
+    "metadataRevision": {
+      "type": "string",
+      "pattern": "^(0|[a-f0-9]{32})$"
     }
   },
   "$defs": {
@@ -234,6 +239,15 @@
             100
           ],
           "default": 100
+        },
+        "summaryFields": {
+          "type": "array",
+          "default": [],
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/summaryField"
+          }
         }
       }
     },
@@ -294,6 +308,15 @@
             100
           ],
           "default": 100
+        },
+        "summaryFields": {
+          "type": "array",
+          "default": [],
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/summaryField"
+          }
         }
       }
     },
@@ -355,6 +378,15 @@
             100
           ],
           "default": 100
+        },
+        "summaryFields": {
+          "type": "array",
+          "default": [],
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/summaryField"
+          }
         }
       }
     },
@@ -454,7 +486,8 @@
             "filter",
             "sort",
             "direction",
-            "fontScale"
+            "fontScale",
+            "summaryFields"
           ],
           "properties": {
             "pageSize": {
@@ -537,6 +570,15 @@
                 "remembered",
                 "portable"
               ]
+            },
+            "summaryFields": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
             }
           }
         },
@@ -609,6 +651,14 @@
               ]
             },
             "fontScale": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "summaryFields": {
               "enum": [
                 "session",
                 "user",
@@ -727,6 +777,331 @@
             "string",
             "null"
           ]
+        }
+      }
+    },
+    "fieldStep": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "key",
+            "occurrence"
+          ],
+          "properties": {
+            "kind": {
+              "const": "key"
+            },
+            "key": {
+              "type": "string",
+              "maxLength": 1024
+            },
+            "occurrence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "index"
+          ],
+          "properties": {
+            "kind": {
+              "const": "index"
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 19999
+            }
+          }
+        }
+      ]
+    },
+    "summaryField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "path"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "maxLength": 1024,
+          "anyOf": [
+            {
+              "enum": [
+                "full-name-meta",
+                "full-name-json",
+                "stem-json"
+              ]
+            },
+            {
+              "pattern": "^index:[^/\\\\\\u0000]+$",
+              "not": {
+                "enum": [
+                  "index:.",
+                  "index:.."
+                ]
+              }
+            },
+            {
+              "pattern": "^index-native:(windows:([0-9a-f]{4})+|unix:([0-9a-f]{2})+)$"
+            }
+          ]
+        },
+        "path": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/fieldStep"
+          }
+        }
+      }
+    },
+    "metadataNode": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "null"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "boolean"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "value"
+          ],
+          "properties": {
+            "type": {
+              "const": "number"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "items"
+          ],
+          "properties": {
+            "type": {
+              "const": "array"
+            },
+            "items": {
+              "type": "array",
+              "maxItems": 20000,
+              "items": {
+                "$ref": "#/$defs/metadataNode"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "members"
+          ],
+          "properties": {
+            "type": {
+              "const": "object"
+            },
+            "members": {
+              "type": "array",
+              "maxItems": 20000,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "$ref": "#/$defs/metadataNode"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "metadataDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "label",
+        "basis",
+        "rank",
+        "ambiguous",
+        "stale",
+        "status",
+        "message",
+        "node",
+        "sourceText",
+        "recordPath"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "basis": {
+          "type": "string"
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "ambiguous": {
+          "type": "boolean"
+        },
+        "stale": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "ready",
+            "invalid",
+            "limited",
+            "encoding",
+            "unreadable",
+            "changed"
+          ]
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/metadataNode"
+            }
+          ]
+        },
+        "sourceText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "metadataResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessionId",
+        "itemId",
+        "itemRevision",
+        "metadataRevision",
+        "documents",
+        "limitations"
+      ],
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "itemId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "itemRevision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "metadataRevision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "documents": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/metadataDocument"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

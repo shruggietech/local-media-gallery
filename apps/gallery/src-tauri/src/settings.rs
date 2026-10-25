@@ -17,6 +17,7 @@ pub const FIELDS: &[&str] = &[
     "controlsExpanded",
     "scrollIndicator",
     "metadataExpanded",
+    "summaryFields",
     "filter",
     "sort",
     "direction",
@@ -93,6 +94,62 @@ pub enum Direction {
     Desc,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SummaryField {
+    pub source: String,
+    pub path: Vec<FieldStep>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase", deny_unknown_fields)]
+pub enum FieldStep {
+    Key { key: String, occurrence: u32 },
+    Index { index: u32 },
+}
+fn valid_summary_fields(fields: &[SummaryField]) -> bool {
+    fields.len() <= 32
+        && fields.iter().enumerate().all(|(i, field)| {
+            let source = field.source.as_str();
+            let valid_native_source =
+                source
+                    .strip_prefix("index-native:windows:")
+                    .is_some_and(|hex| {
+                        !hex.is_empty()
+                            && hex.len() % 4 == 0
+                            && hex
+                                .bytes()
+                                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+                    })
+                    || source
+                        .strip_prefix("index-native:unix:")
+                        .is_some_and(|hex| {
+                            !hex.is_empty()
+                                && hex.len() % 2 == 0
+                                && hex
+                                    .bytes()
+                                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+                        });
+            let valid_source = valid_native_source
+                || matches!(source, "full-name-meta" | "full-name-json" | "stem-json")
+                || source.strip_prefix("index:").is_some_and(|name| {
+                    !name.is_empty()
+                        && name != "."
+                        && name != ".."
+                        && !name.contains(['/', '\\', '\0'])
+                        && !name.contains("://")
+                        && !std::path::Path::new(name).is_absolute()
+                });
+            valid_source
+                && source.len() <= 1024
+                && field.path.len() <= 64
+                && !fields[..i].contains(field)
+                && field.path.iter().all(|step| match step {
+                    FieldStep::Key { key, occurrence } => key.len() <= 1024 && *occurrence < 20_000,
+                    FieldStep::Index { index } => *index < 20_000,
+                })
+        })
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -105,6 +162,8 @@ pub struct Settings {
     pub controls_expanded: bool,
     pub scroll_indicator: ScrollIndicator,
     pub metadata_expanded: bool,
+    #[serde(default)]
+    pub summary_fields: Vec<SummaryField>,
     pub filter: Filter,
     pub sort: Sort,
     pub direction: Direction,
@@ -122,6 +181,7 @@ impl Default for Settings {
             controls_expanded: false,
             scroll_indicator: ScrollIndicator::Auto,
             metadata_expanded: false,
+            summary_fields: vec![],
             filter: Filter::All,
             sort: Sort::Name,
             direction: Direction::Asc,
@@ -155,6 +215,12 @@ impl Settings {
             return Err(GalleryError::new(
                 "settings_invalid",
                 "Choose a supported global font size.",
+            ));
+        }
+        if !valid_summary_fields(&settings.summary_fields) {
+            return Err(GalleryError::new(
+                "settings_invalid",
+                "Choose at most 32 unique metadata fields with supported relative source and field addresses.",
             ));
         }
         Ok(settings)
@@ -683,5 +749,54 @@ mod tests {
         let initial = elected.envelope();
         assert_eq!(initial.test_page_size, Some(4));
         assert!(elected.save(value, &initial.revision).is_ok());
+    }
+    #[test]
+    fn summary_fields_are_known_bounded_and_legacy_default_empty() {
+        let base = serde_json::to_value(Settings::default()).unwrap();
+        for bad in [
+            serde_json::json!("bad"),
+            serde_json::json!([{"source":"../private","path":[]}]),
+            serde_json::json!([{"source":"full-name-json","path":[{"kind":"key","key":"n","occurrence":-1}]}]),
+        ] {
+            let mut value = base.clone();
+            value["summaryFields"] = bad;
+            assert!(Settings::parse(value, false).is_err());
+        }
+        for source in [
+            "index-native:windows:d800002e006a0073006f006e",
+            "index-native:unix:ff2e6a736f6e",
+        ] {
+            assert!(
+                validate_patch(
+                    &serde_json::json!({"summaryFields":[{"source":source,"path":[]}]}),
+                    false
+                )
+                .is_ok()
+            );
+        }
+        let choice = serde_json::json!({"source":"full-name-json","path":[{"kind":"key","key":"a/b~","occurrence":1},{"kind":"index","index":0}]});
+        let mut value = base.clone();
+        value["summaryFields"] = serde_json::json!([choice.clone()]);
+        assert!(
+            validate_patch(
+                &serde_json::json!({"summaryFields":[choice.clone()]}),
+                false
+            )
+            .is_ok()
+        );
+        assert_eq!(
+            serde_json::to_value(Settings::parse(value.clone(), false).unwrap()).unwrap()["summaryFields"],
+            value["summaryFields"]
+        );
+        value["summaryFields"] = serde_json::json!([choice.clone(), choice.clone()]);
+        assert!(Settings::parse(value.clone(), false).is_err());
+        value["summaryFields"] = serde_json::json!(vec![choice; 33]);
+        assert!(Settings::parse(value, false).is_err());
+        let mut old = base;
+        old.as_object_mut().unwrap().remove("summaryFields");
+        assert_eq!(
+            serde_json::to_value(Settings::parse(old, false).unwrap()).unwrap()["summaryFields"],
+            serde_json::json!([])
+        );
     }
 }

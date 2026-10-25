@@ -49,3 +49,7 @@ Exact log fields, redaction defaults, export interaction and retention are U-11.
 U-11 owns diagnostic/export/retention details and exceptional recovery actions. The initial traversal/storage policy is defined in [gallery lifecycle](gallery-lifecycle.md#open-decisions); U-07 owns persistent-store migration and concurrency; U-08 owns handler/transport specifics. These choices must preserve bounded access, attributable failures and source preservation without adding unrelated product-use restrictions.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
+
+## Sidecar read boundary
+
+The native inspector reads only directly observed JSON through held directory authority. Single-child references can associate with current observations but never grant access to another path. File/link/root replacement and retired epochs reject the read; pre/post file identity checks do not claim a filesystem-wide atomic snapshot against arbitrary concurrent editors. Parser and source/result budgets constrain work, invalid data stays attributable, and raw source is inert text. Summary choices contain relative roles and field addresses rather than paths or grants. See [metadata policy](metadata-and-sidecars.md).

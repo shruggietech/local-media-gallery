@@ -7,7 +7,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 const schema = JSON.parse(await readFile(new URL('../schemas/v0.0.0/local-media-gallery.schema.json', import.meta.url)));
 const validate = new Ajv2020({ strict: true }).addKeyword('x-release-version').compile(schema);
 const snapshot = {
-  version: '0.0.0', sequence: '1', discovery: null, sessionId: 'a'.repeat(32), root: 'A gallery', status: 'complete', revision: '1', mediaOrigin: 'http://127.0.0.1:1234', issues: [],
+  version: '0.0.0', metadataRevision:'d'.repeat(32), sequence: '1', discovery: null, sessionId: 'a'.repeat(32), root: 'A gallery', status: 'complete', revision: '1', mediaOrigin: 'http://127.0.0.1:1234', issues: [],
   items: [{ id: 'b'.repeat(32), revision: 'c'.repeat(32), name: 'photo.jpg', relativePath: 'photo.jpg', kind: 'image', mime: 'image/jpeg', size: '18446744073709551615', modifiedMs: '-1', issue: null, stale: false }],
 };
 test('master snapshot contract preserves exact native integer facts and version identity', () => {
@@ -63,4 +63,18 @@ test('discovery outcomes and observed counters are exact and closed', () => {
   for (const phase of ['opening','scanning','complete','partial','cancelled','failed','unavailable']) assert.equal(validate({...snapshot,status:phase,discovery:{...discovery,phase}}),true,JSON.stringify(validate.errors));
   for (const changed of [{...discovery,entriesSeen:2},{...discovery,phase:'empty'},{...discovery,total:100}]) assert.equal(validate({...snapshot,discovery:changed}),false);
   assert.equal(validate({...snapshot,sequence:9007199254740992}),false);
+});
+
+test('summary choices and exact metadata transport have closed owned contracts',()=>{
+  const ajv=new Ajv2020({strict:true}).addKeyword('x-release-version').addSchema(schema);
+  const choice={source:'full-name-json',path:[{kind:'key',key:'a/b~',occurrence:1},{kind:'index',index:0}]};
+  const choices=ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/settingsChoices'});
+  assert.equal(choices({summaryFields:[choice]}),true,JSON.stringify(choices.errors));
+  for(const source of ['index-native:windows:d800002e006a0073006f006e','index-native:unix:ff2e6a736f6e'])assert.equal(choices({summaryFields:[{source,path:[]}]}),true);
+  for(const summaryFields of ['bad',[{source:'../outside',path:[]}],[choice,choice],Array.from({length:33},()=>choice)])assert.equal(choices({summaryFields}),false);
+  const metadata=ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/metadataResult'});
+  const result={sessionId:'a'.repeat(32),itemId:'b'.repeat(32),itemRevision:'c'.repeat(32),metadataRevision:'d'.repeat(32),documents:[{source:'full-name-json',label:'a.jpg.json',basis:'Full filename + .json',rank:1,ambiguous:false,stale:false,status:'ready',message:null,node:{type:'object',members:[{key:'n',value:{type:'number',value:'9007199254740993'}},{key:'n',value:{type:'null'}}]},sourceText:'{"n":9007199254740993,"n":null}',recordPath:null}],limitations:[]};
+  assert.equal(metadata(result),true,JSON.stringify(metadata.errors));
+  const lossy=structuredClone(result);lossy.documents[0].node.members[0].value.value=9007199254740992;assert.equal(metadata(lossy),false);
+  assert.equal(metadata({...result,unowned:true}),false);
 });
