@@ -248,6 +248,14 @@
           "items": {
             "$ref": "#/$defs/summaryField"
           }
+        },
+        "loadingMode": {
+          "enum": [
+            "automatic",
+            "conservative",
+            "standard"
+          ],
+          "default": "automatic"
         }
       }
     },
@@ -317,6 +325,14 @@
           "items": {
             "$ref": "#/$defs/summaryField"
           }
+        },
+        "loadingMode": {
+          "enum": [
+            "automatic",
+            "conservative",
+            "standard"
+          ],
+          "default": "automatic"
         }
       }
     },
@@ -387,6 +403,14 @@
           "items": {
             "$ref": "#/$defs/summaryField"
           }
+        },
+        "loadingMode": {
+          "enum": [
+            "automatic",
+            "conservative",
+            "standard"
+          ],
+          "default": "automatic"
         }
       }
     },
@@ -487,7 +511,8 @@
             "sort",
             "direction",
             "fontScale",
-            "summaryFields"
+            "summaryFields",
+            "loadingMode"
           ],
           "properties": {
             "pageSize": {
@@ -579,6 +604,15 @@
                 "remembered",
                 "portable"
               ]
+            },
+            "loadingMode": {
+              "enum": [
+                "default",
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
             }
           }
         },
@@ -659,6 +693,14 @@
               ]
             },
             "summaryFields": {
+              "enum": [
+                "session",
+                "user",
+                "remembered",
+                "portable"
+              ]
+            },
+            "loadingMode": {
               "enum": [
                 "session",
                 "user",

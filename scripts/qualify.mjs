@@ -32,6 +32,13 @@ const record = await qualification({
     ...commands.map(name => ({ name: 'npm run ' + name, run: () => execute(process.execPath, [npm, 'run', name]) })),
     { name: 'native shell argument tests', run: () => cargo(['test', '--locked', '-p', 'local-media-gallery']) },
     { name: 'Windows WebView2 functional acceptance', run: () => node(path.join(root, 'scripts/test-native.mjs'), [], { env: { ...environment, GALLERY_TEST_BINARY: path.join(binaryDirectory, 'local-media-gallery-native-tests.exe') } }) },
+    { name: 'Windows native operation and resource measurements', run: async () => {
+      await node(path.join(root, 'scripts/measure-native.mjs'), ['--binary', path.join(binaryDirectory, 'local-media-gallery-native-tests.exe'), '--label', 'adaptive', '--output', path.join(root, '.local/measurement.json')]);
+      const measured = JSON.parse(await readFile(path.join(root, '.local/measurement.json')));
+      const native = JSON.parse(await readFile(path.join(root, '.local/native-results.json')));
+      assert.equal(measured.label, 'adaptive');
+      assert.equal(measured.artifact.sha256, native.binarySha256, 'Measurements and rendered acceptance must identify the same native binary');
+    } },
     { name: 'normal binary automation exclusion', run: () => node(path.join(root, 'scripts/test-normal.mjs')) },
     { name: 'source provenance and unchanged governed kit', run: async () => { assert.deepEqual(await sourceIdentity(), source); await execute(process.execPath, [npm, 'run', 'brand:verify']); await execute('git', ['diff', '--check']); } },
   ],
@@ -39,6 +46,7 @@ const record = await qualification({
 record.version = '0.0.0'; record.source = source;
 if (record.result === 'pass') {
   record.native = JSON.parse(await readFile(path.join(root, '.local/native-results.json')));
+  record.measurement = JSON.parse(await readFile(path.join(root, '.local/measurement.json')));
   record.normal = JSON.parse(await readFile(path.join(root, '.local/normal-results.json')));
   record.site = JSON.parse(await readFile(path.join(root, '.local/site-artifact.json')));
   record.browser = JSON.parse(await readFile(path.join(root, '.local/site-browser.json')));

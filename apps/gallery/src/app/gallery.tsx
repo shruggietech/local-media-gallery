@@ -10,7 +10,8 @@ import { AppFrameEnvironmentBridge } from '@brand/web/react/environment';
 import { FolderOpen, Image as ImageIcon, Video, RefreshCw, ChevronLeft, ChevronRight, SlidersHorizontal, Settings, X, Info } from 'lucide-react';
 import type { Direction, Filter, MediaFacts, MediaItem, Snapshot, Sort, ViewSettings } from '../lib/types';
 import { formatBytes, formatModified, masonryLayout, mediaUrl, pageItems, viewItems, acceptSnapshot, anchoredPage } from '../lib/view';
-import { createAdmissionQueue } from '../lib/admission';
+import { createAdmissionQueue, type LoadOutcome } from '../lib/admission';
+import { createLoadingPolicy } from '../lib/loading-policy';
 import { useGalleryState } from '../lib/use-gallery-state';
 import { SaveDestinationControl, StateControls } from '../lib/state-controls';
 import { MetadataInspector } from '../lib/metadata-inspector';
@@ -20,6 +21,7 @@ const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);
 type Queue = ReturnType<typeof createAdmissionQueue>;
+type LoadingPolicy = ReturnType<typeof createLoadingPolicy>;
 
 // The delivered Button accepts native ARIA attributes. Its legacy lint selector
 // omits disclosure ARIA names; keep this narrow typed binding visible locally.
@@ -29,13 +31,13 @@ function DisclosureButton({ expanded, controls, ...props }: ComponentProps<typeo
 }
 
 
-const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, open, queue, width, position, measure }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; open: (id: string) => void; queue: Queue; width: number; position: { x: number; y: number }; measure: (key: string, height: number) => void }) {
+const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, open, queue, margin, width, position, measure }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; open: (id: string) => void; queue: Queue; margin: number; width: number; position: { x: number; y: number }; measure: (key: string, height: number) => void }) {
   const container = useRef<HTMLElement>(null);
   const image = useRef<HTMLImageElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [interested, setInterested] = useState(false);
   const [admitted, setAdmitted] = useState(false);
-  const settled = useRef<(() => void) | null>(null);
+  const settled = useRef<((outcome?: LoadOutcome) => void) | null>(null);
   const key = keyOf(item);
   const source = mediaUrl(snapshot, item);
   useLayoutEffect(() => {
@@ -46,15 +48,17 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
   }, [key, measure]);
   useEffect(() => {
     const element = container.current; if (!element) return;
-    const observer = new IntersectionObserver(entries => setInterested(entries.some(entry => entry.isIntersecting)), { root: document.querySelector('.bb-app-frame__scroll'), rootMargin: '25% 0%' });
+    const observer = new IntersectionObserver(entries => setInterested(entries.some(entry => entry.isIntersecting)), { root: document.querySelector('.bb-app-frame__scroll'), rootMargin: margin + '% 0%' });
     observer.observe(element); return () => observer.disconnect();
-  }, []);
+  }, [margin]);
   const needsVideoFacts = item.kind === 'video' && facts.duration === undefined;
   useEffect(() => {
     if (!interested || !source || facts.error || item.kind === 'video' && !needsVideoFacts) return;
-    const bounds = container.current?.getBoundingClientRect();
-    const viewport = document.querySelector('.bb-app-frame__scroll')?.getBoundingClientRect();
-    const priority = bounds && viewport ? Math.max(0, viewport.top - bounds.bottom, bounds.top - viewport.bottom) : 0;
+    const priority = () => {
+      const bounds = container.current?.getBoundingClientRect();
+      const viewport = document.querySelector('.bb-app-frame__scroll')?.getBoundingClientRect();
+      return bounds && viewport ? Math.max(0, viewport.top - bounds.bottom, bounds.top - viewport.bottom) : 0;
+    };
     return queue.request(done => {
       settled.current = done; setAdmitted(true);
       return () => {
@@ -74,10 +78,15 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
         ? <img ref={image} src={source} alt={item.name} crossOrigin="anonymous" decoding="async"
           onLoad={event => {
             const element = event.currentTarget; const done = settled.current;
+            if (image.current !== element || !element.getAttribute('src') || !done) return;
             updateFacts(key, { width: element.naturalWidth, height: element.naturalHeight });
-            void element.decode().catch(() => {}).finally(() => done?.());
+            void element.decode().then(() => {
+              if (image.current === element && settled.current === done) { settled.current = null; done?.(); }
+            }, () => {
+              if (image.current === element && settled.current === done) { settled.current = null; updateFacts(key, { error: 'This image could not be decoded in the current runtime. Refresh to check the folder again.' }); done?.('failure'); }
+            });
           }}
-          onError={() => { updateFacts(key, { error: 'This image is unavailable or unsupported in the current runtime. Refresh to check the folder again.' }); settled.current?.(); }} />
+          onError={event => { const done = settled.current; if (image.current !== event.currentTarget || !event.currentTarget.getAttribute('src')) return; settled.current = null; updateFacts(key, { error: 'This image is unavailable or unsupported in the current runtime. Refresh to check the folder again.' }); done?.('failure'); }} />
         : <span className="media-placeholder">{item.kind === 'video' ? <Video aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}<span>{facts.error ? 'Media unavailable' : item.kind === 'video' ? 'Video' : 'Image'}</span></span>}
       </span>
       <span className="media-caption"><span title={item.name}>{item.name}</span><StatusBadge status={facts.error || item.issue || item.stale ? 'warning' : 'neutral'}>{facts.error || item.issue ? 'Unavailable' : item.stale ? 'Not rechecked' : item.kind === 'image' ? 'Image' : 'Video'}</StatusBadge></span>
@@ -85,20 +94,45 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
     {needsVideoFacts && admitted && source && !facts.error ? <video className="metadata-probe" ref={video} src={source} crossOrigin="anonymous" preload="metadata" aria-hidden="true" tabIndex={-1}
       onLoadedMetadata={event => {
         const element = event.currentTarget;
+        const done = settled.current; if (video.current !== element || !done) return; settled.current = null;
         updateFacts(key, { width: element.videoWidth, height: element.videoHeight, duration: element.duration });
-        element.removeAttribute('src'); element.load(); settled.current?.();
+        element.removeAttribute('src'); element.load(); done();
       }}
-      onError={() => { updateFacts(key, { error: 'This video format or codec is unavailable in the current runtime.' }); settled.current?.(); }} /> : null}
+      onError={event => { const done = settled.current; if (video.current !== event.currentTarget || !event.currentTarget.getAttribute('src')) return; settled.current = null; updateFacts(key, { error: 'This video format or codec is unavailable in the current runtime.' }); done?.('failure'); }} /> : null}
   </article>;
 });
 
-function MediaGrid({ snapshot, items, facts, updateFacts, open, cardSize, saveHeight }: { snapshot: Snapshot; items: MediaItem[]; facts: Record<string, MediaFacts>; updateFacts: (key: string, facts: MediaFacts) => void; open: (id: string) => void; cardSize: ViewSettings['cardSize']; saveHeight: (height: number) => void }) {
+function MediaGrid({ snapshot, items, facts, updateFacts, open, cardSize, saveHeight, policy }: { snapshot: Snapshot; items: MediaItem[]; facts: Record<string, MediaFacts>; updateFacts: (key: string, facts: MediaFacts) => void; open: (id: string) => void; cardSize: ViewSettings['cardSize']; saveHeight: (height: number) => void; policy: LoadingPolicy }) {
   const container = useRef<HTMLElement>(null);
   const [width, setWidth] = useState(0);
   const [heights, setHeights] = useState<Record<string, number>>({});
-  const queue = useMemo(() => createAdmissionQueue(4), []);
+  const queue = useMemo(() => createAdmissionQueue(policy.snapshot().limit, { onStart: () => policy.observe() }), [policy]);
+  const [budget, setBudget] = useState(policy.snapshot());
+  const [visible, setVisible] = useState(true);
   const [stats, setStats] = useState(queue.snapshot());
-  useEffect(() => { const stop = queue.subscribe(() => setStats(queue.snapshot())); return () => { stop(); queue.cancelAll(); }; }, [queue]);
+  useEffect(() => {
+    const stop = queue.subscribe(() => setStats(queue.snapshot()));
+    const unwatch = policy.subscribe(() => { const next = policy.snapshot(); queue.setLimit(next.limit); setBudget(next); });
+    return () => { stop(); unwatch(); queue.cancelAll(); policy.retire(performance.now()); };
+  }, [queue, policy]);
+  useLayoutEffect(() => {
+    const changed = () => { const showing = document.visibilityState === 'visible'; queue.setPaused(!showing); setVisible(showing); if (!showing) policy.retire(performance.now()); };
+    changed(); document.addEventListener('visibilitychange', changed);
+    return () => document.removeEventListener('visibilitychange', changed);
+  }, [queue, policy]);
+  const demand = stats.active > 0 || stats.pending > 0;
+  useEffect(() => {
+    if (!visible || !demand) { policy.evaluate({ ...queue.snapshot(), at: performance.now(), visible }); return; }
+    let frame = 0; let previous: number | null = null; let alive = true;
+    const tick = (at: number) => {
+      if (!alive || document.visibilityState !== 'visible') return;
+      if (previous !== null) policy.frame(at - previous); previous = at;
+      policy.evaluate({ ...queue.snapshot(), at, visible: true });
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => { alive = false; cancelAnimationFrame(frame); };
+  }, [queue, policy, visible, demand]);
   useLayoutEffect(() => {
     const element = container.current; if (!element) return;
     const resize = () => setWidth(element.getBoundingClientRect().width);
@@ -109,8 +143,8 @@ function MediaGrid({ snapshot, items, facts, updateFacts, open, cardSize, saveHe
   const sizing = masonryLayout(width, minimum, []);
   const layout = masonryLayout(width, minimum, items.map(item => heights[keyOf(item)] ?? sizing.width / ((facts[keyOf(item)]?.width ?? 1) / (facts[keyOf(item)]?.height ?? 1)) + 48));
   useLayoutEffect(() => saveHeight(layout.height), [layout.height, saveHeight]);
-  return <section className="media-grid" ref={container} aria-label="Media items" data-active-loads={stats.active} data-peak-loads={stats.peak} style={{ height: layout.height }}>
-    {items.map((item, index) => <MediaCard key={keyOf(item)} snapshot={snapshot} item={item} facts={facts[keyOf(item)] || emptyFacts} updateFacts={updateFacts} open={open} queue={queue} width={layout.width} position={layout.positions[index]} measure={measure} />)}
+  return <section className="media-grid" ref={container} aria-label="Media items" data-active-loads={stats.active} data-peak-loads={stats.peak} data-pending-loads={stats.pending} data-loading-mode={budget.mode} data-loading-limit={budget.limit} data-loading-reason={budget.reason} data-loading-generation={budget.generation} data-cleanup-errors={stats.errors} style={{ height: layout.height }}>
+    {visible ? items.map((item, index) => <MediaCard key={keyOf(item)} snapshot={snapshot} item={item} facts={facts[keyOf(item)] || emptyFacts} updateFacts={updateFacts} open={open} queue={queue} margin={budget.margin} width={layout.width} position={layout.positions[index]} measure={measure} />) : null}
   </section>;
 }
 
@@ -184,6 +218,8 @@ export default function Gallery() {
   const [snapshot, setSnapshot] = useState<Snapshot>(initial);
   const state = useGalleryState();
   const { settings, ready: settingsReady, warning: settingsWarning, activate, change: changeSettings } = state;
+  const loadingPolicy = useMemo(() => createLoadingPolicy('automatic', performance.now()), [snapshot.sessionId]);
+  useLayoutEffect(() => { loadingPolicy.setMode(settings.loadingMode, performance.now()); }, [loadingPolicy, settings.loadingMode]);
   const testPageSize = state.envelope?.testPageSize;
   useLayoutEffect(() => {
     document.documentElement.style.setProperty('--gallery-font-scale', String(settings.fontScale / 100));
@@ -323,6 +359,8 @@ export default function Gallery() {
       <Field id="font-scale" label="Global font size" control={<FormControls.Select value={settings.fontScale} onChange={event => changeSettings({ fontScale: Number(event.target.value) as ViewSettings['fontScale'] })}><option value="100">Default (100%)</option><option value="90">Small (90%)</option><option value="80">Smaller (80%)</option></FormControls.Select>} />
       <Field id="page-size" label="Items per page" control={<FormControls.Select value={settings.pageSize} onChange={event => changeView({ pageSize: Number(event.target.value) })}>{testPageSize === 4 ? <option value="4">4 (native test)</option> : null}<option value="24">24</option><option value="48">48</option><option value="96">96</option></FormControls.Select>} />
       <Field id="card-size" label="Card size" control={<FormControls.Select value={settings.cardSize} onChange={event => changeSettings({ cardSize: event.target.value as ViewSettings['cardSize'] })}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></FormControls.Select>} />
+      <Field id="loading-mode" label="Loading strategy" control={<FormControls.Select value={settings.loadingMode} onChange={event => changeSettings({ loadingMode: event.target.value as ViewSettings['loadingMode'] })}><option value="automatic">Automatic</option><option value="conservative">Conservative</option><option value="standard">Standard</option></FormControls.Select>} />
+      <p className="muted">Automatic adapts loading work during this folder session. Conservative and Standard keep fixed limits without changing items per page.</p>
       <Field id="scroll-indicator" label="Scroll indicator" control={<FormControls.Select value={settings.scrollIndicator} onChange={event => changeSettings({ scrollIndicator: event.target.value as ViewSettings['scrollIndicator'] })}><option value="auto">While scrolling</option><option value="always">Always visible</option></FormControls.Select>} />
       <p className="muted">Each explicit change saves to the selected destination. Gallery refresh is manual.</p>
     </section> : null}
@@ -333,7 +371,7 @@ export default function Gallery() {
     {snapshot.issues.length ? <div role="status" className="media-error">{snapshot.issues.map((issue, i) => <p key={issue + '/' + i}>{issue}</p>)}</div> : null}
     {notice ? <p role="status">{notice}</p> : null}
     {snapshot.sessionId ? <nav className="collection-navigation" aria-label="Gallery pages"><p className="collection-count" role="status">{paged.start}-{paged.end} of {items.length} / {snapshot.items.length} discovered ({images} images, {snapshot.items.length - images} videos)</p><Button variant="ghost" disabled={paged.page <= 1} onClick={() => goPage(paged.page - 1)}>Previous page</Button><Field id="page-jump" label="Page" layout="inline" control={<FormControls.TextInput type="number" min={1} max={paged.pages} value={pageDraft} onChange={event => setPageDraft(event.target.value)} onBlur={() => goPage(Number(pageDraft))} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); goPage(Number(pageDraft)); } }} />} /><span>of {paged.pages}</span><Button variant="ghost" disabled={paged.page >= paged.pages} onClick={() => goPage(paged.page + 1)}>Next page</Button></nav> : null}
-    {selectedItem ? <div className="gallery-placeholder" aria-hidden="true" style={{ height: gridHeight.current }} /> : items.length ? <MediaGrid key={snapshot.sessionId + '/' + paged.page + '/' + settings.pageSize + '/' + settings.filter + '/' + settings.sort + '/' + settings.direction} snapshot={snapshot} items={paged.items} facts={facts} updateFacts={updateFacts} open={open} cardSize={settings.cardSize} saveHeight={saveHeight} />
+    {selectedItem ? <div className="gallery-placeholder" aria-hidden="true" style={{ height: gridHeight.current }} /> : items.length ? <MediaGrid key={snapshot.sessionId + '/' + paged.page + '/' + settings.pageSize + '/' + settings.filter + '/' + settings.sort + '/' + settings.direction} snapshot={snapshot} items={paged.items} facts={facts} updateFacts={updateFacts} open={open} cardSize={settings.cardSize} saveHeight={saveHeight} policy={loadingPolicy} />
       : <EmptyState id="gallery-empty" heading={scanning ? 'Finding media' : snapshot.status === 'cancelled' ? 'Discovery cancelled' : snapshot.status === 'failed' ? 'Discovery failed' : snapshot.status === 'unavailable' ? 'Directory unavailable' : !snapshot.sessionId ? 'Open a media directory' : settings.filter !== 'all' && snapshot.items.length ? 'No media match this filter' : 'No media found'} description={snapshot.status === 'unavailable' ? 'Retry the folder explicitly when available, or choose its current location.' : snapshot.status === 'cancelled' ? 'Available observations are retained. Refresh to check the folder again.' : snapshot.status === 'partial' || snapshot.status === 'failed' ? 'Discovery is incomplete. Retry explicitly or choose another folder.' : !snapshot.sessionId ? 'Choose a directory to browse its images and videos.' : settings.filter !== 'all' && snapshot.items.length ? 'Choose All media to see the current collection.' : 'Readable image and video files in this directory appear here. Use Refresh to check for changes.'} />}
     <footer className="app-footer">A ShruggieTech project</footer>
     <ScrollIndicator mode={settings.scrollIndicator} contentKey={snapshot.sessionId + '/' + snapshot.revision + '/' + paged.page + '/' + String(Boolean(selectedItem))} />

@@ -14,7 +14,7 @@
 
 ## Current user preferences
 
-The flat UTF-8 settings.json remains compatible with earlier builds. Its version is 0.0.0 and formatVersion is 1. The user file is in Tauri's app_config_dir for tech.shruggie.local-media-gallery: Windows uses Roaming AppData, Linux the user configuration location, and macOS Application Support. No user file is created until an explicit user-default change. Legacy omission of fontScale means 100 and omission of summaryFields means an empty selection, without rewriting the file. Compatible unknown properties survive saves.
+The flat UTF-8 settings.json remains compatible with earlier builds. Its version is 0.0.0 and formatVersion is 1. The user file is in Tauri's app_config_dir for tech.shruggie.local-media-gallery: Windows uses Roaming AppData, Linux the user configuration location, and macOS Application Support. No user file is created until an explicit user-default change. Legacy omission of fontScale means 100 and omission of summaryFields means an empty selection and omission of loadingMode means automatic, without rewriting the file. Compatible unknown properties survive saves.
 
 | Field | Values | Default |
 | --- | --- | --- |
@@ -25,6 +25,7 @@ The flat UTF-8 settings.json remains compatible with earlier builds. Its version
 | scrollIndicator | auto, always | auto |
 | metadataExpanded | Boolean | false |
 | summaryFields | Up to 32 relative source-role/typed field-address choices | [] |
+| loadingMode | automatic, conservative, standard | automatic |
 | filter | all, image, video | all |
 | sort | name, modified, size | name |
 | direction | asc, desc | asc |
@@ -32,6 +33,8 @@ The flat UTF-8 settings.json remains compatible with earlier builds. Its version
 Font scale changes app text, including controls, filenames and focused information. Media sizes, card geometry and minimum hit areas retain their geometry; captions can reflow. Platform dialogs and built-in media controls retain platform styling. The private native test build may elect page size 4; ordinary builds and public schemas reject it.
 
 Summary choices follow [metadata inspection](metadata-and-sidecars.md#inspection-and-field-inclusion). An empty array is deliberate intent, while omission inherits. The complete array is one ordinary field; source provenance, removal and every save destination use the same resolver. Invalid addresses/duplicate choices or unsupported limits reject the write without replacing prior bytes.
+
+Loading strategy changes preparation admission and near-viewport interest without changing items per page, selection or focused playback. Automatic calibrates within the current native root session; page/filter/sort and viewer transitions retain its effective tier while retiring obsolete observations. Conservative and Standard use fixed limits. Only loadingMode is intentional portable state; timings, frame gaps, effective limits and failure samples never persist. A recipient or new root session starts fresh. See [loading policy](thumbnails-and-performance.md#adaptive-loading).
 
 ## Resolution and persistence
 
@@ -85,7 +88,7 @@ Forget and Clear directory history are idempotent database-row operations. They 
 
 **CS-06:** Invalid stored data is reported and preserved. Missing stores are initialized only when owned by this application. Existing zero-byte, foreign, corrupt or future-version databases are not silently recreated, renamed or downgraded. The supported database has application_id 0x4c4d4701 and user_version 1. Reads validate identity, schema and accessed rows; this is not a whole-database integrity audit. No historical database migration is needed for the first schema; unsupported versions require an explicit future migration.
 
-SQLite uses rollback journaling, parameterized statements, short immediate transactions and a 250ms busy timeout. Schema checks run read-only before writing and again in the transaction. Conditional row revisions prevent one instance overwriting another's remembered choices; merely opening a folder preserves the choices revision. Store contention falls back to usable temporary choices with a warning.
+SQLite uses rollback journaling, parameterized statements, short immediate transactions and a 250 ms busy timeout. Schema checks run read-only before writing and again in the transaction. Conditional row revisions prevent one instance overwriting another's remembered choices; merely opening a folder preserves the choices revision. Store contention falls back to usable temporary choices with a warning.
 
 Settings writes are bounded to one MiB. User and portable saves coordinate cooperating instances, compare the loaded bytes and replace a synchronized complete temporary document. Failures before replacement preserve the prior bytes. Interruption may leave the valid prior document or the fully committed replacement, never an intentionally partial document. An editor ignoring the lock can race the final comparison and rename; this is not a filesystem-wide compare-and-swap guarantee. Root retirement is serialized with bounded state operations; retired-session writes are rejected.
 

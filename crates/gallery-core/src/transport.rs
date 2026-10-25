@@ -8,11 +8,7 @@ use axum::{
     routing::get,
 };
 use futures_util::StreamExt;
-use std::sync::Arc;
-use tokio::{
-    io::{AsyncReadExt, AsyncSeekExt},
-    sync::Semaphore,
-};
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 /// (offset, length, partial). A zero-byte whole response is valid; a range is not.
@@ -49,16 +45,11 @@ pub fn byte_range(value: Option<&str>, size: u64) -> Result<(u64, u64, bool), &'
 struct MediaState {
     engine: Engine,
     host: String,
-    permits: Arc<Semaphore>,
 }
 pub fn media_router(engine: Engine, host: String) -> Router {
     Router::new()
         .route("/media/{session}/{item}/{revision}", get(media))
-        .with_state(MediaState {
-            engine,
-            host,
-            permits: Arc::new(Semaphore::new(32)),
-        })
+        .with_state(MediaState { engine, host })
 }
 pub async fn serve_media(engine: Engine) -> std::io::Result<()> {
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).await?;
@@ -102,7 +93,13 @@ async fn media(
     if headers.contains_key("origin") && origin.is_none_or(|o| !allowed_origin(o)) {
         return error(StatusCode::FORBIDDEN);
     }
-    let Ok(permit) = state.permits.try_acquire_owned() else {
+    let Ok(permit) = state
+        .engine
+        .inner
+        .media_admission
+        .clone()
+        .try_acquire_owned()
+    else {
         return error(StatusCode::SERVICE_UNAVAILABLE);
     };
     let opened =

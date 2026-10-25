@@ -15,6 +15,7 @@ const ownedSchema=JSON.parse(await readFile(path.join(root, 'schemas/v0.0.0/loca
 const ownedAjv=new Ajv({strict:true}).addKeyword('x-release-version');
 const validate=ownedAjv.compile(ownedSchema);
 const validateMetadata=ownedAjv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/metadataResult'});
+const validateSettings=ownedAjv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/settingsEnvelope'});
 let settingsDirectory = await mkdtemp(path.join(root, '.local/native-settings-'));
 let historyDirectory = await mkdtemp(path.join(root, '.local/native-history-'));
 let settingsFile = path.join(settingsDirectory, 'settings.json');
@@ -665,6 +666,85 @@ try {
     for(const [name,text]of metadataSources)assert.equal(await readFile(path.join(metadataRoot,name),'utf8'),text,'Inspection preserves '+name);
     for(const [from,to]of [['clip silent.mp4','clip.mp4'],['image2.jpg','photo.jpg'],['image2.jpg','photo.png']])assert.deepEqual(await readFile(path.join(metadataRoot,to)),await readFile(path.join(fixture.directory,from)));
     assert.deepEqual(JSON.parse(await readFile(metadataSettings)).futureEnvelope,{keep:true});
+    await unchanged();
+  });
+  const loadingRoot=await mkdtemp(path.join(root,'.local/loading-雪-'));
+  await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(loadingRoot,'image2.jpg'));
+  await copyFile(path.join(fixture.directory,'clip silent.mp4'),path.join(loadingRoot,'clip.mp4'));
+  await writeFile(path.join(loadingRoot,'settings.json'),JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{loadingMode:'automatic'},futureEnvelope:{keep:true}})+'\n');
+  const loadingSettings=path.join(loadingRoot,'settings.json');
+  const holdDecodes=()=>js('window.__s011Decode=HTMLImageElement.prototype.decode;window.__s011Held=[];HTMLImageElement.prototype.decode=function(){const element=this;return new Promise((resolve,reject)=>window.__s011Held.push(()=>window.__s011Decode.call(element).then(resolve,reject)));};return true;');
+  const releaseDecodes=()=>js('HTMLImageElement.prototype.decode=window.__s011Decode;for(const release of window.__s011Held.splice(0))release();return true;');
+  await test('loading strategy keyboard control and all existing persistence destinations retain deliberate intent',async()=>{
+    await openSettled(loadingRoot);await visible('document.querySelectorAll(".media-card").length===2');
+    if(await js('return !document.getElementById("loading-mode")'))await click('Settings');
+    await select('save-destination','session');
+    await js('document.getElementById("loading-mode").focus();return true;');await input('keys',['-Keys','{HOME}{DOWN}']);
+    await visible('document.getElementById("loading-mode").value==="conservative"');
+    const page=await js('return document.getElementById("page-jump").value');
+    for(const [target,mode] of [['user','conservative'],['session','standard'],['remembered','automatic'],['portable','conservative']]) {
+      await select('save-destination',target);await select('loading-mode',mode);
+      await until(async()=>(await currentState()).layers[target].loadingMode===mode,'Loading preference destination '+target);
+      await visible('document.querySelector(".media-grid")?.dataset.loadingMode===arguments[0]'.replace('arguments[0]',JSON.stringify(mode)));
+      assert.equal(await js('return document.getElementById("page-jump").value'),page);
+    }
+    await select('save-destination','portable');await select('loading-mode','automatic');
+    await until(async()=>JSON.parse(await readFile(loadingSettings)).choices.loadingMode==='automatic','Portable automatic intent');
+    const saved=JSON.parse(await readFile(loadingSettings));assert.deepEqual(saved.futureEnvelope,{keep:true});
+    assert.equal(/latency|sampleCount|frameCount|concurrency|generation/.test(JSON.stringify(saved)),false,'Machine observations never persist');
+    const before=await readFile(loadingSettings);const state=await currentState();
+    const ordinary={...state};delete ordinary.testPageSize;
+    assert.ok(validateSettings(ordinary),JSON.stringify(validateSettings.errors));
+    const rejected=await js('try{await window.__TAURI_INTERNALS__.invoke("save_settings",{request:{sessionId:arguments[0],expectedRevision:arguments[1],destination:"portable",patch:{loadingMode:"fast"},remove:null,clear:false}});return false;}catch{return true;}',[state.sessionId,state.revision]);
+    assert.equal(rejected,true);assert.deepEqual(await readFile(loadingSettings),before);
+  });
+  await test('native pressure, hidden retirement and mode changes preserve sources, page and healthy focused playback',async()=>{
+    await holdDecodes();
+    try {
+      await select('media-filter','video');await select('media-filter','all');
+      await visible('window.__s011Held.length>0');
+      await visible('Number(document.querySelector(".media-grid")?.dataset.loadingLimit)===1');
+      await js('Object.defineProperty(document,"visibilityState",{configurable:true,get:()=>"hidden"});document.dispatchEvent(new Event("visibilitychange"));return true;');
+      await visible('document.querySelectorAll(".media-grid img[src],.media-grid video[src]").length===0');
+      await releaseDecodes();
+      await js('delete document.visibilityState;document.dispatchEvent(new Event("visibilitychange"));return true;');
+      await visible('[...document.querySelectorAll(".media-grid img")].some(i=>i.naturalWidth>0)');
+      assert.equal(await js('return Number(document.querySelector(".media-grid").dataset.loadingLimit)'),1,'Hidden period does not reset or promote calibration');
+      assert.equal(await js('return [...document.querySelectorAll(".media-card")].some(c=>c.textContent.includes("Media unavailable"))'),false,'Cancelled decode rejection must not poison usable media');
+    } finally {
+      await js('if(window.__s011Decode)HTMLImageElement.prototype.decode=window.__s011Decode;delete document.visibilityState;document.dispatchEvent(new Event("visibilitychange"));for(const release of window.__s011Held??[])release();return true;');
+    }
+    await select('loading-mode','standard');await visible('document.querySelector(".media-grid")?.dataset.loadingLimit==="4"');
+    await open('clip.mp4');await visible('document.querySelector("dialog video")?.readyState>=1');
+    await js('const v=document.querySelector("dialog video");window.__s011Video=v;window.__s011Emptied=0;v.addEventListener("emptied",()=>window.__s011Emptied++);v.loop=true;[...document.querySelectorAll("dialog button")].find(b=>b.textContent.trim()==="Play").focus();return true;');
+    await input('keys',['-Keys','{ENTER}']);await visible('document.querySelector("dialog video").currentTime>0.1');
+    await select('loading-mode','conservative');
+    await until(async()=>(await currentState()).settings.loadingMode==='conservative','Preference while focused');
+    assert.equal(await js('return document.querySelector("dialog video")===window.__s011Video && !window.__s011Video.paused && window.__s011Emptied===0'),true);
+    assert.equal(await js('return document.querySelectorAll(".media-grid img[src],.media-grid video[src],.metadata-probe").length'),0);
+    const resources=await js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"s011_resource_snapshot",config:null})');
+    assert.equal(resources.mediaResponsesCap,32);assert.equal(resources.metadataCap,1);assert.equal(resources.discoveryCap,1);
+    assert.ok(resources.mediaResponsesActive<=32&&resources.metadataActive<=1&&resources.discoveryActive<=1);
+    await click('Close viewer');await select('loading-mode','automatic');
+    await until(async()=>JSON.parse(await readFile(loadingSettings)).choices.loadingMode==='automatic','Automatic restored for recipient');
+    await holdDecodes();await select('media-filter','video');await select('media-filter','all');
+    await visible('window.__s011Held.length>0');await visible('document.querySelector(".media-grid")?.dataset.loadingLimit==="2"');
+    await releaseDecodes();
+  });
+  await test('relocated portable automatic intent starts fresh recipient calibration and retains media bytes',async()=>{
+    const originalSettings=settingsDirectory;const originalHistory=historyDirectory;
+    await stop();settingsDirectory=await mkdtemp(path.join(root,'.local/loading-fresh-user-'));settingsFile=path.join(settingsDirectory,'settings.json');historyDirectory=await mkdtemp(path.join(root,'.local/loading-fresh-history-'));
+    const relocated=loadingRoot+'-relocated';await mkdir(relocated);
+    for(const name of ['image2.jpg','clip.mp4','settings.json'])await copyFile(path.join(loadingRoot,name),path.join(relocated,name));
+    child=launch([relocated]);await connect();await visible('document.querySelectorAll(".media-card").length===2');
+    await until(async()=>(await currentState()).sources.loadingMode==='portable','Recipient portable loading intent');
+    assert.equal((await currentState()).settings.loadingMode,'automatic');
+    await visible('document.querySelector(".media-grid")?.dataset.loadingMode==="automatic" && document.querySelector(".media-grid").dataset.loadingLimit==="4"');
+    const portable=JSON.parse(await readFile(path.join(relocated,'settings.json')));assert.equal(portable.choices.loadingMode,'automatic');
+    assert.equal(/latency|sampleCount|frameCount|concurrency|generation/.test(JSON.stringify(portable)),false);
+    for(const [from,to]of [['image2.jpg','image2.jpg'],['clip silent.mp4','clip.mp4']])for(const target of [loadingRoot,relocated])assert.deepEqual(await readFile(path.join(target,to)),await readFile(path.join(fixture.directory,from)));
+    await stop();settingsDirectory=originalSettings;settingsFile=path.join(settingsDirectory,'settings.json');historyDirectory=originalHistory;
+    child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
     await unchanged();
   });
   await test('no-argument startup is explicit selection; unavailable startup is recoverable', async () => {

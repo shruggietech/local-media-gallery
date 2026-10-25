@@ -44,7 +44,6 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 | U-07 | Disposable cache locations and future state migration/backup policies | [Configuration and state](configuration-and-state.md#open-decisions) |
 | U-08 | Executable/subcommand names, exact exit codes, IPC layouts, identifiers and application-schema dialect | [Interfaces and contracts](interfaces-and-contracts.md#open-decisions) |
 | U-09 | Thumbnail encoders, video frame selection, portable cache placement and optional media-tool distribution | [Thumbnails and performance](thumbnails-and-performance.md#open-decisions) |
-| U-10 | Benchmark fixtures, reference hardware, time/memory/package budgets and adaptation thresholds | [Thumbnails and performance](thumbnails-and-performance.md#open-decisions) |
 | U-11 | Diagnostic fields, export/redaction defaults, log retention and exceptional recovery actions | [Security and reliability](security-and-reliability.md#open-decisions) |
 | U-13 | Exact initial editing actions and their confirmation, undo and write behavior | [Overview](overview.md#open-decisions) |
 
@@ -54,6 +53,7 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 | --- | --- | --- |
 | U-03 | Direct-file traversal, root identity and explicit recovery, with mounted/native qualification boundaries | [Gallery lifecycle](gallery-lifecycle.md#open-decisions) |
 | U-06 | Attributed direct sidecar/index association, ordered duplicate members and explicit encoding policy | [Metadata and sidecars](metadata-and-sidecars.md#open-decisions) |
+| U-10 | Attributable small-fixture measurements, finite adaptive loading and portable manual override; tuning proposals retain evidence limits | [Thumbnails and performance](thumbnails-and-performance.md#measurement-evidence-and-interpretation) |
 | U-12 | Static rendering, local search, version metadata, aliases and explicit archive corrections | [Website and documentation](website-and-documentation.md#rendering-and-snapshot-contract) |
 
 ## Document maintenance

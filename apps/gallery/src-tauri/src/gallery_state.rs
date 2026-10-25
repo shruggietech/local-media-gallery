@@ -609,7 +609,7 @@ mod tests {
     #[test]
     fn every_field_and_precedence_pair_resolves_explicit_defaults_and_omission() {
         let defaults = serde_json::to_value(Settings::default()).unwrap();
-        let alternatives = serde_json::json!({"pageSize":24,"cardSize":"small","fontScale":80,"controlsExpanded":true,"scrollIndicator":"always","metadataExpanded":true,"summaryFields":[{"source":"full-name-json","path":[]}],"filter":"video","sort":"size","direction":"desc"});
+        let alternatives = serde_json::json!({"pageSize":24,"cardSize":"small","fontScale":80,"controlsExpanded":true,"scrollIndicator":"always","metadataExpanded":true,"summaryFields":[{"source":"full-name-json","path":[]}],"loadingMode":"conservative","filter":"video","sort":"size","direction":"desc"});
         let names = ["user", "remembered", "portable", "session"];
         for lower in 0..names.len() {
             for upper in lower + 1..names.len() {
