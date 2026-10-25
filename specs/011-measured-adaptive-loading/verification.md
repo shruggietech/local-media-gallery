@@ -35,3 +35,25 @@ All11steps passed on sourcedc2f1fee30b67e38888605e00c2fdecec14ac01bd286249c6d952
 All11 elected steps PASS, terminal 2026-10-25T13:26:30.249Z; preparation 28.380s, qualification 149.415s, combined 177.795s. Source 893d4a98a2f25ef9ab7f14768cb1a62d4c151c28099cab1feee01f5a5ebcb322, 981 files; native rendered and measured binary 2de9e02e7503154a1994771f4210bf222550b7dbb21eee7faf22dced71233716. Receipt .local/s011-final-qualified.json. All70 Node tests,33 default core tests,35 shell/state tests and31 Windows WebView groups passed, plus the earlier35-test discovery-tests core suite including actual resource lifetimes. Website rendering/accessibility, normal artifact hook exclusion and source/brand provenance passed. Both final measurements have six complete process endpoints with before/after creation-identity checks.
 
 Target660s and hard900s satisfied,15s reserve preserved. Receipt-only tasks.md,verification.md,measurements.md are excluded from the source digest; all normative code/tests/spec/research/contracts/docs remain hashed. See measurements.md for paired observations and platform/scale/cache/packaging limits.
+
+## Official PR publication (2026-10-25)
+
+Commit930e32e9053af1a6badd2cfabbdb7fc786440f92 pushed to codex/011-measured-adaptive-loading; official non-draft PR#50 closes #16/#17 on owner merge. Both Project8 items are PR review,Slice S011; issues remain open. PR-open automatic Codex review is round1; at most one additional requested round is authorized. Hosted Qualification run40198238185 is in progress. No merge/tag/release performed.
+
+## External review round1 (2026-10-25)
+
+Codex PR-open review completed at 2026-10-25T13:36:46Z on930e32e9053af1a6badd2cfabbdb7fc786440f92, has_any_findings=false, has_unresolved_findings=false. Summary issuecomment6398306327. No second review requested because round1 found no issues. Individual review thread audit follows in final handoff.
+
+## Hosted acceptance and delivery receipt (2026-10-25)
+
+Qualification run40198238185 PASS on PR head930e32e9053af1a6badd2cfabbdb7fc786440f92 and synthetic merge cc5a04668a821eee737f2fba0d69214f928404e2. Downloaded all three evidence artifacts and asserted result/step success, identical source893d4a98a2f25ef9ab7f14768cb1a62d4c151c28099cab1feee01f5a5ebcb322,981files and exact synthetic revision.
+
+| Hosted scope | Preparation s | Qualification s | Combined s | Terminal UTC |
+| --- | ---: | ---: | ---: | --- |
+| repository | 23.914 | 1.856 | 25.770 | 2026-10-25T13:35:08.770Z |
+| website | 74.628 | 56.312 | 130.940 | 2026-10-25T13:36:53.940Z |
+| product-windows | 351.663 | 76.324 | 427.987 | 2026-10-25T13:41:57.488Z |
+
+Deploy-pages correctly skipped on this ordinary PR. Hosted build/unit/browser evidence is separate from the31 local actual Windows WebView groups and three native measurement trials. Review summary completed with no findings and Codex thumbs-up at2026-10-25T13:36:48Z; zero individual inline threads and zero unresolved findings. One review round used, no manual retrigger.
+
+This delivery commit changes only excluded tasks/verification receipts. Before owner handoff, recheck unchanged qualified source, terminal final-head CI, exact hosted source/revision receipts, review threads, PR/issue/project states and clean local worktree. The PR body retains immutable final-head CI evidence without another receipt-only commit cycle. Owner final review/squash merge/remote branch deletion remain pending; no release or merge performed.

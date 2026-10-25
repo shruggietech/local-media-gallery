@@ -47,8 +47,8 @@
 - [x] T020 Update authoritative docs/v0.0.0/, schema examples and chronological CHANGELOG.md; settle U-10 and distinguish every resource/evidence class (FR-011).
 - [x] T021 Elect final measurement in scripts/qualify.mjs and run full repository/site/product/native/normal-artifact/integrity qualification; bind source/binary and separate timings in specs/011-measured-adaptive-loading/verification.md (FR-012, SC-001..005).
 - [x] T022 Compare final and baseline native evidence and record actual metrics, limits and footprint statuses in specs/011-measured-adaptive-loading/measurements.md (FR-001/002/003/004, SC-001).
-- [ ] T023 Commit/push official PR closing #16/#17 and update Project state, recording evidence in specs/011-measured-adaptive-loading/verification.md (FR-012).
-- [ ] T024 Resolve individual CI/review findings within at most two requested rounds, verify final head and notify owner for final review/merge in specs/011-measured-adaptive-loading/verification.md (FR-012, SC-005).
+- [x] T023 Commit/push official PR closing #16/#17 and update Project state, recording evidence in specs/011-measured-adaptive-loading/verification.md (FR-012).
+- [x] T024 Resolve individual CI/review findings within at most two requested rounds, verify final head and notify owner for final review/merge in specs/011-measured-adaptive-loading/verification.md (FR-012, SC-005).
 
 ## Dependencies and execution order
 
