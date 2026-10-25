@@ -89,3 +89,9 @@ Return to the [index](index.md) or consult the [glossary](glossary.md).
 ## Persistent state qualification
 
 Native tests exercise sparse precedence, explicit defaults/false, compatible unknown values, competing revisions, invalid and oversized portable documents, linked destinations, exact 90-day expiry, clock rollback, the 20-entry recent limit and bounded cleanup. Rendered Windows acceptance exercises independent folder choices, portable conflict warnings, inheritance removal, row-only forgetting, unavailable recent folders and relocation into a fresh user/history profile. Original media bytes are compared. Normal builds exclude private history/settings test redirection. Linux/macOS runtime paths and very large history stores require separate platform/scale qualification. These functional fixtures do not establish power-loss durability or a filesystem-wide compare-and-swap against arbitrary editors.
+
+## Requested discovery and storage qualification
+
+Small deterministic barriers exercise intermediate publication, cancellation during running/queued work, replacement/close retirement, partial iterator results, explicit unavailable/internal-failure recovery and globally ordered snapshots. Rendered Windows checks cover visible progress with collapsed controls, keyboard/viewer cancellation, focused media-node continuity and retained preferences/source bytes. Pure collection tests cover full sorting/filtering and stable page anchors. Ordinary artifacts exclude discovery control commands and failure/delay hooks.
+
+Local Windows native paths and close-then-relocate behavior are distinct from simulated root/iterator failures. Physical removable disconnection, real network outage/provider identity behavior, native Linux/macOS runtime and large collections remain separately unqualified. No simulation or successful build substitutes for those observations. See [the traversal and storage policy](gallery-lifecycle.md#open-decisions).

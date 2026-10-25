@@ -4,9 +4,13 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Portable presentation and machine-local history updated on 2026-10-24; product packages remain unpublished.
+Requested discovery, recovery, portable presentation and machine-local history updated on 2026-10-24; product packages remain unpublished.
 
 ### Added
+
+- Incremental requested discovery, visible progress and gallery/viewer cancellation, retained incomplete observations, explicit folder recovery, globally ordered snapshots and stable page anchors.
+- Discovery decisions (2026-10-24): one native worker and one newest pending request, handle-derived root/resource identity, direct-file traversal with explicit mounted-storage qualification boundaries, and normal-build exclusion of deterministic discovery barriers/failpoints.
+- Runtime snapshot consumers now require sequence/discovery and item stale attribution. These unreleased baseline contract additions preserve product/schema/documentation version 0.0.0.
 
 - Sparse portable gallery settings, machine-local remembered folder choices and recents, one precedence resolver, visible save destinations, field provenance, inheritance removal and temporary reset.
 - Bundled SQLite history schema 1 with lossless native paths, 90-day activity expiry, 20 recent folders, row-only forgetting and conservative unsupported-store fallback.
@@ -36,6 +40,8 @@ Portable presentation and machine-local history updated on 2026-10-24; product p
 - Internal Spec Kit specification for the first working gallery, proposed behavior defaults and small-fixture functional acceptance coverage.
 
 ### Changed
+
+- Progress publication and profile reads no longer hold discovery control authority. A separate state commit gate preserves write-before-retirement ordering while Cancel, snapshots and new requests remain responsive; Close waits asynchronously only for an admitted write.
 
 - Reduced fine-pointer desktop buttons, inputs and selects to compact 32px controls with quieter action borders after owner feedback; coarse or mixed pointer capability retains at least 44px targets. Long folder labels truncate within the 48px toolbar; a full-width 12px media canvas and quieter ghost actions leave more room for content.
 - Directory discovery now runs only when opening a gallery or selecting Refresh. Removed automatic watchers, periodic reconciliation and collection-snapshot polling. Future automatic refresh remains an advanced feature that defaults off.

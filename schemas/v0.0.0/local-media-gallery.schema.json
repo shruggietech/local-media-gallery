@@ -7,6 +7,8 @@
   "additionalProperties": false,
   "required": [
     "version",
+    "sequence",
+    "discovery",
     "sessionId",
     "root",
     "status",
@@ -39,9 +41,12 @@
     "status": {
       "enum": [
         "selection",
+        "opening",
         "scanning",
         "complete",
         "partial",
+        "cancelled",
+        "failed",
         "unavailable"
       ]
     },
@@ -64,6 +69,20 @@
       "items": {
         "type": "string"
       }
+    },
+    "sequence": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "discovery": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/discovery"
+        }
+      ]
     }
   },
   "$defs": {
@@ -79,7 +98,8 @@
         "mime",
         "size",
         "modifiedMs",
-        "issue"
+        "issue",
+        "stale"
       ],
       "properties": {
         "id": {
@@ -132,6 +152,10 @@
             "string",
             "null"
           ]
+        },
+        "stale": {
+          "type": "boolean",
+          "description": "Prior observation not yet confirmed by the latest incomplete discovery."
         }
       }
     },
@@ -642,6 +666,67 @@
               "type": "string"
             }
           }
+        }
+      }
+    },
+    "discovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "generation",
+        "kind",
+        "phase",
+        "entriesSeen",
+        "mediaSeen",
+        "requestedRoot",
+        "message"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "generation": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "kind": {
+          "enum": [
+            "open",
+            "refresh"
+          ]
+        },
+        "phase": {
+          "enum": [
+            "opening",
+            "scanning",
+            "complete",
+            "partial",
+            "cancelled",
+            "failed",
+            "unavailable"
+          ]
+        },
+        "entriesSeen": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "mediaSeen": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "requestedRoot": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     }

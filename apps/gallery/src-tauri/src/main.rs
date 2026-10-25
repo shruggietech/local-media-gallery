@@ -1,23 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+mod discovery;
 mod gallery_state;
 mod history;
 mod portable;
 mod settings;
+use discovery::DiscoveryWorker;
 use gallery_core::{Engine, GalleryError, Snapshot};
 use gallery_state::{Envelope, GalleryState};
 use settings::SettingsStore;
 use std::{
     ffi::OsString,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
 use tauri::{Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 struct Runtime {
     engine: Engine,
-    startup_error: Mutex<Option<String>>,
+    initial_root: Mutex<Option<PathBuf>>,
+    worker: OnceLock<DiscoveryWorker>,
     transport_error: Mutex<Option<String>>,
     publication: Mutex<()>,
 }
@@ -70,12 +73,6 @@ fn main_window(window: &WebviewWindow) -> Result<(), GalleryError> {
 }
 fn current(runtime: &Runtime) -> Snapshot {
     let mut snapshot = runtime.engine.snapshot();
-    if let Some(error) = runtime.startup_error.lock().unwrap().as_ref() {
-        snapshot.issues.push(error.clone());
-        if snapshot.session_id.is_none() {
-            snapshot.status = "unavailable".into();
-        }
-    }
     if let Some(error) = runtime.transport_error.lock().unwrap().as_ref() {
         snapshot.issues.push(error.clone());
         snapshot.status = if snapshot.session_id.is_some() {
@@ -167,21 +164,17 @@ async fn reopen_recent(
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
     let store = Arc::clone(store.inner());
-    let engine = runtime.engine.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let path = store.recent_path(&id)?;
-        let snapshot = engine.open(&path)?;
-        store.load(snapshot.session_id.as_deref())?;
-        Ok::<(), GalleryError>(())
-    })
-    .await
-    .map_err(|_| GalleryError::new("internal", "The recent directory could not open."))??;
-    *runtime.startup_error.lock().unwrap() = None;
-    Ok(publish(&app, &runtime))
+    let path = tauri::async_runtime::spawn_blocking(move || store.recent_path(&id))
+        .await
+        .map_err(|_| GalleryError::new("internal", "The recent directory could not open."))??;
+    enqueue_open(&app, &runtime, path)
 }
 #[tauri::command]
 fn startup(window: WebviewWindow, runtime: State<Runtime>) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
+    if let Some(path) = runtime.initial_root.lock().unwrap().take() {
+        return enqueue_open(&window.app_handle().clone(), &runtime, path);
+    }
     Ok(current(&runtime))
 }
 #[tauri::command]
@@ -198,17 +191,8 @@ async fn open_gallery(
     app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
-    let engine = runtime.engine.clone();
-    let store = Arc::clone(store.inner());
-    tauri::async_runtime::spawn_blocking(move || {
-        let snapshot = engine.open(&PathBuf::from(path))?;
-        store.load(snapshot.session_id.as_deref())?;
-        Ok::<(), GalleryError>(())
-    })
-    .await
-    .map_err(|_| GalleryError::new("internal", "Directory selection failed."))??;
-    *runtime.startup_error.lock().unwrap() = None;
-    Ok(publish(&app, &runtime))
+    let _ = store;
+    enqueue_open(&app, &runtime, PathBuf::from(path))
 }
 #[tauri::command]
 async fn choose_directory(
@@ -232,17 +216,8 @@ async fn choose_directory(
     let path = selection
         .into_path()
         .map_err(|_| GalleryError::new("invalid_root", "Choose a local directory."))?;
-    let engine = runtime.engine.clone();
-    let store = Arc::clone(store.inner());
-    tauri::async_runtime::spawn_blocking(move || {
-        let snapshot = engine.open(&path)?;
-        store.load(snapshot.session_id.as_deref())?;
-        Ok::<(), GalleryError>(())
-    })
-    .await
-    .map_err(|_| GalleryError::new("internal", "Directory selection failed."))??;
-    *runtime.startup_error.lock().unwrap() = None;
-    Ok(Some(publish(&app, &runtime)))
+    let _ = store;
+    enqueue_open(&app, &runtime, path).map(Some)
 }
 #[tauri::command]
 async fn refresh(
@@ -252,22 +227,79 @@ async fn refresh(
     app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
-    let engine = runtime.engine.clone();
-    tauri::async_runtime::spawn_blocking(move || engine.refresh(&session_id))
-        .await
-        .map_err(|_| GalleryError::new("internal", "Refresh failed."))??;
+    let request = runtime.engine.begin_refresh(&session_id)?;
+    runtime
+        .worker
+        .get()
+        .ok_or_else(|| GalleryError::new("internal", "Discovery is unavailable."))?
+        .submit(request);
     Ok(publish(&app, &runtime))
 }
 #[tauri::command]
-fn close_gallery(
+async fn close_gallery(
     window: WebviewWindow,
-    runtime: State<Runtime>,
+    runtime: State<'_, Runtime>,
     session_id: String,
     app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
-    runtime.engine.close(&session_id)?;
+    let engine = runtime.engine.clone();
+    tauri::async_runtime::spawn_blocking(move || engine.close(&session_id))
+        .await
+        .map_err(|_| GalleryError::new("internal", "Close could not finish."))??;
     Ok(publish(&app, &runtime))
+}
+
+fn enqueue_open(
+    app: &tauri::AppHandle,
+    runtime: &Runtime,
+    path: PathBuf,
+) -> Result<Snapshot, GalleryError> {
+    let worker = runtime
+        .worker
+        .get()
+        .ok_or_else(|| GalleryError::new("internal", "Discovery is unavailable."))?;
+    worker.submit(runtime.engine.begin_open(&path));
+    Ok(publish(app, runtime))
+}
+#[tauri::command]
+fn cancel_discovery(
+    window: WebviewWindow,
+    runtime: State<Runtime>,
+    operation_id: String,
+    app: tauri::AppHandle,
+) -> Result<Snapshot, GalleryError> {
+    main_window(&window)?;
+    runtime.engine.cancel_discovery(&operation_id)?;
+    Ok(publish(&app, &runtime))
+}
+#[cfg(feature = "native-tests")]
+#[tauri::command]
+fn test_discovery_control(
+    window: WebviewWindow,
+    runtime: State<Runtime>,
+    state: State<Arc<GalleryState>>,
+    action: String,
+    config: Option<gallery_core::TestDiscoveryConfig>,
+) -> Result<bool, GalleryError> {
+    main_window(&window)?;
+    if action.starts_with("profile_") {
+        return state.test_profile_read(&action);
+    }
+    match action.as_str() {
+        "arm" => runtime
+            .engine
+            .configure_test_discovery(config.unwrap_or_default()),
+        "release" => runtime.engine.release_test_discovery(),
+        "status" => {}
+        _ => {
+            return Err(GalleryError::new(
+                "invalid_test_action",
+                "Unknown discovery test action.",
+            ));
+        }
+    }
+    Ok(runtime.engine.test_discovery_paused())
 }
 
 fn main() {
@@ -295,29 +327,46 @@ fn main() {
         format!("Local media transport failed: {error}. Restart the application to retry.")
     });
     let listener = transport.ok();
-    let error = initial.and_then(|path| engine.open(&path).err().map(|e| e.message));
     let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
     #[cfg(feature = "native-tests")]
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+    #[cfg(feature = "native-tests")]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        startup,
+        snapshot,
+        load_settings,
+        save_settings,
+        forget_history,
+        reopen_recent,
+        open_gallery,
+        choose_directory,
+        refresh,
+        close_gallery,
+        cancel_discovery,
+        test_discovery_control
+    ]);
+    #[cfg(not(feature = "native-tests"))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        startup,
+        snapshot,
+        load_settings,
+        save_settings,
+        forget_history,
+        reopen_recent,
+        open_gallery,
+        choose_directory,
+        refresh,
+        close_gallery,
+        cancel_discovery
+    ]);
     builder
         .manage(Runtime {
             engine,
-            startup_error: Mutex::new(error),
+            initial_root: Mutex::new(initial),
+            worker: OnceLock::new(),
             transport_error: Mutex::new(transport_error),
             publication: Mutex::new(()),
         })
-        .invoke_handler(tauri::generate_handler![
-            startup,
-            snapshot,
-            load_settings,
-            save_settings,
-            forget_history,
-            reopen_recent,
-            open_gallery,
-            choose_directory,
-            refresh,
-            close_gallery
-        ])
         .setup(move |app| {
             let settings = match app.path().app_config_dir() {
                 Ok(directory) => {
@@ -336,6 +385,12 @@ fn main() {
             let history_path=std::env::var_os("GALLERY_TEST_HISTORY_DIR").map(PathBuf::from).map(|p|p.join("history.sqlite3")).or(history_path);
             let engine=app.state::<Runtime>().engine.clone();
             app.manage(Arc::new(GalleryState::new(engine,settings,history::History::new(history_path,cfg!(feature="native-tests")))));
+            let handle = app.handle().clone();
+            let engine = app.state::<Runtime>().engine.clone();
+            let worker = DiscoveryWorker::start(engine, move || {
+                publish(&handle, &handle.state::<Runtime>());
+            })?;
+            let _ = app.state::<Runtime>().worker.set(worker);
             if let Some(listener) = listener {
                 let engine = app.state::<Runtime>().engine.clone();
                 let handle = app.handle().clone();
@@ -353,7 +408,10 @@ fn main() {
         })
         .on_window_event(|window, event| {
             if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
-                let engine = &window.state::<Runtime>().engine;
+                let runtime = window.state::<Runtime>();
+                runtime.initial_root.lock().unwrap().take();
+                if let Some(worker) = runtime.worker.get() { worker.shutdown(); }
+                let engine = &runtime.engine;
                 if let Some(id) = engine.snapshot().session_id {
                     let _ = engine.close(&id);
                 }

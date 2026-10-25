@@ -7,8 +7,8 @@ import Ajv2020 from 'ajv/dist/2020.js';
 const schema = JSON.parse(await readFile(new URL('../schemas/v0.0.0/local-media-gallery.schema.json', import.meta.url)));
 const validate = new Ajv2020({ strict: true }).addKeyword('x-release-version').compile(schema);
 const snapshot = {
-  version: '0.0.0', sessionId: 'a'.repeat(32), root: 'A gallery', status: 'complete', revision: '1', mediaOrigin: 'http://127.0.0.1:1234', issues: [],
-  items: [{ id: 'b'.repeat(32), revision: 'c'.repeat(32), name: 'photo.jpg', relativePath: 'photo.jpg', kind: 'image', mime: 'image/jpeg', size: '18446744073709551615', modifiedMs: '-1', issue: null }],
+  version: '0.0.0', sequence: '1', discovery: null, sessionId: 'a'.repeat(32), root: 'A gallery', status: 'complete', revision: '1', mediaOrigin: 'http://127.0.0.1:1234', issues: [],
+  items: [{ id: 'b'.repeat(32), revision: 'c'.repeat(32), name: 'photo.jpg', relativePath: 'photo.jpg', kind: 'image', mime: 'image/jpeg', size: '18446744073709551615', modifiedMs: '-1', issue: null, stale: false }],
 };
 test('master snapshot contract preserves exact native integer facts and version identity', () => {
   assert.ok(validate(snapshot), JSON.stringify(validate.errors));
@@ -56,4 +56,11 @@ test('sparse patch and recent contracts reject ambiguous or lossy values',()=>{
   const recent=ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/recentDirectory'});
   assert.equal(recent({id:'opaque',displayPath:'Gallery',lastActivityMs:'9223372036854775807'}),true);
   for(const value of [-1,123,'-1','01','1.5'])assert.equal(recent({id:'opaque',displayPath:'Gallery',lastActivityMs:value}),false);
+});
+
+test('discovery outcomes and observed counters are exact and closed', () => {
+  const discovery = {id:'d'.repeat(32),generation:'9007199254740993',kind:'refresh',phase:'scanning',entriesSeen:'9007199254740993',mediaSeen:'2',requestedRoot:null,message:null};
+  for (const phase of ['opening','scanning','complete','partial','cancelled','failed','unavailable']) assert.equal(validate({...snapshot,status:phase,discovery:{...discovery,phase}}),true,JSON.stringify(validate.errors));
+  for (const changed of [{...discovery,entriesSeen:2},{...discovery,phase:'empty'},{...discovery,total:100}]) assert.equal(validate({...snapshot,discovery:changed}),false);
+  assert.equal(validate({...snapshot,sequence:9007199254740992}),false);
 });

@@ -97,3 +97,6 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 .setting-sources dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--lo-space-2); }
 .recent-folders { padding: 0; list-style: none; }
 .recent-folders li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lo-space-2); overflow-wrap: anywhere; }
+
+.discovery-status { display: flex; align-items: center; flex-wrap: wrap; gap: var(--lo-space-3); margin-block-end: var(--lo-space-3); }
+.discovery-status p { margin: 0; }
