@@ -45,8 +45,8 @@
 - [x] T018 Update authoritative metadata/state/interface/glossary/index and compatibility docs in docs/v0.0.0/ plus CHANGELOG.md (FR-011).
 - [x] T019 Update owned schema/examples and meaningful contract regressions in schemas/v0.0.0/ and tests/contracts.test.mjs (FR-003/007/011).
 - [x] T020 Run full elected repository/site/native/normal-artifact qualification with unchanged input/brand hashes; record exact source and separate timings in specs/010-sidecar-metadata-inspection/verification.md (FR-012, SC-001..005).
-- [ ] T021 Commit/push official PR with #13/#14 closing refs and Project state in specs/010-sidecar-metadata-inspection/verification.md (FR-012).
-- [ ] T022 Resolve individual CI/review findings within at most two rounds, verify final head, and notify owner for final review/merge in specs/010-sidecar-metadata-inspection/verification.md (FR-012).
+- [x] T021 Commit/push official PR with #13/#14 closing refs and Project state in specs/010-sidecar-metadata-inspection/verification.md (FR-012).
+- [x] T022 Resolve individual CI/review findings within at most two rounds, verify final head, and notify owner for final review/merge in specs/010-sidecar-metadata-inspection/verification.md (FR-012).
 
 ## Dependencies and execution order
 
