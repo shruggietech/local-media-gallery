@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import type { LoadingMode } from './loading-policy';
 export interface MediaItem {
   id: string;
   revision: string;
@@ -58,6 +59,7 @@ export interface ViewSettings {
   scrollIndicator: 'auto' | 'always';
   metadataExpanded: boolean;
   summaryFields: SummaryField[];
+  loadingMode: LoadingMode;
   filter: Filter;
   sort: Sort;
   direction: Direction;

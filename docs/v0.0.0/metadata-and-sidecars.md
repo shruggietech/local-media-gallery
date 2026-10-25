@@ -85,6 +85,6 @@ One leading UTF-8 BOM is accepted with an annotation. Invalid UTF-8, UTF-16 and 
 
 ## Open decisions
 
-U-06 association, duplicate-key and encoding choices are defined here. No curated reinterpretation is required for generic inspection. The metadata part of U-08 transport and U-10 parsing/display limits is settled above; command/job interfaces and measured performance/adaptation budgets remain with their owning chapters.
+U-06 association, duplicate-key and encoding choices are defined here. No curated reinterpretation is required for generic inspection. The metadata part of U-08 transport and U-10 parsing/display limits is settled above; command/job interfaces remain with their owning chapter, while [measured loading policy](thumbnails-and-performance.md#adaptive-loading) defines initial adaptation and evidence limits.
 
 See [configuration and state](configuration-and-state.md), the [index](index.md) and the [glossary](glossary.md).

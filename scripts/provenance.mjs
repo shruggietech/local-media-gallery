@@ -7,6 +7,9 @@ import path from 'node:path';
 import { root } from './run.mjs';
 
 export const evidenceExclusions = [
+  'specs/011-measured-adaptive-loading/tasks.md',
+  'specs/011-measured-adaptive-loading/verification.md',
+  'specs/011-measured-adaptive-loading/measurements.md',
   'specs/010-sidecar-metadata-inspection/tasks.md',
   'specs/010-sidecar-metadata-inspection/verification.md',
   'specs/009-responsive-discovery-recovery/tasks.md',

@@ -18,6 +18,7 @@ pub const FIELDS: &[&str] = &[
     "scrollIndicator",
     "metadataExpanded",
     "summaryFields",
+    "loadingMode",
     "filter",
     "sort",
     "direction",
@@ -58,6 +59,15 @@ pub fn validate_patch(
 
 fn default_font_scale() -> u8 {
     100
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LoadingMode {
+    #[default]
+    Automatic,
+    Conservative,
+    Standard,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -164,6 +174,8 @@ pub struct Settings {
     pub metadata_expanded: bool,
     #[serde(default)]
     pub summary_fields: Vec<SummaryField>,
+    #[serde(default)]
+    pub loading_mode: LoadingMode,
     pub filter: Filter,
     pub sort: Sort,
     pub direction: Direction,
@@ -182,6 +194,7 @@ impl Default for Settings {
             scroll_indicator: ScrollIndicator::Auto,
             metadata_expanded: false,
             summary_fields: vec![],
+            loading_mode: LoadingMode::Automatic,
             filter: Filter::All,
             sort: Sort::Name,
             direction: Direction::Asc,
@@ -749,6 +762,65 @@ mod tests {
         let initial = elected.envelope();
         assert_eq!(initial.test_page_size, Some(4));
         assert!(elected.save(value, &initial.revision).is_ok());
+    }
+    #[test]
+    fn loading_mode_is_known_legacy_compatible_and_invalid_bytes_are_preserved() {
+        let base = serde_json::to_value(Settings::default()).unwrap();
+        for mode in ["automatic", "conservative", "standard"] {
+            let patch = serde_json::json!({"loadingMode":mode});
+            assert!(validate_patch(&patch, false).is_ok());
+            let mut value = base.clone();
+            value["loadingMode"] = mode.into();
+            assert_eq!(
+                serde_json::to_value(Settings::parse(value, false).unwrap()).unwrap()["loadingMode"],
+                mode
+            );
+        }
+        let mut legacy = base.clone();
+        legacy.as_object_mut().unwrap().remove("loadingMode");
+        let dir = TempDir::new().unwrap();
+        legacy["futurePreference"] = serde_json::json!({"keep":[false,0,null]});
+        let bytes = serde_json::to_vec(&legacy).unwrap();
+        fs::write(dir.path().join("settings.json"), &bytes).unwrap();
+        let old = store(&dir);
+        assert_eq!(
+            serde_json::to_value(old.envelope().settings).unwrap()["loadingMode"],
+            "automatic"
+        );
+        assert_eq!(fs::read(dir.path().join("settings.json")).unwrap(), bytes);
+        old.patch(&Map::from_iter([(
+            "loadingMode".into(),
+            "conservative".into(),
+        )]))
+        .unwrap();
+        assert_eq!(
+            serde_json::from_slice::<Value>(&fs::read(dir.path().join("settings.json")).unwrap())
+                .unwrap()["futurePreference"],
+            legacy["futurePreference"]
+        );
+        for bad in [
+            serde_json::json!(null),
+            serde_json::json!(true),
+            serde_json::json!(4),
+            serde_json::json!("fast"),
+        ] {
+            let mut invalid = base.clone();
+            invalid["loadingMode"] = bad;
+            let bytes = serde_json::to_vec(&invalid).unwrap();
+            fs::write(dir.path().join("settings.json"), &bytes).unwrap();
+            let invalid = store(&dir);
+            let current = invalid.envelope();
+            assert!(current.warning.is_some());
+            assert!(
+                invalid
+                    .save(
+                        serde_json::to_value(current.settings).unwrap(),
+                        &current.revision
+                    )
+                    .is_err()
+            );
+            assert_eq!(fs::read(dir.path().join("settings.json")).unwrap(), bytes);
+        }
     }
     #[test]
     fn summary_fields_are_known_bounded_and_legacy_default_empty() {

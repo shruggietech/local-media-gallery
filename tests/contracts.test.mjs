@@ -21,6 +21,16 @@ test('master snapshot contract preserves exact native integer facts and version 
 });
 
 const settings = {version:'0.0.0',formatVersion:1,pageSize:48,cardSize:'medium',controlsExpanded:false,scrollIndicator:'auto',metadataExpanded:false,filter:'all',sort:'name',direction:'asc'};
+test('loading mode is a validated compatible preference in complete and sparse contracts', () => {
+  const ajv = new Ajv2020({strict:true}).addKeyword('x-release-version').addSchema(schema);
+  for (const name of ['settings','settingsChoices','settingsPatch']) {
+    const valid = ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/'+name});
+    const base = name === 'settings' ? settings : {};
+    for (const loadingMode of ['automatic','conservative','standard']) assert.ok(valid({...base,loadingMode}),JSON.stringify(valid.errors));
+    for (const loadingMode of ['fast',null,true,4,{}]) assert.equal(valid({...base,loadingMode}),false,name+' '+JSON.stringify(loadingMode));
+    if (name !== 'settingsPatch') assert.ok(valid(base),'Legacy omission remains compatible');
+  }
+});
 test('master settings contract validates preferences and preserves compatible unknown fields', () => {
   const ajv = new Ajv2020({strict:true}).addKeyword('x-release-version').addSchema(schema);
   const valid = ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/settings'});

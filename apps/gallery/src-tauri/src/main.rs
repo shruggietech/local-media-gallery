@@ -293,13 +293,21 @@ fn test_discovery_control(
     state: State<Arc<GalleryState>>,
     action: String,
     config: Option<gallery_core::TestDiscoveryConfig>,
-) -> Result<bool, GalleryError> {
+) -> Result<serde_json::Value, GalleryError> {
     main_window(&window)?;
+    if action == "s011_resource_snapshot" {
+        return Ok(serde_json::to_value(runtime.engine.test_resource_snapshot()).unwrap());
+    }
     if action.starts_with("metadata_") {
-        return runtime.engine.test_metadata_control(&action);
+        return runtime
+            .engine
+            .test_metadata_control(&action)
+            .map(serde_json::Value::Bool);
     }
     if action.starts_with("profile_") {
-        return state.test_profile_read(&action);
+        return state
+            .test_profile_read(&action)
+            .map(serde_json::Value::Bool);
     }
     match action.as_str() {
         "arm" => runtime
@@ -314,7 +322,9 @@ fn test_discovery_control(
             ));
         }
     }
-    Ok(runtime.engine.test_discovery_paused())
+    Ok(serde_json::Value::Bool(
+        runtime.engine.test_discovery_paused(),
+    ))
 }
 
 fn main() {

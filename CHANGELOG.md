@@ -4,9 +4,11 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Sidecar metadata and summary presentation updated on 2026-10-25; product packages remain unpublished.
+Measured adaptive loading and sidecar metadata updated on 2026-10-25; product packages remain unpublished.
 
 ### Added
+
+- Session-scoped automatic loading with sustained pressure reduction, gradual recovery and portable Conservative/Standard overrides. Add repeatable native baseline/final operation, process-memory and separated footprint evidence without claiming unmeasured scale.
 
 - Attributed JSON sidecar/index inspection with lossless numeric tokens, ordered duplicate members, bounded native reads, lazy nested information and portable summary-field choices. Sidecar-only Refresh preserves healthy playback.
 
@@ -72,3 +74,5 @@ Sidecar metadata and summary presentation updated on 2026-10-25; product package
 - 2026-10-23: Correct the Windows native qualification helper to recognize completed folder pickers whose HWND remains alive while hidden; retain exact selected-directory and subsequent media-refresh assertions.
 
 - 2026-10-25: Keep metadata observation revisions separate from media identity, observe direct JSON during requested discovery and demand-read only focused expanded information. Use an ordered bounded lexical tree and quoted source/number text rather than map-based JSON conversion. Define explicit filename/index precedence, duplicate/encoding/resource policies and source-role/typed field selectors through the existing settings resolver, with lossless native-component identifiers for non-Unicode index filenames. Add owned metadata schemas, native/WebView regressions and normal-build test-hook exclusion; retain version 0.0.0 and existing package/platform qualification boundaries.
+
+- 2026-10-25: Measure the preserved qualified native baseline before loading-policy changes. Retain the four-preparation ceiling, add finite tiers, bounded latency/frame/failure evidence and held-work pressure, and persist only deliberate loadingMode through the existing resolver. Keep calibration above page/viewer lifetimes, retire stale/hidden work, preserve healthy playback and repair exceptional queue cleanup accounting. Share media-response permits per engine and expose only a native-test counter action. Elect one shared native measurement harness and hidden persistent process observer, with explicit process-cold versus OS-cache uncertainty, endpoint memory and unpublished package footprints. Qualification includes final measurement and excludes only current-slice tasks, verification and measurement receipt files from source hashing; normative tuning remains in hashed contracts/research/code. no bulk-media gate, new dependency or product release is introduced.

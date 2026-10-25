@@ -114,6 +114,7 @@ struct Inner {
     scan: Mutex<()>,
     state_gate: Mutex<()>,
     metadata_admission: Arc<tokio::sync::Semaphore>,
+    media_admission: Arc<tokio::sync::Semaphore>,
     #[cfg(any(test, feature = "discovery-tests"))]
     metadata_control: metadata::TestControl,
     #[cfg(any(test, feature = "discovery-tests"))]
@@ -122,6 +123,17 @@ struct Inner {
 #[derive(Clone)]
 pub struct Engine {
     inner: Arc<Inner>,
+}
+#[cfg(any(test, feature = "discovery-tests"))]
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestResourceSnapshot {
+    pub media_responses_active: usize,
+    pub media_responses_cap: usize,
+    pub metadata_active: usize,
+    pub metadata_cap: usize,
+    pub discovery_active: Option<usize>,
+    pub discovery_cap: usize,
 }
 /// Owned read capability. Capture again to validate before installing prepared state.
 pub struct RootGrant {
@@ -220,6 +232,7 @@ impl Engine {
                 scan: Mutex::new(()),
                 state_gate: Mutex::new(()),
                 metadata_admission: Arc::new(tokio::sync::Semaphore::new(1)),
+                media_admission: Arc::new(tokio::sync::Semaphore::new(32)),
                 #[cfg(any(test, feature = "discovery-tests"))]
                 metadata_control: metadata::TestControl::default(),
                 #[cfg(any(test, feature = "discovery-tests"))]
@@ -229,6 +242,22 @@ impl Engine {
     }
     pub fn set_media_origin(&self, origin: String) {
         self.inner.hub.lock().unwrap().media_origin = origin;
+    }
+    #[cfg(any(test, feature = "discovery-tests"))]
+    pub fn test_resource_snapshot(&self) -> TestResourceSnapshot {
+        let discovery_active = match self.inner.scan.try_lock() {
+            Ok(_) => Some(0),
+            Err(std::sync::TryLockError::WouldBlock) => Some(1),
+            Err(std::sync::TryLockError::Poisoned(_)) => None,
+        };
+        TestResourceSnapshot {
+            media_responses_active: 32 - self.inner.media_admission.available_permits(),
+            media_responses_cap: 32,
+            metadata_active: 1 - self.inner.metadata_admission.available_permits(),
+            metadata_cap: 1,
+            discovery_active,
+            discovery_cap: 1,
+        }
     }
     pub fn open_media(
         &self,

@@ -38,6 +38,8 @@ forget_history takes sessionId, expectedRevision and an opaque recent id (null c
 
 Long-running jobs require finite admission, observable progress and cancellation. Totals may initially be unknown; the UI must not invent a completed percentage from an unmeasured total. A terminal outcome should identify what completed, failed or remains resumable. Exact IPC transport, batching, job persistence and identifiers are U-08.
 
+loadingMode is automatic, conservative or standard; old user settings may omit it and resolve automatic. It is one ordinary field in settings, sparse choices/patches and per-field sources/savedTo. Effective queue tiers and timings are session observations and are never portable settings.
+
 ## Metadata inspection interface
 
 inspect_metadata accepts request {sessionId,itemId,itemRevision,metadataRevision} from the main window. The native snapshot adds metadataRevision (0 without a root, otherwise an opaque token). The host obtains one metadata admission permit and captures observations before spawning blocking work. Busy/stale requests fail explicitly; they do not queue more blocking reads. All file/parsing work runs outside discovery and state-write authority.

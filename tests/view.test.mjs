@@ -106,3 +106,52 @@ test('queued visible work wins priority and queued cancellation never starts', (
   assert.deepEqual(started, ['active', 'visible']);
   queue.cancelAll();
 });
+
+test('dynamic admission drains lower caps, reprioritizes waiting work and pauses new work', () => {
+  const queue = createAdmissionQueue(4); const done = []; const started = [];
+  for (let i = 0; i < 4; i++) queue.request(finish => { started.push(i); done.push(finish); return () => {}; });
+  queue.setLimit(1);
+  const distant = queue.request(() => { started.push('distant'); return () => {}; }, 100);
+  queue.request(() => { started.push('visible'); return () => {}; }, 0);
+  distant.reprioritize(-1);
+  for (let i = 0; i < 3; i++) done[i]();
+  assert.equal(started.length, 4);
+  queue.setPaused(true); done[3](); assert.equal(started.length, 4);
+  queue.setPaused(false); assert.equal(started.at(-1), 'distant');
+  assert.throws(() => queue.setLimit(5)); assert.throws(() => queue.setLimit(NaN));
+  queue.cancelAll(); assert.equal(queue.snapshot().active, 0);
+});
+
+test('throwing cleanup or start and synchronous retirement preserve accounting and ownership', () => {
+  let cleaned = 0; const outcomes = [];
+  const queue = createAdmissionQueue(1, { onOutcome: event => outcomes.push(event) });
+  const cancel = queue.request(() => () => { cleaned++; throw Error('cleanup failure'); });
+  let replacement = false;
+  queue.request(done => { replacement = true; done(); return () => { cleaned++; }; });
+  cancel(); cancel(); assert.equal(replacement, true); assert.equal(queue.snapshot().active, 0);
+  queue.request(() => { throw Error('start failure'); });
+  queue.cancelAll(); assert.equal(cleaned, 2);
+  assert.equal(outcomes.filter(e => e.outcome === 'failure').length, 1);
+  const retired = createAdmissionQueue(1); let lateCleanup = 0;
+  retired.request(() => { retired.cancelAll(); return () => { lateCleanup++; }; });
+  assert.equal(lateCleanup, 1); assert.equal(retired.snapshot().active, 0);
+});
+
+test('queue reports actual held age, outcomes once and ignores cancelled late completion', () => {
+  let time = 0; let finish; const events = [];
+  const queue = createAdmissionQueue(1, { now: () => time, onOutcome: e => events.push(e) });
+  const cancel = queue.request(done => { finish = done; return () => {}; });
+  time = 1200; assert.equal(queue.snapshot().oldestMs, 1200);
+  finish('failure'); finish(); assert.deepEqual(events, [{ duration: 1200, outcome: 'failure' }]);
+  cancel(); assert.equal(queue.snapshot().active, 0);
+  queue.request(done => { finish = done; return () => {}; }); queue.cancelAll(); finish();
+  assert.equal(events.length, 1);
+});
+
+test('waiting viewport priority is evaluated at admission after geometry changes', () => {
+  const q = createAdmissionQueue(1); let finish; let a = 0; let b = 100; const started = [];
+  q.request(done => { finish = done; return () => {}; });
+  q.request(() => { started.push('a'); return () => {}; }, () => a);
+  q.request(() => { started.push('b'); return () => {}; }, () => b);
+  a = 100; b = 0; finish(); assert.deepEqual(started, ['b']); q.cancelAll();
+});
