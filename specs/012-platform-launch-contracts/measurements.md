@@ -25,3 +25,12 @@ Source 1831abfb52c71eba111f26d2d9a58366143c71b15e3ea6821ecba53311da73d6 (1002 fi
 | lite | 18669056 | 7921374 | 22885802 | 5524e1df3b276795b2104dca4f526eee41a1b9ec1b70f5e400fcbf8beb0c82cb | a43a87924f83af5c48b9e4c41663aa4a6eeb8b0a078c956e96793676960e0d93 |
 
 Runtime remains separately observed shared WebView2, 909827702 logical bytes; not a marginal download or complete system-library inventory. No final installers or optional media tools.
+
+## Accepted native state corrections
+
+Source 812bc5c0109f7a16cef9b9d4ec523c3054e99e5c8b04a6be462871c717ec3086 (1003 files). Preparation 42.94 s; qualification 207.945 s; combined 250.885 s. All14local checks pass with48Full/48Lite state/shell tests; native Unix alias and inherited-descriptor semantics require their own hosted acceptance.
+
+| Edition | Executable bytes | Archive bytes | Extracted bytes | Binary SHA256 | Archive SHA256 |
+| --- | --- | --- | --- | --- | --- |
+| full | 18676736 | 7923512 | 22893477 | a3dbea712c869de2910ab4e8ce7e7c6364d0e4f41d308b91d680ef4a7b0b6c2c | 31edaa082ab8d3445ead69a6981b2742f42fc5b0f43ee8ee957be1d691579b82 |
+| lite | 18676736 | 7921479 | 22893482 | 6202f2a0fa26220c12eec06d99f64ae43208bb19205d8db3f1599ed87f38b292 | b29a11683675013c9c24fa77429a640b5ca21057d8a6b15427afda3cbc81c045 |

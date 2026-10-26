@@ -115,7 +115,7 @@ impl Portable {
         let identity = lock.metadata().map_err(error)?;
         regular(&identity)?;
         let lock = lock.into_std();
-        lock.try_lock().map_err(error)?;
+        let _lock = crate::state_lock::StateLock::try_acquire(lock).map_err(error)?;
         let current_lock = dir.symlink_metadata(LOCK).map_err(error)?;
         if identity.dev() != current_lock.dev() || identity.ino() != current_lock.ino() {
             return Err(error("The coordination file changed."));

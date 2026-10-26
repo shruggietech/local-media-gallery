@@ -6,6 +6,7 @@ mod history;
 mod launch;
 mod portable;
 mod settings;
+mod state_lock;
 use discovery::DiscoveryWorker;
 use gallery_core::{Engine, GalleryError, MetadataRequest, MetadataResult, Snapshot};
 use gallery_state::{Envelope, GalleryState};
