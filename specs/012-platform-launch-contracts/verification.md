@@ -1,29 +1,53 @@
 # S012 Verification
 
-## Setup and specification (2026-10-25)
+## Specification and design (2026-10-25)
 
-Base92563aeb36092a3e082df00b3ccea19abb47b024; branch codex/012-platform-launch-contracts; selector specs/012-platform-launch-contracts; issues#5/#7. Installed Spec Kit1.0.8, skills mode/Python, sequential numbering, hyphenated commands. No extensions.yml/hooks. Actual template resolver and clarify prerequisite helper used. Requirements checklist16/16 after five autonomous clarifications; custom platform-launch checklist12unchecked reviewer-owned criteria. Owner explicitly authorizes publication and up to two review rounds; final review/merge remains owner-controlled. No S012 implementation acceptance yet.
+Base: 92563aeb36092a3e082df00b3ccea19abb47b024. Branch: codex/012-platform-launch-contracts. Selector: specs/012-platform-launch-contracts. Issues: #5 and #7.
 
-## Design analysis and implementation gate (2026-10-25)
+Used installed Spec Kit 1.0.8 in skills/Python mode with sequential numbering and hyphenated commands, actual template/prerequisite/setup helpers and no extensions/hooks. Five autonomous clarifications settled common capabilities, exploratory proof scope, wait/detach, independent processes and unavailable future providers. Requirements checklist: 16/16. The custom platform-launch checklist retains 12 reviewer-owned unchecked markers. Explicit owner autopilot/proceed and push/PR authorization governs continuation; merge/tag/release remain owner operations.
 
-Actual setup_plan/setup_tasks and prerequisite helpers used. Three required read-only research agents resolved platform, launch and proof design. Read-only analysis covered14FR+6SC across29tasks (100%),no unmapped tasks/constitution conflicts. I1(high) placed hosted acceptance before publication; fixed T027 publication → T028 hosted acceptance. D1(low) duplicated compiled-edition ownership; T007 introduces it,T011 reuses it. Read-back analysis finds0remaining critical/high/medium findings. Requirements16/16; custom checklist0/12 reviewer-owned, markers unchanged. Explicit owner autopilot/proceed authorization governs continued implementation without another pause.
+The plan skill required three read-only research agents. Analysis mapped 14 functional requirements and 6 success criteria to 29 tasks (100%). I1 (high) corrected hosted acceptance ordering to publication T027 followed by hosted read-back T028. D1 (low) removed duplicate edition-feature ownership: T007 introduces it and T011 reuses it. No remaining critical/high/medium findings, unmapped requirements or constitution conflicts.
 
-## Test-first path and launch contracts
+## Test-first implementation
 
-Exact native-path tests first failed with absent shared type/fields, then3passed after codec/snapshot/session attribution. Additional pending-selection regression proved the need for per-discovery session attribution: a failed pending selection retains the usable old session but must not label that session as the failed request's result. Five parser/placement/native-argument/status/receipt tests failed before launch module implementation, then passed. Full integration and bounded IO adversarial tests follow; no S012 acceptance claimed yet.
+Three exact-path regressions failed before the shared NativePath/fields existed, then passed. A failed pending selection retains the old usable session but must not borrow it for the new operation result; per-discovery session attribution fixes this boundary.
 
-## Boundary and artifact regressions
+Parser, placement, exact native arguments, status/exit mappings, proof inventory and owned schema tests failed before their implementations. Receipt tests reproduced a queued-acknowledgement/child-exit race, then passed after queued valid receipts were admitted before checking child exit. Tests also cover mismatched nonce/PID, malformed/oversized/slow receipt input, absolute deadlines, known early exit, timeout without killing the child and rejected late acknowledgement. The final native suite includes 11 launch tests in each edition.
 
-Four owned operation/platform/schema/proof-integrity tests failed before missing definitions/helpers, then passed. Eight launch tests reproduced and fixed a queued-acknowledgement/child-exit race; stalled/oversized/slow-drip reads remain bounded. Edition bundle/state regression failed before introducing distinct compiled bundle identifiers and explicit reuse of product settings/history location, then the complete9-test launch suite passed in both Full and Lite builds. Actual native launch suite failed on preserved S011 binary at --version --json as expected. Current four-artifact builds and native integration remain pending.
+The actual launch harness rejected the preserved S011 binary at --version --json. Its first S012 run passed four groups then misclassified a typed OperationResult.error object as a WebDriver error. Restricting the WebDriver error test to its string protocol field corrected the harness; all six groups passed. Preliminary archives and native results remain separately identified in measurements.md.
 
-## Initial integrated preparation
+## Integrated preparation and corrected acceptance
 
-The first complete preparation rebuilt all four native variants and exported the site/matrix, then correctly failed before readiness on two new Clippy warnings (items_after_test_module and collapsible_if). Preparation61.172s,qualification0s,combined61.172s; no timed checks ran and no acceptance claimed. Move the notification function before tests and collapse the conditional rather than suppressing either lint. Correct the public placement-error exit description to the implemented failure category.
+The first complete preparation rebuilt all four variants and exported the site, then failed before readiness on Clippy items_after_test_module and collapsible_if. Preparation: 61.172 s; qualification: 0 s; combined: 61.172 s. Move the notification function before tests and collapse the conditional; neither lint was suppressed. Correct the public invalid-placement exit description to the implemented failure category.
 
-## Complete code acceptance before final documentation consistency
+All 14 checks subsequently passed on source 8e634b9de725af2971db8e682aeba89de74863a728f5a08732fb3204c0e73331 (1,000 files): preparation 44.374 s, qualification 214.377 s, combined 258.751 s. A final cross-chapter scan found two architecture sentences still describing U-08 as unsettled. Correct those links and rerun complete qualification against final normative source. Preserve .local/s012-code-qualified.json independently.
 
-All14elected checks passed on source 8e634b9de725af2971db8e682aeba89de74863a728f5a08732fb3204c0e73331 (1000files), including75Node,36core,45Full/45Lite,31renderednative,6launchgroups,10extractedCLIchecks/edition,normalFull/Lite exclusion,website/browser,measurements andprovenance. Preparation44.374s,qualification214.377s,combined258.751s. Final cross-chapter consistency scan found two architecture sentences still describing U-08 as unsettled; replace them with links to the settled contract and rerun complete qualification against final normative source. Preserved .local/s012-code-qualified.json separately.
+## Final local acceptance
 
-## Final normative source local acceptance
+PASS all 14 elected checks on d7b7b19a787e8b008af321c52591189bfb7dcdd6a6c5aa212ef56c56f1b64dac (1,000 files). Preparation: 38.242 s; qualification: 203.859 s; combined: 242.101 s. Terminal completion: 2026-10-26T00:40:05.695Z. Target 660 s, hard limit 900 s and finalization reserve 15 s respected.
 
-PASS all14elected checks on d7b7b19a787e8b008af321c52591189bfb7dcdd6a6c5aa212ef56c56f1b64dac (1000files). Preparation38.242s,qualification203.859s,combined242.101s; terminal 2026-10-26T00:40:05.695Z. Target660s/hard900s/reserve15s respected. Includes75Node,36core,45Full/45Lite,31renderednative,6Full/Litelaunchgroups,10extractedCLIchecks/edition,bothnormalartifactwindows/listener/private-hookexclusion,288websiteartifacthashes,renderedbrowserchecks,3measurementtrials andsource/brandintegrity. Full native functional/launch/measurement hashes agree; each edition launch hash matches its native-test binary; each normal proof hash matches ordinary-window acceptance. Local proof revision is the base92563ae working-tree source; digest binds final uncommitted content. Hosted receipts will bind committed PR merge revision separately. No final installer or native Linux/macOS GUI claim.
+Acceptance includes 75 Node tests, 36 core tests, 45 Full and 45 Lite shell/state tests, 31 existing rendered native groups, 6 Full/Lite launch groups, 10 extracted CLI checks per edition, both ordinary artifact windows/listener/private-hook exclusions, 288 website artifact hashes, rendered browser checks, three measurement trials and source/brand integrity.
+
+Full native functional, launch and measurement hashes agree. Each edition launch hash matches its native-test binary; each normal proof hash matches ordinary-window acceptance. Local proof revision names base 92563ae while the content digest binds the final working tree; hosted receipts bind the committed PR merge revision separately. Proof archive, executable, extracted and shared-runtime footprints are separate. Final installers and native Linux/macOS GUI behavior are unqualified.
+
+## Publication and first review
+
+Commit 248d648bc9f05497c5d73c84e3bfb4cd3ad9fcd7 pushed to codex/012-platform-launch-contracts. Official non-draft [PR #51](https://github.com/shruggietech/local-media-gallery/pull/51) opened and attached to the chat. Both issues moved to Project 8 PR review / S012 and remain open until owner merge.
+
+PR-open review is round 1. Codex completed it at 2026-10-26T00:43:39Z with no findings and zero review threads. At most one second request remains available. Hosted run 40250562599 uses synthetic merge e51aee8fe45cc4b10f08da850b69a8028cbfdfab; hosted native proof/read-back and final delivery receipt remain pending.
+
+## First hosted macOS failure and fixture correction
+
+Run 40250562599 failed native check:app on macOS 15.7.9 arm64 at discovery.rs:172: the filesystem rejected the invalid UTF-8 fixture filename with OS error92 (Illegal byte sequence), before discovery. Preparation 505.575 s, qualification 25.992 s, combined 531.567 s. Preserve .local/s012-first-macos/ci-product-macos.json and its original source/merge identity separately.
+
+Keep actual grant/metadata isolation tests on macOS using distinct Unicode filenames admitted by its filesystem; retain invalid-byte filesystem fixtures on Linux and unpaired-code-unit fixtures on Windows. Add an all-platform in-memory regression proving two colliding lossy display labels retain distinct native encodings and operation roots. No test is skipped, and no product path eligibility rule is introduced. The analogous metadata fixture is corrected before the next macOS run. Full local qualification and hosted acceptance must rerun on the corrected source.
+
+## First hosted Ubuntu failure and compression-only correction
+
+Run40250562599 passed repository, website and Windows native proof. Ubuntu native check:app passed core tests, then its isolated pinned brand verifier rewrote comparison PNG encodings and failed identity-report/manifest hashes. Preserve .local/s012-first-hosted receipts and original failed run. Add a consumer-side PNG save adapter limited to128checksum-verified comparison files: require exact regenerated mode/dimensions/pixels, keep original compressed bytes, execute unchanged recovered verifier and all manifest checks. Test-first wrapper import failed while absent. Four regressions cover identical pixels with different compression, changed pixel rejection, size/mode rejection and unlisted ordinary outputs. Complete local/hosted qualification must rerun; installed kit and recovery bytes are unchanged.
+
+First Ubuntu receipt: preparation 846.558 s, qualification 30.493 s, combined 877.051 s; result fail. Fixture-only correction local qualification passed on 8dcf05ffbbc0db302a29a27c35be263a0b81a7ebbc03e12c7047c1263a059acd in 212.429 s (256.367 s combined) before the subsequent brand adapter source change. Full pinned Windows verifier and glyph checks pass through the new adapter with all128pixel comparisons and four regressions; no manifest checks are omitted. Standalone Python tests initially hit sandbox temp permissions; all test temp directories now explicitly belong to repository .local and pass without elevation.
+
+## Accepted hosted corrections
+
+PASS all14elected checks on 1831abfb52c71eba111f26d2d9a58366143c71b15e3ea6821ecba53311da73d6 (1002files): preparation 42.789 s, qualification 213.719 s, combined 256.508 s; terminal 2026-10-26T01:06:59.001Z. Acceptance retains75Node,37core,45Full/45Lite,31nativegroups,6launchgroups,10normal extracted checks/edition,4Pythonpixel-equivalence regressions,128exact comparison pixels and all pinned verifier/manifest checks, ordinary-window exclusion,site/browser,measurements andsource/brandintegrity. Both initial hosted failures remain separately attributed; no corrected hosted acceptance claimed until its own terminal receipts pass.

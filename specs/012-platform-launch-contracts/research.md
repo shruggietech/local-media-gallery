@@ -65,3 +65,7 @@ Native root authority is encoded as windows-utf16le/unix-bytes with exact byte a
 - https://learn.microsoft.com/en-us/windows/console/getstdhandle
 - https://learn.microsoft.com/en-us/windows/console/attachconsole
 - https://v2.tauri.app/develop/tests/webdriver/ (embedded service supports all desktop OSes; this repository's full harness remains Windows-specific)
+
+## Hosted PNG comparison encoding correction
+
+Initial Ubuntu native qualification passed core tests but failed exact pinned brand continuity/report and manifest checks after the recovered verifier rewrote four comparison PNGs. The verifier writes comparison PNGs through Pillow during validation; native compressor encodings can differ. A narrowly scoped consumer adapter retains the checksum-verified encoding only after requiring exact mode, dimensions and every regenerated pixel across all128comparison images. All recovered verifier checks and governed kit bytes remain unchanged. Four test-first regressions cover compression-only equivalence, one changed pixel, dimension/mode changes and ordinary encoder behavior outside the allowlist. This strengthens image equivalence without waiving manifest checks or modifying the recovered distribution.

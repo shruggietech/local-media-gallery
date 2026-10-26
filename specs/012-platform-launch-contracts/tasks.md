@@ -47,7 +47,7 @@ Tests are mandatory under the invoked autopilot protocol. Each story has indepen
 - [x] T024 Elect mandatory normal/extracted/native Full/Lite checks and separate timings in scripts/qualify.mjs (FR-014, SC-001..006).
 - [x] T025 Keep normative sources hashed and exclude only delivery receipts in scripts/provenance.mjs (FR-002/014, SC-006).
 - [x] T026 Run complete local qualification and record red/green, source/binary/proof identities and prep/qualification/combined timings in specs/012-platform-launch-contracts/verification.md and measurements.md (FR-014, SC-001..006).
-- [ ] T027 Commit/push official PR closing #5/#7, attach PR and update Project8 to PR review/S012, with evidence in specs/012-platform-launch-contracts/verification.md (FR-014).
+- [x] T027 Commit/push official PR closing #5/#7, attach PR and update Project8 to PR review/S012, with evidence in specs/012-platform-launch-contracts/verification.md (FR-014).
 - [ ] T028 Verify all elected native hosted proof artifacts/receipts and explicit unqualified combinations in specs/012-platform-launch-contracts/measurements.md (FR-002/003/014, SC-001/006).
 - [ ] T029 Handle CI and every review thread within at most two rounds, verify final head/source/receipt/project state and notify owner for final review/merge in specs/012-platform-launch-contracts/verification.md (FR-014, SC-006).
 

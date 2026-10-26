@@ -58,6 +58,8 @@ The Windows Server 2025 x64, Ubuntu 24.04 x64 and macOS 15 arm64 jobs compile no
 
 Apply the actual passing check names to the repository policy after hosted success; preserve squash-only merge and merged-branch deletion. Native evidence remains identified separately from hosted evidence and requires its actual elected environment.
 
+The pinned brand verifier recomputes all comparison images in an isolated copy. A consumer adapter checks exact image mode, dimensions and every pixel before retaining the original checksum-verified PNG encoding; this prevents platform-specific compression bytes from falsely changing the pinned manifest. Any image difference fails. The recovered verifier, all report/manifest checks and installed kit bytes remain unchanged.
+
 ## Qualification accounting
 
 **VC-03:** Release qualification MUST begin after verified prerequisite readiness, target 660 seconds and enforce a 900-second hard limit. Target-only overruns are advisory. Provisional finalization must retain fifteen seconds for terminal results and final acceptance. Functional, integrity, provenance and elected checks remain mandatory; a timing target does not waive a required failure.

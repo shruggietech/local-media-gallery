@@ -61,3 +61,34 @@ fn failed_pending_selection_does_not_borrow_prior_session() {
     assert_eq!(snap.session_id.as_deref(), Some(prior.as_str()));
     assert!(snap.discovery.unwrap().session_id.is_none());
 }
+
+#[test]
+fn colliding_display_labels_preserve_distinct_native_operation_paths() {
+    #[cfg(windows)]
+    let names = {
+        use std::os::windows::ffi::OsStringExt;
+        [
+            OsString::from_wide(&[0xd800]),
+            OsString::from_wide(&[0xd801]),
+        ]
+    };
+    #[cfg(unix)]
+    let names = {
+        use std::os::unix::ffi::OsStringExt;
+        [
+            OsString::from_vec(vec![0xfe]),
+            OsString::from_vec(vec![0xff]),
+        ]
+    };
+    assert_eq!(names[0].to_string_lossy(), names[1].to_string_lossy());
+    let encoded = names.map(|name| NativePath::from_path(&PathBuf::from(name)));
+    assert_ne!(encoded[0], encoded[1]);
+    let engine = Engine::new();
+    for path in encoded {
+        let native = path.to_path().unwrap();
+        let request = engine.begin_open(&native);
+        let discovery = engine.snapshot().discovery.unwrap();
+        assert_eq!(discovery.id, request.id);
+        assert_eq!(discovery.requested_native_root, Some(path));
+    }
+}
