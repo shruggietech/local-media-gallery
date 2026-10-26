@@ -88,6 +88,16 @@
     "metadataRevision": {
       "type": "string",
       "pattern": "^(0|[a-f0-9]{32})$"
+    },
+    "nativeRoot": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/nativePath"
+        }
+      ]
     }
   },
   "$defs": {
@@ -819,6 +829,27 @@
             "string",
             "null"
           ]
+        },
+        "requestedNativeRoot": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/nativePath"
+            }
+          ]
+        },
+        "sessionId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          ]
         }
       }
     },
@@ -1143,6 +1174,369 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "nativePath": {
+      "type": "object",
+      "required": [
+        "encoding",
+        "bytes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {
+          "enum": [
+            "windows-utf16le",
+            "unix-bytes"
+          ]
+        },
+        "bytes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        }
+      },
+      "description": "Exact native bytes, separate from display labels. Native decoding additionally validates platform and even Windows UTF-16LE byte length."
+    },
+    "operationResult": {
+      "type": "object",
+      "required": [
+        "product",
+        "version",
+        "formatVersion",
+        "edition",
+        "os",
+        "arch",
+        "operationId",
+        "operation",
+        "boundary",
+        "status",
+        "error",
+        "processId",
+        "sessionId",
+        "discoveryOperationId",
+        "root",
+        "progress",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "product": {
+          "const": "local-media-gallery"
+        },
+        "version": {
+          "const": "0.0.0"
+        },
+        "formatVersion": {
+          "const": 1
+        },
+        "edition": {
+          "enum": [
+            "full",
+            "lite"
+          ]
+        },
+        "os": {
+          "enum": [
+            "windows",
+            "linux",
+            "macos"
+          ]
+        },
+        "arch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "enum": [
+            "open",
+            "resolve",
+            "capabilities",
+            "prepare",
+            "install",
+            "help",
+            "version",
+            "refresh",
+            "arguments"
+          ]
+        },
+        "boundary": {
+          "enum": [
+            "request",
+            "information",
+            "root-resolution",
+            "ui-startup",
+            "ui-lifetime",
+            "discovery",
+            "finite-job"
+          ]
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "success",
+            "running",
+            "partial",
+            "cancelled",
+            "unavailable",
+            "failed"
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "code",
+                "message"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        "processId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          ]
+        },
+        "sessionId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "discoveryOperationId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "root": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/nativePath"
+            }
+          ]
+        },
+        "progress": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "entriesSeen",
+                "mediaSeen"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "entriesSeen": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                },
+                "mediaSeen": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                }
+              }
+            }
+          ]
+        },
+        "data": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "platformMatrix": {
+      "type": "object",
+      "required": [
+        "product",
+        "version",
+        "formatVersion",
+        "publication",
+        "commonCapabilities",
+        "recipientTools",
+        "providers",
+        "rows",
+        "limits"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "product": {
+          "const": "local-media-gallery"
+        },
+        "version": {
+          "const": "0.0.0"
+        },
+        "formatVersion": {
+          "const": 1
+        },
+        "publication": {
+          "const": "unreleased-proof-policy"
+        },
+        "commonCapabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "recipientTools": {
+          "type": "array",
+          "maxItems": 0,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "providers": {
+          "type": "object",
+          "required": [
+            "open",
+            "resolve",
+            "prepare",
+            "install"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "open": {
+              "const": true
+            },
+            "resolve": {
+              "const": true
+            },
+            "prepare": {
+              "const": false
+            },
+            "install": {
+              "const": false
+            }
+          }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "os",
+              "arch",
+              "baseline",
+              "runtime",
+              "display",
+              "proof",
+              "full",
+              "lite",
+              "signing",
+              "qualification"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "os": {
+                "enum": [
+                  "windows",
+                  "linux",
+                  "macos"
+                ]
+              },
+              "arch": {
+                "type": "string",
+                "minLength": 1
+              },
+              "baseline": {
+                "type": "string",
+                "minLength": 1
+              },
+              "runtime": {
+                "type": "string",
+                "minLength": 1
+              },
+              "display": {
+                "type": "string",
+                "minLength": 1
+              },
+              "proof": {
+                "type": "string",
+                "minLength": 1
+              },
+              "full": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lite": {
+                "type": "string",
+                "minLength": 1
+              },
+              "signing": {
+                "type": "string",
+                "minLength": 1
+              },
+              "qualification": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "limits": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

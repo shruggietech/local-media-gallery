@@ -75,6 +75,14 @@
       "schema": "schemas/v0.0.0/local-media-gallery.schema.json",
       "examples": [
         "schemas/v0.0.0/examples/selection.json"
+      ],
+      "contracts": [
+        {
+          "source": "schemas/v0.0.0/platform-matrix.json",
+          "definition": "platformMatrix",
+          "topic": "platform-matrix",
+          "title": "Platform and dependency matrix"
+        }
       ]
     }
   ]

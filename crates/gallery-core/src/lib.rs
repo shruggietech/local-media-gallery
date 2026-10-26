@@ -3,12 +3,14 @@
 mod discovery;
 mod metadata;
 mod metadata_json;
+mod native_path;
 mod transport;
 #[cfg(any(test, feature = "discovery-tests"))]
 pub use discovery::TestDiscoveryConfig;
 pub use discovery::{DiscoveryRequest, DiscoveryState, root_identity};
 pub use metadata::{MetadataRead, MetadataRequest, MetadataResult};
 pub use metadata_json::{JsonNode, parse_metadata_json};
+pub use native_path::{NativePath, PathEncoding};
 pub use transport::{byte_range, media_router, serve_media, serve_media_listener};
 
 use cap_fs_ext::{FollowSymlinks, OpenOptionsFollowExt};
@@ -72,6 +74,7 @@ pub struct Snapshot {
     pub discovery: Option<DiscoveryState>,
     pub session_id: Option<String>,
     pub root: Option<String>,
+    pub native_root: Option<NativePath>,
     pub status: String,
     pub revision: String,
     pub media_origin: String,

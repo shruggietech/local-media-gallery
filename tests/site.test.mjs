@@ -223,3 +223,14 @@ test('the rendered baseline entry agrees with live publication and unavailable p
   assert.ok(text.includes('installable Full/Lite packages have not been published'));
   assert.equal(model.release, null);
 });
+
+test('versioned platform policy is schema-validated and rendered with its exact raw source', async () => {
+  const model = await createModel(root);
+  const page = model.pages.find(page => page.route === '/docs/v0.0.0/platform-matrix/');
+  assert.equal(page.raw, '/raw/v0.0.0/platform-matrix.json');
+  assert.match(page.html, /unreleased-proof-policy/);
+  assert.match(page.html, /macos-aarch64/);
+  const manifest = structuredClone(model.manifest);
+  manifest.snapshots[0].contracts[0].definition = 'notAnOwnedDefinition';
+  await assert.rejects(createModel(root, manifest), /Unknown owned contract/);
+});

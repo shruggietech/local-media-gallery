@@ -17,7 +17,13 @@ The product targets Windows, Linux and macOS. Rust and Tauri own the native appl
 
 **OV-02:** Both editions MUST provide the common gallery browsing and relocation behavior. Lite MUST remain useful without installing Full. Full may carry a larger installation footprint; its documentation MUST state required dependencies and sizes honestly. Lite MUST NOT be described as a universal package containing every dependency of Full.
 
-No file-count cap, media-content eligibility rule, account requirement or arbitrary browsing restriction is implied by the edition names. Differences must correspond to an explicitly specified capability, integration or dependency. Exact edition boundaries are open under U-02; optional thumbnail generation is not permission to require thumbnails in Lite.
+No file-count cap, media-content eligibility rule, account requirement or arbitrary browsing restriction is implied by the edition names. Differences must correspond to an explicitly specified capability, integration or dependency. The initial capability matrix below resolves U-02. Optional thumbnail generation is not required for Lite browsing.
+
+### Common capabilities and edition identity
+
+Both compiled editions provide browse/filter/sort/page, focused viewing, metadata, explicit Refresh, adaptive loading and the same user, remembered, portable and temporary settings destinations. Full starts with a folder chooser when no directory is supplied. Lite opens its external containing gallery by default. Full and Lite have distinct bundle identifiers, while the current host-local preference/history locations are shared deliberately. A recipient starts with their own state and never needs the sender's profile. Both expose open, resolve, help, version and capabilities. Prepare/install are recognized unavailable providers with no side effects; they do not imply delivered installers or preparation jobs.
+
+The [platform matrix](installation-and-distribution.md#initial-platform-and-dependency-matrix) owns runtime, package and qualification boundaries. Edition identity is compiled into each executable, rather than inferred from its filename.
 
 ## Principal journeys
 
@@ -53,6 +59,6 @@ The product does not require the user to select a browser brand or open an HTML 
 
 ## Open decisions
 
-U-02 owns the detailed Full/Lite capability matrix. Resolve it with actual package and dependency measurements while preserving their agreed common browsing behavior. U-13 owns the initial editing actions and any corresponding write/undo contracts. Both remain product decisions; neither is settled by choosing a library or by an illustrative command.
+U-02 is resolved for the initial compiled editions above. New integrations, optional tools and final package delivery require explicit contracts and evidence. U-13 retains the initial editing actions and corresponding write/undo contracts.
 
 See the [specification index](index.md) for the complete decision register and the [glossary](glossary.md) for terminology.

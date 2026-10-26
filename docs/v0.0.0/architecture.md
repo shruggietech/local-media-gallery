@@ -51,7 +51,7 @@ Loading calibration belongs to the native root session above page/viewer compone
 
 The application owns the lifetime of its windows, workers, transient media access and state writers. **AR-05:** Closing or cancelling a session MUST stop admitting new work and release resources when in-flight work reaches a safe boundary. Partial scans, cancelled jobs and unavailable directories must remain distinguishable from completed work.
 
-A media decoder or sidecar failure should be attributable to the affected item or task. The unaffected collection remains usable where possible. Multiple processes must coordinate shared writes rather than assuming that only one launcher can be opened. Whether repeated launches reuse a window or create separate sessions remains part of U-08.
+A media decoder or sidecar failure should be attributable to the affected item or task. The unaffected collection remains usable where possible. Multiple processes must coordinate shared writes rather than assuming that only one launcher can be opened. Repeated invocations create independent processes/windows/sessions under the [launch contract](interfaces-and-contracts.md#native-command-syntax-and-process-lifetime).
 
 ## Dependency and build boundaries
 
@@ -61,6 +61,6 @@ The pinned brand contract controls identity and interface bindings. Product-spec
 
 ## Open decisions
 
-U-01 owns platform runtime and packaging combinations; U-08 owns exact host interfaces and process/session behavior. Rust/Tauri and static Next.js are selected. Specific crate versions, transport details and worker implementations remain engineering work and must not silently settle unresolved product behavior.
+The initial U-01 platform/runtime/package policy is defined in [installation and distribution](installation-and-distribution.md#initial-platform-and-dependency-matrix), with qualification limits per row. U-08 current host interfaces and process/session behavior are defined in [interfaces and contracts](interfaces-and-contracts.md#command-behavior). Rust/Tauri and static Next.js are selected. Future provider implementations and broader packaging/runtime support require explicit contracts and evidence.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).

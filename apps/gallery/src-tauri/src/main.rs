@@ -3,6 +3,7 @@
 mod discovery;
 mod gallery_state;
 mod history;
+mod launch;
 mod portable;
 mod settings;
 use discovery::DiscoveryWorker;
@@ -10,7 +11,6 @@ use gallery_core::{Engine, GalleryError, MetadataRequest, MetadataResult, Snapsh
 use gallery_state::{Envelope, GalleryState};
 use settings::SettingsStore;
 use std::{
-    ffi::OsString,
     path::PathBuf,
     sync::{Arc, Mutex, OnceLock},
 };
@@ -23,43 +23,7 @@ struct Runtime {
     worker: OnceLock<DiscoveryWorker>,
     transport_error: Mutex<Option<String>>,
     publication: Mutex<()>,
-}
-enum Launch {
-    Gallery(Option<PathBuf>),
-    Output(String),
-}
-fn arguments(args: Vec<OsString>) -> Result<Launch, String> {
-    if args.len() == 1 && args[0] == "--help" {
-        return Ok(Launch::Output("Local Media Gallery\nUsage: local-media-gallery [DIRECTORY]\n       local-media-gallery --help | --version\nUse -- before a dash-leading directory. No directory opens the chooser.\n".into()));
-    }
-    if args.len() == 1 && args[0] == "--version" {
-        return Ok(Launch::Output(format!(
-            "Local Media Gallery {}\n",
-            env!("CARGO_PKG_VERSION")
-        )));
-    }
-    let mut ended = false;
-    let mut root = None;
-    for arg in args {
-        if !ended && arg == "--" {
-            ended = true;
-            continue;
-        }
-        if !ended && arg.to_string_lossy().starts_with('-') {
-            return Err("Unknown option. Use --help, or -- before a dash-leading path.".into());
-        }
-        if root.is_some() {
-            return Err("Supply one directory. Use --help for usage.".into());
-        }
-        root = Some(PathBuf::from(arg));
-    }
-    Ok(Launch::Gallery(root))
-}
-fn attach_terminal() {
-    #[cfg(windows)]
-    unsafe {
-        windows_sys::Win32::System::Console::AttachConsole(u32::MAX);
-    }
+    startup_receipt: Arc<Mutex<Option<launch::ReceiptTarget>>>,
 }
 fn main_window(window: &WebviewWindow) -> Result<(), GalleryError> {
     if window.label() == "main" {
@@ -184,10 +148,63 @@ async fn reopen_recent(
 #[tauri::command]
 fn startup(window: WebviewWindow, runtime: State<Runtime>) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
-    if let Some(path) = runtime.initial_root.lock().unwrap().take() {
-        return enqueue_open(&window.app_handle().clone(), &runtime, path);
+    let result = if let Some(path) = runtime.initial_root.lock().unwrap().take() {
+        enqueue_open(&window.app_handle().clone(), &runtime, path)
+    } else {
+        Ok(current(&runtime))
+    };
+    if let Some(target) = runtime.startup_receipt.lock().unwrap().take() {
+        let mut receipt = match &result {
+            Ok(snapshot) => {
+                let mut r = launch::OperationResult::new(
+                    launch::Operation::Open,
+                    target.operation_id.clone(),
+                    "ui-startup",
+                    launch::Status::Accepted,
+                );
+                r.session_id = snapshot
+                    .discovery
+                    .as_ref()
+                    .and_then(|d| d.session_id.clone());
+                r.discovery_operation_id = snapshot.discovery.as_ref().map(|d| d.id.clone());
+                r
+            }
+            Err(error) => launch::OperationResult::failure(
+                launch::Operation::Open,
+                target.operation_id.clone(),
+                error.clone(),
+            ),
+        };
+        receipt.boundary = "ui-startup".into();
+        let _ = std::thread::Builder::new()
+            .name("startup-receipt".into())
+            .spawn(move || target.send(receipt));
     }
-    Ok(current(&runtime))
+    result
+}
+#[tauri::command]
+fn application_info(window: WebviewWindow) -> Result<launch::OperationResult, GalleryError> {
+    main_window(&window)?;
+    let request = launch::Request {
+        operation: launch::Operation::Capabilities,
+        root: None,
+        mode: launch::Mode::Wait,
+        json: true,
+    };
+    Ok(launch::finite(
+        &request,
+        uuid::Uuid::new_v4().simple().to_string(),
+        None,
+    ))
+}
+#[tauri::command]
+fn operation_result(
+    window: WebviewWindow,
+    runtime: State<Runtime>,
+    operation_id: String,
+) -> Result<launch::OperationResult, GalleryError> {
+    main_window(&window)?;
+    launch::discovery_result(&current(&runtime), &operation_id)
 }
 #[tauri::command]
 fn snapshot(window: WebviewWindow, runtime: State<Runtime>) -> Result<Snapshot, GalleryError> {
@@ -327,20 +344,10 @@ fn test_discovery_control(
     ))
 }
 
-fn main() {
-    let initial = match arguments(std::env::args_os().skip(1).collect()) {
-        Ok(Launch::Output(output)) => {
-            attach_terminal();
-            print!("{output}");
-            return;
-        }
-        Ok(Launch::Gallery(path)) => path,
-        Err(error) => {
-            attach_terminal();
-            eprintln!("{error}");
-            std::process::exit(2);
-        }
-    };
+fn run_application(
+    initial: Option<PathBuf>,
+    startup_receipt: Arc<Mutex<Option<launch::ReceiptTarget>>>,
+) -> Result<i32, GalleryError> {
     let engine = Engine::new();
     let transport =
         std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).and_then(|listener| {
@@ -358,6 +365,8 @@ fn main() {
     #[cfg(feature = "native-tests")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         startup,
+        operation_result,
+        application_info,
         snapshot,
         load_settings,
         inspect_metadata,
@@ -374,6 +383,8 @@ fn main() {
     #[cfg(not(feature = "native-tests"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         startup,
+        operation_result,
+        application_info,
         snapshot,
         load_settings,
         inspect_metadata,
@@ -386,16 +397,19 @@ fn main() {
         close_gallery,
         cancel_discovery
     ]);
-    builder
+    let mut context = tauri::generate_context!();
+    context.config_mut().identifier = launch::identifier(launch::edition()).into();
+    let app=builder
         .manage(Runtime {
             engine,
             initial_root: Mutex::new(initial),
             worker: OnceLock::new(),
             transport_error: Mutex::new(transport_error),
             publication: Mutex::new(()),
+            startup_receipt,
         })
         .setup(move |app| {
-            let settings = match app.path().app_config_dir() {
+            let settings = match app.path().app_config_dir().map(launch::shared_state_directory) {
                 Ok(directory) => {
                     #[cfg(feature = "native-tests")]
                     let directory = std::env::var_os("GALLERY_TEST_SETTINGS_DIR").map(PathBuf::from).unwrap_or(directory);
@@ -407,7 +421,7 @@ fn main() {
                 }
                 Err(error) => SettingsStore::unavailable(format!("The user settings directory is unavailable: {error}. Preferences remain in memory.")),
             };
-            let history_path=history::location(app.path().app_local_data_dir().ok());
+            let history_path=history::location(app.path().app_local_data_dir().ok().map(launch::shared_state_directory));
             #[cfg(feature="native-tests")]
             let history_path=std::env::var_os("GALLERY_TEST_HISTORY_DIR").map(PathBuf::from).map(|p|p.join("history.sqlite3")).or(history_path);
             let engine=app.state::<Runtime>().engine.clone();
@@ -444,25 +458,132 @@ fn main() {
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("The native application could not start");
+        .build(context)
+        .map_err(|e|GalleryError::new("launch_failed",format!("The native application could not start: {e}. {}",launch::runtime_guidance())))?;
+    Ok(app.run_return(|_, _| {}))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn argument_contract() {
-        assert!(matches!(arguments(vec![]).unwrap(), Launch::Gallery(None)));
-        assert!(matches!(
-            arguments(vec!["--version".into()]).unwrap(),
-            Launch::Output(_)
-        ));
-        assert!(arguments(vec!["--bad".into()]).is_err());
-        assert!(arguments(vec!["one".into(), "two".into()]).is_err());
-        assert!(matches!(
-            arguments(vec!["--".into(), "-gallery".into()]).unwrap(),
-            Launch::Gallery(Some(_))
+fn output(result: &launch::OperationResult, machine: bool) -> i32 {
+    match launch::emit(result, machine) {
+        Ok(()) => result.exit_code(),
+        Err(_) => 1,
+    }
+}
+fn main() {
+    use launch::{Mode, Operation, OperationResult, Status};
+    let args: Vec<_> = std::env::args_os().skip(1).collect();
+    let machine = launch::requested_json(&args);
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    let request = match launch::parse(args) {
+        Ok(v) => v,
+        Err(e) => std::process::exit(output(
+            &OperationResult::failure(Operation::Arguments, id, e),
+            machine,
+        )),
+    };
+    let target = match launch::ReceiptTarget::from_environment() {
+        Ok(v) => v,
+        Err(e) => std::process::exit(output(
+            &OperationResult::failure(request.operation, id, e),
+            machine,
+        )),
+    };
+    let receipt = Arc::new(Mutex::new(target));
+    let failed = |mut result: OperationResult| {
+        result.boundary = if request.operation == Operation::Open {
+            "ui-startup"
+        } else {
+            "request"
+        }
+        .into();
+        if let Some(target) = receipt.lock().unwrap().take() {
+            target.send(result.clone());
+        } else if request.operation == Operation::Open
+            && !machine
+            && let Some(error) = &result.error
+        {
+            launch::notify_gui_error(&error.message);
+        }
+        output(&result, machine)
+    };
+    let root = if matches!(
+        request.operation,
+        Operation::Open | Operation::Resolve | Operation::Prepare
+    ) {
+        match launch::Placement::current()
+            .and_then(|p| launch::resolve_root(launch::edition(), request.root.clone(), &p))
+        {
+            Ok(v) => v,
+            Err(e) => {
+                std::process::exit(failed(OperationResult::failure(request.operation, id, e)))
+            }
+        }
+    } else {
+        None
+    };
+    if request.operation != Operation::Open {
+        std::process::exit(output(
+            &launch::finite(&request, id, root.as_deref()),
+            request.json,
         ));
     }
+    if let Err(e) = launch::gui_prerequisite() {
+        std::process::exit(failed(OperationResult::failure(Operation::Open, id, e)));
+    }
+    if request.mode == Mode::Detach {
+        if receipt.lock().unwrap().is_some() {
+            std::process::exit(failed(OperationResult::failure(
+                Operation::Open,
+                id,
+                GalleryError::new(
+                    "invalid_arguments",
+                    "A startup child cannot detach recursively.",
+                ),
+            )));
+        }
+        std::process::exit(output(&launch::detach(root.as_deref(), id), request.json));
+    }
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        run_application(root.clone(), receipt.clone())
+    }));
+    let native_code = match outcome {
+        Ok(Ok(code)) => code,
+        Ok(Err(e)) => std::process::exit(failed(OperationResult::failure(Operation::Open, id, e))),
+        Err(_) => std::process::exit(failed(OperationResult::failure(
+            Operation::Open,
+            id,
+            GalleryError::new(
+                "launch_failed",
+                format!(
+                    "The native application failed during startup or UI lifetime. {}",
+                    launch::runtime_guidance()
+                ),
+            ),
+        ))),
+    };
+    let mut result = OperationResult::new(
+        Operation::Open,
+        id,
+        "ui-lifetime",
+        if native_code == 0 {
+            Status::Success
+        } else {
+            Status::Failed
+        },
+    );
+    result.root = root.as_deref().map(gallery_core::NativePath::from_path);
+    result.data = Some(
+        serde_json::json!({"nativeExitCode":native_code.to_string(),"meaning":"UI lifetime ended; discovery has its own outcome"}),
+    );
+    if native_code != 0 {
+        result.error = Some(launch::OperationError {
+            code: "native_exit".into(),
+            message: "The native application exited unsuccessfully.".into(),
+        });
+    }
+    std::process::exit(if request.json || native_code != 0 {
+        output(&result, request.json)
+    } else {
+        0
+    });
 }

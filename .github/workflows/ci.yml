@@ -58,7 +58,57 @@ jobs:
         if: always()
         with:
           name: product-windows-evidence-${{ github.sha }}
-          path: .local/ci-product-windows.json
+          path: |
+            .local/ci-product-windows.json
+            .local/proof-results.json
+            .local/proof-build-*/*-proof.zip
+          include-hidden-files: true
+          if-no-files-found: error
+  native-proof:
+    name: native-proof (${{ matrix.scope }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            scope: product-linux
+          - runner: macos-15
+            scope: product-macos
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 1
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Start preparation accounting
+        run: echo "CI_PREPARATION_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.0
+          cache: npm
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Select exact native proof Node
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'GALLERY_PROOF_NODE=' + process.execPath + '\n')"
+      - name: Install Linux native prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev patchelf
+      - run: npm ci
+      - run: npm run ci -- ${{ matrix.scope }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: ${{ matrix.scope }}-evidence-${{ github.sha }}
+          path: |
+            .local/ci-${{ matrix.scope }}.json
+            .local/proof-results.json
+            .local/proof-build-*/*-proof.tar.gz
           include-hidden-files: true
           if-no-files-found: error
   website:
@@ -110,7 +160,7 @@ jobs:
           include-hidden-files: true
   deploy-pages:
     name: deploy-pages
-    needs: [repository, product-windows, website]
+    needs: [repository, product-windows, native-proof, website]
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'pull_request' &&

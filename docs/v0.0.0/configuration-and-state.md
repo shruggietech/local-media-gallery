@@ -72,6 +72,8 @@ The host reads and writes fixed child names through the held directory capabilit
 | macOS | App-specific Application Support, then state/history.sqlite3 |
 | Linux | Absolute XDG_STATE_HOME/tech.shruggie.local-media-gallery/history.sqlite3, otherwise HOME/.local/state/tech.shruggie.local-media-gallery/history.sqlite3 |
 
+Full uses bundle identifier tech.shruggie.local-media-gallery; Lite uses tech.shruggie.local-media-gallery.lite. Both deliberately resolve current user preferences and machine history beneath the Full product identifier, preserving existing state rather than creating an edition split. Portable settings remain gallery-local and all four save destinations remain available in both editions. This does not copy or require sender state.
+
 Relative XDG_STATE_HOME values are ignored. See the [XDG directory specification](https://specifications.freedesktop.org/basedir/latest/) and [Tauri path resolver](https://docs.rs/tauri/latest/tauri/path/struct.PathResolver.html). Linux/macOS native runtime behavior still requires platform qualification.
 
 ## Remembered directory state and decay

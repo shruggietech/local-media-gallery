@@ -50,43 +50,21 @@ fn error(e: impl ToString) -> GalleryError {
     )
 }
 pub fn encode(path: &Path) -> (&'static str, Vec<u8>) {
-    #[cfg(windows)]
-    {
-        use std::os::windows::ffi::OsStrExt;
-        (
-            "windows-utf16le",
-            path.as_os_str()
-                .encode_wide()
-                .flat_map(u16::to_le_bytes)
-                .collect(),
-        )
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStrExt;
-        ("unix-bytes", path.as_os_str().as_bytes().to_vec())
-    }
+    let native = gallery_core::NativePath::from_path(path);
+    (native.encoding.as_str(), native.bytes)
 }
 fn decode(tag: &str, bytes: &[u8]) -> Result<PathBuf, GalleryError> {
-    #[cfg(windows)]
-    {
-        use std::{ffi::OsString, os::windows::ffi::OsStringExt};
-        if tag == "windows-utf16le" && bytes.len().is_multiple_of(2) {
-            let words: Vec<_> = bytes
-                .chunks_exact(2)
-                .map(|v| u16::from_le_bytes([v[0], v[1]]))
-                .collect();
-            return Ok(OsString::from_wide(&words).into());
-        }
+    let encoding = match tag {
+        "windows-utf16le" => gallery_core::PathEncoding::WindowsUtf16Le,
+        "unix-bytes" => gallery_core::PathEncoding::UnixBytes,
+        _ => return Err(error("The native path encoding is unsupported.")),
+    };
+    gallery_core::NativePath {
+        encoding,
+        bytes: bytes.to_vec(),
     }
-    #[cfg(unix)]
-    {
-        use std::{ffi::OsString, os::unix::ffi::OsStringExt};
-        if tag == "unix-bytes" {
-            return Ok(OsString::from_vec(bytes.to_vec()).into());
-        }
-    }
-    Err(error("The native path encoding is unsupported."))
+    .to_path()
+    .map_err(error)
 }
 pub fn location(local_data: Option<PathBuf>) -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
