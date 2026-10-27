@@ -101,3 +101,7 @@ Rebuilt source3aac751b7231f605bb8f10c00e83cf6dec0a56486a5a6dcc21342bd9b5a09f70 i
 ## Eleventh diagnostic iteration
 
 Saved-binary run40560932043 again passed media, keyboard, native AX, both themes and narrow geometry, but the menulist-button appearance retained the22px native select. Replace that ineffective appearance only in the coarse branch with CSS-sized native select rendering and a token-colored dropdown indicator. The underlying select, labels, native menu and keyboard semantics remain intact; fine-pointer density stays unchanged. Complete headless campaign9 passed before this additional rendered correction, and its accounting remains retained.
+
+## Twelfth diagnostic iteration
+
+Saved-binary run40561895543 passed media, then exposed a keyboard handoff race before presentation: pending viewer card-focus restoration overrode the observer's immediate Refresh focus, so Tab reached the following card. The shared driver now waits for the closed viewer's actual card focus return before another operation. Native Tab, Pause and dialog Escape similarly await their actual functional result rather than assuming a queued AppKit event has already completed. No fixed delay replaces the focus contract. Target measurements, including native appearance/minimum geometry, are retained before acceptance assertions so subsequent failures remain inspectable. All86 tests pass headlessly; complete campaign10 remains separate from the following observer correction.

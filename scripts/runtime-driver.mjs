@@ -31,6 +31,11 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
  };
  const click=text=>js('const scope=document.querySelector("dialog[open]")||document.querySelector("[role=dialog]")||document;const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0]);if(!b)throw Error("Missing button "+arguments[0]);b.click();return true;',[text]);
  const focus=text=>js('const scope=document.querySelector("dialog[open]")||document.querySelector("[role=dialog]")||document;const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0]);if(!b)throw Error("Missing button "+arguments[0]);b.scrollIntoView({block:"nearest"});b.focus();return true;',[text]);
+ async function closeViewer(){
+  const name=await js('return document.querySelector("dialog[open] h2")?.textContent');assert.ok(name);
+  await click('Close viewer');
+  await until(()=>js('return !document.querySelector("dialog[open]")&&document.activeElement?.getAttribute("aria-label")==="Open "+arguments[0];',[name]),'Viewer closes and returns native focus to '+name);
+ }
  async function accessibility(){
   if(process.platform==='darwin')return command('accessibility');
   const out=path.join(directory,'accessibility.json');
@@ -50,5 +55,5 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
   try{await until(async()=>{const r=JSON.parse(await readFile(evidence));return r.ready?r:false;},'Isolated NVDA startup',20000);}catch(e){await stop(reader);throw new Error(e.message+'; '+await readFile(path.join(directory,'nvda.log'),'utf8').catch(()=>''));}
   return {read:async()=>{const b=await readFile(evidence);const r=JSON.parse(b);return {...r,bytes:String(b.length),speech:r.records.filter(x=>x.kind==='speech').map(x=>x.text),tool:{version:tool.version,download:tool.download,payloadBytes:tool.payloadBytes}};},stop:()=>stop(reader)};
  }
- return {directory,child,js,command,nativeKey,click,focus,accessibility,screenReader,screenshot:async name=>{const pixels=await request('/session/'+session+'/screenshot');const file=path.join(directory,name+'.png');await writeFile(file,Buffer.from(pixels,'base64'));return file;},close:async()=>{try{await request('/session/'+session,undefined,'DELETE');}catch{}await stop(child);},output:()=>output};
+ return {directory,child,js,command,nativeKey,click,focus,closeViewer,accessibility,screenReader,screenshot:async name=>{const pixels=await request('/session/'+session+'/screenshot');const file=path.join(directory,name+'.png');await writeFile(file,Buffer.from(pixels,'base64'));return file;},close:async()=>{try{await request('/session/'+session,undefined,'DELETE');}catch{}await stop(child);},output:()=>output};
 }

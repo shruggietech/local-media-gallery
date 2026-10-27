@@ -70,6 +70,10 @@ Source 3aac751b7231f605bb8f10c00e83cf6dec0a56486a5a6dcc21342bd9b5a09f70 (1051 fi
 
 Source 92753f77bfae615a76377813a6ae24f908156eea524dc642d6d8bc6bdd9e65d6 (1051 files), commita0c3d68. All eleven headless steps passed. Preparation48.454s, qualification97.612s, combined146.066s; terminal2026-10-27T18:34:57.781Z. Its native select appearance experiment did not fix the44px target in the separate Mac diagnostic; the following CSS correction requires new source qualification.
 
+## Headless campaign 10
+
+Source 4233f874ec4a5c42b6e03684c8925e17fdb6d4b0becd15c07128e488f7de31d4 (1051 files), commit4f2a297. All eleven headless steps passed with CSS-sized coarse selects and the retained dropdown indicator. Preparation48.212s, qualification96.241s, combined144.453s; terminal2026-10-27T18:41:10.866Z. A later native handoff race requires the following observer synchronization correction and another final-source campaign.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

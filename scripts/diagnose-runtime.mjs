@@ -77,7 +77,7 @@ async function diagnoseMacVideo(){
      if(result.standaloneAudioDecode.samples){const s=result.standaloneAudioDecode;result.standaloneAudioDecode={rate:s.rate,channels:s.channels,...signalObservation(s.samples,s.rate)};}
     }
    }catch(e){result.failure=e.stack;}
-   finally{await js(async()=>{if(window.__runtimeAudio){await window.__runtimeAudio.context.close();delete window.__runtimeAudio;}return true;}).catch(()=>{});await app.click('Close viewer').catch(()=>{});if(server)await new Promise(resolve=>{server.closeAllConnections();server.close(resolve);});}
+   finally{await js(async()=>{if(window.__runtimeAudio){await window.__runtimeAudio.context.close();delete window.__runtimeAudio;}return true;}).catch(()=>{});await app.closeViewer().catch(()=>{});if(server)await new Promise(resolve=>{server.closeAllConnections();server.close(resolve);});}
   }
  }finally{receipt.nativeOutput=app.output();await app.close();}
 }
