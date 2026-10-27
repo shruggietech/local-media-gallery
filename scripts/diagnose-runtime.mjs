@@ -20,8 +20,9 @@ const fixture=JSON.parse(await readFile(path.join(root,'.local/runtime-fixture.j
 const binary=path.join(input,'bin/local-media-gallery-native-tests'+(process.platform==='win32'?'.exe':''));
 const bytes=await readFile(binary);
 if(process.platform!=='win32')await chmod(binary,0o755);
-try{const r=JSON.parse(await readFile(path.join(input,'runtime-results-full.json')));assert.equal(digest(bytes),r.binary.sha256);}catch(e){if(e.code!=='ENOENT')throw e;}
-const receipt={kind:'mixed-source-runtime-diagnostic',acceptance:false,artifactRun:process.env.GALLERY_DIAGNOSTIC_RUN,artifactSource:prior.context.source,harnessSource:await sourceIdentity(),binary:{sha256:digest(bytes),bytes:String(bytes.length)},observations:[],started:new Date().toISOString()};
+let rebuilt;try{rebuilt=JSON.parse(await readFile(path.join(root,'.local/diagnostic-rebuilt.json')));assert.deepEqual(rebuilt.source,await sourceIdentity());assert.equal(digest(bytes),rebuilt.binary.sha256);}catch(e){if(e.code!=='ENOENT')throw e;}
+if(!rebuilt)try{const r=JSON.parse(await readFile(path.join(input,'runtime-results-full.json')));assert.equal(digest(bytes),r.binary.sha256);}catch(e){if(e.code!=='ENOENT')throw e;}
+const receipt={kind:'isolated-runtime-diagnostic',acceptance:false,artifactRun:process.env.GALLERY_DIAGNOSTIC_RUN,rebuilt,artifactSource:rebuilt?.source??prior.context.source,harnessSource:await sourceIdentity(),binary:{sha256:digest(bytes),bytes:String(bytes.length)},observations:[],started:new Date().toISOString()};
 let restore;
 console.log('DIAGNOSTIC ONLY: prior compiled application and current harness; not final-source qualification.');
 try{
@@ -45,10 +46,11 @@ async function diagnoseMacVideo(){
   await js(()=>{document.addEventListener('keydown',e=>{window.__diagnosticKey={key:e.key,trusted:e.isTrusted};if(e.isTrusted&&e.key===' '&&window.__runtimeAudio)void window.__runtimeAudio.context.resume();},true);return true;});
   const media=await readFile(path.join(fixture.directory,'tone.webm'));
   assert.equal(digest(media),fixture.files.find(f=>f.name==='tone.webm').sha256);
-  for(const mode of ['original-without-graph','independent-without-graph','independent-with-graph','independent-conditional-cors-with-graph']){
+  for(const mode of ['original-without-graph','original-without-graph-information','independent-without-graph','independent-with-graph','independent-conditional-cors-with-graph']){
    const result={mode,delivery:[]};receipt.observations.push(result);let server;
    try{
     await js(()=>{document.querySelector('.media-card[data-name="tone.webm"] button').click();return true;});await until(()=>js(()=>document.querySelector('dialog[open] h2')?.textContent==='tone.webm'),'Diagnostic WebM viewer');
+    if(mode==='original-without-graph-information')await app.click('Information');
     if(mode.startsWith('independent')){
      const origin=await js(()=>location.origin);server=http.createServer((req,res)=>{
       if(result.delivery.length>=128){res.writeHead(503);res.end();return;}

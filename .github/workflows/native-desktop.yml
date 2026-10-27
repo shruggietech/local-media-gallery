@@ -13,6 +13,11 @@ on:
         default: macos
         type: choice
         options: [windows, linux, macos]
+      build_native:
+        description: Rebuild the Full native-test binary for native-hook diagnosis
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
   actions: read
@@ -64,7 +69,7 @@ jobs:
     if: inputs.artifact_run != ''
     name: runtime-diagnostics (${{ inputs.platform }})
     runs-on: ${{ fromJSON('{"windows":"windows-2025","linux":"ubuntu-24.04","macos":"macos-15"}')[inputs.platform] }}
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       GALLERY_ISOLATED_DESKTOP: '1'
       GALLERY_DIAGNOSTIC_RUN: ${{ inputs.artifact_run }}
@@ -72,6 +77,7 @@ jobs:
       XDG_CONFIG_HOME: ${{ github.workspace }}/.local/desktop-config
       WEBKIT_DISABLE_DMABUF_RENDERER: '1'
       LIBGL_ALWAYS_SOFTWARE: '1'
+      CARGO_BUILD_JOBS: 1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,6 +107,12 @@ jobs:
           pattern: product-${{ inputs.platform }}-evidence-*
           path: .local/diagnostic-input
           merge-multiple: true
+      - name: Install Linux diagnostic build prerequisites
+        if: runner.os == 'Linux' && inputs.build_native
+        run: sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev
+      - name: Rebuild the identified native-test binary
+        if: inputs.build_native
+        run: node scripts/build-diagnostic-native.mjs
       - name: Diagnose on isolated Linux display
         if: runner.os == 'Linux'
         run: dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1200x24' node scripts/diagnose-runtime.mjs

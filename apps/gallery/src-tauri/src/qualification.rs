@@ -73,6 +73,21 @@ mod macos {
     use objc2_foundation::{NSArray, NSPoint, NSProcessInfo, NSString};
     use std::collections::{HashSet, VecDeque};
 
+    #[link(name = "CoreFoundation", kind = "framework")]
+    unsafe extern "C" {
+        fn CFGetTypeID(value: *const std::ffi::c_void) -> usize;
+    }
+    #[link(name = "ApplicationServices", kind = "framework")]
+    unsafe extern "C" {
+        fn AXUIElementGetTypeID() -> usize;
+        fn AXUIElementSetMessagingTimeout(element: *const std::ffi::c_void, seconds: f32) -> i32;
+        fn AXUIElementCopyAttributeValue(
+            element: *const std::ffi::c_void,
+            attribute: *const std::ffi::c_void,
+            result: *mut *const std::ffi::c_void,
+        ) -> i32;
+    }
+
     unsafe fn supports(node: &AnyObject, selector: objc2::runtime::Sel) -> bool {
         unsafe { msg_send![node, respondsToSelector:selector] }
     }
@@ -80,6 +95,7 @@ mod macos {
         node: &AnyObject,
         selector: objc2::runtime::Sel,
         legacy: &str,
+        errors: &mut Vec<i32>,
     ) -> Option<Retained<AnyObject>> {
         unsafe {
             let modern: Option<Retained<AnyObject>> = if supports(node, selector) {
@@ -88,17 +104,47 @@ mod macos {
                 None
             };
             if modern.is_some() {
-                modern
-            } else if supports(node, sel!(accessibilityAttributeValue:)) {
-                msg_send![node, accessibilityAttributeValue:&*NSString::from_str(legacy)]
-            } else {
-                None
+                return modern;
             }
+            if supports(node, sel!(accessibilityAttributeValue:)) {
+                let value: Option<Retained<AnyObject>> =
+                    msg_send![node, accessibilityAttributeValue:&*NSString::from_str(legacy)];
+                if value.is_some() {
+                    return value;
+                }
+            }
+            // AppKit publishes WebKit's remote AX children as bridged CF objects.
+            // They expose AX attributes through ApplicationServices, not NSObject selectors.
+            let pointer = node as *const AnyObject as *const std::ffi::c_void;
+            if node.class().name().to_bytes().starts_with(b"__NSCF")
+                && CFGetTypeID(pointer) == AXUIElementGetTypeID()
+            {
+                let _ = AXUIElementSetMessagingTimeout(pointer, 1.0);
+                let mut value = std::ptr::null();
+                let name = NSString::from_str(legacy);
+                let status = AXUIElementCopyAttributeValue(
+                    pointer,
+                    &*name as *const NSString as *const std::ffi::c_void,
+                    &mut value,
+                );
+                if status == 0 {
+                    return Retained::from_raw(value as *mut AnyObject);
+                }
+                if errors.len() < 32 {
+                    errors.push(status);
+                }
+            }
+            None
         }
     }
-    unsafe fn text(node: &AnyObject, selector: objc2::runtime::Sel, legacy: &str) -> String {
+    unsafe fn text(
+        node: &AnyObject,
+        selector: objc2::runtime::Sel,
+        legacy: &str,
+        errors: &mut Vec<i32>,
+    ) -> String {
         unsafe {
-            let Some(value) = attribute(node, selector, legacy) else {
+            let Some(value) = attribute(node, selector, legacy, errors) else {
                 return String::new();
             };
             let string: Retained<NSString> = msg_send![&*value, description];
@@ -141,6 +187,7 @@ mod macos {
         let mut queue = VecDeque::from([(root, 0usize)]);
         let mut seen = HashSet::new();
         let mut records = Vec::new();
+        let mut remote_errors = Vec::new();
         let mut overflow = false;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while let Some((node, depth)) = queue.pop_front() {
@@ -151,12 +198,41 @@ mod macos {
             if !seen.insert((&*node as *const AnyObject) as usize) {
                 continue;
             }
-            let role = unsafe { text(&node, sel!(accessibilityRole), "AXRole") };
-            let label = unsafe { text(&node, sel!(accessibilityLabel), "AXTitle") };
-            let description = unsafe { text(&node, sel!(accessibilityTitle), "AXDescription") };
-            let value = unsafe { text(&node, sel!(accessibilityValue), "AXValue") };
-            records.push(json!({"role":role,"name":label,"description":description,"value":value,"depth":depth}));
-            let children = unsafe { attribute(&node, sel!(accessibilityChildren), "AXChildren") };
+            let role =
+                unsafe { text(&node, sel!(accessibilityRole), "AXRole", &mut remote_errors) };
+            let label = unsafe {
+                text(
+                    &node,
+                    sel!(accessibilityLabel),
+                    "AXTitle",
+                    &mut remote_errors,
+                )
+            };
+            let description = unsafe {
+                text(
+                    &node,
+                    sel!(accessibilityTitle),
+                    "AXDescription",
+                    &mut remote_errors,
+                )
+            };
+            let value = unsafe {
+                text(
+                    &node,
+                    sel!(accessibilityValue),
+                    "AXValue",
+                    &mut remote_errors,
+                )
+            };
+            records.push(json!({"role":role,"name":label,"description":description,"value":value,"depth":depth,"nativeClass":node.class().name().to_string_lossy()}));
+            let children = unsafe {
+                attribute(
+                    &node,
+                    sel!(accessibilityChildren),
+                    "AXChildren",
+                    &mut remote_errors,
+                )
+            };
             if let Some(children) = children {
                 let array: &NSArray<AnyObject> =
                     unsafe { &*((&*children as *const AnyObject) as *const NSArray<AnyObject>) };
@@ -174,7 +250,7 @@ mod macos {
             }
         }
         Ok(
-            json!({"method":"AppKit/WKWebView provider","nodes":records.len(),"overflow":overflow,"records":records,"speech":"VoiceOver not exercised"}),
+            json!({"method":"AppKit/WKWebView provider","nodes":records.len(),"overflow":overflow,"records":records,"remoteErrors":remote_errors,"speech":"VoiceOver not exercised"}),
         )
     }
 }
