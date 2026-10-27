@@ -94,6 +94,10 @@ Run40565317141 tested source1154300db02c65ed51d0e62d3fc619220a13d4d06658817a90f2
 
 After the two CI corrections, complete headless campaign13 passed source24c2638cfc541b77e935cb2282305b7bb5dec25546007ff37b2078c92fb87677 (1052 files), commite0d3e35. Preparation48.584s, qualification97.704s, combined146.288s; terminal2026-10-27T19:29:26.995Z. All eleven gates passed with86 Node tests. No local GUI, keyboard injection or screen reader was launched. Corrected hosted run40569222067 remains pending.
 
+## Sixth hosted campaign
+
+Run40569222067 tested source24c2638cfc541b77e935cb2282305b7bb5dec25546007ff37b2078c92fb87677, mergee347774ccfe01b15c6b160e6bc1843320d8e8a59. Repository passed: preparation29.773s, qualification2.687s, combined32.460s, terminal2026-10-27T19:27:45.460Z. Website passed: preparation67.366s, qualification52.120s, combined119.486s, terminal2026-10-27T19:29:14.486Z. Linux passed: preparation760.176s, qualification113.813s, combined873.989s, terminal2026-10-27T19:41:46.989Z. macOS passed: preparation857.122s, qualification194.939s, combined1052.061s, terminal2026-10-27T19:44:48.061Z. Independent source/binary/runtime and normal archive read-back passed Linux/macOS editions. Windows failed the older suite's unacknowledged preference transition after both native editions passed: preparation847.535s, qualification260.474s, combined1108.009s, terminal2026-10-27T19:45:50.359Z. Its later legacy groups were not run; the complete Windows scope is not accepted.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.
