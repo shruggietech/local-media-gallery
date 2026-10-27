@@ -45,3 +45,32 @@ Source 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003 fi
 | lite | 18677248 | 7921672 | 22893994 | 256610654a90aa56c7da66bd66ba5e2e2f39ca11435601209bc87024166420a3 | 3a05e831daf0aae7c83205f59ef46258862313b4a8821e6b8a9d153e33533b39 |
 
 Shared runtime directory remains909827702logical bytes, separately observed and not marginal download or complete system closure. Native Linux/macOS acceptance remains tied to its own hosted receipts.
+
+## Accepted hosted native proof (2026-10-27)
+
+[Qualification run 40450500747](https://github.com/shruggietech/local-media-gallery/actions/runs/40450500747) passed all five elected checks for implementation 34d710f612a629e2ea917938ab23f3c36a8d8eef, tested merge revision 30cfd5cdd41bee83b3ac8cf295fe44db561f27a1 and accepted source 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003 files). Independent downloaded-archive read-back checked exact archive bytes/hashes, entries, payload bytes/hashes, native tar modes, embedded proof identities/inventory and macOS bundle metadata. Each normal extracted Full/Lite artifact passed native CLI/provenance/integrity checks on its own runner; no foreign executable was run on Windows.
+
+| Scope | Preparation seconds | Qualification seconds | Combined seconds |
+| --- | --- | --- | --- |
+| repository | 15.29 | 1.232 | 16.522 |
+| product-windows | 609.356 | 133.809 | 743.165 |
+| product-linux | 357.053 | 37.24 | 394.293 |
+| product-macos | 564.041 | 104.025 | 668.066 |
+| website | 78.995 | 58.274 | 137.269 |
+
+| Target | Edition | Checks | Binary bytes | Archive bytes | Extracted bytes | Binary SHA256 | Archive SHA256 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| x86_64-pc-windows-msvc | full | 10 | 18596864 | 7925715 | 22825810 | 2c422b41990e9d099d9942edc9fbfbabc93a7acbaeafb1154bb5366c36902ba3 | 2d97a8b468c226168341c6ac2e2707cf619eaa60542472b5439868768b9ba277 |
+| x86_64-pc-windows-msvc | lite | 10 | 18596864 | 7922897 | 22825815 | 6b6f2db5ee46b9dbd7e74ddae0d9c7ad68ceaedba25133b7649a2655cbf93701 | 7a4594b3d9f6bab381ff1d0b115b521b77c100b01fae44e4c05d90f7723b0daa |
+| x86_64-unknown-linux-gnu | full | 10 | 117256656 | 28376598 | 121609916 | e4760fff2747c82eb770ea57c5ea7fb5dc3ea833a55fc2f1a898b47aef4177bd | a0e856b28fc2c72140579456c1ae1a63655aafbb828184e782219453bfdba085 |
+| x86_64-unknown-linux-gnu | lite | 11 | 117256552 | 28376629 | 121609817 | 4e82a5c41e1cdc35be2ca665dc435e61f5524a6a96cab933d8eb3959264538f6 | 8c0049d5eeef392e797fdfe65c3b826718f4c0828092894e07b8d2a54ec2f8bd |
+| aarch64-apple-darwin | full | 10 | 33323896 | 9865380 | 37509793 | 4a2b84d5dec88464b32a47b859b05cd972b9de40316d9737a390085ae5f8230d | 6ac2d23c5e62ef1268349d1c3f72956213bfb645c4a8fb3e99c662a15cd4cd0f |
+| aarch64-apple-darwin | lite | 10 | 33323912 | 9867232 | 37509819 | 6beb8d19b1bb687d377338dff8a6da6f2187d251a7fc29b6a4d501da785fedcf | e5d5d1437b8dfd66281ebef668c96a7faa16f524cd4acee09ff6883a014cbadc |
+
+product-windows: runtime observation {"basis":"native version probe; GUI initialization not certified","bytes":null,"provider":"WebView2","status":"available","version":"155.0.4283.62"}. Runtime footprint {"status":"measured","bytes":"909827702","basis":"Logical installed WebView2 version-directory bytes; shared, excludes Windows system libraries, not marginal download"}.
+
+product-linux: runtime observation {"basis":"native version probe; GUI initialization not certified","bytes":null,"provider":"WebKitGTK","status":"available","version":"2.52.6"}. Runtime footprint {"status":"unavailable","bytes":null,"basis":"Attributable complete shared-runtime bytes unavailable; OS/system libraries remain separate"}.
+
+product-macos: runtime observation {"basis":"native version probe; GUI initialization not certified","bytes":null,"provider":"WKWebView","status":"available","version":"20621.3.11.11.3"}. Runtime footprint {"status":"unavailable","bytes":null,"basis":"Attributable complete shared-runtime bytes unavailable; OS/system libraries remain separate"}.
+
+These are normal debug proof artifacts, with final installer footprints unavailable and optional product tools not applicable. Windows local rendered/media acceptance is separate from hosted finite CLI/archive proof. Linux/macOS GUI/media, other architectures, older Linux ABI, macOS quarantine/translocation and clean-machine installation remain unqualified; final packages remain downstream work.

@@ -64,7 +64,7 @@ The first StateLock local preparation failed Clippy redundant_closure_call in th
 
 ## Accepted operation-owned locks and native SQLite parents
 
-PASS all14checks on 812bc5c0109f7a16cef9b9d4ec523c3054e99e5c8b04a6be462871c717ec3086 (1003files). Preparation 42.94 s, qualification 207.945 s, combined 250.885 s; terminal 2026-10-26T01:30:02.092Z. Includes75Node,37core,48Full/48Lite shell/state,4Python and128exact comparison images,31rendered native groups,6launchgroups,10extracted checks/edition,ordinary artifact exclusion,site/browser,measurements andprovenance. Native Unix parent alias/final-link regressions remain elected in hosted acceptance; no platform result is inherited from Windows. This corrects the second hosted lock/SQLite failures without serialization, retries, skipped tests, disabled NOFOLLOW or changed governed bytes.
+PASS all14checks on 812bc5c0109f7a16cef9b9d4ec523c3054e99e5c8b04a6be462871c717ec3086 (1003 files). Preparation 42.94 s, qualification 207.945 s, combined 250.885 s; terminal 2026-10-26T01:30:02.092Z. Includes75Node,37core,48Full/48Lite shell/state,4Python and128exact comparison images,31rendered native groups,6launchgroups,10extracted checks/edition,ordinary artifact exclusion,site/browser,measurements andprovenance. Native Unix parent alias/final-link regressions remain elected in hosted acceptance; no platform result is inherited from Windows. This corrects the second hosted lock/SQLite failures without serialization, retries, skipped tests, disabled NOFOLLOW or changed governed bytes.
 
 ## Third hosted macOS receipt admission
 
@@ -84,4 +84,16 @@ The Cargo-target run passed repository/core/app/site and49Full/49Lite shell test
 
 ## Accepted portable receipt and compiled target (terminal 2026-10-26T06:09:18.468Z)
 
-PASS all14elected checks on 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003files): preparation 39.974s, qualification 201.046s, combined 241.02s. Includes75Node,37core,49Full/49Lite shell/state tests,31Windows rendered groups,6launch groups,10normal extracted checks per edition,4Python pixel regressions and128exact regenerated comparisons, ordinary-window exclusion, website/browser, measurements and unchanged source/governed bytes. Native foreground/document focus synchronization and visible-focus assertions pass without repeated key input. Accepted socket reads retain the bounded deadline and the actual Cargo build target is emitted by each artifact. Third hosted macOS failure remains separately attributed until fresh native hosted evidence passes.
+PASS all14elected checks on 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003 files): preparation 39.974s, qualification 201.046s, combined 241.02s. Includes75Node,37core,49Full/49Lite shell/state tests,31Windows rendered groups,6launch groups,10normal extracted checks per edition,4Python pixel regressions and128exact regenerated comparisons, ordinary-window exclusion, website/browser, measurements and unchanged source/governed bytes. Native foreground/document focus synchronization and visible-focus assertions pass without repeated key input. Accepted socket reads retain the bounded deadline and the actual Cargo build target is emitted by each artifact. Third hosted macOS failure remains separately attributed until fresh native hosted evidence passes.
+
+## Hosted acceptance and final review request (2026-10-27)
+
+Run 40450500747 passed repository, website, Windows, Ubuntu and macOS for implementation 34d710f and merge 30cfd5cdd41bee83b3ac8cf295fe44db561f27a1. All five receipts match accepted source 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003 files), with all elected steps passing. Independent read-back of six downloaded normal archives verified hashes, exact payload entries/bytes/modes, source/revision/target identity and macOS bundle metadata. Earlier failed runs remain separate evidence.
+
+The second and final Codex review was requested on 34d710f in [comment 6434010705](https://github.com/shruggietech/local-media-gallery/pull/51#issuecomment-6434010705). No third round is authorized. Final receipt-only publication and owner handoff await terminal review and final-head CI.
+
+## Review closure and receipt publication (2026-10-27)
+
+Both authorized review rounds completed with no findings: PR-open review on 248d648 and the final manual review on 34d710f. [Final review receipt 6434036162](https://github.com/shruggietech/local-media-gallery/pull/51#issuecomment-6434036162) and the summary report completed/no findings; individual review threads are empty. No third round was requested. Issues #5/#7 acceptance checklists now link the passing hosted evidence and remain OPEN in Project 8 PR review/S012 pending owner merge.
+
+This final commit changes only the three explicitly excluded internal delivery receipts (tasks, measurements, verification). Normative source identity remains 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003 files), matching local qualification, reviewed implementation and all hosted proof archives. The terminal final-head CI run and independently verified final revision/archive receipts are linked in the PR description at handoff, avoiding a recursive receipt-commit cycle. Owner handoff requires that ensuing exact-head run to pass; merge/tag/release remain owner-only.
