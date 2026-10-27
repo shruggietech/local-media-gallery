@@ -24,6 +24,7 @@ class CapturePolicy(unittest.TestCase):
         plugin.records = []
         plugin.overflow = False
         plugin.ready = True
+        plugin.capture_counts = {"outsideForeground": 0, "unrecognizedSequence": 0, "acceptedSpeech": 0, "acceptedFocus": 0}
         plugin.path = Path(directory) / "evidence.json"
         return plugin
 
@@ -34,6 +35,12 @@ class CapturePolicy(unittest.TestCase):
             self.assertTrue(plugin.gallery_sequence("quadrants.png dialog"))
             self.assertFalse(plugin.gallery_sequence("PRIVATE_OTHER_WINDOW document"))
             self.assertFalse(plugin.gallery_sequence("PRIVATE_OTHER_WINDOW Refresh button"))
+            plugin.owns_foreground = lambda: True
+            plugin.observe(["PRIVATE_OTHER_WINDOW Refresh button"])
+            self.assertNotIn("PRIVATE_OTHER_WINDOW", plugin.path.read_text(encoding="utf-8"))
+            self.assertEqual(plugin.capture_counts["unrecognizedSequence"], 1)
+            plugin.observe(["Close folder", "button"])
+            self.assertEqual(plugin.capture_counts["acceptedSpeech"], 1)
 
     def test_record_and_byte_bounds_reject_before_storage(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -118,7 +118,7 @@ jobs:
       - run: npm ci
       - name: Run native qualification on isolated Linux display
         if: runner.os == 'Linux'
-        run: dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1200x24' node scripts/ci.mjs ${{ matrix.scope }}
+        run: dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1200x24' npm run ci -- ${{ matrix.scope }}
       - name: Run native qualification on isolated macOS desktop
         if: runner.os == 'macOS'
         run: npm run ci -- ${{ matrix.scope }}

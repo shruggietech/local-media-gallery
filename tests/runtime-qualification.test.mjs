@@ -20,6 +20,11 @@ test('missing native checks, untrusted keyboard and overflow cannot certify acce
 test('unsupported format is evidence only with retained inspectable item and a reason',()=>{
  for(const mutate of [r=>r.media[0].reason='',r=>r.media[0].retained=false,r=>r.media[0].inspectable=false,r=>r.media[0].outcome='unavailable']){const r=receipt();mutate(r);assert.throws(()=>validateRuntimeReceipt(r,expected));}
 });
+
+test('aborted and network video loads cannot become successful codec evidence',()=>{
+ for(const errorCode of [1,2,0,5,undefined]){const r=receipt();r.media=[{name:'tone.mp4',type:'video',outcome:'unsupported',errorCode,reason:'Load failed',retained:true,inspectable:true}];assert.throws(()=>validateRuntimeReceipt(r,expected),undefined,'Native media error '+errorCode);}
+ for(const errorCode of [3,4]){const r=receipt();r.media=[{name:'tone.mp4',type:'video',outcome:'unsupported',errorCode,reason:'Native decoding unsupported',retained:true,inspectable:true}];validateRuntimeReceipt(r,expected);}
+});
 test('silent fixture and suspended audio graph cannot pass a decoded tone observation',()=>{
  const tone=Float32Array.from({length:4096},(_,i)=>0.125*Math.sin(2*Math.PI*440*i/48000));
  const observation=signalObservation(tone,48000);assert.ok(observation.rms>0.08);assert.ok(Math.abs(observation.peakHz-440)<20);

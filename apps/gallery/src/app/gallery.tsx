@@ -205,7 +205,7 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
           ? <video key={key} ref={video} src={source} controls crossOrigin="anonymous" preload="metadata" aria-label={'Video ' + item.name}
             onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
             onLoadedMetadata={event => updateFacts(key, { width: event.currentTarget.videoWidth, height: event.currentTarget.videoHeight, duration: event.currentTarget.duration })}
-            onError={event => updateFacts(key, { error: event.currentTarget.error?.code === 3 ? 'This video could not be decoded. Refresh to check the folder again.' : 'This video format or codec is unavailable in the current runtime.' })} />
+            onError={event => { const code = event.currentTarget.error?.code; updateFacts(key, { error: code === 1 ? 'Video loading was interrupted. Press Play to retry, or Refresh to check the folder again.' : code === 2 ? 'This video could not be read. Refresh to check the folder again.' : code === 3 ? 'This video could not be decoded. Refresh to check the folder again.' : code === 4 ? 'This video format or codec is unavailable in the current runtime.' : 'This video is unavailable. Refresh to check the folder again.' }); }} />
           : !facts.error ? <img key={key} src={source} alt={item.name} crossOrigin="anonymous"
             onLoad={event => updateFacts(key, { width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
             onError={() => updateFacts(key, { error: 'This image is unavailable or unsupported in the current runtime. Refresh to check the folder again.' })} /> : <ImageIcon aria-hidden="true" />}

@@ -11,7 +11,7 @@ export const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export async function until(probe,message,timeout=12000){const end=Date.now()+timeout;let last;while(Date.now()<end){try{last=await probe();if(last)return last;}catch(e){last=e.message;}await pause(100);}throw new Error(message+': '+JSON.stringify(last));}
 const call=promisify(execFile);
 export async function hidden(file,args,options={}){return call(file,args,{cwd:root,windowsHide:true,shell:false,timeout:15000,maxBuffer:4*1024*1024,env:environment,...options});}
-async function stop(child){if(child.exitCode!==null||child.signalCode!==null)return;child.kill();await Promise.race([new Promise(resolve=>child.once('exit',resolve)),pause(5000).then(()=>{throw new Error('Native child exit was not observed');})]);}
+async function stop(child){if(child.exitCode!==null||child.signalCode!==null)return;await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Native child exit was not observed')),5000);child.once('exit',()=>{clearTimeout(timer);resolve();});child.kill();});}
 export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
  requireIsolatedDesktop();
  const directory=await mkdtemp(path.join(root,'.local/runtime-session-'));const port=43000+Math.floor(Math.random()*10000);const origin='http://127.0.0.1:'+port;

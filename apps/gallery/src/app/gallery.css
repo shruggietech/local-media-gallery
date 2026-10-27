@@ -89,15 +89,6 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none; transition: none; scroll-behavior: auto; } }
 
-/* Short or zoomed windows keep one scroll owner for otherwise clipped controls. */
-@media (max-height: 45rem) {
-  .media-viewer[open] { overflow: auto; grid-template-rows: auto auto minmax(min-content, 1fr) auto; }
-  .viewer-content { min-block-size: var(--lo-space-10); }
-}
-@media (max-height: 45rem) and (max-width: 45rem) {
-  .viewer-content[data-information="true"] { min-block-size: calc(var(--lo-space-10) * 2 + var(--lo-space-3)); grid-template-rows: minmax(var(--lo-space-10), 3fr) minmax(var(--lo-space-10), 2fr); }
-}
-
 .save-destination .bb-field { margin: 0; }
 .save-destination select { max-width: 12rem; }
 .state-controls { margin-block: var(--lo-space-3); padding: var(--lo-space-3); }
@@ -131,6 +122,15 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 .preparation-facts dd { margin-inline-start: 0; overflow-wrap: anywhere; font-family: var(--bb-typography-mono-family); }
 .media-viewer[open] { grid-template-rows: auto auto minmax(0, 1fr) auto; }
 .viewer-preparation { max-block-size: var(--lo-space-10); overflow: auto; }
+
+/* Short or zoomed windows keep one scroll owner for otherwise clipped controls. */
+@media (max-height: 45rem) {
+  .media-viewer[open] { overflow: auto; grid-template-rows: auto auto minmax(min-content, 1fr) auto; }
+  .viewer-content { min-block-size: var(--lo-space-10); }
+}
+@media (max-height: 45rem) and (max-width: 45rem) {
+  .viewer-content[data-information="true"] { min-block-size: calc(var(--lo-space-10) * 2 + var(--lo-space-3)); grid-template-rows: minmax(var(--lo-space-10), 3fr) minmax(var(--lo-space-10), 2fr); }
+}
 
 #bb-overlay-root .bb-dialog[role="dialog"] { position: fixed; inset-block-start: 50%; inset-inline-start: 50%; transform: translate(-50%, -50%); inline-size: min(calc(100% - var(--lo-space-5)), calc(var(--lo-space-10) * 6)); max-block-size: calc(var(--bb-visual-viewport-height, 100dvh) - var(--lo-space-5)); overflow: auto; z-index: 10; }
 #bb-overlay-root > [data-state="open"]:has(+ .bb-dialog[role="dialog"]) { position: fixed; inset: 0; background: var(--bb-surface-background); z-index: 9; }

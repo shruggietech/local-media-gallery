@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {root} from './run.mjs';
 import {sourceIdentity} from './provenance.mjs';
-import {digest,signalObservation,validateRuntimeReceipt} from './runtime-evidence.mjs';
+import {digest,signalObservation,validateRuntimeReceipt,unsupportedVideoError} from './runtime-evidence.mjs';
 import {verifyRuntimeFixture} from './create-runtime-fixture.mjs';
 import {openRuntime,until,pause,hidden} from './runtime-driver.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
@@ -49,12 +49,12 @@ try{
  });
  await check('video',async()=>{
   for(const entry of fixture.entries.filter(e=>e.type==='video')){
-   await open(entry.name);await until(()=>js(()=>{const v=document.querySelector('dialog[open] video');return v?.readyState>=2||v?.error;}),'Native video frame readiness '+entry.name,15000);await inspect();
-   const failure=await js(()=>document.querySelector('dialog[open] video')?.error?.code??null);
-   if(failure){record.media.push({...entry,outcome:'unsupported',reason:await js(()=>document.querySelector('dialog[open] .media-error')?.textContent??''),retained:true,inspectable:true});await close();continue;}
+   await open(entry.name);await inspect();
    await js(()=>{const video=document.querySelector('dialog[open] video');const context=new AudioContext();const source=context.createMediaElementSource(video);const analyser=context.createAnalyser();analyser.fftSize=4096;const gain=context.createGain();gain.gain.value=0;source.connect(analyser).connect(gain).connect(context.destination);window.__runtimeAudio={context,source,analyser};return true;});
-   await app.focus('Play');await app.nativeKey('Space');await until(()=>js(()=>{const v=document.querySelector('dialog[open] video');return v.currentTime>0.3&&!v.paused&&window.__runtimeAudio.context.state==='running';}),'Trusted native playback/audio graph');
+   await app.focus('Play');await app.nativeKey('Space');await until(()=>js(()=>{const v=document.querySelector('dialog[open] video');return v.error||(v.readyState>=2&&v.currentTime>0.3&&!v.paused&&window.__runtimeAudio.context.state==='running');}),'Trusted native playback/audio graph '+entry.name,15000);
    assert.equal((await js(()=>window.__runtimeKey)).trusted,true);
+   const failure=await js(()=>document.querySelector('dialog[open] video')?.error?.code??null);
+   if(failure){const errorCode=unsupportedVideoError(failure);record.media.push({...entry,outcome:'unsupported',errorCode,reason:await js(()=>document.querySelector('dialog[open] .media-error')?.textContent??''),retained:true,inspectable:true});await js(async()=>{await window.__runtimeAudio.context.close();delete window.__runtimeAudio;return true;});await close();continue;}
    const sample=await js(()=>{const {context,analyser}=window.__runtimeAudio;const data=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(data);const bins=new Float32Array(analyser.frequencyBinCount);analyser.getFloatFrequencyData(bins);let peak=0;for(let i=1;i<bins.length;i++)if(bins[i]>bins[peak])peak=i;return {samples:[...data],sampleRate:context.sampleRate,state:context.state,fftPeakHz:peak*context.sampleRate/analyser.fftSize};});
    const signal=signalObservation(sample.samples,sample.sampleRate);if(entry.audio){assert.ok(signal.rms>0.01,'Audible-signal fixture decoded PCM is silent');assert.ok(Math.abs(sample.fftPeakHz-440)<30,'Decoded tone frequency');}else assert.ok(signal.rms<0.0001,'Silent control emitted decoded audio');
    const frame=()=>js(()=>{const video=document.querySelector('dialog[open] video');const c=document.createElement('canvas');c.width=160;c.height=96;const ctx=c.getContext('2d');ctx.drawImage(video,0,0,160,96);let hash=0;for(const byte of ctx.getImageData(0,0,160,96).data)hash=(Math.imul(hash,33)^byte)>>>0;return {hash,time:video.currentTime,width:video.videoWidth,height:video.videoHeight};});
@@ -84,7 +84,7 @@ try{
   const text=native.records.map(n=>[n.name,n.description,n.value].filter(Boolean).join(' '));const essentialNames=[];for(const name of ['Refresh','Controls','Thumbnails','Diagnostics']){assert.ok(text.some(t=>name==='Controls'?/Show controls|Hide controls/.test(t):t===name||t.includes(name)),native.method+' missing '+name);essentialNames.push(name);}
   record.accessibility={...native,essentialNames};
   if(process.platform==='win32'){
-   await app.focus('Refresh');await app.nativeKey('Tab');await until(async()=>{const r=await reader.read();return r.speech.some(s=>/Close folder/i.test(s))?r:false;},'Actual NVDA control speech');
+   let focusAttempts=0;await until(async()=>{const r=await reader.read();if(r.speech.some(s=>/Close folder/i.test(s)))return r;focusAttempts++;await app.focus('Refresh');await app.nativeKey('Tab');return false;},'Actual NVDA control speech',20000);record.accessibility.readerFocusAttempts=focusAttempts;
    await open('quadrants.png');await app.focus('Next');const before=(await reader.read()).records.length;await app.nativeKey('Space');const changed=await until(()=>js(()=>{const t=document.querySelector('dialog h2')?.textContent;return t&&t!=='quadrants.png'?t:false;}),'Viewer next item');
    await until(async()=>{const r=await reader.read();return r.records.slice(before).some(x=>x.kind==='speech'&&x.text.includes(changed))?r:false;},'NVDA announces changed viewer item');
    record.screenReader=await reader.read();assert.equal(record.screenReader.overflow,false);await close();await reader.stop();reader=null;
@@ -110,7 +110,10 @@ try{
  validateRuntimeReceipt(record,{source,binarySha256:digest(bytes),fixtureSha256:fixture.sha256,edition:record.edition,platform:process.platform});
 }catch(error){record.failure=error.stack;console.error(error.stack);process.exitCode=1;}
 finally{
- if(reader)await reader.stop();if(app){record.sessionDirectory=app.directory;await app.close();}
+ const cleanupFailures=[];
+ if(reader){try{record.screenReader=await reader.read();}catch(e){cleanupFailures.push('Reader receipt: '+e.message);}try{await reader.stop();}catch(e){cleanupFailures.push('Reader shutdown: '+e.message);}}
+ if(app){record.sessionDirectory=app.directory;if(record.result!=='pass')try{record.failureObservation=await app.js('const v=document.querySelector("dialog[open] video");return {ready:document.readyState,activeTag:document.activeElement?.tagName,activeLabel:document.activeElement?.getAttribute("aria-label"),viewer:document.querySelector("dialog[open] h2")?.textContent,key:window.__runtimeKey,video:v?{readyState:v.readyState,networkState:v.networkState,errorCode:v.error?.code,paused:v.paused,time:v.currentTime}:null}');}catch{}try{await app.close();}catch(e){cleanupFailures.push('Application shutdown: '+e.message);}}
+ if(cleanupFailures.length){record.cleanupFailures=cleanupFailures;record.result='fail';record.failure??=cleanupFailures.join('; ');process.exitCode=1;}
  record.terminalFinished=new Date().toISOString();await writeFile(path.join(root,'.local/runtime-results-'+record.edition+'.json'),JSON.stringify(record,null,2)+'\n');
  console.log(JSON.stringify({result:record.result,edition:record.edition,checks:record.checks.map(c=>c.name),failure:record.failure??null,receipt:'.local/runtime-results-'+record.edition+'.json'}));
 }

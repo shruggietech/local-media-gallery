@@ -21,6 +21,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         self.records = []
         self.overflow = False
         self.ready = False
+        self.capture_counts = {"outsideForeground": 0, "unrecognizedSequence": 0, "acceptedSpeech": 0, "acceptedFocus": 0}
         self.user32 = ctypes.windll.user32
         self.user32.GetForegroundWindow.restype = ctypes.c_void_p
         self.user32.GetAncestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
@@ -53,7 +54,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         return matched and all(token in words or token.isdecimal() for token in tokens)
 
     def flush(self):
-        payload = {"name": "NVDA", "version": versionInfo.version, "ready": self.ready, "overflow": self.overflow, "records": self.records, "output": "built-in silence synthesizer; generated speech only"}
+        payload = {"name": "NVDA", "version": versionInfo.version, "ready": self.ready, "overflow": self.overflow, "records": self.records, "captureCounts": self.capture_counts, "output": "built-in silence synthesizer; generated speech only"}
         raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         if len(raw) + 1 > 262144:
             raise RuntimeError("NVDA qualification serialization exceeded its bound")
@@ -70,17 +71,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def observe(self, speechSequence, **kwargs):
         if not self.owns_foreground():
+            self.capture_counts["outsideForeground"] += 1
+            self.flush()
             return
         strings = [value for value in speechSequence if isinstance(value, str)]
         if not strings:
             return
         text = " ".join(strings)
         if not self.gallery_sequence(text):
+            self.capture_counts["unrecognizedSequence"] += 1
+            self.flush()
             return
+        self.capture_counts["acceptedSpeech"] += 1
         self.append({"kind": "speech", "at": time.time(), "text": text})
 
     def event_gainFocus(self, obj, nextHandler):
         if self.owns_foreground() and obj.name in self.labels:
+            self.capture_counts["acceptedFocus"] += 1
             self.append({"kind": "focus", "at": time.time(), "text": obj.name or "", "role": str(obj.role), "states": [str(v) for v in obj.states]})
         nextHandler()
 

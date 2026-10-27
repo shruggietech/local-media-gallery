@@ -2,6 +2,10 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 export const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
+export function unsupportedVideoError(code){
+ assert.ok([3,4].includes(code),'Native video transport, aborted or unknown load failure (MediaError '+code+')');
+ return code;
+}
 export function signalObservation(samples,sampleRate){
  assert.ok(samples.length>0&&samples.length<=65536);assert.ok(Number.isFinite(sampleRate)&&sampleRate>0);
  let energy=0,crossings=0;
@@ -26,7 +30,10 @@ export function validateRuntimeReceipt(r,expected){
  }
  for(const media of r.media){
   assert.ok(['supported','unsupported'].includes(media.outcome));assert.equal(media.retained,true);assert.equal(media.inspectable,true);
-  if(media.outcome==='unsupported')assert.ok(typeof media.reason==='string'&&media.reason.trim().length>0);
+  if(media.outcome==='unsupported'){
+   assert.ok(typeof media.reason==='string'&&media.reason.trim().length>0);
+   if(media.type==='video')unsupportedVideoError(media.errorCode);
+  }
  }
  return r;
 }
