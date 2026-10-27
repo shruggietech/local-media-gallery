@@ -76,6 +76,139 @@ mod macos {
     #[link(name = "CoreFoundation", kind = "framework")]
     unsafe extern "C" {
         fn CFGetTypeID(value: *const std::ffi::c_void) -> usize;
+        fn CFRetain(value: *const std::ffi::c_void) -> *const std::ffi::c_void;
+        fn CFRelease(value: *const std::ffi::c_void);
+        fn CFArrayGetTypeID() -> usize;
+        fn CFArrayGetCount(value: *const std::ffi::c_void) -> isize;
+        fn CFArrayGetValueAtIndex(
+            value: *const std::ffi::c_void,
+            index: isize,
+        ) -> *const std::ffi::c_void;
+        fn CFStringGetTypeID() -> usize;
+        fn CFStringGetCString(
+            value: *const std::ffi::c_void,
+            buffer: *mut u8,
+            size: isize,
+            encoding: u32,
+        ) -> bool;
+    }
+    unsafe extern "C" {
+        fn dlsym(
+            handle: *mut std::ffi::c_void,
+            symbol: *const std::ffi::c_char,
+        ) -> *mut std::ffi::c_void;
+    }
+
+    struct OwnedCf(*const std::ffi::c_void);
+    impl Drop for OwnedCf {
+        fn drop(&mut self) {
+            unsafe {
+                CFRelease(self.0);
+            }
+        }
+    }
+    unsafe fn remote_tree(webview: &AnyObject) -> Option<Value> {
+        unsafe {
+            // Test-only WebKit client bridge, matching WebKitTestRunner. AppKit's
+            // NSAccessibilityRemoteUIElement is a provider proxy, not an AXUIElement.
+            if !supports(webview, sel!(_remoteAccessibilityChildToken)) {
+                return None;
+            }
+            let _: Option<Retained<AnyObject>> =
+                msg_send![webview, accessibilityAttributeValue:&*NSString::from_str("AXRole")];
+            let token: Option<Retained<AnyObject>> =
+                msg_send![webview, _remoteAccessibilityChildToken];
+            let token = token?;
+            let symbol = dlsym(
+                (-2isize) as *mut _,
+                c"_AXUIElementCreateWithRemoteToken".as_ptr(),
+            );
+            if symbol.is_null() {
+                return None;
+            }
+            let create: unsafe extern "C" fn(*const std::ffi::c_void) -> *const std::ffi::c_void =
+                std::mem::transmute(symbol);
+            let root = create(&*token as *const AnyObject as *const _);
+            if root.is_null() {
+                return None;
+            }
+            let mut queue = VecDeque::from([(OwnedCf(root), 0usize)]);
+            let mut seen = HashSet::new();
+            let mut records = Vec::new();
+            let mut errors = Vec::new();
+            let mut overflow = false;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            while let Some((node, depth)) = queue.pop_front() {
+                if records.len() >= 2048 || std::time::Instant::now() > deadline {
+                    overflow = true;
+                    break;
+                }
+                if !seen.insert(node.0 as usize) {
+                    continue;
+                }
+                if CFGetTypeID(node.0) != AXUIElementGetTypeID() {
+                    continue;
+                }
+                let _ = AXUIElementSetMessagingTimeout(node.0, 0.1);
+                let mut attributes = serde_json::Map::new();
+                for (key, name) in [
+                    ("role", "AXRole"),
+                    ("name", "AXTitle"),
+                    ("description", "AXDescription"),
+                    ("value", "AXValue"),
+                    ("children", "AXChildren"),
+                ] {
+                    let name = NSString::from_str(name);
+                    let mut value = std::ptr::null();
+                    let status = AXUIElementCopyAttributeValue(
+                        node.0,
+                        &*name as *const NSString as *const _,
+                        &mut value,
+                    );
+                    if status != 0 || value.is_null() {
+                        if status != 0 && errors.len() < 32 {
+                            errors.push(status);
+                        }
+                        continue;
+                    }
+                    let value = OwnedCf(value);
+                    if key == "children" && CFGetTypeID(value.0) == CFArrayGetTypeID() {
+                        let count = CFArrayGetCount(value.0);
+                        if depth >= 32 && count > 0 {
+                            overflow = true;
+                            continue;
+                        }
+                        for index in 0..count {
+                            if records.len() + queue.len() >= 2048 {
+                                overflow = true;
+                                break;
+                            }
+                            queue.push_back((
+                                OwnedCf(CFRetain(CFArrayGetValueAtIndex(value.0, index))),
+                                depth + 1,
+                            ));
+                        }
+                    } else if CFGetTypeID(value.0) == CFStringGetTypeID() {
+                        let mut buffer = vec![0u8; 4096];
+                        if CFStringGetCString(
+                            value.0,
+                            buffer.as_mut_ptr(),
+                            buffer.len() as isize,
+                            0x08000100,
+                        ) {
+                            let end = buffer.iter().position(|b| *b == 0).unwrap_or(buffer.len());
+                            attributes
+                                .insert(key.into(), json!(String::from_utf8_lossy(&buffer[..end])));
+                        }
+                    }
+                }
+                attributes.insert("depth".into(), json!(depth));
+                records.push(Value::Object(attributes));
+            }
+            Some(
+                json!({"method":"WebKit remote-token/ApplicationServices native AX client (test-only SPI)","nodes":records.len(),"records":records,"overflow":overflow,"remoteErrors":errors,"speech":"VoiceOver not exercised"}),
+            )
+        }
     }
     #[link(name = "ApplicationServices", kind = "framework")]
     unsafe extern "C" {
@@ -182,6 +315,9 @@ mod macos {
                 app.postEvent_atStart(&event, false);
             }
             return Ok(json!({"method":"AppKit queued NSEvent"}));
+        }
+        if let Some(tree) = unsafe { remote_tree(webview) } {
+            return Ok(tree);
         }
         let root = unsafe { Retained::retain(pointer as *mut AnyObject) }.ok_or_else(error)?;
         let mut queue = VecDeque::from([(root, 0usize)]);

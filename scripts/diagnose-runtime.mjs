@@ -46,11 +46,11 @@ async function diagnoseMacVideo(){
   await js(()=>{document.addEventListener('keydown',e=>{window.__diagnosticKey={key:e.key,trusted:e.isTrusted};if(e.isTrusted&&e.key===' '&&window.__runtimeAudio)void window.__runtimeAudio.context.resume();},true);return true;});
   const media=await readFile(path.join(fixture.directory,'tone.webm'));
   assert.equal(digest(media),fixture.files.find(f=>f.name==='tone.webm').sha256);
-  for(const mode of ['original-without-graph','original-without-graph-information','independent-without-graph','independent-with-graph','independent-conditional-cors-with-graph']){
+  for(const mode of ['original-without-graph','original-without-graph-information','original-scroll-information','independent-without-graph','independent-with-graph','independent-conditional-cors-with-graph']){
    const result={mode,delivery:[]};receipt.observations.push(result);let server;
    try{
-    await js(()=>{document.querySelector('.media-card[data-name="tone.webm"] button').click();return true;});await until(()=>js(()=>document.querySelector('dialog[open] h2')?.textContent==='tone.webm'),'Diagnostic WebM viewer');
-    if(mode==='original-without-graph-information')await app.click('Information');
+    await js(scroll=>{const card=document.querySelector('.media-card[data-name="tone.webm"]');if(scroll)card.scrollIntoView({block:'center'});card.querySelector('button').click();return true;},mode==='original-scroll-information');await until(()=>js(()=>document.querySelector('dialog[open] h2')?.textContent==='tone.webm'),'Diagnostic WebM viewer');
+    if(mode==='original-without-graph-information'||mode==='original-scroll-information')await app.click('Information');
     if(mode.startsWith('independent')){
      const origin=await js(()=>location.origin);server=http.createServer((req,res)=>{
       if(result.delivery.length>=128){res.writeHead(503);res.end();return;}
