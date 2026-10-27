@@ -407,7 +407,10 @@ try {
     await select('page-size','48'); await select('media-sort','name'); await select('media-direction','asc');
     await visible('document.querySelectorAll(".media-card").length===12');
     await click('Hide controls');
-    await pause(300);
+    // Compact desktop density has a fixed reference size; smaller windows may wrap.
+    await js('return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",{action:"presentation",width:1280,height:900,zoom:1})');
+    await visible('window.innerWidth>=1200 && window.innerHeight>=800');
+    await js('return await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
     const geometry=await js('const bar=document.querySelector(".app-header").getBoundingClientRect();const grid=document.querySelector(".media-grid");const cards=[...grid.querySelectorAll(".media-card")].map(c=>{const r=c.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}});return {barHeight:bar.height,buttonHeights:[...document.querySelectorAll(".app-header button,.collection-navigation button")].map(b=>b.getBoundingClientRect().height),gap:getComputedStyle(grid).gap,cards,scrollbar:getComputedStyle(document.querySelector(".bb-app-frame__scroll")).scrollbarWidth}');
     assert.ok(geometry.barHeight>=44 && geometry.barHeight<=49,JSON.stringify(geometry));
     assert.ok(geometry.buttonHeights.every(h=>h>=30 && h<=35),JSON.stringify(geometry.buttonHeights));

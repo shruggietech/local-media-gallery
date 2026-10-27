@@ -48,15 +48,15 @@ pub async fn test_native_qualification(
             let (send, receive) = tokio::sync::oneshot::channel();
             window
                 .with_webview(move |webview| {
-                    if action == "accessibility" {
-                        if let Some(root) = unsafe { macos::remote_root(webview.inner()) } {
-                            // Native AX requests may call back into AppKit. Leave its
-                            // main loop free while the bounded client walks the tree.
-                            std::thread::spawn(move || {
-                                let _ = send.send(Ok(unsafe { macos::remote_tree(root) }));
-                            });
-                            return;
-                        }
+                    if action == "accessibility"
+                        && let Some(root) = unsafe { macos::remote_root(webview.inner()) }
+                    {
+                        // Native AX requests may call back into AppKit. Leave its
+                        // main loop free while the bounded client walks the tree.
+                        std::thread::spawn(move || {
+                            let _ = send.send(Ok(unsafe { macos::remote_tree(root) }));
+                        });
+                        return;
                     }
                     let result =
                         unsafe { macos::observe(webview.inner(), &action, key.as_deref()) };
@@ -124,7 +124,7 @@ mod macos {
             if supports(&app, sel!(accessibilitySetValue:forAttribute:)) {
                 let numbers = objc2::runtime::AnyClass::get(c"NSNumber")?;
                 let enabled: Retained<AnyObject> = msg_send![numbers, numberWithBool:true];
-                let _: () = msg_send![&*app, accessibilitySetValue:&*enabled forAttribute:&*NSString::from_str("AXEnhancedUserInterface")];
+                let _: () = msg_send![&*app, accessibilitySetValue:&*enabled, forAttribute:&*NSString::from_str("AXEnhancedUserInterface")];
             }
             // Test-only WebKit client bridge, matching WebKitTestRunner. AppKit's
             // NSAccessibilityRemoteUIElement is a provider proxy, not an AXUIElement.

@@ -84,6 +84,10 @@ Run40563616988 tested mergead716c9f72063fa52714415083342fce8a995a65 and sourcef1
 
 Repository preparation24.153s, qualification2.652s, combined26.805s; terminal2026-10-27T18:50:35.805Z (failed). Corrected repository readiness and all three gates subsequently passed locally with the selected isolated interpreter: preparation1.343s, qualification2.407s, combined3.750s; terminal2026-10-27T18:59:25.958Z. This focused verification is separate from complete source qualification.
 
+## Headless campaign 12
+
+Source 1154300db02c65ed51d0e62d3fc619220a13d4d06658817a90f22a46e7632af5 (1052 files), commit13cc681. All eleven headless gates passed with shared pinned Python readiness and the consistently selected interpreter, including86 Node tests and independent normal Full/Lite archive acceptance. Preparation46.653s, qualification94.525s, combined141.178s; terminal2026-10-27T19:03:41.083Z. Independent local archive read-back passes this exact source. Interactive acceptance remains remote.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.
