@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateRuntimeReceipt, signalObservation} from '../scripts/runtime-evidence.mjs';
+import {validateRuntimeReceipt, signalObservation, digest} from '../scripts/runtime-evidence.mjs';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {python,root} from '../scripts/run.mjs';
@@ -30,6 +30,14 @@ test('silent fixture and suspended audio graph cannot pass a decoded tone observ
  const observation=signalObservation(tone,48000);assert.ok(observation.rms>0.08);assert.ok(Math.abs(observation.peakHz-440)<20);
  assert.equal(signalObservation(new Float32Array(4096),48000).rms,0);
  assert.throws(()=>signalObservation([NaN],48000));
+});
+
+test('independent native audio buffers retain exact original and target attribution',()=>{
+ const files=[{name:'tone.webm',sha256:'d'.repeat(64),bytes:'1000'}];const mac={...expected,platform:'darwin',fixtureSha256:digest(Buffer.from(JSON.stringify(files)))};
+ const make=()=>{const r=receipt();r.environment.platform='darwin';r.fixture={sha256:mac.fixtureSha256,files:structuredClone(files)};r.media=[{name:'tone.webm',type:'video',codec:'vp9',frequency:440,outcome:'supported',retained:true,inspectable:true,audio:{method:'native-original-buffer',state:'running',sampleRate:48000,rms:0.08,fftPeakHz:445,decodedSource:{sha256:'d'.repeat(64),bytes:'1000'}}}];return r;};
+ for(const mutate of [r=>r.fixture.files[0].sha256='e'.repeat(64),r=>r.media[0].audio.decodedSource.sha256='e'.repeat(64),r=>r.media[0].audio.decodedSource.bytes='999',r=>r.media[0].audio.rms=0,r=>r.media[0].audio.fftPeakHz=880,r=>r.media[0].audio.state='suspended',r=>r.media[0].audio.method='capability-hint']){const r=make();mutate(r);assert.throws(()=>validateRuntimeReceipt(r,mac));}
+ validateRuntimeReceipt(make(),mac);
+ const wrong=make();wrong.environment.platform='win32';assert.throws(()=>validateRuntimeReceipt(wrong,{...mac,platform:'win32'}));
 });
 test('actual NVDA capture policy excludes unrelated queued text and enforces storage bounds',async()=>{
  await promisify(execFile)(process.platform==='win32'?python:'python3',['tests/nvda-qualification.test.py'],{cwd:root,windowsHide:true,shell:false,timeout:15000});

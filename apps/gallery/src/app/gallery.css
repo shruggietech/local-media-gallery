@@ -88,7 +88,7 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
   .viewer-content[data-information="true"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
   .viewer-information { padding-inline-start: 0; padding-block-start: var(--lo-space-3); border-inline-start: 0; border-block-start: var(--bb-border-default) solid var(--bb-action-primary); }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none; transition: none; scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none; transition: none; scroll-behavior: auto; } .bb-app-frame .scroll-indicator { transition: none; } }
 
 .save-destination .bb-field { margin: 0; }
 .save-destination select { max-width: 12rem; }
@@ -112,7 +112,7 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 .metadata-leaf .bb-button, .metadata-node > details > .metadata-children > .bb-button { justify-self: start; }
 .metadata-inspector code, .metadata-raw { font-family: var(--bb-typography-mono-family); font-weight: 400; white-space: pre-wrap; overflow-wrap: anywhere; }
 .metadata-inspector summary { cursor: pointer; padding-block: var(--lo-space-2); }
-.metadata-inspector summary:focus-visible { outline: var(--bb-focus-width) solid var(--bb-focus-ring); outline-offset: var(--bb-focus-offset); }
+.metadata-inspector summary:focus-visible, .state-controls summary:focus-visible { outline: var(--bb-focus-width) solid var(--bb-focus-ring); outline-offset: var(--bb-focus-offset); }
 .metadata-raw { max-inline-size: 100%; }
 
 /* Optional derived cards have independent facts and bounded native admission. */

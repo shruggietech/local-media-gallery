@@ -31,6 +31,17 @@ export function validateRuntimeReceipt(r,expected){
  }
  for(const media of r.media){
   assert.ok(['supported','unsupported'].includes(media.outcome));assert.equal(media.retained,true);assert.equal(media.inspectable,true);
+  if(media.type==='video'&&media.outcome==='supported'){
+   const audio=media.audio;assert.ok(['media-element','native-original-buffer'].includes(audio.method));assert.equal(audio.state,'running');
+   assert.ok(Number.isFinite(audio.sampleRate)&&audio.sampleRate>0);assert.ok(Number.isFinite(audio.rms)&&audio.rms>=0);assert.ok(Number.isFinite(audio.fftPeakHz));
+   if(media.frequency){assert.ok(audio.rms>0.01);assert.ok(Math.abs(audio.fftPeakHz-media.frequency)<30);}else assert.ok(audio.rms<0.0001);
+   if(audio.method==='native-original-buffer'){
+    assert.equal(expected.platform,'darwin');assert.equal(media.codec,'vp9');
+    assert.equal(digest(Buffer.from(JSON.stringify(r.fixture.files))),expected.fixtureSha256);
+    const original=r.fixture.files.find(f=>f.name===media.name);assert.ok(original);
+    assert.equal(audio.decodedSource.sha256,original.sha256);assert.equal(audio.decodedSource.bytes,original.bytes);
+   }
+  }
   if(media.outcome==='unsupported'){
    assert.ok(typeof media.reason==='string'&&media.reason.trim().length>0);
    if(media.type==='video')unsupportedVideoError(media.errorCode);

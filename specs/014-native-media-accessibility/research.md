@@ -30,6 +30,8 @@ The Windows hosted run exposed actual NVDA speech/focus for Refresh but no subse
 
 The Linux status setup used the wrong object path. GNOME registers org.a11y.Status at /org/a11y/bus, alongside the bus interface. Correct that path rather than treating an unavailable provider as a codec result. Source: [AT-SPI bus launcher](https://github.com/GNOME/at-spi2-core/blob/main/bus/at-spi-bus-launcher.c).
 
+Mac's native WebM media-element audio observer differs from native buffer decoding. Actual isolated comparison probes show successful ordinary playback and native decoded tone PCM but an unavailable media-element PCM tap. [WebKit issue276813](https://bugs.webkit.org/show_bug.cgi?id=276813) describes the separate WebM media-element/WebAudio path and incorrect gain behavior; it supports investigating that boundary, not inferring current qualification from a bug report. Retain actual source-bound video observations and independently identified native buffer PCM evidence, with the media-element output limitation explicit.
+
 ## 2026-10-27: Workflow and authority
 
 Decision: all installed Spec Kit stages and no extension hooks (file absent). The checklist helper initially required a plan file although autopilot sequences checklist first; create the installed plan template, then resolve the checklist template before completing design. This is a helper prerequisite ordering adjustment, not a skipped requirements review. Source qualification/review cap and automatic push authorization remain unchanged.
