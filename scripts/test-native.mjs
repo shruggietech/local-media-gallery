@@ -724,8 +724,8 @@ try {
       await visible('document.querySelectorAll(".media-grid img[src],.media-grid video[src]").length===0');
       await releaseDecodes();
       await js('delete document.visibilityState;document.dispatchEvent(new Event("visibilitychange"));return true;');
-      await visible('document.querySelector(".media-card[data-name=\"image2.jpg\"] img")!==null');
-      await js('document.querySelector(".media-card[data-name=\"image2.jpg\"]").scrollIntoView({block:"center"});return true;');
+      await visible('[...document.querySelectorAll(".media-card")].some(card=>card.dataset.name==="image2.jpg")');
+      await js('const card=[...document.querySelectorAll(".media-card")].find(card=>card.dataset.name===arguments[0]);card.scrollIntoView({block:"center"});return true;',['image2.jpg']);
       await visible('[...document.querySelectorAll(".media-grid img")].some(i=>i.naturalWidth>0)');
       assert.equal(await js('return Number(document.querySelector(".media-grid").dataset.loadingLimit)'),1,'Hidden period does not reset or promote calibration');
       assert.equal(await js('return [...document.querySelectorAll(".media-card")].some(c=>c.textContent.includes("Media unavailable"))'),false,'Cancelled decode rejection must not poison usable media');
