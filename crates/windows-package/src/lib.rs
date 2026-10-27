@@ -256,6 +256,9 @@ mod tests {
     #[test]
     fn actual_owned_bytes_not_unrelated_files() {
         let dir = tempfile::tempdir().unwrap();
+        // macOS exposes its system temporary parent through /var. The package
+        // authority takes a physical path; do not weaken redirect rejection.
+        let physical = dir.path().canonicalize().unwrap();
         fs::write(dir.path().join("app.exe"), b"x").unwrap();
         let mut p = Payload {
             product: "local-media-gallery".into(),
@@ -280,10 +283,20 @@ mod tests {
             }],
         };
         fs::write(dir.path().join("foreign.txt"), b"retain").unwrap();
-        assert!(p.verify(dir.path(), false).is_ok());
+        assert!(p.verify(&physical, false).is_ok());
         fs::write(dir.path().join("app.exe"), b"y").unwrap();
-        assert!(p.verify(dir.path(), true).is_err());
+        assert!(p.verify(&physical, true).is_err());
         p.files.push(p.files[0].clone());
         assert!(p.validate().is_err());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn physical_root_remains_distinct_from_a_redirected_alias() {
+        let dir = tempfile::tempdir().unwrap();
+        let physical = dir.path().canonicalize().unwrap();
+        assert!(check_path(&physical).is_ok());
+        let alias = physical.join("redirect");
+        std::os::unix::fs::symlink(&physical, &alias).unwrap();
+        assert!(check_path(&alias).is_err());
     }
 }
