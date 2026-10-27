@@ -48,5 +48,5 @@ test('native snapshot evidence rejects blank/clipped frames and excludes changin
 test('focus-changing suites refuse the active workstation before launching a GUI',async()=>{
  assert.throws(()=>requireIsolatedDesktop({}),/isolated CI desktop/);
  assert.throws(()=>requireIsolatedDesktop({GITHUB_ACTIONS:'true'}),/isolated CI desktop/);
- for(const script of ['diagnose-runtime','diagnose-legacy-windows','test-runtime-platform','test-runtime','test-native','test-preparation','test-launch','test-normal','measure-native','qualify'])await assert.rejects(promisify(execFile)(process.execPath,['scripts/'+script+'.mjs'],{cwd:root,windowsHide:true,shell:false,timeout:10000,env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:''}}),e=>e.stderr.includes('isolated CI desktop'));
+ for(const script of ['build-windows-packages','test-windows-packages','ci-windows-packages','diagnose-runtime','diagnose-legacy-windows','test-runtime-platform','test-runtime','test-native','test-preparation','test-launch','test-normal','measure-native','qualify'])await assert.rejects(promisify(execFile)(process.execPath,['scripts/'+script+'.mjs'],{cwd:root,windowsHide:true,shell:false,timeout:10000,env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:''}}),e=>e.stderr.includes('isolated CI desktop'));
 });

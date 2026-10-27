@@ -9,6 +9,8 @@ import path from 'node:path';
 import Ajv from 'ajv/dist/2020.js';
 import { viewItems } from '../apps/gallery/src/lib/view.ts';
 import { root, execute, environment } from './run.mjs';
+import {availableLoopbackPort,observeChild,readyDriver,stopOwnedChild} from './native-driver-lifecycle.mjs';
+import {randomUUID} from 'node:crypto';
 
 if (process.platform !== 'win32') throw new Error('Native acceptance currently requires Windows.');
 const started = new Date();
@@ -22,11 +24,11 @@ let settingsDirectory = await mkdtemp(path.join(root, '.local/native-settings-')
 let historyDirectory = await mkdtemp(path.join(root, '.local/native-history-'));
 let settingsFile = path.join(settingsDirectory, 'settings.json');
 const binary = process.env.GALLERY_TEST_BINARY ?? path.join(root, 'target/debug/local-media-gallery.exe');
-const port = 44000 + Math.floor(Math.random() * 10000);
+const port = await availableLoopbackPort();
 const origin = `http://127.0.0.1:${port}`;
 let diagnostics = '';
 function launch(args) {
-  const app = spawn(binary, args, { cwd: root, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), GALLERY_TEST_SETTINGS_DIR: settingsDirectory, GALLERY_TEST_HISTORY_DIR: historyDirectory, GALLERY_TEST_PAGE_SIZE: "4" } });
+  const app = spawn(binary, args, { cwd: root, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), WEBVIEW2_USER_DATA_FOLDER:path.join(root,'.local','native-webview-'+randomUUID()), GALLERY_TEST_SETTINGS_DIR: settingsDirectory, GALLERY_TEST_HISTORY_DIR: historyDirectory, GALLERY_TEST_PAGE_SIZE: "4" } });
   app.stdout.on('data', b => { diagnostics += b; }); app.stderr.on('data', b => { diagnostics += b; });
   app.on('error', error => { diagnostics += error.message; });
   return app;
@@ -64,12 +66,12 @@ const select = (id, value) => js('const el=document.getElementById(arguments[0])
 const input = (action, extra = []) => execute('C:/Program Files/PowerShell/7/pwsh.exe', ['-NoProfile', '-NonInteractive', '-File', path.join(root, 'scripts/native-input.ps1'), '-AppProcessId', String(child.pid), '-Action', action, ...extra]);
 async function test(name, body) { await body(); passed.push(name); console.log(`PASS ${name}`); }
 async function connect() {
-  await until(async () => { const r = await fetch(origin + '/status', { signal: AbortSignal.timeout(500) }); return r.ok; }, 'Native driver readiness', 20000);
+  await readyDriver(child,origin,observeChild(child),20000);
   session = (await until(() => request('/session', { capabilities: { alwaysMatch: { 'wdio:tauriServiceOptions': { windowLabel: 'main' } } } }), 'Native main-window readiness', 20000)).sessionId;
 }
 async function stop() {
   if (session) { await request(`/session/${session}`, undefined, 'DELETE'); session = null; }
-  if (child.exitCode === null) await new Promise(resolve => { child.once('exit', resolve); child.kill(); });
+  await stopOwnedChild(child);
 }
 async function unchanged() {
   async function names(directory, prefix = '') {
@@ -796,5 +798,5 @@ try {
   throw error;
 } finally {
   if (session) { try { await request(`/session/${session}`, undefined, 'DELETE'); } catch {} }
-  child.kill();
+  await stopOwnedChild(child);
 }

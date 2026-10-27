@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:local-media-gallery:windows-application-payload:0.0.0",
+  "title": "Unpublished Windows application payload identity",
+  "x-release-version": "0.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["product", "kind", "formatVersion", "version", "edition", "os", "arch", "targetTriple", "buildProfile", "source", "revision", "binary", "files"],
+  "properties": {
+    "product": { "const": "local-media-gallery" },
+    "kind": { "const": "windows-application-payload" },
+    "formatVersion": { "const": 1 },
+    "version": { "const": "0.0.0" },
+    "edition": { "enum": ["full", "lite"] },
+    "os": { "const": "windows" },
+    "arch": { "const": "x86_64" },
+    "targetTriple": { "const": "x86_64-pc-windows-msvc" },
+    "buildProfile": { "const": "release" },
+    "source": {
+      "type": "object",
+      "required": ["sha256", "files"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/hash" },
+        "files": { "type": "integer", "minimum": 1 },
+        "exclusions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "revision": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "binary": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "files": {
+      "type": "array", "minItems": 1, "maxItems": 4096,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "bytes": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+          "sha256": { "$ref": "#/$defs/hash" },
+          "mode": { "type": "null" }
+        }
+      }
+    }
+  },
+  "$defs": { "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" } },
+  "$comment": "Native/Node validators additionally reject Windows aliases, traversal, case collisions, non-member binary paths, redirected files and aggregate payloads above 1GiB. The containing archive inventory hashes this manifest without self-reference. These are unpublished candidates, not release records."
+}

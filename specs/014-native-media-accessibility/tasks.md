@@ -58,9 +58,11 @@ Independent test: exact source-bound native receipts reject missing/mismatched/u
 - [X] T025 Record dated behavior/process decisions and unreleased changes in CHANGELOG.md, preserving version0.0.0 and governed kit bytes (FR-014/015).
 - [X] T026 Run complete local qualification after verified readiness, retaining every campaign and preparation/qualification/combined accounting in specs/014-native-media-accessibility/verification.md/measurements.md (FR-015/016, SC-001..005).
 - [X] T027 Commit/push official PR closing #18/#19, attach it and update Project8 PR review/S014 in specs/014-native-media-accessibility/verification.md (FR-017).
-- [ ] T028 Verify exact-source native hosted/runtime and six normal archive receipts with independent artifact read-back in specs/014-native-media-accessibility/verification.md/measurements.md (FR-001/013/016, SC-001/005).
+- [X] T028 Verify exact-source native hosted/runtime and six normal archive receipts with independent artifact read-back in specs/014-native-media-accessibility/verification.md/measurements.md (FR-001/013/016, SC-001/005).
 - [X] T029 Address every review finding and resolve every thread using at most two rounds, recording concrete corrections in specs/014-native-media-accessibility/verification.md (FR-017, SC-006).
-- [ ] T030 Publish final receipts, verify exact-final-head CI/source/reviews/issue state and clean checkout, then notify owner for final review/merge in specs/014-native-media-accessibility/verification.md (FR-017, SC-006).
+- [X] T030 Publish final receipts, verify exact-final-head CI/source/reviews/issue state and clean checkout, then notify owner for final review/merge in specs/014-native-media-accessibility/verification.md (FR-017, SC-006).
+
+The owner completed final review/squash merge before the agent's final handoff. T030 records that owner action and subsequent verified housekeeping; it does not claim an agent merge. Remaining delivery records are retained with the next owner-authorized slice.
 
 ## Dependencies and order
 
