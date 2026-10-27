@@ -52,9 +52,11 @@ export function anchoredPage(previous: MediaItem[], next: MediaItem[], page: num
   const index = next.findIndex(item => item.id === anchor);
   return { page: index >= 0 ? Math.floor(index / size) + 1 : 1, anchor, removed };
 }
-export function mediaUrl(snapshot: Pick<Snapshot, 'sessionId' | 'mediaOrigin'>, item: MediaItem): string {
+export function mediaUrl(snapshot: Pick<Snapshot, 'sessionId' | 'mediaOrigin'>, item: MediaItem, consumer: 'card' | 'focused' = 'card'): string {
   if (!snapshot.sessionId || !snapshot.mediaOrigin) return '';
-  return `${snapshot.mediaOrigin}/media/${[snapshot.sessionId, item.id, item.revision].map(encodeURIComponent).join('/')}`;
+  // Keep focused playback independent of the card's retiring native loader.
+  // Both URLs resolve through the same session/item/revision authority.
+  return `${snapshot.mediaOrigin}/media/${[snapshot.sessionId, item.id, item.revision].map(encodeURIComponent).join('/')}${consumer === 'focused' ? '?consumer=focused' : ''}`;
 }
 export function formatBytes(value: string | null): string {
   return value === null ? 'Unavailable' : `${BigInt(value).toLocaleString('en-US')} bytes`;

@@ -120,6 +120,12 @@ mod macos {
     pub unsafe fn remote_root(pointer: *mut std::ffi::c_void) -> Option<usize> {
         unsafe {
             let webview = &*(pointer as *mut AnyObject);
+            let app = NSApplication::sharedApplication(MainThreadMarker::new()?);
+            if supports(&app, sel!(accessibilitySetValue:forAttribute:)) {
+                let numbers = objc2::runtime::AnyClass::get(c"NSNumber")?;
+                let enabled: Retained<AnyObject> = msg_send![numbers, numberWithBool:true];
+                let _: () = msg_send![&*app, accessibilitySetValue:&*enabled forAttribute:&*NSString::from_str("AXEnhancedUserInterface")];
+            }
             // Test-only WebKit client bridge, matching WebKitTestRunner. AppKit's
             // NSAccessibilityRemoteUIElement is a provider proxy, not an AXUIElement.
             let _: Option<Retained<AnyObject>> =

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {root} from './run.mjs';
+import {root,python} from './run.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {digest,signalObservation,validateRuntimeReceipt,unsupportedVideoError} from './runtime-evidence.mjs';
 import {verifyRuntimeFixture} from './create-runtime-fixture.mjs';
@@ -13,7 +13,6 @@ import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
 const diagnosticStyle=process.argv.includes('--diagnostic-style');
 if(diagnosticStyle)assert.match(process.env.GALLERY_DIAGNOSTIC_RUN??'',/^[1-9][0-9]*$/);
-const diagnosticSource=process.argv.includes('--diagnostic-source');assert.ok(!diagnosticSource||diagnosticStyle);
 
 const fixture=JSON.parse(await readFile(path.join(root,'.local/runtime-fixture.json')));
 const suffix=process.platform==='win32'?'.exe':'';
@@ -56,7 +55,6 @@ try{
   const videos=fixture.entries.filter(e=>e.type==='video').sort((a,b)=>process.platform==='darwin'?Number(b.codec==='vp9')-Number(a.codec==='vp9'):0);
   for(const entry of videos){
    await open(entry.name);await inspect();
-   if(diagnosticSource&&process.platform==='darwin'){await js(()=>{const video=document.querySelector('dialog[open] video');video.src=video.src+'?isolated-focused-observer=1';video.load();return true;});record.diagnosticSource='Distinct focused URL for shared-loader cancellation diagnosis; not product acceptance';}
    const audioMethod=process.platform==='darwin'&&entry.codec==='vp9'?'native-original-buffer':'media-element';let decodedSource;
    if(audioMethod==='media-element')await js(()=>{const video=document.querySelector('dialog[open] video');const context=new AudioContext();const source=context.createMediaElementSource(video);const analyser=context.createAnalyser();analyser.fftSize=4096;const gain=context.createGain();gain.gain.value=0;source.connect(analyser).connect(gain).connect(context.destination);window.__runtimeAudio={context,source,analyser};return true;});
    await app.focus('Play');await js(()=>{document.querySelector('dialog[open] video').scrollIntoView({block:'center'});return true;});await app.nativeKey('Space');await until(()=>js(independent=>{const v=document.querySelector('dialog[open] video');return v.error||(v.readyState>=2&&v.currentTime>0.3&&!v.paused&&(independent||window.__runtimeAudio?.context.state==='running'));},audioMethod==='native-original-buffer'),'Trusted native playback/audio graph '+entry.name,15000);
@@ -64,7 +62,13 @@ try{
    const failure=await js(()=>document.querySelector('dialog[open] video')?.error?.code??null);
    if(failure){const errorCode=unsupportedVideoError(failure);record.media.push({...entry,outcome:'unsupported',errorCode,reason:await js(()=>document.querySelector('dialog[open] .media-error')?.textContent??''),retained:true,inspectable:true});await js(async()=>{if(window.__runtimeAudio){await window.__runtimeAudio.context.close();delete window.__runtimeAudio;}return true;});await close();continue;}
    let sample=audioMethod==='media-element'?await sampleAudio():null;
-   const frame=()=>js(()=>{const video=document.querySelector('dialog[open] video');const c=document.createElement('canvas');c.width=160;c.height=96;const ctx=c.getContext('2d');ctx.drawImage(video,0,0,160,96);let hash=0;for(const byte of ctx.getImageData(0,0,160,96).data)hash=(Math.imul(hash,33)^byte)>>>0;return {hash,time:video.currentTime,width:video.videoWidth,height:video.videoHeight};});
+   let frameIndex=0;
+   const frame=audioMethod==='native-original-buffer'?async()=>{
+    const geometry=await js(()=>{const v=document.querySelector('dialog[open] video');return {rect:v.getBoundingClientRect().toJSON(),width:v.videoWidth,height:v.videoHeight,time:v.currentTime,viewport:{width:innerWidth,height:innerHeight}};});
+    const file=await app.screenshot('video-'+entry.codec+'-'+frameIndex++);const png=await readFile(file);const observed=JSON.parse((await hidden(python,['scripts/runtime-frame.py',file,JSON.stringify(geometry)])).stdout);
+    const snapshot={path:path.relative(root,file).replaceAll('\\','/'),sha256:digest(png),bytes:String(png.length)};record.screenshots??=[];record.screenshots.push(snapshot);
+    return {...observed,time:geometry.time,width:geometry.width,height:geometry.height,method:'Native-view snapshot, central decoded video region',snapshot};
+   }:()=>js(()=>{const video=document.querySelector('dialog[open] video');const c=document.createElement('canvas');c.width=160;c.height=96;const ctx=c.getContext('2d');ctx.drawImage(video,0,0,160,96);let hash=0;for(const byte of ctx.getImageData(0,0,160,96).data)hash=(Math.imul(hash,33)^byte)>>>0;return {hash,time:video.currentTime,width:video.videoWidth,height:video.videoHeight};});
    const before=await frame();const moving=await until(async()=>{const current=await frame();return current.hash!==before.hash&&current.time>before.time?current:false;},'Actual decoded video frames must change',2500);
    await app.focus('Pause');await app.nativeKey('Space');assert.ok(await js(()=>document.querySelector('dialog[open] video').paused));
    await js(()=>{document.querySelector('dialog[open] video').currentTime=2.25;return true;});await until(()=>js(()=>{const v=document.querySelector('dialog[open] video');return !v.seeking&&Math.abs(v.currentTime-2.25)<0.15&&v.readyState>=2;}),'Decoded seek');const sought=await frame();assert.notEqual(sought.hash,before.hash,'Seek must display a different decoded frame');
@@ -116,7 +120,7 @@ try{
   await open('panorama.png');await close();await js(()=>{document.documentElement.style.setProperty('--gallery-font-scale','0.8');return true;});await pause(100);
   const targets=await js(()=>[...document.querySelectorAll('button,input,select,summary,a')].filter(e=>e.getBoundingClientRect().width>0).map(e=>{const r=e.getBoundingClientRect();return {name:e.getAttribute('aria-label')||e.textContent.trim(),width:r.width,height:r.height};}));for(const target of targets)assert.ok(target.width>=43.5&&target.height>=43.5,'Coarse target below44px '+JSON.stringify(target));record.presentation.push({condition:'coarse stylesheet branch emulation, no physical touch claim',targets});
   await js(()=>{for(const [rule,media] of window.__runtimeMediaConditions)rule.media.mediaText=media;delete window.__runtimeMediaConditions;document.documentElement.style.removeProperty('--gallery-font-scale');return true;});
-  const motion=await js(()=>({matches:matchMedia('(prefers-reduced-motion: reduce)').matches,transition:getComputedStyle(document.querySelector('.scroll-indicator')).transitionDuration}));assert.equal(motion.matches,true,'Elected native reduced-motion condition unavailable');assert.ok(motion.transition.split(',').every(s=>parseFloat(s)===0));record.presentation.push({condition:'native prefers-reduced-motion',...motion});const screenshot=await app.screenshot('qualified-gallery');const pixels=await readFile(screenshot);record.screenshots=[{path:path.relative(root,screenshot).replaceAll('\\','/'),sha256:digest(pixels),bytes:String(pixels.length)}];
+  const motion=await js(()=>({matches:matchMedia('(prefers-reduced-motion: reduce)').matches,transition:getComputedStyle(document.querySelector('.scroll-indicator')).transitionDuration}));assert.equal(motion.matches,true,'Elected native reduced-motion condition unavailable');assert.ok(motion.transition.split(',').every(s=>parseFloat(s)===0));record.presentation.push({condition:'native prefers-reduced-motion',...motion});const screenshot=await app.screenshot('qualified-gallery');const pixels=await readFile(screenshot);record.screenshots??=[];record.screenshots.push({path:path.relative(root,screenshot).replaceAll('\\','/'),sha256:digest(pixels),bytes:String(pixels.length)});
  });
  await check('integrity',async()=>{await verifyRuntimeFixture(fixture);assert.equal(digest(await readFile(binary)),record.binary.sha256);assert.deepEqual(await sourceIdentity(),source);});
  record.result=diagnosticStyle?'diagnostic-pass':'pass';record.terminalFinished=new Date().toISOString();
