@@ -62,9 +62,9 @@ The [canonical platform matrix](../../schemas/v0.0.0/platform-matrix.json) separ
 
 | Native target | Initial baseline and runtime | Elected proof and limits |
 | --- | --- | --- |
-| Windows x86_64 | Windows 10 22H2 or Windows 11, shared Evergreen WebView2, interactive desktop | Windows Server 2025 native CLI/archive proof and separate local Windows 11 rendered acceptance; other client versions require evidence |
-| Linux x86_64 | Ubuntu 24.04 GNU ABI, glibc 2.39 build baseline, GTK3, WebKitGTK 4.1, libsoup3 and distribution media plugins | Ubuntu 24.04 native CLI/archive proof; X11/Wayland rendering and media remain separate |
-| macOS aarch64 | macOS 15, OS-provided WKWebView, Apple Silicon | macOS 15 arm64 native CLI/app-bundle archive proof; desktop, quarantine and translocation remain separate |
+| Windows x86_64 | Windows 10 22H2 or Windows 11, shared Evergreen WebView2, interactive desktop | Windows Server2025 native CLI/archive and isolated rendered/media/AT election; other client/runtime versions require their own evidence |
+| Linux x86_64 | Ubuntu 24.04 GNU ABI, glibc 2.39 build baseline, GTK3, WebKitGTK 4.1, libsoup3 and distribution media plugins | Ubuntu24.04 native CLI/archive and isolated X11/Xvfb rendered/media/AT election; Wayland remains unqualified |
+| macOS aarch64 | macOS 15, OS-provided WKWebView, Apple Silicon | macOS15 arm64 native CLI/app-bundle and isolated WKWebView rendered/media/AX election; quarantine and translocation remain separate |
 | Windows aarch64 | Intended Windows 11 ARM64 and native Evergreen WebView2 | Retained target, unbuilt/unqualified |
 | Linux aarch64 | Intended Ubuntu 24.04 ARM64 and native GTK/WebKitGTK stack | Retained target, unbuilt/unqualified |
 | macOS x86_64 | Intended macOS 15 Intel and OS WKWebView | Retained target, unbuilt/unqualified |

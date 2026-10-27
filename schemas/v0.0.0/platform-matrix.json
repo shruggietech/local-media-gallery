@@ -29,7 +29,7 @@
       "baseline": "Windows 10 22H2 or Windows 11",
       "runtime": "Shared Evergreen WebView2 Runtime (MSVC native artifact)",
       "display": "Interactive Windows desktop",
-      "proof": "windows-2025 native CLI archives; Windows 11 local rendered election",
+      "proof": "windows-2025 native CLI archives and isolated WebView2 rendered/media/UIA/NVDA election",
       "full": "Per-user installer by default; machine scope explicitly elected; shared WebView provisioning; MSI permitted",
       "lite": "Extracted executable ZIP with declared host runtime",
       "signing": "Proof unsigned; Authenticode disposition recorded by final packaging",
@@ -41,12 +41,12 @@
       "arch": "x86_64",
       "baseline": "Ubuntu 24.04 GNU ABI (glibc 2.39 build baseline)",
       "runtime": "GTK3, WebKitGTK 4.1, libsoup3; distribution media plugins",
-      "display": "Accessible X11 or Wayland desktop for GUI; CLI proof does not qualify either backend",
-      "proof": "ubuntu-24.04 native CLI archives",
+      "display": "Isolated X11/Xvfb desktop elected; Wayland remains unqualified",
+      "proof": "ubuntu-24.04 native CLI archives and isolated WebKitGTK rendered/media/AT-SPI election",
       "full": "Debian package, declared package-manager dependencies; alternate distributions require separate artifacts",
       "lite": "Executable tar.gz using declared host libraries; AppImage remains separate package qualification",
       "signing": "Proof archive unsigned; package/repository signing disposition recorded by final packaging",
-      "qualification": "Native CLI proof only when receipt passes; GUI/media/older GNU ABI unqualified"
+      "qualification": "Exact per-edition CLI/runtime receipts required; Wayland, physical touch, Orca speech and older GNU ABI unqualified"
     },
     {
       "id": "macos-aarch64",
@@ -55,11 +55,11 @@
       "baseline": "macOS 15 initial proof baseline",
       "runtime": "OS-provided WKWebView; native Apple Silicon artifact",
       "display": "Interactive macOS desktop for GUI",
-      "proof": "macos-15 arm64 native CLI app-bundle archives",
+      "proof": "macos-15 arm64 native CLI app-bundle archives and isolated WKWebView rendered/media/native AX election",
       "full": "App bundle in Applications at elected user/system scope, distributed by DMG",
       "lite": "App bundle archive adjacent to gallery; preserve bundle structure",
       "signing": "Proof ad-hoc or unsigned as measured, unnotarized; Developer ID/notarization/stapling remain final packaging",
-      "qualification": "CLI/bundle proof only when receipt passes; GUI/quarantine/translocation and older OS unqualified"
+      "qualification": "Exact per-edition CLI/runtime receipts required; VoiceOver speech, WebM media-element audio output, quarantine/translocation and older OS unqualified"
     },
     {
       "id": "windows-aarch64",

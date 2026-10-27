@@ -44,6 +44,20 @@ Run40533403486 tested source3337b8097d6cf2e908e040790209ebf8cf1afc6ef92b39b7202c
 
 Source c31cc9e8c21223ab20e12782075b2b03f9c573f684d61658c629b5e3df4fd62b (1048 files), commit7b6732f. All eleven local headless checks passed. Preparation52.053s, qualification97.001s, combined149.054s; terminal2026-10-27T16:19:39.408Z. Diagnostic workflow results retain their separate mixed-source/non-acceptance identity and are not counted as final qualification.
 
+## Third hosted campaign
+
+Run40539374790 tested commit7b6732f and sourcec31cc9e8c21223ab20e12782075b2b03f9c573f684d61658c629b5e3df4fd62b. Repository and website passed. Windows/Linux reproduced the coarse-target finding; Mac retained its failed WebM observation. All three native campaigns failed, with no acceptance inferred from their successful preceding groups. Later non-acceptance diagnostics are recorded separately in verification.md.
+
+| Scope | Preparation seconds | Qualification seconds | Combined seconds | Terminal UTC |
+| --- | ---: | ---: | ---: | --- |
+| product-linux | 950.101 | 125.921 | 1076.022 | 2026-10-27T16:35:04.022Z |
+| product-windows | 835.078 | 247.843 | 1082.921 | 2026-10-27T16:35:18.282Z |
+| product-macos | 922.826 | 175.306 | 1098.132 | 2026-10-27T16:35:31.132Z |
+
+## Headless campaign 6
+
+Source dbdf5d5d8494edae504c7403791c0b37ea712fee54dcf07bc83189b6ab96db69 (1049 files). All eleven headless steps passed, including85 Node regressions, app/site/brand checks, native unit/state/preparation tests and exact normal Full/Lite archive acceptance. Preparation52.587s, qualification102.550s, combined155.137s; terminal2026-10-27T17:27:55.495Z. All local application launches remained finite command/archive checks; no gallery GUI, reader or input was started.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

@@ -22,7 +22,7 @@ export function validateRuntimeReceipt(r,expected){
  assert.ok(Number.isFinite(Date.parse(r.terminalFinished)));
  for(const name of ['images','video','keyboard','presentation','nativeAccessibility','integrity'])assert.ok(r.checks.some(c=>c.name===name&&c.result==='pass'),'Missing native check '+name);
  assert.ok(r.checks.every(c=>c.result==='pass'));assert.equal(r.input.trusted,true);assert.ok(r.input.method.length>0);
- assert.ok(['UIAutomation','AT-SPI','AppKit/WKWebView provider'].includes(r.accessibility.method));
+ assert.ok(['UIAutomation','AT-SPI','AppKit/WKWebView provider','WebKit remote-token/ApplicationServices native AX client (test-only SPI)'].includes(r.accessibility.method));
  assert.equal(r.accessibility.overflow,false);assert.ok(r.accessibility.nodes>0&&r.accessibility.nodes<=2048);
  for(const name of ['Refresh','Controls','Thumbnails','Diagnostics'])assert.ok(r.accessibility.essentialNames.includes(name),'Missing native accessible '+name);
  if(expected.platform==='win32'){
