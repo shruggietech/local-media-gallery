@@ -13,6 +13,7 @@ import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
 const diagnosticStyle=process.argv.includes('--diagnostic-style');
 if(diagnosticStyle)assert.match(process.env.GALLERY_DIAGNOSTIC_RUN??'',/^[1-9][0-9]*$/);
+const diagnosticReload=process.argv.includes('--diagnostic-reload');assert.ok(!diagnosticReload||diagnosticStyle);
 
 const fixture=JSON.parse(await readFile(path.join(root,'.local/runtime-fixture.json')));
 const suffix=process.platform==='win32'?'.exe':'';
@@ -55,6 +56,7 @@ try{
   const videos=fixture.entries.filter(e=>e.type==='video').sort((a,b)=>process.platform==='darwin'?Number(b.codec==='vp9')-Number(a.codec==='vp9'):0);
   for(const entry of videos){
    await open(entry.name);await inspect();
+   if(diagnosticReload&&process.platform==='darwin'){await js(()=>{document.querySelector('dialog[open] video').load();return true;});record.diagnosticReload='Explicit same-source post-mount load; diagnostic only';}
    const audioMethod=process.platform==='darwin'&&entry.codec==='vp9'?'native-original-buffer':'media-element';let decodedSource;
    if(audioMethod==='media-element')await js(()=>{const video=document.querySelector('dialog[open] video');const context=new AudioContext();const source=context.createMediaElementSource(video);const analyser=context.createAnalyser();analyser.fftSize=4096;const gain=context.createGain();gain.gain.value=0;source.connect(analyser).connect(gain).connect(context.destination);window.__runtimeAudio={context,source,analyser};return true;});
    await app.focus('Play');await js(()=>{document.querySelector('dialog[open] video').scrollIntoView({block:'center'});return true;});await app.nativeKey('Space');await until(()=>js(independent=>{const v=document.querySelector('dialog[open] video');return v.error||(v.readyState>=2&&v.currentTime>0.3&&!v.paused&&(independent||window.__runtimeAudio?.context.state==='running'));},audioMethod==='native-original-buffer'),'Trusted native playback/audio graph '+entry.name,15000);
