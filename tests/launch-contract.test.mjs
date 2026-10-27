@@ -17,7 +17,7 @@ test('platform policy retains every OS/edition capability and truthful proof bou
  const matrix=JSON.parse(await readFile(new URL('../schemas/v0.0.0/platform-matrix.json',import.meta.url)));
  const valid=compile('platformMatrix');assert.ok(valid(matrix),JSON.stringify(valid.errors));
  assert.deepEqual([...new Set(matrix.rows.map(r=>r.os))].sort(),['linux','macos','windows']);assert.equal(matrix.rows.length,6);
- assert.equal(matrix.providers.prepare,false);assert.equal(matrix.providers.install,false);assert.deepEqual(matrix.recipientTools,[]);
+ assert.equal(matrix.providers.prepare,true);assert.equal(matrix.providers.install,false);assert.deepEqual(matrix.recipientTools,[]);
  for(const row of matrix.rows)for(const field of ['baseline','runtime','display','proof','full','lite','signing','qualification'])assert.ok(row[field].length>0);
  assert.equal(valid({...matrix,publication:'published'}),false);
 });

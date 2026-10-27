@@ -15,6 +15,9 @@ import { createLoadingPolicy } from '../lib/loading-policy';
 import { useGalleryState } from '../lib/use-gallery-state';
 import { SaveDestinationControl, StateControls } from '../lib/state-controls';
 import { MetadataInspector } from '../lib/metadata-inspector';
+import {usePreparation,PreparationControls,PreparationProgress,type Preparation} from '../lib/preparation';
+import {Diagnostics} from '../lib/diagnostics';
+import {useThumbnail} from '../lib/thumbnail';
 
 const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, sessionId: null, root: null, nativeRoot: null, status: 'selection', revision: '0', mediaOrigin: '', metadataRevision: '0', items: [], issues: [] };
 const emptyFacts: MediaFacts = {};
@@ -31,7 +34,7 @@ function DisclosureButton({ expanded, controls, ...props }: ComponentProps<typeo
 }
 
 
-const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, open, queue, margin, width, position, measure }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; open: (id: string) => void; queue: Queue; margin: number; width: number; position: { x: number; y: number }; measure: (key: string, height: number) => void }) {
+const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, open, queue, cacheQueue, thumbnailEpoch, margin, width, position, measure }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; open: (id: string) => void; queue: Queue; cacheQueue:Queue; thumbnailEpoch:number; margin: number; width: number; position: { x: number; y: number }; measure: (key: string, height: number) => void }) {
   const container = useRef<HTMLElement>(null);
   const image = useRef<HTMLImageElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -40,6 +43,7 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
   const settled = useRef<((outcome?: LoadOutcome) => void) | null>(null);
   const key = keyOf(item);
   const source = mediaUrl(snapshot, item);
+  const thumbnail=useThumbnail(snapshot,item,interested,cacheQueue,thumbnailEpoch);
   useLayoutEffect(() => {
     const element = container.current; if (!element) return;
     const observe = () => measure(key, element.getBoundingClientRect().height);
@@ -53,7 +57,7 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
   }, [margin]);
   const needsVideoFacts = item.kind === 'video' && facts.duration === undefined;
   useEffect(() => {
-    if (!interested || !source || facts.error || item.kind === 'video' && !needsVideoFacts) return;
+    if (!interested || !source || thumbnail.ready || facts.error || item.kind === 'video' && !needsVideoFacts) return;
     const priority = () => {
       const bounds = container.current?.getBoundingClientRect();
       const viewport = document.querySelector('.bb-app-frame__scroll')?.getBoundingClientRect();
@@ -69,11 +73,12 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
         setAdmitted(false);
       };
     }, priority);
-  }, [interested, source, facts.error, item.kind, needsVideoFacts, queue]);
-  const ratio = facts.width && facts.height ? facts.width / facts.height : 1;
+  }, [interested, source, thumbnail.ready, facts.error, item.kind, needsVideoFacts, queue]);
+  const ratio = thumbnail.ready && thumbnail.width && thumbnail.height ? thumbnail.width / thumbnail.height : facts.width && facts.height ? facts.width / facts.height : 1;
   return <article className="media-card" ref={container} data-name={item.name} data-item-id={item.id} style={{ width, transform: 'translate(' + position.x + 'px,' + position.y + 'px)' }}>
     <button className="media-open" onClick={() => open(item.id)} aria-label={'Open ' + item.name}>
-      <span className="media-surface" style={{ aspectRatio: ratio }}>
+      <span className="media-surface" data-thumbnail={thumbnail.ready} style={{ aspectRatio: ratio }}>
+      {thumbnail.source?<img className="card-thumbnail" hidden={!thumbnail.ready} src={thumbnail.source} alt="" crossOrigin="anonymous" onLoad={e=>thumbnail.loaded(e.currentTarget)} onError={e=>thumbnail.failed(e.currentTarget)}/>:null}
       {item.kind === 'image' && admitted && source && !facts.error
         ? <img ref={image} src={source} alt={item.name} crossOrigin="anonymous" decoding="async"
           onLoad={event => {
@@ -102,11 +107,13 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
   </article>;
 });
 
-function MediaGrid({ snapshot, items, facts, updateFacts, open, cardSize, saveHeight, policy }: { snapshot: Snapshot; items: MediaItem[]; facts: Record<string, MediaFacts>; updateFacts: (key: string, facts: MediaFacts) => void; open: (id: string) => void; cardSize: ViewSettings['cardSize']; saveHeight: (height: number) => void; policy: LoadingPolicy }) {
+function MediaGrid({ snapshot, items, facts, updateFacts, open, cardSize, saveHeight, policy, thumbnailEpoch }: { snapshot: Snapshot; items: MediaItem[]; facts: Record<string, MediaFacts>; updateFacts: (key: string, facts: MediaFacts) => void; open: (id: string) => void; cardSize: ViewSettings['cardSize']; saveHeight: (height: number) => void; policy: LoadingPolicy; thumbnailEpoch:number }) {
   const container = useRef<HTMLElement>(null);
   const [width, setWidth] = useState(0);
   const [heights, setHeights] = useState<Record<string, number>>({});
   const queue = useMemo(() => createAdmissionQueue(policy.snapshot().limit, { onStart: () => policy.observe() }), [policy]);
+  const cacheQueue=useMemo(()=>createAdmissionQueue(2),[]);
+  useEffect(()=>()=>cacheQueue.cancelAll(),[cacheQueue]);
   const [budget, setBudget] = useState(policy.snapshot());
   const [visible, setVisible] = useState(true);
   const [stats, setStats] = useState(queue.snapshot());
@@ -116,10 +123,10 @@ function MediaGrid({ snapshot, items, facts, updateFacts, open, cardSize, saveHe
     return () => { stop(); unwatch(); queue.cancelAll(); policy.retire(performance.now()); };
   }, [queue, policy]);
   useLayoutEffect(() => {
-    const changed = () => { const showing = document.visibilityState === 'visible'; queue.setPaused(!showing); setVisible(showing); if (!showing) policy.retire(performance.now()); };
+    const changed = () => { const showing = document.visibilityState === 'visible'; queue.setPaused(!showing); cacheQueue.setPaused(!showing); setVisible(showing); if (!showing) policy.retire(performance.now()); };
     changed(); document.addEventListener('visibilitychange', changed);
     return () => document.removeEventListener('visibilitychange', changed);
-  }, [queue, policy]);
+  }, [queue, cacheQueue, policy]);
   const demand = stats.active > 0 || stats.pending > 0;
   useEffect(() => {
     if (!visible || !demand) { policy.evaluate({ ...queue.snapshot(), at: performance.now(), visible }); return; }
@@ -144,7 +151,7 @@ function MediaGrid({ snapshot, items, facts, updateFacts, open, cardSize, saveHe
   const layout = masonryLayout(width, minimum, items.map(item => heights[keyOf(item)] ?? sizing.width / ((facts[keyOf(item)]?.width ?? 1) / (facts[keyOf(item)]?.height ?? 1)) + 48));
   useLayoutEffect(() => saveHeight(layout.height), [layout.height, saveHeight]);
   return <section className="media-grid" ref={container} aria-label="Media items" data-active-loads={stats.active} data-peak-loads={stats.peak} data-pending-loads={stats.pending} data-loading-mode={budget.mode} data-loading-limit={budget.limit} data-loading-reason={budget.reason} data-loading-generation={budget.generation} data-cleanup-errors={stats.errors} style={{ height: layout.height }}>
-    {visible ? items.map((item, index) => <MediaCard key={keyOf(item)} snapshot={snapshot} item={item} facts={facts[keyOf(item)] || emptyFacts} updateFacts={updateFacts} open={open} queue={queue} margin={budget.margin} width={layout.width} position={layout.positions[index]} measure={measure} />) : null}
+    {visible ? items.map((item, index) => <MediaCard key={keyOf(item)} snapshot={snapshot} item={item} facts={facts[keyOf(item)] || emptyFacts} updateFacts={updateFacts} open={open} queue={queue} cacheQueue={cacheQueue} thumbnailEpoch={thumbnailEpoch} margin={budget.margin} width={layout.width} position={layout.positions[index]} measure={measure} />) : null}
   </section>;
 }
 
@@ -168,7 +175,7 @@ function ScrollIndicator({ mode, contentKey }: { mode: ViewSettings['scrollIndic
   return <div className="scroll-indicator" data-visible={metrics.overflow && (mode === 'always' || scrolling)} aria-hidden="true" style={{ top: metrics.top, height: metrics.height }}><span className="scroll-indicator__thumb" style={{ height: metrics.thumb, transform: 'translateY(' + metrics.offset + 'px)' }} /></div>;
 }
 
-function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformation, previous, next, close, refresh, busy, scanning, cancelDiscovery, warning, destinationControl, summaryFields, changeSummary, settingsReady }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; expanded: boolean; toggleInformation: () => void; previous: (() => void) | null; next: (() => void) | null; close: () => void; refresh: () => void; busy: boolean; scanning: boolean; cancelDiscovery: () => void; warning: string; destinationControl: React.ReactNode; summaryFields: ViewSettings['summaryFields']; changeSummary: (fields:ViewSettings['summaryFields'])=>void; settingsReady:boolean }) {
+function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformation, previous, next, close, refresh, busy, scanning, cancelDiscovery, warning, destinationControl, summaryFields, changeSummary, settingsReady, preparation }: { snapshot: Snapshot; item: MediaItem; facts: MediaFacts; updateFacts: (key: string, facts: MediaFacts) => void; expanded: boolean; toggleInformation: () => void; previous: (() => void) | null; next: (() => void) | null; close: () => void; refresh: () => void; busy: boolean; scanning: boolean; cancelDiscovery: () => void; warning: string; destinationControl: React.ReactNode; summaryFields: ViewSettings['summaryFields']; changeSummary: (fields:ViewSettings['summaryFields'])=>void; settingsReady:boolean; preparation:Preparation }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -186,12 +193,12 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
   const play = async () => {
     const element = video.current; if (!element) return;
     try { if (element.paused) await element.play(); else element.pause(); }
-    catch (error) { setPlayError('Playback could not start: ' + errorText(error)); }
+    catch (error) { setPlayError('Playback could not start: ' + errorText(error)); void invoke('report_media_observation',{sessionId:snapshot.sessionId,itemId:item.id,itemRevision:item.revision,observation:'playbackRejected'}).catch(()=>{}); }
   };
   const source = mediaUrl(snapshot, item);
   return <dialog className="bb-dialog media-viewer" ref={dialog} aria-labelledby="viewer-title" aria-describedby="viewer-description" onCancel={event => { event.preventDefault(); close(); }}>
     <header className="viewer-header"><h2 id="viewer-title" title={item.name}>{item.name}</h2><div className="header-actions"><DisclosureButton variant="ghost" expanded={expanded} controls="viewer-information" onClick={toggleInformation}><Info aria-hidden="true" />Information</DisclosureButton>{scanning ? <Button variant="secondary" onClick={cancelDiscovery}>Cancel discovery</Button> : null}<Button variant="ghost" onClick={refresh} disabled={busy || scanning}><RefreshCw aria-hidden="true" />Refresh</Button><Button variant="secondary" onClick={close}>Close viewer</Button></div></header>
-    <p id="viewer-description" className="viewer-description">Focused media. Information is available from its toggle.</p>
+    <div className="viewer-preparation"><PreparationProgress state={preparation}/></div><p id="viewer-description" className="viewer-description">Focused media. Information is available from its toggle.</p>
     <div className="viewer-content" data-information={expanded}>
       <div className="viewer-media">
         {item.kind === 'video'
@@ -217,6 +224,7 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
 export default function Gallery() {
   const [snapshot, setSnapshot] = useState<Snapshot>(initial);
   const state = useGalleryState();
+  const preparation=usePreparation(snapshot.sessionId);
   const { settings, ready: settingsReady, warning: settingsWarning, activate, change: changeSettings } = state;
   const loadingPolicy = useMemo(() => createLoadingPolicy('automatic', performance.now()), [snapshot.sessionId]);
   useLayoutEffect(() => { loadingPolicy.setMode(settings.loadingMode, performance.now()); }, [loadingPolicy, settings.loadingMode]);
@@ -284,6 +292,7 @@ export default function Gallery() {
   }, [snapshot.sessionId, snapshot.revision]);
   const updateFacts = useCallback((key: string, value: MediaFacts) => setFacts(old => {
     if (!activeKeys.current.has(key)) return old;
+    if(value.error){const item=latest.current.items.find(item=>keyOf(item)===key);if(item)void invoke('report_media_observation',{sessionId:latest.current.sessionId,itemId:item.id,itemRevision:item.revision,observation:item.kind==='image'?'imageDecode':'videoDecode'}).catch(()=>{});}
     const merged = { ...old[key], ...value };
     if (JSON.stringify(merged) === JSON.stringify(old[key])) return old;
     return { ...old, [key]: merged };
@@ -364,17 +373,18 @@ export default function Gallery() {
       <Field id="scroll-indicator" label="Scroll indicator" control={<FormControls.Select value={settings.scrollIndicator} onChange={event => changeSettings({ scrollIndicator: event.target.value as ViewSettings['scrollIndicator'] })}><option value="auto">While scrolling</option><option value="always">Always visible</option></FormControls.Select>} />
       <p className="muted">Each explicit change saves to the selected destination. Gallery refresh is manual.</p>
     </section> : null}
+    <PreparationProgress state={preparation}/>
     <StateControls envelope={state.envelope} remove={state.remove} clear={state.clear} forget={state.forget} reopen={id => void reopen(id)} busy={busy || !settingsReady} />
-    <section className="discovery-status" aria-label="Discovery status"><p role="status">{status}{snapshot.discovery ? ' (' + snapshot.discovery.entriesSeen + ' entries checked, ' + snapshot.discovery.mediaSeen + ' media observed)' : ''}{stale ? '. ' + stale + ' previous items not yet rechecked.' : ''}</p>{scanning ? <Button variant="secondary" onClick={() => void cancelDiscovery()}>Cancel discovery</Button> : snapshot.sessionId && snapshot.status !== 'complete' ? <Button variant="secondary" onClick={() => void refresh()} disabled={busy}>Retry discovery</Button> : null}</section>
+    <section className="discovery-status" aria-label="Discovery status"><div className="preparation-actions"><PreparationControls state={preparation} sessionId={snapshot.sessionId} items={snapshot.items}/><Diagnostics/></div><p role="status">{status}{snapshot.discovery ? ' (' + snapshot.discovery.entriesSeen + ' entries checked, ' + snapshot.discovery.mediaSeen + ' media observed)' : ''}{stale ? '. ' + stale + ' previous items not yet rechecked.' : ''}</p>{scanning ? <Button variant="secondary" onClick={() => void cancelDiscovery()}>Cancel discovery</Button> : snapshot.sessionId && snapshot.status !== 'complete' ? <Button variant="secondary" onClick={() => void refresh()} disabled={busy}>Retry discovery</Button> : null}</section>
     {error ? <p role="alert" className="media-error">{error}</p> : null}
     {settingsWarning ? <p role="status" className="media-error">{settingsWarning}</p> : null}
     {snapshot.issues.length ? <div role="status" className="media-error">{snapshot.issues.map((issue, i) => <p key={issue + '/' + i}>{issue}</p>)}</div> : null}
     {notice ? <p role="status">{notice}</p> : null}
     {snapshot.sessionId ? <nav className="collection-navigation" aria-label="Gallery pages"><p className="collection-count" role="status">{paged.start}-{paged.end} of {items.length} / {snapshot.items.length} discovered ({images} images, {snapshot.items.length - images} videos)</p><Button variant="ghost" disabled={paged.page <= 1} onClick={() => goPage(paged.page - 1)}>Previous page</Button><Field id="page-jump" label="Page" layout="inline" control={<FormControls.TextInput type="number" min={1} max={paged.pages} value={pageDraft} onChange={event => setPageDraft(event.target.value)} onBlur={() => goPage(Number(pageDraft))} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); goPage(Number(pageDraft)); } }} />} /><span>of {paged.pages}</span><Button variant="ghost" disabled={paged.page >= paged.pages} onClick={() => goPage(paged.page + 1)}>Next page</Button></nav> : null}
-    {selectedItem ? <div className="gallery-placeholder" aria-hidden="true" style={{ height: gridHeight.current }} /> : items.length ? <MediaGrid key={snapshot.sessionId + '/' + paged.page + '/' + settings.pageSize + '/' + settings.filter + '/' + settings.sort + '/' + settings.direction} snapshot={snapshot} items={paged.items} facts={facts} updateFacts={updateFacts} open={open} cardSize={settings.cardSize} saveHeight={saveHeight} policy={loadingPolicy} />
+    {selectedItem ? <div className="gallery-placeholder" aria-hidden="true" style={{ height: gridHeight.current }} /> : items.length ? <MediaGrid key={snapshot.sessionId + '/' + paged.page + '/' + settings.pageSize + '/' + settings.filter + '/' + settings.sort + '/' + settings.direction} snapshot={snapshot} items={paged.items} facts={facts} updateFacts={updateFacts} open={open} cardSize={settings.cardSize} saveHeight={saveHeight} policy={loadingPolicy} thumbnailEpoch={preparation.epoch} />
       : <EmptyState id="gallery-empty" heading={scanning ? 'Finding media' : snapshot.status === 'cancelled' ? 'Discovery cancelled' : snapshot.status === 'failed' ? 'Discovery failed' : snapshot.status === 'unavailable' ? 'Directory unavailable' : !snapshot.sessionId ? 'Open a media directory' : settings.filter !== 'all' && snapshot.items.length ? 'No media match this filter' : 'No media found'} description={snapshot.status === 'unavailable' ? 'Retry the folder explicitly when available, or choose its current location.' : snapshot.status === 'cancelled' ? 'Available observations are retained. Refresh to check the folder again.' : snapshot.status === 'partial' || snapshot.status === 'failed' ? 'Discovery is incomplete. Retry explicitly or choose another folder.' : !snapshot.sessionId ? 'Choose a directory to browse its images and videos.' : settings.filter !== 'all' && snapshot.items.length ? 'Choose All media to see the current collection.' : 'Readable image and video files in this directory appear here. Use Refresh to check for changes.'} />}
     <footer className="app-footer">A ShruggieTech project</footer>
     <ScrollIndicator mode={settings.scrollIndicator} contentKey={snapshot.sessionId + '/' + snapshot.revision + '/' + paged.page + '/' + String(Boolean(selectedItem))} />
-    {overlay && selectedItem ? createPortal(<Viewer snapshot={snapshot} item={selectedItem} facts={facts[keyOf(selectedItem)] || emptyFacts} updateFacts={updateFacts} expanded={settings.metadataExpanded} toggleInformation={() => changeSettings({ metadataExpanded: !settings.metadataExpanded })} previous={index > 0 ? () => navigate(-1) : null} next={index < items.length - 1 ? () => navigate(1) : null} close={closeViewer} refresh={() => void refresh()} busy={busy} scanning={scanning} cancelDiscovery={() => void cancelDiscovery()} warning={settingsWarning} destinationControl={destinationControl(true)} summaryFields={settings.summaryFields} changeSummary={fields=>changeSettings({summaryFields:fields})} settingsReady={settingsReady} />, overlay) : null}
+    {overlay && selectedItem ? createPortal(<Viewer snapshot={snapshot} item={selectedItem} facts={facts[keyOf(selectedItem)] || emptyFacts} updateFacts={updateFacts} expanded={settings.metadataExpanded} toggleInformation={() => changeSettings({ metadataExpanded: !settings.metadataExpanded })} previous={index > 0 ? () => navigate(-1) : null} next={index < items.length - 1 ? () => navigate(1) : null} close={closeViewer} refresh={() => void refresh()} busy={busy} scanning={scanning} cancelDiscovery={() => void cancelDiscovery()} warning={settingsWarning} destinationControl={destinationControl(true)} summaryFields={settings.summaryFields} changeSummary={fields=>changeSettings({summaryFields:fields})} settingsReady={settingsReady} preparation={preparation} />, overlay) : null}
   </AppFrame>;
 }

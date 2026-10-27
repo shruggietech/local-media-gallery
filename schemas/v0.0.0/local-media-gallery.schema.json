@@ -1267,7 +1267,8 @@
             "help",
             "version",
             "refresh",
-            "arguments"
+            "arguments",
+            "diagnostics"
           ]
         },
         "boundary": {
@@ -1454,7 +1455,7 @@
               "const": true
             },
             "prepare": {
-              "const": false
+              "const": true
             },
             "install": {
               "const": false
@@ -1538,6 +1539,658 @@
             "type": "string",
             "minLength": 1
           }
+        }
+      }
+    },
+    "thumbnailSourceName": {
+      "type": "object",
+      "required": [
+        "encoding",
+        "bytes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {
+          "enum": [
+            "utf8",
+            "windows-utf16le",
+            "unix-bytes"
+          ]
+        },
+        "bytes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32768,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        }
+      }
+    },
+    "thumbnailEntry": {
+      "type": "object",
+      "required": [
+        "product",
+        "kind",
+        "formatVersion",
+        "sourceName",
+        "sourceSha256",
+        "sourceBytes",
+        "policy",
+        "provider",
+        "outputPng",
+        "outputSha256",
+        "width",
+        "height",
+        "complete",
+        "generation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "product": {
+          "const": "local-media-gallery"
+        },
+        "kind": {
+          "const": "thumbnail"
+        },
+        "formatVersion": {
+          "const": 1
+        },
+        "sourceName": {
+          "$ref": "#/$defs/thumbnailSourceName"
+        },
+        "sourceSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sourceBytes": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "policy": {
+          "const": "png-fit320-first-unmanaged-v1"
+        },
+        "provider": {
+          "type": "string",
+          "pattern": "^(image-0\\.25\\.10|ffmpeg:[0-9a-f]{64})$"
+        },
+        "outputPng": {
+          "type": "string",
+          "maxLength": 5592408
+        },
+        "outputSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 320
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 320
+        },
+        "complete": {
+          "const": true
+        },
+        "generation": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        }
+      }
+    },
+    "thumbnailHelper": {
+      "type": "object",
+      "required": [
+        "nativePath",
+        "sha256",
+        "executableBytes",
+        "version",
+        "origin",
+        "downloadBytes",
+        "associatedPayloadBytes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "nativePath": {
+          "$ref": "#/$defs/nativePath"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "executableBytes": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "origin": {
+          "type": "string"
+        },
+        "downloadBytes": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          ]
+        },
+        "associatedPayloadBytes": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          ]
+        }
+      }
+    },
+    "preparationJob": {
+      "type": "object",
+      "required": [
+        "id",
+        "sessionId",
+        "sequence",
+        "kind",
+        "phase",
+        "destinationKind",
+        "destination",
+        "policy",
+        "candidates",
+        "completed",
+        "reused",
+        "failed",
+        "skipped",
+        "remaining",
+        "storageUpperBoundBytes",
+        "helper",
+        "helperLifetime",
+        "error",
+        "outcomes",
+        "droppedOutcomes",
+        "plannedOutputs",
+        "droppedPlannedOutputs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "kind": {
+          "enum": [
+            "preview",
+            "generate",
+            "cleanup"
+          ]
+        },
+        "phase": {
+          "enum": [
+            "previewing",
+            "ready",
+            "running",
+            "cancelling",
+            "success",
+            "partial",
+            "cancelled",
+            "unavailable",
+            "failed"
+          ]
+        },
+        "destinationKind": {
+          "enum": [
+            "local",
+            "portable"
+          ]
+        },
+        "destination": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/nativePath"
+            }
+          ]
+        },
+        "policy": {
+          "const": "png-fit320-first-unmanaged-v1"
+        },
+        "candidates": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          ]
+        },
+        "completed": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "reused": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "failed": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "skipped": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "remaining": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          ]
+        },
+        "storageUpperBoundBytes": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          ]
+        },
+        "helper": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/thumbnailHelper"
+            }
+          ]
+        },
+        "helperLifetime": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "outcomes": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "required": [
+              "itemId",
+              "code"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "itemId": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "droppedOutcomes": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "plannedOutputs": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "required": [
+              "itemId",
+              "slot",
+              "reused"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "itemId": {
+                "type": "string"
+              },
+              "slot": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}-[0-9a-f]{64}-([0-9]|1[0-5])\\.json$"
+              },
+              "reused": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "droppedPlannedOutputs": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      }
+    },
+    "diagnosticRecord": {
+      "type": "object",
+      "required": [
+        "sequence",
+        "timeMs",
+        "operationId",
+        "sessionId",
+        "itemId",
+        "jobId",
+        "operation",
+        "boundary",
+        "status",
+        "category",
+        "code",
+        "message",
+        "recovery",
+        "count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "timeMs": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "operationId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{1,64}$"
+            }
+          ]
+        },
+        "sessionId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{1,64}$"
+            }
+          ]
+        },
+        "itemId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{1,64}$"
+            }
+          ]
+        },
+        "jobId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{1,64}$"
+            }
+          ]
+        },
+        "operation": {
+          "enum": [
+            "root",
+            "media",
+            "state",
+            "prepare",
+            "helper",
+            "cache",
+            "internal",
+            "discovery"
+          ]
+        },
+        "boundary": {
+          "const": "observed"
+        },
+        "status": {
+          "enum": [
+            "success",
+            "partial",
+            "cancelled",
+            "unavailable",
+            "failed"
+          ]
+        },
+        "category": {
+          "enum": [
+            "root_unavailable",
+            "item_unavailable",
+            "unsupported_media",
+            "state_invalid",
+            "state_version",
+            "state_unavailable",
+            "conflict",
+            "preparation_complete",
+            "preparation_partial",
+            "preparation_cancelled",
+            "helper_unavailable",
+            "helper_failed",
+            "helper_timeout",
+            "cache_invalid",
+            "cache_storage_full",
+            "cache_permission",
+            "internal_error",
+            "image_decode",
+            "video_decode",
+            "playback_rejected",
+            "discovery_complete",
+            "discovery_partial",
+            "discovery_cancelled",
+            "media_read"
+          ]
+        },
+        "code": {
+          "enum": [
+            "root_unavailable",
+            "item_unavailable",
+            "unsupported_media",
+            "state_invalid",
+            "state_version",
+            "state_unavailable",
+            "conflict",
+            "preparation_complete",
+            "preparation_partial",
+            "preparation_cancelled",
+            "helper_unavailable",
+            "helper_failed",
+            "helper_timeout",
+            "cache_invalid",
+            "cache_storage_full",
+            "cache_permission",
+            "internal_error",
+            "image_decode",
+            "video_decode",
+            "playback_rejected",
+            "discovery_complete",
+            "discovery_partial",
+            "discovery_cancelled",
+            "media_read"
+          ]
+        },
+        "message": {
+          "enum": [
+            "root_unavailable",
+            "item_unavailable",
+            "unsupported_media",
+            "state_invalid",
+            "state_version",
+            "state_unavailable",
+            "conflict",
+            "preparation_complete",
+            "preparation_partial",
+            "preparation_cancelled",
+            "helper_unavailable",
+            "helper_failed",
+            "helper_timeout",
+            "cache_invalid",
+            "cache_storage_full",
+            "cache_permission",
+            "internal_error",
+            "image_decode",
+            "video_decode",
+            "playback_rejected",
+            "discovery_complete",
+            "discovery_partial",
+            "discovery_cancelled",
+            "media_read"
+          ]
+        },
+        "recovery": {
+          "type": "string"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          ]
+        }
+      }
+    },
+    "diagnosticReport": {
+      "type": "object",
+      "required": [
+        "formatVersion",
+        "context",
+        "records",
+        "dropped",
+        "serializedBytes",
+        "contents"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "formatVersion": {
+          "const": 1
+        },
+        "context": {
+          "type": "object",
+          "required": [
+            "product",
+            "version",
+            "edition",
+            "os",
+            "arch",
+            "target",
+            "runtime"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "product": {
+              "const": "local-media-gallery"
+            },
+            "version": {
+              "const": "0.0.0"
+            },
+            "edition": {
+              "enum": [
+                "full",
+                "lite",
+                "unknown"
+              ]
+            },
+            "os": {
+              "type": "string"
+            },
+            "arch": {
+              "type": "string"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "runtime": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        "records": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/diagnosticRecord"
+          }
+        },
+        "dropped": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "serializedBytes": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "contents": {
+          "type": "string"
         }
       }
     }

@@ -14,6 +14,7 @@ pub struct Portable {
     bytes: Option<Vec<u8>>,
     document: Value,
     pub warning: Option<String>,
+    pub diagnostic: Option<gallery_core::diagnostics::Event>,
 }
 fn error(message: impl ToString) -> GalleryError {
     GalleryError::new(
@@ -62,7 +63,12 @@ impl Portable {
         let loaded = (|| {
             let bytes = read(dir)?;
             let document = match &bytes {
-                Some(bytes) => serde_json::from_slice(bytes).map_err(error)?,
+                Some(bytes) => serde_json::from_slice(bytes).map_err(|_| {
+                    GalleryError::new(
+                        "portable_invalid",
+                        "Portable settings contain invalid JSON; original bytes were preserved.",
+                    )
+                })?,
                 None => empty.clone(),
             };
             if document.get("product") != Some(&json!("local-media-gallery"))
@@ -70,7 +76,10 @@ impl Portable {
                 || document.get("version") != Some(&json!(env!("CARGO_PKG_VERSION")))
                 || document.get("formatVersion") != Some(&json!(1))
             {
-                return Err(error("This product, release or format is unsupported."));
+                return Err(GalleryError::new(
+                    "portable_version",
+                    "This product, release or format is unsupported. Original bytes were preserved.",
+                ));
             }
             let choices = crate::settings::validate_choices(
                 document.get("choices").unwrap_or(&Value::Null),
@@ -84,11 +93,13 @@ impl Portable {
                 document,
                 choices,
                 warning: None,
+                diagnostic: None,
             },
             Err(e) => Self {
                 bytes: None,
                 document: empty,
                 choices: Map::new(),
+                diagnostic: Some(gallery_core::diagnostics::Event::from_code(&e.code)),
                 warning: Some(e.message),
             },
         }

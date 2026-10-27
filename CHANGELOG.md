@@ -4,7 +4,7 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Full/Lite platform and launch contracts updated on 2026-10-25; product packages remain unpublished.
+Optional thumbnail jobs and process diagnostics updated on 2026-10-27; product packages remain unpublished.
 
 ### Added
 
@@ -44,6 +44,8 @@ Full/Lite platform and launch contracts updated on 2026-10-25; product packages 
 - Complete v0.0.0 technical specification: twelve contract chapters, an index with thirteen open-decision groups, a glossary, refreshed brand guidance and a behavioral acceptance matrix.
 - Documentation checks for the approved chapter set, requirement families, decision references, Markdown structure and local links/fragments.
 - Internal Spec Kit specification for the first working gallery, proposed behavior defaults and small-fixture functional acceptance coverage.
+
+- 2026-10-27: Explicit local/portable PNG thumbnail previews and cancellable image/video jobs, selected hash-bound FFmpeg, full-source cache validation, no-clobber owned publication, original-media fallback and explicit owned cleanup. Add bounded process diagnostics with described explicit export, typed failure/recovery categories and byte-preserved invalid/future state. Native proof now exercises actual preparation as well as launch contracts.
 
 ### Changed
 

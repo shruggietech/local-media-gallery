@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 param(
     [Parameter(Mandatory)][int]$AppProcessId,
-    [ValidateSet('window', 'focus', 'keys', 'cancel-picker', 'select-picker')][string]$Action = 'keys',
+    [ValidateSet('window', 'focus', 'keys', 'cancel-picker', 'select-picker', 'select-file', 'save-file')][string]$Action = 'keys',
     [string]$Keys,
     [string]$Directory
 )
@@ -63,7 +63,7 @@ do {
         [System.Windows.Automation.TreeScope]::Children, $condition)
     $button = $null
     foreach ($candidate in $windows) {
-        $target = if ($Action -eq 'cancel-picker') { 'Cancel' } else { 'Select Folder' }
+        $target = switch ($Action) { 'cancel-picker' { 'Cancel' } 'select-file' { 'Open' } 'save-file' { 'Save' } default { 'Select Folder' } }
         $name = [System.Windows.Automation.PropertyCondition]::new(
             [System.Windows.Automation.AutomationElement]::NameProperty, $target)
         $button = $candidate.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $name)
@@ -72,7 +72,7 @@ do {
     if (-not $button) { Start-Sleep -Milliseconds 100 }
 } until ($button -or [DateTime]::UtcNow -gt $deadline)
 if (-not $button) { throw 'Native folder picker button was not found in the application process.' }
-if ($Action -eq 'select-picker') {
+if ($Action -in @('select-picker', 'select-file', 'save-file')) {
     $edits = @($window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
         [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
         $_.Current.ClassName -eq 'Edit' -and $_.Current.NativeWindowHandle -ne 0 -and
@@ -93,6 +93,12 @@ if ($Action -eq 'select-picker') {
     Start-Sleep -Milliseconds 100
     # Common dialogs can retain a hidden HWND after completing selection.
     if (-not [GalleryNativeInput]::IsWindowVisible($dialogHandle)) { return }
+    if ($Action -ne 'select-picker') {
+        $fileDeadline = [DateTime]::UtcNow.AddSeconds(8)
+        while ([GalleryNativeInput]::IsWindowVisible($dialogHandle) -and [DateTime]::UtcNow -lt $fileDeadline) { Start-Sleep -Milliseconds 100 }
+        if ([GalleryNativeInput]::IsWindowVisible($dialogHandle)) { throw 'Native file selection did not complete.' }
+        return
+    }
     $leaf = Split-Path -Leaf $Directory
     $deadline = [DateTime]::UtcNow.AddSeconds(8)
     do {

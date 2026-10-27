@@ -13,11 +13,9 @@ while ($null -ne ($line = [Console]::ReadLine())) {
         $request = $line | ConvertFrom-Json
         if ($request.action -eq 'stop') { [Console]::WriteLine('{"stopped":true}'); break }
         if ($request.action -eq 'environment') {
-            $tool = Get-Command ffmpeg -ErrorAction SilentlyContinue
-            $fixtureTool = if ($tool) { @{status='measured';bytes=(Get-Item -LiteralPath $tool.Source).Length;sha256=(Get-FileHash -LiteralPath $tool.Source -Algorithm SHA256).Hash.ToLowerInvariant();basis='fixture preparation executable logical bytes; not a product dependency'} } else { @{status='unavailable';basis='fixture tool executable not resolved'} }
             $filesystem = 'unknown'
             try { $filesystem = ([IO.DriveInfo]::new([IO.Path]::GetPathRoot($PSScriptRoot))).DriveFormat } catch { }
-            $result = @{os=[Runtime.InteropServices.RuntimeInformation]::OSDescription;build=[Environment]::OSVersion.Version.Build;architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();storage=@{filesystem=$filesystem;medium='unknown';basis='local fixture volume; physical storage medium not established'};power='unknown';fixtureTool=$fixtureTool}
+            $result = @{os=[Runtime.InteropServices.RuntimeInformation]::OSDescription;build=[Environment]::OSVersion.Version.Build;architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();storage=@{filesystem=$filesystem;medium='unknown';basis='local fixture volume; physical storage medium not established'};power='unknown'}
         } elseif ($request.action -eq 'memory') {
             $rootId = [int]$request.rootPid
             $all = @(Get-CimInstance Win32_Process -OperationTimeoutSec 5)

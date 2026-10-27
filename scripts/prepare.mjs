@@ -3,6 +3,7 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { root, execute } from './run.mjs';
+import {prepareMediaTool} from './prepare-media-tool.mjs';
 
 const directory = path.join(root, '.local');
 await mkdir(directory, { recursive: true });
@@ -35,4 +36,5 @@ if (process.platform === 'win32' && process.arch === 'x64') {
   throw new Error('Set GALLERY_PROOF_NODE to a native Node 24.11.0 executable for brand proof verification on this host. Rendered acceptance remains separately elected.');
 }
 await readFile(path.join(root, 'Cargo.lock'));
+await prepareMediaTool({download:true});
 console.log('Preparation complete. Run builds and qualification separately.');

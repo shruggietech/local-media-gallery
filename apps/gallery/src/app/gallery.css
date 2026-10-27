@@ -113,3 +113,18 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 .metadata-inspector summary { cursor: pointer; padding-block: var(--lo-space-2); }
 .metadata-inspector summary:focus-visible { outline: var(--bb-focus-width) solid var(--bb-focus-ring); outline-offset: var(--bb-focus-offset); }
 .metadata-raw { max-inline-size: 100%; }
+
+/* Optional derived cards have independent facts and bounded native admission. */
+.media-surface .card-thumbnail { z-index: 1; background: var(--bb-surface-card); }
+.preparation-progress, .preparation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lo-space-2); }
+.preparation-progress { margin-block: var(--lo-space-2); }
+.preparation-progress p { margin: 0; overflow-wrap: anywhere; }
+.preparation-facts dd { margin-inline-start: 0; overflow-wrap: anywhere; font-family: var(--bb-typography-mono-family); }
+.media-viewer[open] { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.viewer-preparation { max-block-size: var(--lo-space-10); overflow: auto; }
+
+#bb-overlay-root .bb-dialog[role="dialog"] { position: fixed; inset-block-start: 50%; inset-inline-start: 50%; transform: translate(-50%, -50%); inline-size: min(calc(100% - var(--lo-space-5)), calc(var(--lo-space-10) * 6)); max-block-size: calc(var(--bb-visual-viewport-height, 100dvh) - var(--lo-space-5)); overflow: auto; z-index: 10; }
+#bb-overlay-root > [data-state="open"]:has(+ .bb-dialog[role="dialog"]) { position: fixed; inset: 0; background: var(--bb-surface-background); z-index: 9; }
+
+.media-surface .card-thumbnail[hidden] { display: none; }
+.preparation-facts li { overflow-wrap: anywhere; }

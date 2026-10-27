@@ -19,6 +19,10 @@ tokio = { version = "=1.54.1", features = ["rt-multi-thread", "net", "fs", "io-u
 tokio-util = { version = "0.7", features = ["io", "rt"] }
 uuid = { version = "=1.28.0", features = ["v4"] }
 
+image = { version = "=0.25.10", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp", "tiff"] }
+sha2 = "=0.10.9"
+base64 = "=0.22.1"
+
 [dev-dependencies]
 tempfile = "=3.27.0"
 tower = { version = "0.5", features = ["util"] }

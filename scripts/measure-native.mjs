@@ -9,6 +9,7 @@ import { performance } from 'node:perf_hooks';
 import os from 'node:os';
 import { root, environment, execute } from './run.mjs';
 import { inventory } from './create-fixture.mjs';
+import {prepareMediaTool} from './prepare-media-tool.mjs';
 import { summarize, validateMeasurement, operations } from './measurement.mjs';
 import { viewItems } from '../apps/gallery/src/lib/view.ts';
 
@@ -59,6 +60,8 @@ let context;
 let readyAt;
 try {
   context = await observe({ action: 'environment' }); assert.ok(!context.error, JSON.stringify(context));
+  const fixtureTool=await prepareMediaTool();
+  context.fixtureTool={status:'measured',bytes:fixtureTool.extractedBytes,sha256:fixtureTool.sha256,version:fixtureTool.version,downloadBytes:fixtureTool.downloadBytes,associatedPayloadBytes:fixtureTool.associatedPayloadBytes,basis:'Exact elected fixture helper executable logical bytes; download and associated payloads separate; not a bundled product dependency'};
   context = { ...context, os: os.version() + ' ' + os.release(), cpu: [...new Set(os.cpus().map(c => c.model))], logicalProcessors: os.cpus().length, installedMemoryBytes: os.totalmem(), hardwareBasis: 'direct node:os/native OS queries; visible memory, not a physical-DIMM inventory' };
   readyAt = performance.now();
   console.log('Native measurement environment ready');
@@ -146,7 +149,7 @@ try {
     fixture: { candidates: 12, records, totalBytes: records.reduce((n, r) => n + r.bytes, 0), composition: { images: 10, videos: 2, clips: 'synthetic320x180 H.264/yuv420p12fps,4s with AAC stereo and3s silent', stills: prepared.expected.stills, exceptions: 'one unsupported TIFF and one deliberately damaged JPEG', sidecar: 'small nested exact-number JSON' } },
     environment: { ...context, os: context.os, cache: 'fresh application/WebView profile; previously generated/hashed fixture; OS cache unknown' },
     operations: Object.fromEntries(operations.map(name => [name, summarize(samples[name])])), frames: summarize(frames), memory, runs,
-    footprints: { download: { status: 'unavailable', basis: 'no published product package' }, extractedDistribution: { status: 'unavailable', basis: 'no runnable distribution assembled' }, developmentExecutable: { status: 'measured', bytes: bytes.length, basis: 'debug native-test executable only' }, requiredRuntime: runtime, optionalProductTools: { status: 'not-applicable', basis: 'thumbnail generation not implemented; fixture tool is separate' }, thumbnailCache: { status: 'not-applicable', basis: 'thumbnail generation not implemented' }, profileCache: { status: 'measured', bytes: profileSize.bytes, omittedEntries: profileSize.omitted, complete: profileSize.omitted === 0, basis: 'observed logical bytes of three isolated WebView profiles after app shutdown; runtime may still finalize temporary files; omissions explicit; excludes settings/history' }, fixtureTool: context.fixtureTool },
+    footprints: { download: { status: 'unavailable', basis: 'no published product package' }, extractedDistribution: { status: 'unavailable', basis: 'Not measured by browsing trials; normal proof archives have separate exact payload inventories' }, developmentExecutable: { status: 'measured', bytes: bytes.length, basis: 'debug native-test executable only' }, requiredRuntime: runtime, optionalProductTools: { status: 'not-applicable', basis: 'No helper bundled or selected for these browsing trials; the maintainer fixture helper is measured separately' }, thumbnailCache: { status: 'unavailable', basis: 'Browsing trials do not inventory machine-local thumbnail storage; separate preparation acceptance records generated cache output' }, profileCache: { status: 'measured', bytes: profileSize.bytes, omittedEntries: profileSize.omitted, complete: profileSize.omitted === 0, basis: 'observed logical bytes of three isolated WebView profiles after app shutdown; runtime may still finalize temporary files; omissions explicit; excludes settings/history' }, fixtureTool: context.fixtureTool },
     limitations: ['Three trials are observations, not a throughput/scale guarantee.', 'Driver round trips and polling are included in operation elapsed times; named renderer sub-timings exclude those portions.', 'Frame samples are visible rAF callback gaps, not compositor FPS or actual frame presentation.', 'Memory samples are before/after endpoints and may miss peaks. Summed working sets can double-count shared pages.', 'Attached elements and preparation slots are observable proxies, not exact browser hardware decoder/read counts.', 'Native Linux/macOS and physical storage/cache/provider qualification are separate evidence.'],
   });
   await writeFile(output, JSON.stringify(report, null, 2) + '\n');

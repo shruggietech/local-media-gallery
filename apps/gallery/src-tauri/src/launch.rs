@@ -52,6 +52,7 @@ pub enum Operation {
     Resolve,
     Capabilities,
     Prepare,
+    Diagnostics,
     Install,
     Help,
     Version,
@@ -63,8 +64,18 @@ pub enum Mode {
     Wait,
     Detach,
 }
+#[derive(Clone, Debug, Default)]
+pub struct PreparationOptions {
+    pub thumbnails: bool,
+    pub clean_cache: bool,
+    pub portable: bool,
+    pub helper: Option<PathBuf>,
+    pub helper_hash: Option<String>,
+    pub diagnostics: bool,
+}
 #[derive(Clone, Debug)]
 pub struct Request {
+    pub preparation: PreparationOptions,
     pub operation: Operation,
     pub root: Option<PathBuf>,
     pub mode: Mode,
@@ -80,6 +91,7 @@ fn invalid(message: &str) -> GalleryError {
 }
 pub fn parse(args: Vec<OsString>) -> Result<Request, GalleryError> {
     let mut request = Request {
+        preparation: PreparationOptions::default(),
         operation: Operation::Open,
         root: None,
         mode: Mode::Wait,
@@ -88,7 +100,58 @@ pub fn parse(args: Vec<OsString>) -> Result<Request, GalleryError> {
     let mut ended = false;
     let mut named = false;
     let mut lifecycle = false;
-    for arg in args {
+    let mut args = args.into_iter();
+    let mut preparation_flags = std::collections::HashSet::new();
+    while let Some(arg) = args.next() {
+        if !ended
+            && [
+                "--thumbnails",
+                "--clean-cache",
+                "--cache",
+                "--ffmpeg",
+                "--ffmpeg-sha256",
+                "--diagnostics",
+            ]
+            .iter()
+            .any(|s| arg == *s)
+        {
+            let flag = arg.to_str().unwrap().to_owned();
+            if !preparation_flags.insert(flag.clone()) {
+                return Err(invalid("Supply each preparation option once."));
+            }
+            match flag.as_str() {
+                "--thumbnails" => request.preparation.thumbnails = true,
+                "--clean-cache" => request.preparation.clean_cache = true,
+                "--diagnostics" => request.preparation.diagnostics = true,
+                "--cache" => {
+                    let value = args
+                        .next()
+                        .ok_or_else(|| invalid("Supply local or portable after --cache."))?;
+                    request.preparation.portable = match value.to_str() {
+                        Some("portable") => true,
+                        Some("local") => false,
+                        _ => return Err(invalid("Cache must be local or portable.")),
+                    };
+                }
+                "--ffmpeg" => {
+                    request.preparation.helper = Some(PathBuf::from(
+                        args.next()
+                            .ok_or_else(|| invalid("Supply an absolute helper path."))?,
+                    ))
+                }
+                "--ffmpeg-sha256" => {
+                    request.preparation.helper_hash = Some(
+                        args.next()
+                            .and_then(|v| v.into_string().ok())
+                            .filter(|v| v.len() == 64 && v.bytes().all(|b| b.is_ascii_hexdigit()))
+                            .ok_or_else(|| invalid("Supply a 64-digit SHA256."))?
+                            .to_ascii_lowercase(),
+                    )
+                }
+                _ => unreachable!(),
+            }
+            continue;
+        }
         if !ended && arg == "--" {
             ended = true;
             continue;
@@ -137,6 +200,7 @@ pub fn parse(args: Vec<OsString>) -> Result<Request, GalleryError> {
                 Some("resolve") => Some(Operation::Resolve),
                 Some("capabilities") => Some(Operation::Capabilities),
                 Some("prepare") => Some(Operation::Prepare),
+                Some("diagnostics") => Some(Operation::Diagnostics),
                 Some("install") => Some(Operation::Install),
                 _ => None,
             };
@@ -161,6 +225,23 @@ pub fn parse(args: Vec<OsString>) -> Result<Request, GalleryError> {
         )
     {
         return Err(invalid("This operation does not accept a directory."));
+    }
+    if !preparation_flags.is_empty() && request.operation != Operation::Prepare {
+        return Err(invalid("Preparation flags apply only to prepare."));
+    }
+    if request.preparation.thumbnails && request.preparation.clean_cache {
+        return Err(invalid("Choose generation or cleanup."));
+    }
+    if request.preparation.helper.is_some() != request.preparation.helper_hash.is_some()
+        || request
+            .preparation
+            .helper
+            .as_ref()
+            .is_some_and(|p| !p.is_absolute())
+    {
+        return Err(invalid(
+            "Supply an absolute --ffmpeg path and its --ffmpeg-sha256 together.",
+        ));
     }
     Ok(request)
 }
@@ -454,13 +535,20 @@ Usage: local-media-gallery [DIRECTORY]
        local-media-gallery open [DIRECTORY] [--wait | --detach] [--json]
        local-media-gallery resolve [DIRECTORY] [--json]
        local-media-gallery capabilities [--json]
-       local-media-gallery prepare [DIRECTORY] [--json]
+       local-media-gallery prepare [DIRECTORY] [--thumbnails | --clean-cache] [--cache local|portable] [--ffmpeg ABSOLUTE --ffmpeg-sha256 HEX] [--diagnostics] [--json]
+       local-media-gallery diagnostics [--json]
        local-media-gallery install [--json]
        local-media-gallery --help | --version [--json]
-Use -- before a dash-leading or reserved literal directory. Relative directories use the invoking working directory. Full without a directory opens selection; Lite opens its external containing gallery. Wait is default; detach acknowledges startup, not completed discovery. Prepare/install providers are currently unavailable. Both editions share browsing and host-local/portable settings.
+Use -- before a dash-leading or reserved literal directory. Relative directories use the invoking working directory. Full without a directory opens selection; Lite opens its external containing gallery. Wait is default; detach acknowledges startup, not completed discovery. Bare prepare previews without writes; --thumbnails generates and --clean-cache cleans validated owned output. Video uses an explicitly selected helper. Installation is currently unavailable. Both editions share browsing and host-local/portable settings.
 ",env!("CARGO_PKG_VERSION"),edition(),target_triple())
 }
 pub fn finite(request: &Request, id: String, root: Option<&Path>) -> OperationResult {
+    if matches!(
+        request.operation,
+        Operation::Prepare | Operation::Diagnostics
+    ) {
+        return crate::preparation::finite(request, id, root);
+    }
     let mut r = OperationResult::new(
         request.operation,
         id,
@@ -491,9 +579,14 @@ pub fn finite(request: &Request, id: String, root: Option<&Path>) -> OperationRe
                 json!({"selection":root.is_none(),"basis":"native absolute root intent; existence/access/discovery not certified"}),
             )
         }
-        Operation::Prepare | Operation::Install => {
+        Operation::Install => {
             r.status = Status::Unavailable;
-            r.error=Some(OperationError {code:"capability_unavailable".into(),message:"This artifact does not implement this job provider. No preparation or installation was performed.".into()});
+            r.error = Some(OperationError {
+                code: "capability_unavailable".into(),
+                message:
+                    "This artifact does not implement installation. No installation was performed."
+                        .into(),
+            });
         }
         _ => {}
     }
@@ -504,11 +597,17 @@ pub fn attach_terminal() {
     #[cfg(windows)]
     unsafe {
         use windows_sys::Win32::System::Console::{
-            AttachConsole, GetStdHandle, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE,
+            AttachConsole, GetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+            SetStdHandle,
         };
-        let valid = |h: windows_sys::Win32::Foundation::HANDLE| !h.is_null() && h as isize != -1;
-        if !valid(GetStdHandle(STD_OUTPUT_HANDLE)) && !valid(GetStdHandle(STD_ERROR_HANDLE)) {
-            AttachConsole(u32::MAX);
+        let handles = [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE]
+            .map(|kind| (kind, GetStdHandle(kind)));
+        // Join only an existing parent console. Preserve redirected channels and never allocate a window.
+        AttachConsole(u32::MAX);
+        for (kind, handle) in handles {
+            if !handle.is_null() && handle as isize != -1 {
+                SetStdHandle(kind, handle);
+            }
         }
     }
 }
@@ -555,7 +654,10 @@ Target: {}",
                     |p| p.to_string_lossy().into_owned()
                 )
         )?;
-    } else if result.operation == Operation::Capabilities {
+    } else if matches!(
+        result.operation,
+        Operation::Capabilities | Operation::Diagnostics | Operation::Prepare
+    ) {
         writeln!(
             std::io::stdout().lock(),
             "{}",
@@ -1204,5 +1306,39 @@ mod tests {
         assert!(!receipt.matches("n", "operation", 43));
         assert!(decode_receipt(&vec![b'x'; MAX_RECEIPT + 1]).is_err());
         assert!(decode_receipt(b"{}").is_err());
+    }
+}
+
+#[cfg(test)]
+mod s013_tests {
+    use super::*;
+    #[test]
+    fn explicit_preparation_flags_preserve_native_values() {
+        let r = parse(
+            [
+                "prepare",
+                "--thumbnails",
+                "--cache",
+                "portable",
+                "--diagnostics",
+                "--json",
+                "--",
+                "--native-root",
+            ]
+            .map(OsString::from)
+            .to_vec(),
+        )
+        .unwrap();
+        assert!(r.preparation.thumbnails);
+        assert!(r.preparation.diagnostics);
+        assert_eq!(r.root, Some(PathBuf::from("--native-root")));
+        for args in [
+            vec!["open", "--thumbnails"],
+            vec!["prepare", "--thumbnails", "--clean-cache"],
+            vec!["prepare", "--ffmpeg", "relative", "--ffmpeg-sha256", "abcd"],
+            vec!["diagnostics", "directory"],
+        ] {
+            assert!(parse(args.into_iter().map(OsString::from).collect()).is_err());
+        }
     }
 }

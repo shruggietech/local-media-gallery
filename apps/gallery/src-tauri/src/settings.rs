@@ -252,6 +252,7 @@ struct Stored {
     envelope: SettingsEnvelope,
     bytes: Option<Vec<u8>>,
     blocked: bool,
+    diagnostic: Option<gallery_core::diagnostics::Event>,
 }
 pub struct SettingsStore {
     path: PathBuf,
@@ -307,6 +308,7 @@ impl SettingsStore {
             test_page_size: test_page_size.then_some(4),
         };
         let mut blocked = false;
+        let mut diagnostic = None;
         let bytes = match read_document(&path) {
             Ok(bytes) => bytes,
             Err(error) => {
@@ -314,16 +316,18 @@ impl SettingsStore {
                     "Preferences could not be read: {error}. Defaults are active. Changes remain in memory; repair the settings file and restart to save."
                 ));
                 blocked = true;
+                diagnostic = Some(gallery_core::diagnostics::Event::StateUnavailable);
                 None
             }
         };
         if let Some(bytes) = &bytes {
             match serde_json::from_slice::<Value>(bytes)
-                .map_err(|e| e.to_string())
-                .and_then(|value| Settings::parse(value, test_page_size).map_err(|e| e.message))
+                .map_err(|_| GalleryError::new("settings_invalid", "Invalid settings JSON."))
+                .and_then(|value| Settings::parse(value, test_page_size))
             {
                 Ok(settings) => envelope.settings = settings,
                 Err(error) => {
+                    diagnostic = Some(gallery_core::diagnostics::Event::from_code(&error.code));
                     envelope.warning = Some(format!(
                         "The settings file was preserved: {error} Defaults are active. Changes remain in memory; repair or remove the file and restart to save."
                     ));
@@ -337,6 +341,7 @@ impl SettingsStore {
                 envelope,
                 bytes,
                 blocked,
+                diagnostic,
             }),
             test_page_size,
         }
@@ -345,9 +350,13 @@ impl SettingsStore {
         let store = Self::load(PathBuf::new(), false);
         let mut state = store.state.lock().unwrap();
         state.blocked = true;
+        state.diagnostic = Some(gallery_core::diagnostics::Event::StateUnavailable);
         state.envelope.warning = Some(message);
         drop(state);
         store
+    }
+    pub fn diagnostic(&self) -> Option<gallery_core::diagnostics::Event> {
+        self.state.lock().unwrap().diagnostic
     }
     pub fn envelope(&self) -> SettingsEnvelope {
         self.state.lock().unwrap().envelope.clone()

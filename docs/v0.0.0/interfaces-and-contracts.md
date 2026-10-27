@@ -26,7 +26,8 @@ Machine-readable output, if offered, must have a versioned documented representa
 local-media-gallery [open] [DIRECTORY] [--wait | --detach] [--json]
 local-media-gallery resolve [DIRECTORY] [--json]
 local-media-gallery capabilities [--json]
-local-media-gallery prepare [DIRECTORY] [--json]
+local-media-gallery prepare [DIRECTORY] [--thumbnails | --clean-cache] [--cache local|portable] [--ffmpeg ABSOLUTE --ffmpeg-sha256 HEX] [--diagnostics] [--json]
+local-media-gallery diagnostics [--json]
 local-media-gallery install [--json]
 local-media-gallery --help [--json]
 local-media-gallery --version [--json]
@@ -129,3 +130,7 @@ The optional `fontScale` preference accepts `100`, `90` or `80` percent, default
 U-08 is resolved for current command, root, lifetime, snapshot and process-result contracts. Prepare/install remain explicitly unavailable providers; future provider-specific progress, outputs and persistence require their own implementation and compatible contracts. U-07 retains future cache and migration policies.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
+
+## Optional preparation and diagnostics
+
+A bare prepare previews only, without writes. --thumbnails explicitly generates; --clean-cache explicitly removes validated owned cache output. Full finite preparation requires an explicit resolved directory; Lite retains its native placement default. Helper path/hash options are paired and the path must be absolute. Generation and cleanup flags conflict. Ctrl-C/termination requests cancellation and preserves completed entries; terminal stopped results require observed helper exit. One OperationResult contains the job state and, when requested, its redacted diagnostic report. diagnostics describes only that invocation. Installation remains a separate unavailable provider. See [thumbnail policy](thumbnails-and-performance.md) and [diagnostic retention/export](security-and-reliability.md).
