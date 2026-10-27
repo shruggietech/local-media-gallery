@@ -46,3 +46,26 @@ Initial hosted run 40472991881 passed repository, website, product-windows and p
 Corrected full normal executable SHA256 53395ebb1b5de55726f97eaeec7ee2080bc09059da6f2dd43b9810ef845e7109; archive SHA256 3871c70df998fb1d683428711a0e6399c2eefe734e7b824c6b26575651dec64e (9869205 bytes).
 
 Corrected lite normal executable SHA256 600cc447b47b8010b553e798265fcef7fca52dcca868d5674f30ad51b1e79e94; archive SHA256 13deb5ca2d9cfcbca4e91774564f1f7da800c3717ff0b2da868b9e194987fd42 (9869867 bytes).
+
+## Corrected hosted qualification
+
+Run [40475856580](https://github.com/shruggietech/local-media-gallery/actions/runs/40475856580) passed all five applicable jobs on PR head 8a78bc5fae1e14a05e954dd4c63ef8011aea531f, tested merge 775059e5ff4b6856bb3ffe41a89f07fe50c9a011 and accepted source 8a5957cb6837a668b3eecda1bfd0fb34baa6131f99ca45f5984ee19df3765fbf. PR deployment is intentionally not elected.
+
+| Scope | Preparation seconds | Qualification seconds | Combined seconds |
+| --- | ---: | ---: | ---: |
+| repository | 15.091 | 1.54 | 16.631 |
+| product-windows | 508.706 | 138.463 | 647.169 |
+| product-linux | 566.984 | 111.922 | 678.906 |
+| product-macos | 474.262 | 150.754 | 625.016 |
+| website | 55.085 | 47.311 | 102.396 |
+
+All qualification windows remain below 660 seconds. Combined time includes readiness and is not substituted for qualification time. Independent read-back matched all five source/revision receipts, exact archive bytes and entry inventories, binary hashes, native modes, macOS bundle metadata, 11 generated records per edition and platform-specific helper hashes. Cache-byte checks read runner receipts; actual PNG decoding occurred on each runner.
+
+| Native target | Edition | Binary SHA256 | Archive SHA256 | Proof checks |
+| --- | --- | --- | --- | ---: |
+| x86_64-pc-windows-msvc | full | 7efaeadea1df4f0a9b97b508cbd45099339e705349b3f532e0fd17ba4a6bdea4 | 49ad57e74dd3214d9df560924fd239575595fe77047c36cb18c4392bbb1982a2 | 17 |
+| x86_64-pc-windows-msvc | lite | a1372a2fc067cffc920edb646dfb0006e0d7dd248ee080bf56a9d541f367249a | 5774b7ee2ebd03594e8af3b897c473f63ed78885fd1e1df2b37a617282ec2343 | 17 |
+| x86_64-unknown-linux-gnu | full | 4dff79dbfc24e53666d56cea198e8ab211e8ccee1eb01ee4534c414ae8786dab | 0f7bd9ba88ba74030bdf2bca4f6a75465b251822bbf461f86ae8ddff77cb062c | 17 |
+| x86_64-unknown-linux-gnu | lite | 044c77a535fdb868a89a2f4c92386c70c9a3dc569b997ab99acf76e3deeb1bda | 7089881427b2cbc2b2346c35f81ebdf93d1b094c63ead2b5592037ff769b30a2 | 18 |
+| aarch64-apple-darwin | full | ab729b51c3c08e109982c91c3a2291d8793a14d7fb218b20e0c5b1a7f5ea6780 | f0abef1a03eaed36d2ed484f05c888dca3c91468f190be98a421daadff115d71 | 17 |
+| aarch64-apple-darwin | lite | 4229ec94c043ad4a1d5eb82bcf1777390cbc4684e57e8fecaaa89bcf8f2a3f01 | bb976ca2d4e355f3237e2dd1af9b664db6e866549d860ddde3f8900efcc9d159 | 17 |

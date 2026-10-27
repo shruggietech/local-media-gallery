@@ -49,8 +49,8 @@
 - [X] T026 Elect new mandatory checks, exact source/binary/tool/cache provenance and receipt-only exclusions in scripts/qualify.mjs/provenance.mjs and specs/013-thumbnail-jobs-diagnostics/verification.md/measurements.md (FR-018).
 - [X] T027 Run all mandatory local qualification checks after readiness and record terminal source/tool/artifact identity, failures/corrections and preparation/qualification/combined timing in specs/013-thumbnail-jobs-diagnostics/verification.md/measurements.md (FR-018, SC-001..006).
 - [X] T028 Commit/push official PR closing #12/#15, attach PR and update Project 8 PR review/S013; record receipts in specs/013-thumbnail-jobs-diagnostics/verification.md (FR-018).
-- [ ] T029 Handle all elected hosted CI and every review thread within at most two rounds, verifying exact normal native proof artifacts against source/tool identities in specs/013-thumbnail-jobs-diagnostics/verification.md/measurements.md (FR-018).
-- [ ] T030 Publish final receipts, verify exact-final-head CI/source/reviews/project state and clean checkout, then notify owner for final review/merge in specs/013-thumbnail-jobs-diagnostics/verification.md (FR-018, SC-006).
+- [X] T029 Handle all elected hosted CI and every review thread within at most two rounds, verifying exact normal native proof artifacts against source/tool identities in specs/013-thumbnail-jobs-diagnostics/verification.md/measurements.md (FR-018).
+- [X] T030 Publish final receipts, verify exact-final-head CI/source/reviews/project state and clean checkout, then notify owner for final review/merge in specs/013-thumbnail-jobs-diagnostics/verification.md (FR-018, SC-006).
 
 ## Dependencies and execution order
 
@@ -63,3 +63,5 @@ Contract test design, primary-source encoder research and UI requirements review
 ## Implementation strategy
 
 First deliver exact authority and durable/diagnostic contracts, then actual optional image/video generation and visible progress, then cache-backed cards and recovery, then complete redacted diagnostics. Preserve originals/no-cache behavior and all existing regression suites throughout. Every task is part of this slice; an intermediate independently testable story is not final delivery. No merge/tag/release.
+
+Delivery receipts retain the implementation-head CI/source/review identities. The exact final receipt-head CI and independent archive read-back are verified before owner notification and linked from PR #52; receipt-only bookkeeping does not create a new normative source identity.

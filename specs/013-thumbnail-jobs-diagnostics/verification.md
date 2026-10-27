@@ -35,3 +35,15 @@ Initial hosted run [40472991881](https://github.com/shruggietech/local-media-gal
 ## Corrected local acceptance
 
 Campaign 6 passed all 16 mandatory checks on source 8a5957cb6837a668b3eecda1bfd0fb34baa6131f99ca45f5984ee19df3765fbf (1024 files), terminal 2026-10-27T08:45:36.603Z. Preparation 66.972s, qualification 241.591s, combined 308.563s. Both review regressions and all existing native/site/provenance checks pass. Hosted final-source qualification and the second/final review remain pending.
+
+## Corrected hosted acceptance and final review request
+
+All five applicable checks passed in run [40475856580](https://github.com/shruggietech/local-media-gallery/actions/runs/40475856580), PR head 8a78bc5fae1e14a05e954dd4c63ef8011aea531f, merge 775059e5ff4b6856bb3ffe41a89f07fe50c9a011, source 8a5957cb6837a668b3eecda1bfd0fb34baa6131f99ca45f5984ee19df3765fbf. Independent readers verified all six Windows/Linux/macOS Full/Lite archives, exact payload sets and hashes, native modes, macOS bundle metadata, source-bound manifests and tool/cache receipt consistency. Hosted proof is finite CLI/native-unit evidence; Windows rendered evidence remains the separate local campaign.
+
+Both round-one findings have explicit replies and resolved threads. The sole additional Codex review was requested in [comment 6437724649](https://github.com/shruggietech/local-media-gallery/pull/52#issuecomment-6437724649). That is round two of two; its terminal response is pending. No third review round is authorized. Final receipt changes preserve the accepted normative source digest.
+
+## Review completion and receipt handoff
+
+Round two completed on 8a78bc5fae1e14a05e954dd4c63ef8011aea531f at 2026-10-27T09:02:12Z. The [terminal reviewer response](https://github.com/shruggietech/local-media-gallery/pull/52#issuecomment-6437786187) reports no major issues. Both initial P2 findings have regression-backed fixes, individual replies and resolved threads. Exactly two review rounds were used. No further round is requested.
+
+The delivery receipt commit changes only this verification, measurements and task accounting, all already excluded from normative source identity. It preserves accepted source 8a5957cb6837a668b3eecda1bfd0fb34baa6131f99ca45f5984ee19df3765fbf. Exact receipt-head CI and final archive read-back must pass before owner notification; their immutable links are recorded in the PR body to avoid a self-referential receipt SHA. The owner retains final review, squash merge and branch deletion. Issues remain open in PR review/S013 until merge closes them. No tag or release is part of this slice.
