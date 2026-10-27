@@ -88,6 +88,12 @@ Repository preparation24.153s, qualification2.652s, combined26.805s; terminal202
 
 Source 1154300db02c65ed51d0e62d3fc619220a13d4d06658817a90f22a46e7632af5 (1052 files), commit13cc681. All eleven headless gates passed with shared pinned Python readiness and the consistently selected interpreter, including86 Node tests and independent normal Full/Lite archive acceptance. Preparation46.653s, qualification94.525s, combined141.178s; terminal2026-10-27T19:03:41.083Z. Independent local archive read-back passes this exact source. Interactive acceptance remains remote.
 
+## Fifth hosted campaign and headless campaign 13
+
+Run40565317141 tested source1154300db02c65ed51d0e62d3fc619220a13d4d06658817a90f22a46e7632af5. Linux passed: preparation884.008s, qualification120.142s, combined1004.150s; terminal2026-10-27T19:18:19.150Z. macOS failed preparation on two native-feature compiler lints: preparation897.833s, qualification0s because readiness was never reached, combined897.833s; terminal2026-10-27T19:16:33.833Z. Windows passed both editions' new runtime groups before failing the existing density reference: preparation791.447s, qualification278.919s, combined1070.366s; terminal2026-10-27T19:19:29.903Z. None of the failed scopes constitutes acceptance.
+
+After the two CI corrections, complete headless campaign13 passed source24c2638cfc541b77e935cb2282305b7bb5dec25546007ff37b2078c92fb87677 (1052 files), commite0d3e35. Preparation48.584s, qualification97.704s, combined146.288s; terminal2026-10-27T19:29:26.995Z. All eleven gates passed with86 Node tests. No local GUI, keyboard injection or screen reader was launched. Corrected hosted run40569222067 remains pending.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

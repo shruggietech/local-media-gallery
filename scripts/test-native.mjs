@@ -54,7 +54,11 @@ async function openSettled(directory) {
   return until(async()=>{const s=await snapshot();return s.discovery?.id===id&&!['opening','scanning'].includes(s.discovery.phase)?s:false;},'Requested folder terminal outcome');
 }
 const visible = script => until(() => js(`return Boolean(${script})`), script);
-const click = text => js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b)throw Error("Missing button "+arguments[0]); b.click(); return true;', [text]);
+async function click(text) {
+  await js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b)throw Error("Missing button "+arguments[0]); b.click(); return true;', [text]);
+  // Let React commit the action and finish queued viewer focus restoration.
+  await js('return await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
+}
 const open = name => js('const card=[...document.querySelectorAll(".media-card")].find(c=>c.dataset.name===arguments[0]); if(!card)throw Error("Missing card"); card.querySelector("button").click(); return true;', [name]);
 const select = (id, value) => js('const el=document.getElementById(arguments[0]); el.value=arguments[1]; el.dispatchEvent(new Event("change",{bubbles:true})); return true;', [id, value]);
 const input = (action, extra = []) => execute('C:/Program Files/PowerShell/7/pwsh.exe', ['-NoProfile', '-NonInteractive', '-File', path.join(root, 'scripts/native-input.ps1'), '-AppProcessId', String(child.pid), '-Action', action, ...extra]);
@@ -210,7 +214,10 @@ try {
     await rm(path.join(directory,anchor)); await click('Refresh'); await until(async()=> (await snapshot()).status==='complete','Removed anchor completion');
     await visible('document.getElementById("page-jump").value==="2" && [...document.querySelectorAll(".media-card")].some(c=>c.dataset.name==="image13.jpg")');
     assert.equal(await js('return document.body.textContent.includes("previous location changed")'),true);
-    await select('page-size','48'); await click('Hide controls'); await openSettled(fixture.directory); await visible('document.querySelectorAll(".media-card").length===12');
+    await select('page-size','48'); await click('Hide controls');
+    await until(async()=>{const saved=JSON.parse(await readFile(settingsFile));return saved.pageSize===48&&saved.controlsExpanded===false;},'Saved collapsed controls before changing settings scope');
+    await openSettled(fixture.directory); await visible('document.querySelectorAll(".media-card").length===12');
+    await visible('[...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="Show controls" && !b.disabled)');
   });
   await test('state save destination is visible before opening controls', async () => {
     assert.equal(await js('return Boolean(document.querySelector("[data-save-destination]"))'), true, 'A reader must see where explicit choices will be saved even with controls collapsed');
@@ -225,10 +232,12 @@ try {
   });
   await test('native folder picker cancellation preserves session', async () => {
     const before = await snapshot();
+    const controlsBefore=await js('return document.getElementById("collection-controls")!==null');
     await js('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Choose folder").focus(); return true;');
     await input('keys', ['-Keys', '{ENTER}']); await input('cancel-picker');
     await visible('!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.includes("Choose folder")).disabled');
     assert.equal((await snapshot()).sessionId, before.sessionId);
+    assert.equal(await js('return document.getElementById("collection-controls")!==null'),controlsBefore,'Picker cancellation preserves presentation');
   });
   await click('Show controls');
   await test('sorting, filters and scoped empty state', async () => {

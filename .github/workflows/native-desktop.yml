@@ -28,6 +28,11 @@ on:
         required: false
         default: false
         type: boolean
+      windows_legacy:
+        description: Diagnose existing Windows regressions with identified prior binaries (never acceptance)
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
   actions: read
@@ -85,6 +90,7 @@ jobs:
       GALLERY_DIAGNOSTIC_RUN: ${{ inputs.artifact_run }}
       GALLERY_DIAGNOSTIC_NATIVE_RUN: ${{ inputs.native_run }}
       GALLERY_DIAGNOSTIC_RELOAD: ${{ inputs.reload_player && '1' || '' }}
+      GALLERY_DIAGNOSTIC_LEGACY: ${{ inputs.windows_legacy && '1' || '' }}
       GSETTINGS_BACKEND: keyfile
       XDG_CONFIG_HOME: ${{ github.workspace }}/.local/desktop-config
       WEBKIT_DISABLE_DMABUF_RENDERER: '1'
@@ -138,13 +144,18 @@ jobs:
         run: dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1200x24' node scripts/diagnose-runtime.mjs
       - name: Diagnose on isolated desktop
         if: runner.os != 'Linux'
-        run: node scripts/diagnose-runtime.mjs
+        run: node ${{ inputs.windows_legacy && 'scripts/diagnose-legacy-windows.mjs' || 'scripts/diagnose-runtime.mjs' }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: diagnostic-${{ inputs.platform }}-${{ github.run_id }}
           path: |
             .local/runtime-diagnostic.json
+            .local/legacy-diagnostic.json
+            .local/native-results.json
+            .local/preparation-results.json
+            .local/launch-results.json
+            .local/measurement.json
             .local/diagnostic-rebuilt.json
             .local/diagnostic-input/bin/local-media-gallery-native-tests*
             .local/runtime-session-*/*.png
