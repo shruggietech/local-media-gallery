@@ -66,6 +66,10 @@ Source d1f27286c9e8231e29bfd4609de502e1097950bfc91466d13913fb7c63407329 (1051 fi
 
 Source 3aac751b7231f605bb8f10c00e83cf6dec0a56486a5a6dcc21342bd9b5a09f70 (1051 files), commit21ba737. All eleven headless steps passed with the ordinary post-mount product fix, complete public native boundaries, strict native-frame evidence and all86 Node tests. Preparation47.290s, qualification95.992s, combined143.282s; terminal2026-10-27T18:22:39.092Z. Native interaction remains separately elected remotely; local GUI/input/reader launch guards remain in force.
 
+## Headless campaign 9
+
+Source 92753f77bfae615a76377813a6ae24f908156eea524dc642d6d8bc6bdd9e65d6 (1051 files), commita0c3d68. All eleven headless steps passed. Preparation48.454s, qualification97.612s, combined146.066s; terminal2026-10-27T18:34:57.781Z. Its native select appearance experiment did not fix the44px target in the separate Mac diagnostic; the following CSS correction requires new source qualification.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

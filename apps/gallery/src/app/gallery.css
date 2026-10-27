@@ -75,7 +75,7 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
   .bb-app-frame[data-bb-host="tauri"] .bb-field { gap: var(--lo-space-1); }
 }
 @media (any-pointer: coarse) {
-  .bb-app-frame[data-bb-host="tauri"] select.bb-field__control { appearance: menulist-button; }
+  .bb-app-frame[data-bb-host="tauri"] select.bb-field__control { appearance: none; padding-inline-end: var(--lo-space-7); background-image: linear-gradient(45deg, transparent 50%, var(--bb-text-primary) 50%), linear-gradient(135deg, var(--bb-text-primary) 50%, transparent 50%); background-position: right var(--lo-space-4) center, right var(--lo-space-2) center; background-size: var(--lo-space-2) var(--lo-space-2); background-repeat: no-repeat; }
   .media-open, .state-controls summary, .metadata-inspector summary { min-block-size: var(--bb-interaction-target-minimum); min-inline-size: var(--bb-interaction-target-minimum); }
   .bb-app-frame[data-bb-host="tauri"] .bb-control, .bb-app-frame[data-bb-host="tauri"] .bb-field__control { min-block-size: var(--bb-interaction-target-minimum); min-inline-size: var(--bb-interaction-target-minimum); padding-block: var(--bb-spacing-control-block); padding-inline: var(--bb-spacing-control-inline); border-radius: var(--bb-spacing-control-inline); }
   .bb-app-frame[data-bb-host="tauri"] .bb-icon-button { padding-inline: var(--bb-spacing-control-inline); }

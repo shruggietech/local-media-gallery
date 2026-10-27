@@ -97,3 +97,7 @@ Native screenshots extend28 pixels below the CSS viewport while retaining unifor
 ## Tenth diagnostic iteration
 
 Rebuilt source3aac751b7231f605bb8f10c00e83cf6dec0a56486a5a6dcc21342bd9b5a09f70 in run40559019895 passed all native media, keyboard and complete essential AX exposure using the product's own post-mount load. No diagnostic reload was elected or recorded. Both native themes passed axe and the zoom2/narrow viewer exposed every control through scrolling. Coarse-condition testing then reproduced macOS's intrinsic22px native select despite its declared44px minimum. The coarse branch now elects the resizable native menulist-button appearance so WebKit can honor the existing target token, leaving fine-pointer density unchanged. Source-bound headless campaign8 and independent normal Full/Lite archive read-back passed before this additional CSS correction. Final complete native/CI acceptance remains pending.
+
+## Eleventh diagnostic iteration
+
+Saved-binary run40560932043 again passed media, keyboard, native AX, both themes and narrow geometry, but the menulist-button appearance retained the22px native select. Replace that ineffective appearance only in the coarse branch with CSS-sized native select rendering and a token-colored dropdown indicator. The underlying select, labels, native menu and keyboard semantics remain intact; fine-pointer density stays unchanged. Complete headless campaign9 passed before this additional rendered correction, and its accounting remains retained.
