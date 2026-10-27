@@ -5,6 +5,7 @@
 - product: literal `local-media-gallery`; kind: `windows-application-payload`; formatVersion:1; version:0.0.0.
 - edition: `full` or `lite`; os:`windows`; arch:`x86_64`; targetTriple:`x86_64-pc-windows-msvc`; buildProfile:`release`.
 - source: exact SHA256/file count from the source producer; revision:40 hexadecimal characters. Internal receipts retain the complete source identity.
+- generation:32 lowercase hexadecimal characters from a fresh128-bit build nonce, shared by paired artifacts. Rebuilding an identical revision produces new package identities; same-artifact repetition uses the original generation. This prevents distinct MSI byte streams sharing a Windows Installer PackageCode.
 - files:1..4096 unique portable relative paths, no traversal/root/drive/Windows aliases or case collisions; each has decimal byte count and lowercase64-hex SHA256. Totals are bounded to1GiB. The manifest does not hash itself; its containing inventory does.
 - binary: payload member; native imports/signing/prerequisite disposition and notices are independently recorded. Optional bundled tools remain empty.
 

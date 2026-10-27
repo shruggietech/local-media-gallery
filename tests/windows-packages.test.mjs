@@ -8,7 +8,7 @@ import {validatePayload,verifyPayload,packageGuid,validateNativeAudit} from '../
 import Ajv from 'ajv/dist/2020.js';
 import {readFile} from 'node:fs/promises';
 const hash='a'.repeat(64);
-const payload=()=>({product:'local-media-gallery',kind:'windows-application-payload',formatVersion:1,version:'0.0.0',edition:'lite',os:'windows',arch:'x86_64',targetTriple:'x86_64-pc-windows-msvc',buildProfile:'release',revision:'b'.repeat(40),source:{sha256:hash,files:1},binary:'local-media-gallery.exe',files:[{path:'local-media-gallery.exe',bytes:'1',sha256:hash}]});
+const payload=()=>({generation:'c'.repeat(32),product:'local-media-gallery',kind:'windows-application-payload',formatVersion:1,version:'0.0.0',edition:'lite',os:'windows',arch:'x86_64',targetTriple:'x86_64-pc-windows-msvc',buildProfile:'release',revision:'b'.repeat(40),source:{sha256:hash,files:1},binary:'local-media-gallery.exe',files:[{path:'local-media-gallery.exe',bytes:'1',sha256:hash}]});
 test('Windows payload identity rejects ambiguous paths, duplicate aliases and invalid source',()=>{
  assert.ok(validatePayload(payload()));
  for(const name of ['../x','a/../x','C:/x','/x','a\\x','AUX.txt','x.','x ','a:stream','a//x']){const p=payload();p.files[0].path=name;p.binary=name;assert.throws(()=>validatePayload(p),name);}

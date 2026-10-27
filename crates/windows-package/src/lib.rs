@@ -80,6 +80,7 @@ pub struct FileRecord {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
+    pub generation: String,
     pub product: String,
     pub kind: String,
     pub format_version: u32,
@@ -123,7 +124,8 @@ pub fn portable(value: &str) -> bool {
 }
 impl Payload {
     pub fn validate(&self) -> Result<(), String> {
-        if self.product != "local-media-gallery"
+        if !hex(&self.generation, 32)
+            || self.product != "local-media-gallery"
             || self.kind != "windows-application-payload"
             || self.format_version != 1
             || self.version != "0.0.0"
@@ -261,6 +263,7 @@ mod tests {
         let physical = dir.path().canonicalize().unwrap();
         fs::write(dir.path().join("app.exe"), b"x").unwrap();
         let mut p = Payload {
+            generation: "c".repeat(32),
             product: "local-media-gallery".into(),
             kind: "windows-application-payload".into(),
             format_version: 1,

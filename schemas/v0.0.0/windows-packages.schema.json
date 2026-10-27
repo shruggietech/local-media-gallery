@@ -5,8 +5,9 @@
   "x-release-version": "0.0.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["product", "kind", "formatVersion", "version", "edition", "os", "arch", "targetTriple", "buildProfile", "source", "revision", "binary", "files"],
+  "required": ["generation", "product", "kind", "formatVersion", "version", "edition", "os", "arch", "targetTriple", "buildProfile", "source", "revision", "binary", "files"],
   "properties": {
+    "generation": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
     "product": { "const": "local-media-gallery" },
     "kind": { "const": "windows-application-payload" },
     "formatVersion": { "const": 1 },
