@@ -11,6 +11,8 @@ import {openRuntime,until,pause,hidden} from './runtime-driver.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 
 requireIsolatedDesktop();
+const diagnosticStyle=process.argv.includes('--diagnostic-style');
+if(diagnosticStyle)assert.match(process.env.GALLERY_DIAGNOSTIC_RUN??'',/^[1-9][0-9]*$/);
 
 const fixture=JSON.parse(await readFile(path.join(root,'.local/runtime-fixture.json')));
 const suffix=process.platform==='win32'?'.exe':'';
@@ -22,6 +24,7 @@ async function check(name,fn){await fn();record.checks.push({name,result:'pass',
 try{
  await verifyRuntimeFixture(fixture);app=await openRuntime(binary,fixture);
  const js=(fn,...args)=>app.js('return await ('+fn.toString()+')(...arguments);',args);
+ if(diagnosticStyle){const style=await readFile(path.join(root,'apps/gallery/src/app/gallery.css'),'utf8');record.acceptance=false;record.diagnosticStyle={sha256:digest(Buffer.from(style)),bytes:String(Buffer.byteLength(style))};await js(text=>{const style=document.createElement('style');style.textContent=text;document.head.append(style);return true;},style);}
  await until(()=>js(()=>document.querySelectorAll('.media-card').length>0),'Native gallery cards');
  record.environment=await js(()=>({platform:'',arch:'',userAgent:navigator.userAgent,devicePixelRatio,window:{width:innerWidth,height:innerHeight},preferences:{reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,fine:matchMedia('(pointer: fine)').matches,coarse:matchMedia('(any-pointer: coarse)').matches},colorSpace:document.createElement('canvas').getContext('2d',{colorSpace:'srgb'}).getContextAttributes?.().colorSpace??'default'}));
  record.environment.platform=process.platform;record.environment.arch=process.arch;record.environment.osRelease=os.release();record.environment.osVersion=os.version();record.environment.display=process.platform==='linux'?'X11/Xvfb isolated virtual display':'isolated hosted native desktop';record.compiledIdentity=await app.js('return await window.__TAURI_INTERNALS__.invoke("application_info")');assert.equal(record.compiledIdentity.edition,record.edition);assert.equal(record.compiledIdentity.data.targetTriple,{'win32':'x86_64-pc-windows-msvc','linux':'x86_64-unknown-linux-gnu','darwin':'aarch64-apple-darwin'}[process.platform]);
@@ -106,8 +109,8 @@ try{
   const motion=await js(()=>({matches:matchMedia('(prefers-reduced-motion: reduce)').matches,transition:getComputedStyle(document.querySelector('.scroll-indicator')).transitionDuration}));assert.equal(motion.matches,true,'Elected native reduced-motion condition unavailable');assert.ok(motion.transition.split(',').every(s=>parseFloat(s)===0));record.presentation.push({condition:'native prefers-reduced-motion',...motion});const screenshot=await app.screenshot('qualified-gallery');const pixels=await readFile(screenshot);record.screenshots=[{path:path.relative(root,screenshot).replaceAll('\\','/'),sha256:digest(pixels),bytes:String(pixels.length)}];
  });
  await check('integrity',async()=>{await verifyRuntimeFixture(fixture);assert.equal(digest(await readFile(binary)),record.binary.sha256);assert.deepEqual(await sourceIdentity(),source);});
- record.result='pass';record.terminalFinished=new Date().toISOString();
- validateRuntimeReceipt(record,{source,binarySha256:digest(bytes),fixtureSha256:fixture.sha256,edition:record.edition,platform:process.platform});
+ record.result=diagnosticStyle?'diagnostic-pass':'pass';record.terminalFinished=new Date().toISOString();
+ if(!diagnosticStyle)validateRuntimeReceipt(record,{source,binarySha256:digest(bytes),fixtureSha256:fixture.sha256,edition:record.edition,platform:process.platform});
 }catch(error){record.failure=error.stack;console.error(error.stack);process.exitCode=1;}
 finally{
  const cleanupFailures=[];

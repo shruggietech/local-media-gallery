@@ -40,6 +40,10 @@ Run40533403486 tested source3337b8097d6cf2e908e040790209ebf8cf1afc6ef92b39b7202c
 | product-linux | 911.904 | 112.947 | 1024.851 | 2026-10-27T15:58:12.851Z |
 | product-macos | 993.606 | 183.944 | 1177.550 | 2026-10-27T16:00:47.550Z |
 
+## Headless campaign 5
+
+Source c31cc9e8c21223ab20e12782075b2b03f9c573f684d61658c629b5e3df4fd62b (1048 files), commit7b6732f. All eleven local headless checks passed. Preparation52.053s, qualification97.001s, combined149.054s; terminal2026-10-27T16:19:39.408Z. Diagnostic workflow results retain their separate mixed-source/non-acceptance identity and are not counted as final qualification.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

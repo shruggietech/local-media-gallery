@@ -75,6 +75,7 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
   .bb-app-frame[data-bb-host="tauri"] .bb-field { gap: var(--lo-space-1); }
 }
 @media (any-pointer: coarse) {
+  .media-open, .state-controls summary, .metadata-inspector summary { min-block-size: var(--bb-interaction-target-minimum); min-inline-size: var(--bb-interaction-target-minimum); }
   .bb-app-frame[data-bb-host="tauri"] .bb-control, .bb-app-frame[data-bb-host="tauri"] .bb-field__control { min-block-size: var(--bb-interaction-target-minimum); min-inline-size: var(--bb-interaction-target-minimum); padding-block: var(--bb-spacing-control-block); padding-inline: var(--bb-spacing-control-inline); border-radius: var(--bb-spacing-control-inline); }
   .bb-app-frame[data-bb-host="tauri"] .bb-icon-button { padding-inline: var(--bb-spacing-control-inline); }
   .bb-app-frame[data-bb-host="tauri"] .bb-field { gap: var(--bb-spacing-control-block); }
