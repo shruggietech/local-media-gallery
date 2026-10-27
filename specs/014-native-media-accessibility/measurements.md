@@ -62,6 +62,10 @@ Source dbdf5d5d8494edae504c7403791c0b37ea712fee54dcf07bc83189b6ab96db69 (1049 fi
 
 Source d1f27286c9e8231e29bfd4609de502e1097950bfc91466d13913fb7c63407329 (1051 files), commit26ea7ba. All eleven headless steps passed after the focused consumer URL and native frame observer changes, including86 Node tests. Preparation51.943s, qualification98.944s, combined150.887s; terminal2026-10-27T17:49:41.675Z. The following grayscale-evidence rejection correction changes source and requires another final campaign. Native acceptance remains isolated and separately pending.
 
+## Headless campaign 8
+
+Source 3aac751b7231f605bb8f10c00e83cf6dec0a56486a5a6dcc21342bd9b5a09f70 (1051 files), commit21ba737. All eleven headless steps passed with the ordinary post-mount product fix, complete public native boundaries, strict native-frame evidence and all86 Node tests. Preparation47.290s, qualification95.992s, combined143.282s; terminal2026-10-27T18:22:39.092Z. Native interaction remains separately elected remotely; local GUI/input/reader launch guards remain in force.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

@@ -23,7 +23,7 @@ Independent test: actual system-WebView source viewing and format-specific resul
 - [X] T008 [US1] Implement separate seven-format/all-eight-orientation/SDR-profile/moving-video/440Hz/silent corpus and exact inventory in scripts/create-runtime-fixture.py/.mjs (FR-001/003/004/007).
 - [X] T009 [US1] Implement actual native original image dimension/pixel/orientation/profile and damaged/unsupported retained-item checks in scripts/test-runtime.mjs (FR-002/003/005/006).
 - [X] T010 [US1] Implement actual decoded frame/play/pause/seek, same-source206/read bytes and WebAudio tone/silent observations in scripts/test-runtime.mjs (FR-002/004/007).
-- [ ] T011 [US1] Reproduce and fix proportional media/error/recovery findings in apps/gallery/src/app/gallery.tsx and related media helpers with scripts/test-runtime.mjs regressions (FR-003..007/015).
+- [X] T011 [US1] Reproduce and fix proportional media/error/recovery findings in apps/gallery/src/app/gallery.tsx and related media helpers with scripts/test-runtime.mjs regressions (FR-003..007/015).
 
 ## Phase 4: US2 Native keyboard and assistive behavior
 
@@ -51,12 +51,12 @@ Independent test: exact source-bound native receipts reject missing/mismatched/u
 - [X] T021 [US4] Prepare all three native display/AT/audio dependencies and native-test editions, then elect runtime checks in .github/workflows/ci.yml and scripts/ci.mjs/prepare.mjs/qualify.mjs/run.mjs (FR-001/002/013/016).
 - [X] T022 [US4] Bind runtime/native-tool/fixture/normal-proof identities and exclude only delivery receipts in scripts/provenance.mjs/runtime-evidence.mjs/ci.mjs/qualify.mjs (FR-001/012/013/016).
 - [X] T023 [US4] Extend normal Full/Lite hook/listener exclusion in scripts/test-normal.mjs and affected contract tests (FR-013/015).
-- [ ] T024 [US4] Publish observed media/color/audio/assistive/presentation matrix and explicit limits in docs/v0.0.0/browsing-and-playback.md/verification-and-compatibility.md/installation-and-distribution.md/thumbnails-and-performance.md and schemas/v0.0.0/ (FR-014).
+- [X] T024 [US4] Publish observed media/color/audio/assistive/presentation matrix and explicit limits in docs/v0.0.0/browsing-and-playback.md/verification-and-compatibility.md/installation-and-distribution.md/thumbnails-and-performance.md and schemas/v0.0.0/ (FR-014).
 
 ## Phase 7: Qualification and delivery
 
 - [X] T025 Record dated behavior/process decisions and unreleased changes in CHANGELOG.md, preserving version0.0.0 and governed kit bytes (FR-014/015).
-- [ ] T026 Run complete local qualification after verified readiness, retaining every campaign and preparation/qualification/combined accounting in specs/014-native-media-accessibility/verification.md/measurements.md (FR-015/016, SC-001..005).
+- [X] T026 Run complete local qualification after verified readiness, retaining every campaign and preparation/qualification/combined accounting in specs/014-native-media-accessibility/verification.md/measurements.md (FR-015/016, SC-001..005).
 - [X] T027 Commit/push official PR closing #18/#19, attach it and update Project8 PR review/S014 in specs/014-native-media-accessibility/verification.md (FR-017).
 - [ ] T028 Verify exact-source native hosted/runtime and six normal archive receipts with independent artifact read-back in specs/014-native-media-accessibility/verification.md/measurements.md (FR-001/013/016, SC-001/005).
 - [ ] T029 Address every review finding and resolve every thread using at most two rounds, recording concrete corrections in specs/014-native-media-accessibility/verification.md (FR-017, SC-006).
