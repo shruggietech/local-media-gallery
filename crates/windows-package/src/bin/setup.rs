@@ -99,7 +99,7 @@ fn run() -> Result<serde_json::Value, String> {
             std::thread::sleep(Duration::from_millis(100));
         }
     };
-    let before = native::runtime();
+    let before = native::scoped_runtime(machine);
     let mut runtime_exit = None;
     if !remove && (before.is_err() || provision) {
         let status = invoke(
@@ -114,7 +114,7 @@ fn run() -> Result<serde_json::Value, String> {
         }
     }
     if !remove {
-        native::runtime()?;
+        native::scoped_runtime(machine)?;
     }
     let system =
         PathBuf::from(std::env::var_os("SystemRoot").ok_or("Missing Windows system directory")?)
@@ -149,7 +149,7 @@ fn run() -> Result<serde_json::Value, String> {
         native::verify_removed(&directory, machine)?;
     }
     Ok(
-        serde_json::json!({"result":"pass","operation":if remove{"remove"}else{"install"},"scope":if machine{"machine"}else{"user"},"directoryDisplay":directory.display().to_string(),"nativeDirectory":native_path(&directory),"runtimeBefore":before.ok(),"runtimeAfter":native::runtime().ok(),"runtimeBootstrapperExit":runtime_exit,"installerExit":status,"logDisplay":log.display().to_string(),"nativeLog":native_path(&log),"candidate":true}),
+        serde_json::json!({"result":"pass","operation":if remove{"remove"}else{"install"},"scope":if machine{"machine"}else{"user"},"directoryDisplay":directory.display().to_string(),"nativeDirectory":native_path(&directory),"runtimeBefore":before.ok(),"runtimeAfter":native::scoped_runtime(machine).ok(),"runtimeBootstrapperExit":runtime_exit,"installerExit":status,"logDisplay":log.display().to_string(),"nativeLog":native_path(&log),"candidate":true}),
     )
 }
 #[cfg(windows)]

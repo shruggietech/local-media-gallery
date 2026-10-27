@@ -267,6 +267,77 @@ pub fn runtime() -> Result<String, String> {
         version
     }
 }
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeEvidence {
+    pub version: String,
+    pub scope: &'static str,
+    pub native_folder: serde_json::Value,
+    pub method: &'static str,
+}
+fn known_folder(id: &windows::core::GUID) -> Result<PathBuf, String> {
+    unsafe {
+        let p = SHGetKnownFolderPath(id, KF_FLAG_DEFAULT, None).map_err(|e| e.to_string())?;
+        let path = PathBuf::from(OsString::from_wide(p.as_wide()));
+        CoTaskMemFree(Some(p.0.cast()));
+        Ok(path)
+    }
+}
+fn registered_runtime(machine: bool) -> Result<RuntimeEvidence, String> {
+    let key = if machine {
+        "SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+    } else {
+        "Software\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+    };
+    let version = registry(machine, key, "pv")?
+        .and_then(|s| s.into_string().ok())
+        .filter(|v| {
+            v != "0.0.0.0"
+                && v.split('.').count() == 4
+                && v.split('.')
+                    .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+        })
+        .ok_or_else(|| {
+            format!(
+                "{} Evergreen WebView2 is unavailable; run the matching Full setup entrypoint",
+                if machine { "Machine-wide" } else { "Per-user" }
+            )
+        })?;
+    let base = known_folder(if machine {
+        &windows::Win32::UI::Shell::FOLDERID_ProgramFilesX86
+    } else {
+        &windows::Win32::UI::Shell::FOLDERID_LocalAppData
+    })?;
+    let folder = base
+        .join("Microsoft\\EdgeWebView\\Application")
+        .join(&version);
+    let binary = folder.join("msedgewebview2.exe");
+    if !binary.is_file() {
+        return Err("Registered Evergreen runtime files are missing; repair with the matching setup entrypoint".into());
+    }
+    unsafe {
+        let mut result = PWSTR::null();
+        webview2_com_sys::Microsoft::Web::WebView2::Win32::GetAvailableCoreWebView2BrowserVersionString(PCWSTR(wide(&folder).as_ptr()),&mut result).map_err(|e|format!("Registered runtime native verification failed: {e}; repair Evergreen WebView2"))?;
+        let actual = result.to_string().map_err(|e| e.to_string());
+        CoTaskMemFree(Some(result.0.cast()));
+        if actual? != version {
+            return Err("Registered and native Evergreen runtime versions disagree; repair before installation".into());
+        }
+    }
+    Ok(RuntimeEvidence {
+        version,
+        scope: if machine { "machine" } else { "user" },
+        native_folder: serde_json::json!({"encoding":"windows-utf16le","bytes":folder.as_os_str().encode_wide().flat_map(u16::to_le_bytes).collect::<Vec<_>>()}),
+        method: "Scope-specific Evergreen registration, actual runtime executable and native loader folder verification",
+    })
+}
+pub fn scoped_runtime(machine: bool) -> Result<RuntimeEvidence, String> {
+    crate::runtime_for_scope(
+        machine,
+        || registered_runtime(false),
+        || registered_runtime(true),
+    )
+}
 fn verify_integrations(
     machine: bool,
     directory: &Path,
@@ -322,7 +393,7 @@ pub fn verify_install(directory: &Path, machine: bool) -> Result<(), String> {
         return Err("Registered package does not match candidate".into());
     }
     verify_integrations(machine, directory, &package, true)?;
-    runtime()?;
+    scoped_runtime(machine)?;
     Ok(())
 }
 fn preflight(h: u32) -> Result<(), String> {
@@ -335,7 +406,7 @@ fn preflight(h: u32) -> Result<(), String> {
     let directory = PathBuf::from(get(h, "INSTALLDIR")?);
     validate_destination(&directory, machine)?;
     if text(h, "REMOVE")? != "ALL" {
-        runtime()?;
+        scoped_runtime(machine)?;
     }
     let mut data = directory.as_os_str().to_owned();
     data.push(if machine { "|machine" } else { "|user" });
@@ -491,7 +562,7 @@ pub extern "system" fn VerifyInstalled(h: u32) -> u32 {
                 &guid(scope, &hash(PAYLOAD.as_bytes())),
                 true,
             )?;
-            runtime()?;
+            scoped_runtime(machine)?;
             Ok(())
         })();
         report(h, result)

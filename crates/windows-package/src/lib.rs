@@ -11,6 +11,17 @@ pub const SETUP: &str = include_str!(concat!(env!("OUT_DIR"), "/setup.json"));
 pub fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
+pub fn runtime_for_scope<T>(
+    machine: bool,
+    user: impl FnOnce() -> Result<T, String>,
+    system: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    if machine {
+        system()
+    } else {
+        user().or_else(|_| system())
+    }
+}
 /// Keep the verified input open without Windows write/delete sharing through use.
 pub fn open_verified_input(path: &Path, record: &FileRecord) -> Result<fs::File, String> {
     check_path(path)?;
@@ -194,6 +205,27 @@ pub fn check_path(path: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn machine_scope_cannot_be_satisfied_by_a_user_only_runtime() {
+        let result = runtime_for_scope(
+            true,
+            || Ok("per-user-only"),
+            || Err("machine runtime absent".into()),
+        );
+        assert_eq!(result, Err("machine runtime absent".into()));
+        assert_eq!(
+            runtime_for_scope(false, || Err("user absent".into()), || Ok("machine shared")),
+            Ok("machine shared")
+        );
+        assert_eq!(
+            runtime_for_scope(
+                true,
+                || panic!("must not probe user discovery for machine scope"),
+                || Ok("machine shared")
+            ),
+            Ok("machine shared")
+        );
+    }
     #[cfg(windows)]
     #[test]
     fn verified_input_stays_locked_against_substitution_until_use_finishes() {

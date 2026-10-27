@@ -114,6 +114,7 @@ jobs:
             .local/windows-package-failure.json
             .local/windows-packages-*/*-candidate.zip
             .local/windows-package-test-*/*.png
+            .local/windows-package-test-*/*.log
             .local/tmp/local-media-gallery-*.log
           include-hidden-files: true
           if-no-files-found: error
