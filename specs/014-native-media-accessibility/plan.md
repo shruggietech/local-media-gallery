@@ -61,3 +61,7 @@ No constitution violation. Platform-native test clients are required to observe 
 ## Owner-directed focus isolation
 
 The owner reported workstation focus interference and requested that it stop. Local interactive acceptance has stopped. All GUI/input/screen-reader launchers now require explicit isolated CI context before admitting any window or key injection. Run local headless qualification, then execute the full existing Windows native suites and new three-OS runtime campaign on isolated hosted runners. Do not set the isolation opt-in on the owner workstation or silently omit elected native checks.
+
+### Isolated diagnostic feedback
+
+Cold three-platform builds delay investigation of runtime-specific failures. Extend the existing dispatchable native-desktop workflow with an optional hosted diagnostic route that downloads identified prior native-test artifacts from this repository. Record prior compiled source/binary hashes separately from the current harness source; these mixed-source observations never produce acceptance. Reuse the same isolated desktop preparation and native driver. The ordinary Qualification workflow must still rebuild and accept the final source on all elected targets. This avoids using the owner workstation for rapid interactive debugging.

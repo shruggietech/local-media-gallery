@@ -24,6 +24,12 @@ NVDA2026.3 publisher download: https://download.nvaccess.org/releases/2026.3/nvd
 
 Sources: [NVDA2026.3 release](https://www.nvaccess.org/post/nvda-2026-3/), [configuration source](https://raw.githubusercontent.com/nvaccess/nvda/release-2026.3/source/config/configSpec.py), [silence synthesizer](https://raw.githubusercontent.com/nvaccess/nvda/release-2026.3/source/synthDrivers/silence.py). Existing Windows native-input uses UIAutomationClient. Potential panorama target, narrow viewer clipping and changing-item announcement risks must be reproduced before product fixes.
 
+### Remote input and accessibility setup correction
+
+The Windows hosted run exposed actual NVDA speech/focus for Refresh but no subsequent Tab delivery through the legacy SendKeys path. Retain NVDA's normal injected-key handling and use documented Win32 SendInput scan-code pairs for the new campaign, still requiring foreground confirmation and actual native default behavior. Compile and verify native INPUT layout headlessly; execute keys only on isolated CI. Sources: [SendInput](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput), [KEYBDINPUT](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-keybdinput), [INPUT](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-input), [elected NVDA keyboard handler](https://github.com/nvaccess/nvda/blob/release-2026.3/source/keyboardHandler.py).
+
+The Linux status setup used the wrong object path. GNOME registers org.a11y.Status at /org/a11y/bus, alongside the bus interface. Correct that path rather than treating an unavailable provider as a codec result. Source: [AT-SPI bus launcher](https://github.com/GNOME/at-spi2-core/blob/main/bus/at-spi-bus-launcher.c).
+
 ## 2026-10-27: Workflow and authority
 
 Decision: all installed Spec Kit stages and no extension hooks (file absent). The checklist helper initially required a plan file although autopilot sequences checklist first; create the installed plan template, then resolve the checklist template before completing design. This is a helper prerequisite ordering adjustment, not a skipped requirements review. Source qualification/review cap and automatic push authorization remain unchanged.

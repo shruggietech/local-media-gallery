@@ -1,13 +1,27 @@
 name: Windows desktop qualification
 on:
   workflow_dispatch:
+    inputs:
+      artifact_run:
+        description: Prior Qualification run for diagnostics; leave blank for desktop qualification
+        required: false
+        default: ''
+        type: string
+      platform:
+        description: Diagnostic target (used only with a prior artifact run)
+        required: true
+        default: macos
+        type: choice
+        options: [windows, linux, macos]
 permissions:
   contents: read
+  actions: read
 concurrency:
-  group: native-desktop
+  group: native-desktop-${{ inputs.artifact_run && inputs.platform || 'qualification' }}
   cancel-in-progress: false
 jobs:
   native-desktop:
+    if: inputs.artifact_run == ''
     name: native-desktop
     runs-on: [self-hosted, Windows, X64, gallery-desktop]
     timeout-minutes: 45
@@ -43,5 +57,60 @@ jobs:
             .local/proof-build-*/*-proof.zip
             .local/site-artifact.json
             .local/site-browser.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+  diagnose:
+    if: inputs.artifact_run != ''
+    name: runtime-diagnostics (${{ inputs.platform }})
+    runs-on: ${{ fromJSON('{"windows":"windows-2025","linux":"ubuntu-24.04","macos":"macos-15"}')[inputs.platform] }}
+    timeout-minutes: 15
+    env:
+      GALLERY_ISOLATED_DESKTOP: '1'
+      GALLERY_DIAGNOSTIC_RUN: ${{ inputs.artifact_run }}
+      GSETTINGS_BACKEND: keyfile
+      XDG_CONFIG_HOME: ${{ github.workspace }}/.local/desktop-config
+      WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.0
+          cache: npm
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install Linux diagnostic prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-0 librsvg2-2 xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+      - run: npm ci
+      - name: Select diagnostic Node
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'GALLERY_PROOF_NODE=' + process.execPath + '\n')"
+      - run: node scripts/prepare.mjs
+      - run: node scripts/create-runtime-fixture.mjs
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.artifact_run }}
+          pattern: product-${{ inputs.platform }}-evidence-*
+          path: .local/diagnostic-input
+          merge-multiple: true
+      - name: Diagnose on isolated Linux display
+        if: runner.os == 'Linux'
+        run: dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1200x24' node scripts/diagnose-runtime.mjs
+      - name: Diagnose on isolated desktop
+        if: runner.os != 'Linux'
+        run: node scripts/diagnose-runtime.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: diagnostic-${{ inputs.platform }}-${{ github.run_id }}
+          path: .local/runtime-diagnostic.json
           include-hidden-files: true
           if-no-files-found: error

@@ -25,7 +25,7 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
  const js=(script,args=[])=>request('/session/'+session+'/execute/sync',{script,args});
  const command=(action,extra={})=>js('return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",arguments[0]);',[{action,...extra}]);
  const nativeKey=async key=>{
-  if(process.platform==='win32'){const keys={Tab:'{TAB}',ShiftTab:'+{TAB}',Space:' ',Escape:'{ESC}',Enter:'{ENTER}'};assert.ok(keys[key]);await hidden('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File','scripts/native-input.ps1','-AppProcessId',String(child.pid),'-Action','keys','-Keys',keys[key]]);}
+  if(process.platform==='win32'){assert.ok(['Tab','ShiftTab','Space','Escape','Enter'].includes(key));await hidden('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File','scripts/native-input.ps1','-AppProcessId',String(child.pid),'-Action','scan-keys','-Keys',key]);}
   else if(process.platform==='linux'){const found=await hidden('xdotool',['search','--onlyvisible','--pid',String(child.pid)]);const window=found.stdout.trim().split(/\s+/)[0];assert.match(window,/^[0-9]+$/);await hidden('xdotool',['windowfocus','--sync',window,'key','--clearmodifiers',({Tab:'Tab',ShiftTab:'shift+Tab',Space:'space',Escape:'Escape',Enter:'Return'})[key]]);}
   else await command('key',{key});
  };

@@ -23,6 +23,13 @@ const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, se
 const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);
+function videoErrorMessage(code: number | undefined) {
+  if (code === 1) return 'Video loading was interrupted. Refresh to check the folder again.';
+  if (code === 2) return 'This video could not be read. Refresh to check the folder again.';
+  if (code === 3) return 'This video could not be decoded. Refresh to check the folder again.';
+  if (code === 4) return 'This video format or codec is unavailable in the current runtime.';
+  return 'This video is unavailable. Refresh to check the folder again.';
+}
 type Queue = ReturnType<typeof createAdmissionQueue>;
 type LoadingPolicy = ReturnType<typeof createLoadingPolicy>;
 
@@ -103,7 +110,7 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
         updateFacts(key, { width: element.videoWidth, height: element.videoHeight, duration: element.duration });
         element.removeAttribute('src'); element.load(); done();
       }}
-      onError={event => { const done = settled.current; if (video.current !== event.currentTarget || !event.currentTarget.getAttribute('src')) return; settled.current = null; updateFacts(key, { error: 'This video format or codec is unavailable in the current runtime.' }); done?.('failure'); }} /> : null}
+      onError={event => { const done = settled.current; if (video.current !== event.currentTarget || !event.currentTarget.getAttribute('src')) return; settled.current = null; updateFacts(key, { error: videoErrorMessage(event.currentTarget.error?.code) }); done?.('failure'); }} /> : null}
   </article>;
 });
 
@@ -205,7 +212,7 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
           ? <video key={key} ref={video} src={source} controls crossOrigin="anonymous" preload="metadata" aria-label={'Video ' + item.name}
             onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
             onLoadedMetadata={event => updateFacts(key, { width: event.currentTarget.videoWidth, height: event.currentTarget.videoHeight, duration: event.currentTarget.duration })}
-            onError={event => { const code = event.currentTarget.error?.code; updateFacts(key, { error: code === 1 ? 'Video loading was interrupted. Press Play to retry, or Refresh to check the folder again.' : code === 2 ? 'This video could not be read. Refresh to check the folder again.' : code === 3 ? 'This video could not be decoded. Refresh to check the folder again.' : code === 4 ? 'This video format or codec is unavailable in the current runtime.' : 'This video is unavailable. Refresh to check the folder again.' }); }} />
+            onError={event => updateFacts(key, { error: videoErrorMessage(event.currentTarget.error?.code) })} />
           : !facts.error ? <img key={key} src={source} alt={item.name} crossOrigin="anonymous"
             onLoad={event => updateFacts(key, { width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
             onError={() => updateFacts(key, { error: 'This image is unavailable or unsupported in the current runtime. Refresh to check the folder again.' })} /> : <ImageIcon aria-hidden="true" />}

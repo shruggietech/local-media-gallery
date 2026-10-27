@@ -37,5 +37,5 @@ test('actual NVDA capture policy excludes unrelated queued text and enforces sto
 test('focus-changing suites refuse the active workstation before launching a GUI',async()=>{
  assert.throws(()=>requireIsolatedDesktop({}),/isolated CI desktop/);
  assert.throws(()=>requireIsolatedDesktop({GITHUB_ACTIONS:'true'}),/isolated CI desktop/);
- for(const script of ['test-runtime-platform','test-runtime','test-native','test-preparation','test-launch','test-normal','measure-native','qualify'])await assert.rejects(promisify(execFile)(process.execPath,['scripts/'+script+'.mjs'],{cwd:root,windowsHide:true,shell:false,timeout:10000,env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:''}}),e=>e.stderr.includes('isolated CI desktop'));
+ for(const script of ['diagnose-runtime','test-runtime-platform','test-runtime','test-native','test-preparation','test-launch','test-normal','measure-native','qualify'])await assert.rejects(promisify(execFile)(process.execPath,['scripts/'+script+'.mjs'],{cwd:root,windowsHide:true,shell:false,timeout:10000,env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:''}}),e=>e.stderr.includes('isolated CI desktop'));
 });

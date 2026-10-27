@@ -12,10 +12,6 @@ Source da1992e430f024a63b1236882f195dbb15f1f77d6677e87a251e061e645fc150 (1046 fi
 
 Source0a858f13b4ed6f4341b69e2bd73cc7bec0bcc5e88e5ccdf8a87749a672c08a46 (1046 files). All eleven local headless checks passed, including83 Node tests, both53-test shell suites, elected preparation integrity, site/browser checks and normal extracted Full/Lite CLI proof. Preparation53.554s, qualification103.200s, combined156.754s; terminal2026-10-27T15:05:20.551Z. Independent Python archive read-back verified both exact payload inventories, native archive modes, manifest edition/target/source and current source identity. No gallery, reader or native input was launched. Cross-platform interactive acceptance remains pending on isolated CI.
 
-## Headless campaign 3
-
-Source ee4af81cdf08dd87a77d688c56b481994e112837c680f5bb8a1beeb383b99970 (1046 files). All eleven headless checks passed after the review and initial remote harness corrections. Preparation49.550s, qualification103.521s, combined153.071s; terminal2026-10-27T15:38:52.357Z. A subsequent proportional viewer error-message correction requires a fresh source campaign. No local interactive application was launched.
-
 ## Initial hosted campaign
 
 Run40528748288 tested merge8d7ded559df91a637c4b37dd1484b0c36e02bb5b and source0a858f13b4ed6f4341b69e2bd73cc7bec0bcc5e88e5ccdf8a87749a672c08a46. Repository and website passed. All three native scopes failed as recorded in verification.md; none supplies final runtime acceptance.
@@ -25,6 +21,24 @@ Run40528748288 tested merge8d7ded559df91a637c4b37dd1484b0c36e02bb5b and source0a
 | product-linux | 883.124 | 0.026 | 883.150 | 2026-10-27T15:27:52.150Z |
 | product-windows | 801.198 | 231.908 | 1033.106 | 2026-10-27T15:30:25.195Z |
 | product-macos | 990.804 | 206.337 | 1197.141 | 2026-10-27T15:33:07.141Z |
+
+## Headless campaign 3
+
+Source ee4af81cdf08dd87a77d688c56b481994e112837c680f5bb8a1beeb383b99970 (1046 files). All eleven headless checks passed after the review and initial remote harness corrections. Preparation49.550s, qualification103.521s, combined153.071s; terminal2026-10-27T15:38:52.357Z. A subsequent proportional viewer error-message correction requires a fresh source campaign. No local interactive application was launched.
+
+## Headless campaign 4
+
+Source3337b8097d6cf2e908e040790209ebf8cf1afc6ef92b39b7202cfb9d023712eb (1046 files). All eleven local headless steps passed on pushed commit ed6db25, including the updated viewer error messages. Preparation52.436s, qualification101.865s, combined154.301s; terminal2026-10-27T15:43:32.580Z. No gallery, reader or input was started locally. Independent local Full/Lite archive read-back also passed against this source identity.
+
+## Second hosted campaign
+
+Run40533403486 tested source3337b8097d6cf2e908e040790209ebf8cf1afc6ef92b39b7202cfb9d023712eb. Repository and website passed. The three native failures remain separate from final acceptance, with causes retained in verification.md.
+
+| Scope | Preparation seconds | Qualification seconds | Combined seconds | Terminal UTC |
+| --- | ---: | ---: | ---: | --- |
+| product-windows | 554.020 | 157.941 | 711.961 | 2026-10-27T15:53:08.243Z |
+| product-linux | 911.904 | 112.947 | 1024.851 | 2026-10-27T15:58:12.851Z |
+| product-macos | 993.606 | 183.944 | 1177.550 | 2026-10-27T16:00:47.550Z |
 
 ## Accounting policy
 
