@@ -60,5 +60,15 @@ class NativeFrameTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 self.observe(file)
 
+    def test_extra_snapshot_height_does_not_stretch_css_coordinates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "frame.png"
+            image = Image.new("RGB", (64, 80))
+            for y in range(80):
+                for x in range(64):
+                    image.putpixel((x, y), (x * 4, y * 3, 0))
+            image.save(file)
+            self.assertEqual(self.observe(file)["crop"], [16, 16, 48, 48])
+
 
 unittest.main()

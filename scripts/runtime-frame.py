@@ -21,7 +21,8 @@ with Image.open(source) as image:
     right, bottom = left + width / 2, top + height / 2
     assert 0 <= left < right <= viewport["width"]
     assert 0 <= top < bottom <= viewport["height"]
-    xscale, yscale = image.width / viewport["width"], image.height / viewport["height"]
+    xscale = yscale = image.width / viewport["width"]
+    assert image.height >= viewport["height"] * yscale
     box = tuple(round(value * factor) for value, factor in [(left, xscale), (top, yscale), (right, xscale), (bottom, yscale)])
     region = image.convert("RGB").crop(box)
     colors = region.getcolors(region.width * region.height)

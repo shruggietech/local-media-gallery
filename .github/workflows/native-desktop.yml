@@ -23,6 +23,11 @@ on:
         required: false
         default: ''
         type: string
+      reload_player:
+        description: Explicitly test a diagnostic post-mount player reload (never acceptance)
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
   actions: read
@@ -79,6 +84,7 @@ jobs:
       GALLERY_ISOLATED_DESKTOP: '1'
       GALLERY_DIAGNOSTIC_RUN: ${{ inputs.artifact_run }}
       GALLERY_DIAGNOSTIC_NATIVE_RUN: ${{ inputs.native_run }}
+      GALLERY_DIAGNOSTIC_RELOAD: ${{ inputs.reload_player && '1' || '' }}
       GSETTINGS_BACKEND: keyfile
       XDG_CONFIG_HOME: ${{ github.workspace }}/.local/desktop-config
       WEBKIT_DISABLE_DMABUF_RENDERER: '1'

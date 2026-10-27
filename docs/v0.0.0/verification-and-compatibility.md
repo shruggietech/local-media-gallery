@@ -84,7 +84,7 @@ Retained documentation must continue to describe its corresponding release even 
 
 Release notes contain short user-relevant highlights, any necessary migration action and a final link to the master changelog. Repository workflow follows the contribution/merge policy.
 
-The initial U-01/U-02 policy is [explicitly bounded by its platform rows](installation-and-distribution.md#initial-platform-and-dependency-matrix). Retained unbuilt architectures and untested runtime/installer combinations remain unqualified. Resolve U-04 before codec claims and retain measured U-10 scenario limits for numerical performance claims. Other open decisions must be resolved before their affected contracts are presented as complete. This allows scoped implementation to proceed without substituting a plan for delivered behavior.
+The initial U-01/U-02 policy is [explicitly bounded by its platform rows](installation-and-distribution.md#initial-platform-and-dependency-matrix). Retained unbuilt architectures and untested runtime/installer combinations remain unqualified. Initial media claims follow the native rows below; U-04 retains additional profiles/formats and external opening/conversion. Retain measured U-10 scenario limits for numerical performance claims. Other open decisions must be resolved before their affected contracts are presented as complete. This allows scoped implementation to proceed without substituting a plan for delivered behavior.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
 
@@ -131,6 +131,14 @@ Native UI Automation, AT-SPI and WebKit/ApplicationServices provider-tree observ
 All three environments interpret the eight synthetic JPEG EXIF orientations with the expected dimensions/corner order and decode the known alpha, tagged sRGB SDR and panorama samples. These are finite representative original-image observations. They do not qualify every file variation within a format, animated images, wide-gamut/HDR output or a physical display's profile/calibration. Unsupported and damaged items retain their identity and information; a transport failure cannot certify unsupported decoding.
 
 ### Audio and presentation boundaries
+
+| Elected runtime | Moving playback, pause, seek and original partial reads | Audio observation |
+| --- | --- | --- |
+| Windows Server 2025/WebView2 | MP4/H264 with AAC, MP4/H264 without audio, WebM/VP9 with Opus | Media-element tone graphs and no-audio control |
+| Ubuntu 24.04/WebKitGTK with the recorded GStreamer plugins | Same three finite samples | Media-element tone graphs and no-audio control |
+| macOS 15/WKWebView | Same three finite samples, with explicit post-mount source initialization | AAC media-element graph and no-audio control; independent exact-original Opus buffer graph |
+
+These rows require the corresponding exact-source per-edition runtime receipt. Builds, mixed-source diagnostics and another platform's result cannot qualify a row. Mac WebM frame comparisons use native-view snapshots with a central decoded-video crop because this WebKit version blocks canvas read-back. Blank or grayscale activity and changes outside that crop cannot pass the known colored-pattern observation.
 
 Video observations distinguish changing native frames and seeking from audio measurement. The finite clips use 160x96 YUV420 video at 12 frames per second for four seconds: H264/AAC and VP9/Opus with a mono 48kHz 440Hz tone, plus an H264 control without an audio track. Media-element graph samples identify native decoded tone behavior and the no-audio control where that observer works. On macOS, the elected VP9/Opus audio observation instead hashes the exact granted original and measures a native decoded-buffer graph after closing its ordinary video viewer. That independent graph cannot certify media-element audio output or synchronized audio seeking. All audio observations route through silent gain and do not establish physical speaker audibility. [WebKit's WebM audio observer issue](https://bugs.webkit.org/show_bug.cgi?id=276813) describes a relevant engine boundary; actual runtime receipts, rather than that report, establish each result.
 

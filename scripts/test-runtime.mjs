@@ -69,7 +69,7 @@ try{
     const geometry=await js(()=>{const v=document.querySelector('dialog[open] video');return {rect:v.getBoundingClientRect().toJSON(),width:v.videoWidth,height:v.videoHeight,time:v.currentTime,viewport:{width:innerWidth,height:innerHeight}};});
     const file=await app.screenshot('video-'+entry.codec+'-'+frameIndex++);const png=await readFile(file);const observed=JSON.parse((await hidden(python,['scripts/runtime-frame.py',file,JSON.stringify(geometry)])).stdout);
     const snapshot={path:path.relative(root,file).replaceAll('\\','/'),sha256:digest(png),bytes:String(png.length)};record.screenshots??=[];record.screenshots.push(snapshot);
-    return {...observed,time:geometry.time,width:geometry.width,height:geometry.height,method:'Native-view snapshot, central decoded video region',snapshot};
+    return {...observed,geometry,time:geometry.time,width:geometry.width,height:geometry.height,method:'Native-view snapshot, central decoded video region',snapshot};
    }:()=>js(()=>{const video=document.querySelector('dialog[open] video');const c=document.createElement('canvas');c.width=160;c.height=96;const ctx=c.getContext('2d');ctx.drawImage(video,0,0,160,96);let hash=0;for(const byte of ctx.getImageData(0,0,160,96).data)hash=(Math.imul(hash,33)^byte)>>>0;return {hash,time:video.currentTime,width:video.videoWidth,height:video.videoHeight};});
    const before=await frame();const moving=await until(async()=>{const current=await frame();return current.hash!==before.hash&&current.time>before.time?current:false;},'Actual decoded video frames must change',2500);
    await app.focus('Pause');await app.nativeKey('Space');assert.ok(await js(()=>document.querySelector('dialog[open] video').paused));
@@ -100,7 +100,7 @@ try{
  });
  await check('nativeAccessibility',async()=>{
   if(process.platform==='win32')reader=await app.screenReader();
-  const native=await until(async()=>{const ax=await app.accessibility();return ax.records.some(n=>[n.name,n.description,n.value].some(t=>typeof t==='string'&&t.includes('Refresh')))?ax:false;},'Actual native web-content accessibility provider');assert.equal(native.overflow,false);
+  const native=await until(async()=>{const ax=await app.accessibility();const text=ax.records.map(n=>[n.name,n.description,n.value].filter(Boolean).join(' '));return ['Refresh','Thumbnails','Diagnostics'].every(name=>text.some(t=>t.includes(name)))&&text.some(t=>/Show controls|Hide controls/.test(t))?ax:false;},'Actual native web-content accessibility provider with all essential controls',20000);assert.equal(native.overflow,false);
   const text=native.records.map(n=>[n.name,n.description,n.value].filter(Boolean).join(' '));const essentialNames=[];for(const name of ['Refresh','Controls','Thumbnails','Diagnostics']){assert.ok(text.some(t=>name==='Controls'?/Show controls|Hide controls/.test(t):t===name||t.includes(name)),native.method+' missing '+name);essentialNames.push(name);}
   record.accessibility={...native,essentialNames};
   if(process.platform==='win32'){

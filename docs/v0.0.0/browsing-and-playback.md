@@ -50,7 +50,7 @@ The UI must distinguish loading, unsupported media, missing files and recoverabl
 
 ## Open decisions
 
-U-04 owns format/codec support, orientation and color behavior, and unsupported-media actions. U-05 retains richer previews, autoplay policy and additional navigation/customization beyond the explicit defaults above. U-13 in [overview](overview.md#open-decisions) owns editing. Choosing a media library or layout dependency does not settle these choices by implication.
+The [native qualification rows](verification-and-compatibility.md#native-media-and-accessibility-campaign) define the initial measured format, orientation, SDR color and audio boundaries. Unsupported items remain inspectable with an explanation and explicit Refresh. U-04 retains additional formats/profiles and external opening or conversion actions beyond those rows. U-05 retains richer previews, autoplay policy and additional navigation/customization beyond the explicit defaults above. U-13 in [overview](overview.md#open-decisions) owns editing. Choosing a media library or layout dependency does not settle these choices by implication.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
 

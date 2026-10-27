@@ -14,7 +14,7 @@ export function signalObservation(samples,sampleRate){
 }
 export function validateRuntimeReceipt(r,expected){
  assert.equal(r.formatVersion,1);assert.equal(r.result,'pass');assert.deepEqual(r.source,expected.source);
- assert.notEqual(r.acceptance,false);assert.equal(r.diagnosticStyle,undefined);
+ assert.notEqual(r.acceptance,false);assert.equal(r.diagnosticStyle,undefined);assert.equal(r.diagnosticReload,undefined);
  assert.equal(r.edition,expected.edition);assert.equal(r.environment.platform,expected.platform);
  assert.equal(r.binary.sha256,expected.binarySha256);assert.match(r.binary.bytes,/^(0|[1-9][0-9]*)$/);
  assert.equal(r.fixture.sha256,expected.fixtureSha256);assert.ok(r.environment.userAgent.length>0);

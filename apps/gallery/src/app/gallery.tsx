@@ -194,6 +194,9 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
   }, []);
   useEffect(() => {
     const element = video.current; setPlaying(false); setPlayError('');
+    // Select the configured source after the modal is connected and shown.
+    // WebKit's WebM player can fail when its first load starts on the detached node.
+    element?.load();
     return () => { if (element) { element.pause(); element.removeAttribute('src'); element.load(); } };
   }, [key]);
   useEffect(() => { const element = video.current; if (!facts.error && element?.error) element.load(); }, [facts.error, key]);

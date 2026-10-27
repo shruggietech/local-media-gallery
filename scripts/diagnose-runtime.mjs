@@ -28,7 +28,7 @@ let restore;
 console.log('DIAGNOSTIC ONLY: prior compiled application and current harness; not final-source qualification.');
 try{
  restore=await prepareRuntimeDesktop();
- try{await node(path.join(root,'scripts/test-runtime.mjs'),['--diagnostic-style',...(process.platform==='darwin'?['--diagnostic-reload']:[])],{env:{...environment,GALLERY_TEST_BINARY:binary,GALLERY_TEST_EDITION:'full'}});}catch(e){receipt.campaignFailure=e.message;}
+ try{await node(path.join(root,'scripts/test-runtime.mjs'),['--diagnostic-style',...(process.env.GALLERY_DIAGNOSTIC_RELOAD==='1'?['--diagnostic-reload']:[])],{env:{...environment,GALLERY_TEST_BINARY:binary,GALLERY_TEST_EDITION:'full'}});}catch(e){receipt.campaignFailure=e.message;}
  receipt.campaign=JSON.parse(await readFile(path.join(root,'.local/runtime-results-full.json')));
  if(process.platform==='darwin')await diagnoseMacVideo();
  await verifyRuntimeFixture(fixture);assert.equal(digest(await readFile(binary)),receipt.binary.sha256);
@@ -43,7 +43,7 @@ async function diagnoseMacVideo(){
   await app.click('Settings');await until(()=>js(()=>Boolean(document.getElementById('page-size'))),'Diagnostic settings');
   await js(()=>{const s=document.getElementById('page-size');s.value='24';s.dispatchEvent(new Event('change',{bubbles:true}));return true;});
   await until(()=>js(()=>document.querySelectorAll('.media-card').length===22),'Diagnostic corpus');await app.click('Hide controls');
-  try{let last;try{receipt.platformAccessibility=await until(async()=>{last=await app.accessibility();return last.records.some(n=>n.name?.includes('Refresh')||n.description?.includes('Refresh'))?last:false;},'Diagnostic native AX readiness',20000);}catch(e){receipt.platformAccessibility={...last,failure:e.stack};}}catch(e){receipt.platformAccessibility={failure:e.stack};}
+  try{let last;try{receipt.platformAccessibility=await until(async()=>{last=await app.accessibility();const text=last.records.map(n=>[n.name,n.description,n.value].filter(Boolean).join(' '));return ['Refresh','Thumbnails','Diagnostics'].every(name=>text.some(t=>t.includes(name)))&&text.some(t=>/Show controls|Hide controls/.test(t))?last:false;},'Diagnostic native AX readiness for all essential controls',20000);}catch(e){receipt.platformAccessibility={...last,failure:e.stack};}}catch(e){receipt.platformAccessibility={failure:e.stack};}
   await js(()=>{document.addEventListener('keydown',e=>{window.__diagnosticKey={key:e.key,trusted:e.isTrusted};if(e.isTrusted&&e.key===' '&&window.__runtimeAudio)void window.__runtimeAudio.context.resume();},true);return true;});
   const media=await readFile(path.join(fixture.directory,'tone.webm'));
   assert.equal(digest(media),fixture.files.find(f=>f.name==='tone.webm').sha256);
