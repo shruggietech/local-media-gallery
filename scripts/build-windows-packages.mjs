@@ -17,6 +17,7 @@ const source=await sourceIdentity();const revision=(await capture('git',['rev-pa
 const directory=await mkdtemp(path.join(root,'.local/windows-packages-'));const inputs=JSON.parse(await readFile(path.join(root,'packaging/windows/inputs.json')));
 const buildEnv={...environment,RUSTFLAGS:[environment.RUSTFLAGS??'','-C link-arg=/DEPENDENTLOADFLAG:0x800'].join(' ').trim()};
 async function cargo(args,extra={}){await execute('cargo',args,{env:{...buildEnv,...extra}});}
+async function support(args,extra={}){await cargo([...args,'--target','x86_64-pc-windows-msvc'],{...extra,RUSTFLAGS:buildEnv.RUSTFLAGS+' -C target-feature=+crt-static'});}
 async function input(name){const record=inputs[name],file=path.join(directory,name+'.'+(name==='wix'?'zip':'exe'));const response=await fetch(record.url,{signal:AbortSignal.timeout(120000)});assert.ok(response.ok,'Pinned '+name+' download '+response.status);const bytes=Buffer.from(await response.arrayBuffer());assert.equal(String(bytes.length),record.bytes);assert.equal(digest(bytes),record.sha256);await writeFile(file,bytes);return file;}
 const wixZip=await input('wix');const vendor=await input('bootstrapper');
 const wix=path.join(directory,'wix');await execute(python,[path.join(root,'scripts/extract-build-input.py'),wixZip,wix]);
@@ -35,8 +36,8 @@ for(const edition of ['full','lite']){
  records.push({edition,payload:manifest,native:audit,archive:edition==='lite'?await archive(payload,'local-media-gallery-0.0.0-lite-x86_64-windows-candidate'):null});
 }
 const full=payloads.full;const payloadFile=path.join(full.directory,'payload.json');const payloadSha=digest(await readFile(payloadFile));
-await cargo(['build','--locked','--release','-p','gallery-windows-package','--lib'],{LMG_PACKAGE_PAYLOAD:payloadFile});
-const helper=path.join(directory,'ownership.dll');await copyFile(path.join(root,'target/release/gallery_windows_package.dll'),helper);const helperAudit=await inspect(helper);validateNativeAudit(helperAudit);
+await support(['build','--locked','--release','-p','gallery-windows-package','--lib'],{LMG_PACKAGE_PAYLOAD:payloadFile});
+const helper=path.join(directory,'ownership.dll');await copyFile(path.join(root,'target/x86_64-pc-windows-msvc/release/gallery_windows_package.dll'),helper);const helperAudit=await inspect(helper);validateNativeAudit(helperAudit);
 const bundle=path.join(directory,'full-bundle');await mkdir(bundle);await copyFile(vendor,path.join(bundle,'MicrosoftEdgeWebview2Setup.exe'));await copyFile(path.join(full.directory,'PREREQUISITES.txt'),path.join(bundle,'PREREQUISITES.txt'));
 const msiRecords=[];const template=await readFile(path.join(root,'packaging/windows/installer.wxs'),'utf8');
 for(const scope of ['user','machine']){
@@ -52,9 +53,9 @@ for(const scope of ['user','machine']){
  await execute(path.join(wix,'light.exe'),['-nologo','-sice:ICE38','-sice:ICE64','-out',out,object]);
  const actual=await inspect(out);assert.equal(actual.productCode,productCodes[scope]);assert.equal(actual.packageCode.toUpperCase(),code);assert.equal(actual.version,'0.0.0');assert.match(actual.template,/^x64;/);assert.equal(actual.allUsers??null,machine?'1':null);const bytes=await readFile(out);msiRecords.push({actual,scope,productCode:productCodes[scope],packageCode:code,path:path.basename(out),bytes:String(bytes.length),sha256:digest(bytes)});
  const setupInput={scope,msi:msiRecords.at(-1),bootstrapper:{...inputs.bootstrapper,path:'MicrosoftEdgeWebview2Setup.exe'}};const setupFile=path.join(directory,scope+'-setup.json');await writeFile(setupFile,JSON.stringify(setupInput));
- await cargo(['build','--locked','--release','-p','gallery-windows-package','--bin','gallery-setup'],{LMG_PACKAGE_PAYLOAD:payloadFile,LMG_SETUP_INPUT:setupFile,...(machine?{LMG_SETUP_MACHINE:'1'}:{})});await copyFile(path.join(root,'target/release/gallery-setup.exe'),path.join(bundle,machine?'setup-machine.exe':'setup.exe'));
+ await support(['build','--locked','--release','-p','gallery-windows-package','--bin','gallery-setup'],{LMG_PACKAGE_PAYLOAD:payloadFile,LMG_SETUP_INPUT:setupFile,...(machine?{LMG_SETUP_MACHINE:'1'}:{})});await copyFile(path.join(root,'target/x86_64-pc-windows-msvc/release/gallery-setup.exe'),path.join(bundle,machine?'setup-machine.exe':'setup.exe'));
 }
 const manifest={kind:'windows-full-bundle',formatVersion:1,version:'0.0.0',publication:'candidate',source,revision,targetTriple:'x86_64-pc-windows-msvc',buildProfile:'release',payload:full.manifest,packages:msiRecords,bootstrapper:{...inputs.bootstrapper,audit:vendorAudit},helper:helperAudit,entrypoints:[]};
 for(const name of ['setup.exe','setup-machine.exe']){const audit=await inspect(path.join(bundle,name));validateNativeAudit(audit);assert.equal(audit.requestedExecutionLevel,name==='setup.exe'?'asInvoker':'requireAdministrator');manifest.entrypoints.push({path:name,sha256:digest(await readFile(path.join(bundle,name))),audit});}
 await writeFile(path.join(bundle,'bundle.json'),JSON.stringify(manifest,null,2)+'\n');records.find(r=>r.edition==='full').archive=await archive(bundle,'local-media-gallery-0.0.0-full-x86_64-windows-candidate');
-assert.deepEqual(await sourceIdentity(),source);const receipt={formatVersion:1,source,revision,directory:path.relative(root,directory).replaceAll('\\','/'),inputs,bundle:manifest,records};await writeFile(path.join(root,'.local/windows-package-build.json'),JSON.stringify(receipt,null,2)+'\n');console.log('Built exact release Full/Lite candidate archives.');
+assert.deepEqual(await sourceIdentity(),source);const receipt={formatVersion:1,source,revision,helperBuild:{targetTriple:'x86_64-pc-windows-msvc',crt:'static',dllSearch:'System32 dependent imports'},directory:path.relative(root,directory).replaceAll('\\','/'),inputs,bundle:manifest,records};await writeFile(path.join(root,'.local/windows-package-build.json'),JSON.stringify(receipt,null,2)+'\n');console.log('Built exact release Full/Lite candidate archives.');
