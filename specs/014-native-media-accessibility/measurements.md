@@ -74,6 +74,10 @@ Source 92753f77bfae615a76377813a6ae24f908156eea524dc642d6d8bc6bdd9e65d6 (1051 fi
 
 Source 4233f874ec4a5c42b6e03684c8925e17fdb6d4b0becd15c07128e488f7de31d4 (1051 files), commit4f2a297. All eleven headless steps passed with CSS-sized coarse selects and the retained dropdown indicator. Preparation48.212s, qualification96.241s, combined144.453s; terminal2026-10-27T18:41:10.866Z. A later native handoff race requires the following observer synchronization correction and another final-source campaign.
 
+## Headless campaign 11
+
+Source f12ac3b0b5232fd4ee6117344a4289c5a0e2b8fdb1777532024ea3eda5dca029 (1051 files), commit1294ced. All eleven headless steps passed, including86 Node tests, site/app/brand checks, native units and normal Full/Lite archive acceptance. Preparation51.845s, qualification97.839s, combined149.684s; terminal2026-10-27T18:48:17.003Z. Independent local archive read-back also passes both editions against this exact source. No gallery GUI, reader or desktop input was started locally.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

@@ -42,7 +42,7 @@ Independent test: native-rendered themes/zoom/window/motion and explicitly label
 
 - [X] T018 [US3] Add failing rendered geometry/axe/contrast/reduced-motion/panorama coarse-target cases in scripts/test-runtime.mjs (FR-010/011/015).
 - [X] T019 [US3] Implement identified native zoom/window/reduced-motion preparation and restored actual-media-rule coarse/mixed condition emulation in scripts/runtime-driver.mjs/test-runtime.mjs (FR-010..013).
-- [ ] T020 [US3] Fix demonstrated presentation/target/clipping findings using existing governed tokens in apps/gallery/src/app/gallery.css/gallery.tsx and preserve compact defaults (FR-008/010/011/015).
+- [X] T020 [US3] Fix demonstrated presentation/target/clipping findings using existing governed tokens in apps/gallery/src/app/gallery.css/gallery.tsx and preserve compact defaults (FR-008/010/011/015).
 
 ## Phase 6: US4 Truthful qualification and support
 
