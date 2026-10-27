@@ -22,7 +22,7 @@ npm run check:docs
 npm test
 npm run build:app
 npm run check:app
-npm run qualify
+npm run qualify -- --headless
 ```
 
 These validate repository integrity, documentation structure/references, importer and JSON contracts, pure view logic, Rust discovery/access/streaming, TypeScript, brand lint/proofs, static export and actual Windows WebView2 behavior. Native testing uses twelve candidates and real Windows input/picker controls; allow the automated app to finish its interaction. No personal collection or bulk fixture is needed. Native WebDriver is feature-gated out of the normal application. The independent website uses `npm run build:site`, `npm run check:site` and `npm run test:site`. Install its pinned Chromium runtime before rendered checks.
@@ -61,3 +61,5 @@ Use `node scripts/configure-domain.mjs preflight`, then `plan` for scoped provid
 Retain the previously qualified artifact and successful run for content recovery; rerunning that run reuses its checked output. The same `rollback JOURNAL` command also accepts Pages-binding journals, compares current settings with the recorded applied state and restores the previous settings or removes newly created hosting. It requires provider and independent public DNS withdrawal before changing the domain binding, rejects concurrent changes and pending writes, and verifies the restored settings. Keep ownership TXT. Do not remove and re-add the domain during ordinary certificate polling. DNS/certificate readiness has bounded checks and may remain pending; only actual live acceptance is success.
 
 If certificate provisioning remains stalled after verified DNS and bounded readiness checks, GitHub documents removing and re-saving the custom domain to restart provisioning. One controlled retry of the same organization-verified hostname may preserve DNS and the Pages site because the retained organization verification prevents another account from claiming it. Snapshot before/after state, restore the binding even on failure, and keep normal certificate validation. This operational retry does not remove hosting; permanent retirement and rollback still require DNS withdrawal.
+
+Interactive native tests intentionally refuse the active workstation. Run them only on explicitly isolated CI desktops; do not opt the owner workstation into that context. Hosted product scopes elect the Full/Lite system-WebView media/accessibility campaign and preserve the existing Windows rendered/launch/measurement gates. Headless local qualification does not certify native interaction. NVDA is a pinned isolated maintainer tool for Windows semantic speech-generation checks, with silent output and no recipient payload. Native platform receipts identify the actual tested runtime/display/assistive conditions.

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+import {requireIsolatedDesktop} from './desktop-isolation.mjs';
+requireIsolatedDesktop();
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { readFile, readdir, writeFile, mkdir, mkdtemp, copyFile, rename, rm } from 'node:fs/promises';

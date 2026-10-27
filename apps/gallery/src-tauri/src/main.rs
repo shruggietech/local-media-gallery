@@ -6,6 +6,8 @@ mod history;
 mod launch;
 mod portable;
 mod preparation;
+#[cfg(feature = "native-tests")]
+mod qualification;
 mod settings;
 mod state_lock;
 use discovery::DiscoveryWorker;
@@ -415,7 +417,8 @@ fn run_application(
         refresh,
         close_gallery,
         cancel_discovery,
-        test_discovery_control
+        test_discovery_control,
+        qualification::test_native_qualification
     ]);
     #[cfg(not(feature = "native-tests"))]
     let builder = builder.invoke_handler(tauri::generate_handler![

@@ -1,0 +1,116 @@
+// SPDX-License-Identifier: Apache-2.0
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {root} from './run.mjs';
+import {sourceIdentity} from './provenance.mjs';
+import {digest,signalObservation,validateRuntimeReceipt} from './runtime-evidence.mjs';
+import {verifyRuntimeFixture} from './create-runtime-fixture.mjs';
+import {openRuntime,until,pause,hidden} from './runtime-driver.mjs';
+import {requireIsolatedDesktop} from './desktop-isolation.mjs';
+
+requireIsolatedDesktop();
+
+const fixture=JSON.parse(await readFile(path.join(root,'.local/runtime-fixture.json')));
+const suffix=process.platform==='win32'?'.exe':'';
+const binary=process.env.GALLERY_TEST_BINARY??path.join(root,'.local/bin/local-media-gallery-native-tests'+suffix);
+const bytes=await readFile(binary);const source=await sourceIdentity();const started=new Date().toISOString();
+const record={formatVersion:1,result:'fail',source,edition:process.env.GALLERY_TEST_EDITION??'full',binary:{path:path.relative(root,binary).replaceAll('\\','/'),sha256:digest(bytes),bytes:String(bytes.length)},fixture:{sha256:fixture.sha256,files:fixture.files},checks:[],media:[],presentation:[],started};
+let app,reader;
+async function check(name,fn){await fn();record.checks.push({name,result:'pass',terminalFinished:new Date().toISOString()});console.log('PASS native runtime '+name);}
+try{
+ await verifyRuntimeFixture(fixture);app=await openRuntime(binary,fixture);
+ const js=(fn,...args)=>app.js('return await ('+fn.toString()+')(...arguments);',args);
+ await until(()=>js(()=>document.querySelectorAll('.media-card').length>0),'Native gallery cards');
+ record.environment=await js(()=>({platform:'',arch:'',userAgent:navigator.userAgent,devicePixelRatio,window:{width:innerWidth,height:innerHeight},preferences:{reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,fine:matchMedia('(pointer: fine)').matches,coarse:matchMedia('(any-pointer: coarse)').matches},colorSpace:document.createElement('canvas').getContext('2d',{colorSpace:'srgb'}).getContextAttributes?.().colorSpace??'default'}));
+ record.environment.platform=process.platform;record.environment.arch=process.arch;record.environment.osRelease=os.release();record.environment.osVersion=os.version();record.environment.display=process.platform==='linux'?'X11/Xvfb isolated virtual display':'isolated hosted native desktop';record.compiledIdentity=await app.js('return await window.__TAURI_INTERNALS__.invoke("application_info")');assert.equal(record.compiledIdentity.edition,record.edition);assert.equal(record.compiledIdentity.data.targetTriple,{'win32':'x86_64-pc-windows-msvc','linux':'x86_64-unknown-linux-gnu','darwin':'aarch64-apple-darwin'}[process.platform]);
+ if(process.platform==='linux')record.environment.installedMediaPackages=(await hidden('dpkg-query',['-W','-f','${binary:Package} ${Version}\n','libwebkit2gtk-4.1-0','gstreamer1.0-libav','gstreamer1.0-plugins-good','gstreamer1.0-plugins-bad','gstreamer1.0-plugins-ugly'])).stdout.trim();
+ if(process.platform==='darwin')record.environment.webkitFrameworkVersion=(await hidden('defaults',['read','/System/Library/Frameworks/WebKit.framework/Resources/Info','CFBundleVersion'])).stdout.trim();
+ await js(()=>{document.addEventListener('keydown',e=>{window.__runtimeKey={key:e.key,trusted:e.isTrusted,active:navigator.userActivation?.isActive,target:document.activeElement?.textContent?.trim()};if(e.isTrusted&&e.key===' '&&window.__runtimeAudio)void window.__runtimeAudio.context.resume();},true);return true;});
+ await app.click('Settings');await until(()=>js(()=>Boolean(document.getElementById('page-size'))),'Settings controls');await js(()=>{const s=document.getElementById('page-size');s.value='24';s.dispatchEvent(new Event('change',{bubbles:true}));return true;});
+ await until(()=>js(()=>document.querySelectorAll('.media-card').length===22),'All small fixture cards');await app.click('Hide controls');
+ async function open(name){await js(name=>{const card=[...document.querySelectorAll('.media-card')].find(c=>c.dataset.name===name);if(!card)throw Error('Missing '+name);card.scrollIntoView({block:'center'});card.querySelector('button').click();return true;},name);await until(()=>js(name=>document.querySelector('dialog[open] h2')?.textContent===name,name),'Viewer '+name);}
+ async function close(){await app.click('Close viewer');await until(()=>js(()=>!document.querySelector('dialog[open]')),'Viewer closes');}
+ async function inspect(){const button=await js(()=>[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent.trim()==='Information')?.getAttribute('aria-expanded'));if(button!=='true')await app.click('Information');assert.ok(await js(()=>Boolean(document.querySelector('.item-facts'))));}
+ await check('images',async()=>{
+  for(const entry of fixture.entries.filter(e=>e.type==='image')){
+   await open(entry.name);await until(()=>js(()=>Boolean(document.querySelector('dialog[open] .media-error')||document.querySelector('dialog[open] img')?.naturalWidth)),'Native image decode '+entry.name);await inspect();
+   const observation=await js(()=>{const image=document.querySelector('dialog[open] img');const error=document.querySelector('dialog[open] .media-error')?.textContent??'';if(!image?.naturalWidth)return {outcome:'unsupported',reason:error};const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;const c=canvas.getContext('2d',{colorSpace:'srgb'});c.drawImage(image,0,0);const points=[[Math.floor(canvas.width/4),Math.floor(canvas.height/4)],[Math.floor(canvas.width*3/4),Math.floor(canvas.height/4)],[Math.floor(canvas.width/4),Math.floor(canvas.height*3/4)],[Math.floor(canvas.width*3/4),Math.floor(canvas.height*3/4)]];return {outcome:'supported',width:canvas.width,height:canvas.height,corners:points.map(([x,y])=>[...c.getImageData(x,y,1,1).data]),alpha:[...c.getImageData(12,12,1,1).data],colorSpace:c.getContextAttributes?.().colorSpace??'default'};});
+   if(entry.mustFail)assert.equal(observation.outcome,'unsupported');
+   if(observation.outcome==='supported'){
+    assert.equal(observation.width,entry.width,entry.name+' native width');assert.equal(observation.height,entry.height,entry.name+' native height');
+    if(entry.corners)for(let i=0;i<4;i++)for(let c=0;c<3;c++)assert.ok(Math.abs(observation.corners[i][c]-entry.corners[i][c])<=12,entry.name+' orientation/color corner '+i+': '+JSON.stringify(observation.corners));
+    if(entry.alpha)for(let c=0;c<4;c++)assert.ok(Math.abs(observation.alpha[c]-entry.alpha.rgba[c])<=2,'Native alpha sample');
+   }else {assert.ok(observation.reason);assert.ok(!['PNG','JPEG','GIF','WEBP','BMP'].includes(entry.format),'Baseline native format failed: '+entry.name);}
+   assert.ok(await js(name=>document.querySelector('.item-facts')?.textContent.includes(name),entry.name));
+   record.media.push({...entry,...observation,retained:true,inspectable:true});await close();
+  }
+ });
+ await check('video',async()=>{
+  for(const entry of fixture.entries.filter(e=>e.type==='video')){
+   await open(entry.name);await until(()=>js(()=>{const v=document.querySelector('dialog[open] video');return v?.readyState>=2||v?.error;}),'Native video frame readiness '+entry.name,15000);await inspect();
+   const failure=await js(()=>document.querySelector('dialog[open] video')?.error?.code??null);
+   if(failure){record.media.push({...entry,outcome:'unsupported',reason:await js(()=>document.querySelector('dialog[open] .media-error')?.textContent??''),retained:true,inspectable:true});await close();continue;}
+   await js(()=>{const video=document.querySelector('dialog[open] video');const context=new AudioContext();const source=context.createMediaElementSource(video);const analyser=context.createAnalyser();analyser.fftSize=4096;const gain=context.createGain();gain.gain.value=0;source.connect(analyser).connect(gain).connect(context.destination);window.__runtimeAudio={context,source,analyser};return true;});
+   await app.focus('Play');await app.nativeKey('Space');await until(()=>js(()=>{const v=document.querySelector('dialog[open] video');return v.currentTime>0.3&&!v.paused&&window.__runtimeAudio.context.state==='running';}),'Trusted native playback/audio graph');
+   assert.equal((await js(()=>window.__runtimeKey)).trusted,true);
+   const sample=await js(()=>{const {context,analyser}=window.__runtimeAudio;const data=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(data);const bins=new Float32Array(analyser.frequencyBinCount);analyser.getFloatFrequencyData(bins);let peak=0;for(let i=1;i<bins.length;i++)if(bins[i]>bins[peak])peak=i;return {samples:[...data],sampleRate:context.sampleRate,state:context.state,fftPeakHz:peak*context.sampleRate/analyser.fftSize};});
+   const signal=signalObservation(sample.samples,sample.sampleRate);if(entry.audio){assert.ok(signal.rms>0.01,'Audible-signal fixture decoded PCM is silent');assert.ok(Math.abs(sample.fftPeakHz-440)<30,'Decoded tone frequency');}else assert.ok(signal.rms<0.0001,'Silent control emitted decoded audio');
+   const frame=()=>js(()=>{const video=document.querySelector('dialog[open] video');const c=document.createElement('canvas');c.width=160;c.height=96;const ctx=c.getContext('2d');ctx.drawImage(video,0,0,160,96);let hash=0;for(const byte of ctx.getImageData(0,0,160,96).data)hash=(Math.imul(hash,33)^byte)>>>0;return {hash,time:video.currentTime,width:video.videoWidth,height:video.videoHeight};});
+   const before=await frame();await pause(200);const moving=await frame();assert.notEqual(before.hash,moving.hash,'Actual decoded video frames must change');
+   await app.focus('Pause');await app.nativeKey('Space');assert.ok(await js(()=>document.querySelector('dialog[open] video').paused));
+   await js(()=>{document.querySelector('dialog[open] video').currentTime=2.25;return true;});await until(()=>js(()=>{const v=document.querySelector('dialog[open] video');return !v.seeking&&Math.abs(v.currentTime-2.25)<0.15&&v.readyState>=2;}),'Decoded seek');const sought=await frame();assert.notEqual(sought.hash,before.hash,'Seek must display a different decoded frame');
+   const grant=await js(()=>({url:document.querySelector('dialog[open] video').src,origin:location.origin}));const response=await fetch(grant.url,{headers:{Range:'bytes=0-31',Origin:grant.origin},signal:AbortSignal.timeout(5000)});const range={status:response.status,contentRange:response.headers.get('content-range'),bytes:[...new Uint8Array(await response.arrayBuffer())]};assert.equal(range.status,206);const expected=await readFile(path.join(fixture.directory,entry.name));assert.deepEqual(range.bytes,[...expected.subarray(0,32)]);assert.equal(range.contentRange,'bytes 0-31/'+expected.length);
+   await js(async()=>{await window.__runtimeAudio.context.close();delete window.__runtimeAudio;return true;});
+   record.media.push({...entry,outcome:'supported',retained:true,inspectable:true,frames:{before,moving,sought},range:{status:range.status,contentRange:range.contentRange,sha256:digest(Buffer.from(range.bytes))},audio:{state:sample.state,sampleRate:sample.sampleRate,rms:signal.rms,fftPeakHz:sample.fftPeakHz,output:'decoded graph to silent gain; physical speakers not tested'}});await close();
+  }
+  assert.ok(record.media.some(e=>e.type==='video'&&e.outcome==='supported'),'No native video playback was qualified');
+ });
+ await check('keyboard',async()=>{
+  await app.focus('Refresh');await app.nativeKey('Tab');assert.equal(await js(()=>document.activeElement?.getAttribute('aria-label')),'Close folder');const event=await js(()=>window.__runtimeKey);assert.equal(event.trusted,true);assert.ok(await js(()=>{const s=getComputedStyle(document.activeElement);return s.outlineStyle!=='none'&&parseFloat(s.outlineWidth)>0;}),'Native keyboard focus must be visible');
+  record.input={method:process.platform==='win32'?'Windows SendKeys':process.platform==='linux'?'X11 native key input':'AppKit queued NSEvent',trusted:event.trusted,event};
+  await app.focus('Show controls');await app.nativeKey('Space');await until(()=>js(()=>Boolean(document.getElementById('collection-controls'))),'Native Space default activates disclosure');
+  await app.focus('Hide controls');await app.nativeKey('Enter');await until(()=>js(()=>!document.getElementById('collection-controls')),'Native Enter activation');
+  await open('quadrants.png');await app.nativeKey('Escape');await until(()=>js(()=>!document.querySelector('dialog[open]')),'Native Escape default');assert.equal(await js(()=>document.activeElement?.getAttribute('aria-label')),'Open quadrants.png');
+  for(const name of ['Thumbnails','Diagnostics']){await app.focus(name);await app.nativeKey('Space');await until(()=>js(()=>Boolean(document.querySelector('[role=dialog]'))),'Native dialog '+name);assert.ok(await js(()=>Boolean(document.activeElement.closest('[role=dialog]'))));await app.nativeKey('Escape');await until(()=>js(()=>!document.querySelector('[role=dialog]')),'Native dialog Escape');assert.equal(await js(()=>document.activeElement.textContent.trim()),name);}
+  await app.click('Settings');await until(()=>js(()=>Boolean(document.getElementById('page-size'))),'Page-size settings');await js(()=>{const s=document.getElementById('page-size');s.value='4';s.dispatchEvent(new Event('change',{bubbles:true}));return true;});await until(()=>js(()=>document.querySelectorAll('.media-card').length===4),'Four-card page');await app.click('Hide controls');
+  await open('orientation-2.jpg');await app.focus('Next');await app.nativeKey('Space');await until(()=>js(()=>document.querySelector('dialog h2')?.textContent==='orientation-3.jpg'),'Native viewer crosses page boundary');await app.nativeKey('Escape');await until(()=>js(()=>document.activeElement?.getAttribute('aria-label')==='Open orientation-3.jpg'),'Cross-page focus return');assert.equal(await js(()=>document.getElementById('page-jump').value),'2');
+  await app.click('Settings');await until(()=>js(()=>Boolean(document.getElementById('page-size'))),'Restore page settings');await js(()=>{const s=document.getElementById('page-size');s.value='24';s.dispatchEvent(new Event('change',{bubbles:true}));return true;});await until(()=>js(()=>document.querySelectorAll('.media-card').length===22),'Restore full small corpus');await app.click('Hide controls');
+ });
+ await check('nativeAccessibility',async()=>{
+  if(process.platform==='win32')reader=await app.screenReader();
+  const native=await until(async()=>{const ax=await app.accessibility();return ax.records.some(n=>[n.name,n.description,n.value].some(t=>typeof t==='string'&&t.includes('Refresh')))?ax:false;},'Actual native web-content accessibility provider');assert.equal(native.overflow,false);
+  const text=native.records.map(n=>[n.name,n.description,n.value].filter(Boolean).join(' '));const essentialNames=[];for(const name of ['Refresh','Controls','Thumbnails','Diagnostics']){assert.ok(text.some(t=>name==='Controls'?/Show controls|Hide controls/.test(t):t===name||t.includes(name)),native.method+' missing '+name);essentialNames.push(name);}
+  record.accessibility={...native,essentialNames};
+  if(process.platform==='win32'){
+   await app.focus('Refresh');await app.nativeKey('Tab');await until(async()=>{const r=await reader.read();return r.speech.some(s=>/Close folder/i.test(s))?r:false;},'Actual NVDA control speech');
+   await open('quadrants.png');await app.focus('Next');const before=(await reader.read()).records.length;await app.nativeKey('Space');const changed=await until(()=>js(()=>{const t=document.querySelector('dialog h2')?.textContent;return t&&t!=='quadrants.png'?t:false;}),'Viewer next item');
+   await until(async()=>{const r=await reader.read();return r.records.slice(before).some(x=>x.kind==='speech'&&x.text.includes(changed))?r:false;},'NVDA announces changed viewer item');
+   record.screenReader=await reader.read();assert.equal(record.screenReader.overflow,false);await close();await reader.stop();reader=null;
+  }else record.screenReader={name:null,reason:process.platform==='darwin'?'Native provider exposure exercised; VoiceOver speech not elected.':'Actual AT-SPI client exercised; Orca speech not elected.'};
+ });
+ await check('presentation',async()=>{
+  const axe=await readFile(path.join(root,'node_modules/axe-core/axe.min.js'),'utf8');await app.js(axe+';return Boolean(window.axe);');
+  for(const light of [false,true]){
+   await js(light=>{document.documentElement.classList.toggle('bb-light',light);return true;},light);
+   const result=await js(async()=>{const r=await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});return {violations:r.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})),passes:r.passes.length};});assert.deepEqual(result.violations,[],'Rendered native axe '+(light?'light':'dark'));record.presentation.push({theme:light?'light':'dark',axe:result});
+  }
+  await app.command('presentation',{width:480,height:600,zoom:2});await pause(200);await open('quadrants.png');
+  const geometry=await js(()=>{const dialog=document.querySelector('dialog');const d=dialog.getBoundingClientRect();const controls=[...dialog.querySelectorAll('button,select')].filter(e=>!e.disabled).map(e=>{e.scrollIntoView({block:'nearest',inline:'nearest'});e.focus();const r=e.getBoundingClientRect();return {name:e.textContent.trim(),top:r.top,bottom:r.bottom,left:r.left,right:r.right};});return {width:innerWidth,height:innerHeight,overflow:getComputedStyle(dialog).overflowY,scrollHeight:dialog.scrollHeight,clientHeight:dialog.clientHeight,dialog:{top:d.top,bottom:d.bottom,left:d.left,right:d.right},controls};});
+  assert.equal(geometry.overflow,'auto','Short viewer requires user-operable scrolling');for(const c of geometry.controls)assert.ok(c.top>=geometry.dialog.top-1&&c.bottom<=geometry.dialog.bottom+1&&c.left>=geometry.dialog.left-1&&c.right<=geometry.dialog.right+1,'Enlarged/narrow viewer cannot reveal '+c.name+': '+JSON.stringify(geometry));record.presentation.push({condition:'native zoom2 narrow window',geometry});await close();await app.command('presentation',{width:1280,height:900,zoom:1});await pause(150);
+  const coarse=await js(()=>{const changed=[];function walk(rules){for(const rule of rules){if(rule.type===CSSRule.MEDIA_RULE){const media=rule.conditionText;if(media.includes('any-pointer: coarse')){changed.push([rule,rule.media.mediaText]);rule.media.mediaText='all';}else if(media.includes('pointer: fine')){changed.push([rule,rule.media.mediaText]);rule.media.mediaText='not all';}}if(rule.cssRules)walk(rule.cssRules);}}for(const sheet of document.styleSheets)walk(sheet.cssRules);window.__runtimeMediaConditions=changed;return changed.length;});assert.ok(coarse>=2);
+  await open('panorama.png');await close();await js(()=>{document.documentElement.style.setProperty('--gallery-font-scale','0.8');return true;});await pause(100);
+  const targets=await js(()=>[...document.querySelectorAll('button,input,select,summary,a')].filter(e=>e.getBoundingClientRect().width>0).map(e=>{const r=e.getBoundingClientRect();return {name:e.getAttribute('aria-label')||e.textContent.trim(),width:r.width,height:r.height};}));for(const target of targets)assert.ok(target.width>=43.5&&target.height>=43.5,'Coarse target below44px '+JSON.stringify(target));record.presentation.push({condition:'coarse stylesheet branch emulation, no physical touch claim',targets});
+  await js(()=>{for(const [rule,media] of window.__runtimeMediaConditions)rule.media.mediaText=media;delete window.__runtimeMediaConditions;document.documentElement.style.removeProperty('--gallery-font-scale');return true;});
+  const motion=await js(()=>({matches:matchMedia('(prefers-reduced-motion: reduce)').matches,transition:getComputedStyle(document.querySelector('.scroll-indicator')).transitionDuration}));assert.equal(motion.matches,true,'Elected native reduced-motion condition unavailable');assert.ok(motion.transition.split(',').every(s=>parseFloat(s)===0));record.presentation.push({condition:'native prefers-reduced-motion',...motion});const screenshot=await app.screenshot('qualified-gallery');const pixels=await readFile(screenshot);record.screenshots=[{path:path.relative(root,screenshot).replaceAll('\\','/'),sha256:digest(pixels),bytes:String(pixels.length)}];
+ });
+ await check('integrity',async()=>{await verifyRuntimeFixture(fixture);assert.equal(digest(await readFile(binary)),record.binary.sha256);assert.deepEqual(await sourceIdentity(),source);});
+ record.result='pass';record.terminalFinished=new Date().toISOString();
+ validateRuntimeReceipt(record,{source,binarySha256:digest(bytes),fixtureSha256:fixture.sha256,edition:record.edition,platform:process.platform});
+}catch(error){record.failure=error.stack;console.error(error.stack);process.exitCode=1;}
+finally{
+ if(reader)await reader.stop();if(app){record.sessionDirectory=app.directory;await app.close();}
+ record.terminalFinished=new Date().toISOString();await writeFile(path.join(root,'.local/runtime-results-'+record.edition+'.json'),JSON.stringify(record,null,2)+'\n');
+ console.log(JSON.stringify({result:record.result,edition:record.edition,checks:record.checks.map(c=>c.name),failure:record.failure??null,receipt:'.local/runtime-results-'+record.edition+'.json'}));
+}

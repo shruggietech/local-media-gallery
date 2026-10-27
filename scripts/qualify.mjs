@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+import {requireIsolatedDesktop} from './desktop-isolation.mjs';
+const headless=process.argv.includes('--headless');
+if(!headless)requireIsolatedDesktop();
 import assert from 'node:assert/strict';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -13,7 +16,7 @@ let source;
 let nativeBinaries;let normalBinaries;
 const commands = ['check', 'test', 'check:docs', 'check:app', 'check:site', 'test:site'];
 const record = await qualification({
-  identify: async () => { source = await sourceIdentity(); return { source, evidence: 'Windows x64 native and rendered website' }; },
+  identify: async () => { source = await sourceIdentity(); return { source, evidence: headless?'Windows headless repository/site/unit/normal CLI qualification; interactive acceptance is mandatory on isolated CI':'Isolated Windows native and rendered website' }; },
   prepare: async () => {
     await mkdir(binaryDirectory, { recursive: true });
     if (process.env.GALLERY_SITE_BROWSER) await access(process.env.GALLERY_SITE_BROWSER);
@@ -21,11 +24,14 @@ const record = await qualification({
     await exportInterface();
     await node(path.join(root, 'scripts/build-site.mjs'));
     await node(path.join(root, 'scripts/create-fixture.mjs'));
+    await node(path.join(root,'scripts/create-runtime-fixture.mjs'));
+    if(!headless)await node(path.join(root,'scripts/prepare-screen-reader.mjs'));
     nativeBinaries=await buildEditions({nativeTests:true});
     normalBinaries=await buildEditions();
     await node(path.join(root,'scripts/build-proof.mjs'),['--full',normalBinaries.full,'--lite',normalBinaries.lite]);
     await cargo(['test', '--locked', '--workspace', '--no-run']);
     await cargo(['clippy', '--locked', '--workspace', '--all-targets', '--', '-D', 'warnings']);
+    await cargo(['clippy','--locked','-p','local-media-gallery','--features','native-tests','--all-targets','--','-D','warnings']);
     assert.deepEqual(await sourceIdentity(), source, 'Preparation changed qualified source');
   },
   steps: [
@@ -37,6 +43,7 @@ const record = await qualification({
     { name: 'Native preparation authority and cancellation regressions',run:()=>cargo(['test','--locked','-p','gallery-core','--features','discovery-tests','--test','preparation']) },
     { name: 'Windows Full/Lite native launch contracts', run: () => node(path.join(root,'scripts/test-launch.mjs'),['--full',nativeBinaries.full,'--lite',nativeBinaries.lite]) },
     { name: 'Normal Full/Lite extracted archive acceptance', run: () => node(path.join(root,'scripts/test-proof.mjs')) },
+    { name: 'Full/Lite native media and accessibility',run:()=>node(path.join(root,'scripts/test-runtime-platform.mjs')) },
     { name: 'Windows native operation and resource measurements', run: async () => {
       await node(path.join(root, 'scripts/measure-native.mjs'), ['--binary', path.join(binaryDirectory, 'local-media-gallery-native-tests.exe'), '--label', 'adaptive', '--output', path.join(root, '.local/measurement.json')]);
       const measured = JSON.parse(await readFile(path.join(root, '.local/measurement.json')));
@@ -46,10 +53,12 @@ const record = await qualification({
     } },
     { name: 'normal binary automation exclusion', run: () => node(path.join(root, 'scripts/test-normal.mjs')) },
     { name: 'source provenance and unchanged governed kit', run: async () => { assert.deepEqual(await sourceIdentity(), source); await execute(process.execPath, [npm, 'run', 'brand:verify']); await execute('git', ['diff', '--check']); } },
-  ],
+  ].filter(step=>!headless||!['Full/Lite native media and accessibility','Windows WebView2 functional acceptance','Windows rendered optional preparation and diagnostic export','Windows Full/Lite native launch contracts','Windows native operation and resource measurements','normal binary automation exclusion'].includes(step.name)),
 });
 record.version = '0.0.0'; record.source = source;
-if (record.result === 'pass') {
+if(record.result==='pass'){record.proof=JSON.parse(await readFile(path.join(root,'.local/proof-results.json')));assert.deepEqual(record.proof.source,source);record.site=JSON.parse(await readFile(path.join(root,'.local/site-artifact.json')));record.browser=JSON.parse(await readFile(path.join(root,'.local/site-browser.json')));}
+if (record.result === 'pass' && !headless) {
+  record.runtime=JSON.parse(await readFile(path.join(root,'.local/runtime-results.json')));assert.equal(record.runtime.result,'pass');assert.deepEqual(record.runtime.source,source);
   record.native = JSON.parse(await readFile(path.join(root, '.local/native-results.json')));
   record.preparation=JSON.parse(await readFile(path.join(root,'.local/preparation-results.json')));
   assert.equal(record.preparation.binarySha256,record.native.binarySha256);
@@ -68,6 +77,7 @@ if (record.result === 'pass') {
   record.site = JSON.parse(await readFile(path.join(root, '.local/site-artifact.json')));
   record.browser = JSON.parse(await readFile(path.join(root, '.local/site-browser.json')));
 }
-await writeFile(path.join(root, '.local/qualification.json'), JSON.stringify(record, null, 2) + '\n');
+record.scope=headless?'headless':'isolated-native';
+await writeFile(path.join(root,headless?'.local/qualification-headless.json':'.local/qualification.json'), JSON.stringify(record, null, 2) + '\n');
 console.log(JSON.stringify(record, null, 2));
 if (record.result !== 'pass') process.exitCode = 1;

@@ -1,0 +1,8 @@
+# S014 Validation Guide
+
+1. Prepare the existing repository prerequisites and pinned optional media tool with npm run prepare:local. Build the independent runtime fixture and elected native-test/normal editions. Windows preparation also verifies the pinned isolated portable NVDA payload; Linux requires Xvfb, native X11 input, GTK/WebKit/GStreamer and accessibility DBus prerequisites.
+2. Run npm run check, npm test and affected headless app/site checks locally; npm run qualify -- --headless preserves the bounded local campaign. Run all interactive suites only on explicitly isolated CI desktops, never the active workstation. Run the runtime campaign against the identified native-test binary, using its actual system WebView. On Linux launch under dbus-run-session and xvfb-run; do not substitute Chromium.
+3. Inspect the source-bound runtime receipt for image/orientation/profile observations, actual changing frames/seek/range/audio graph, native trusted keyboard, presentation conditions, native AX and Windows NVDA speech-generation evidence. Failed/unavailable elected observations cannot pass.
+4. Confirm original and sidecar inventories match, native app/reader cleanup is observed, normal Full/Lite builds exclude test commands/listeners and existing extracted archive acceptance remains green.
+5. Run the complete local campaign after readiness and elect the same new checks in all three hosted product scopes. Retain terminal timing/source/artifact identities and the exact public support limits.
+6. Use the authorized PR/CI/two-round review workflow. Stop for owner final review and squash merge after exact-final-head checks are green.

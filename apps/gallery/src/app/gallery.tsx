@@ -198,7 +198,7 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
   const source = mediaUrl(snapshot, item);
   return <dialog className="bb-dialog media-viewer" ref={dialog} aria-labelledby="viewer-title" aria-describedby="viewer-description" onCancel={event => { event.preventDefault(); close(); }}>
     <header className="viewer-header"><h2 id="viewer-title" title={item.name}>{item.name}</h2><div className="header-actions"><DisclosureButton variant="ghost" expanded={expanded} controls="viewer-information" onClick={toggleInformation}><Info aria-hidden="true" />Information</DisclosureButton>{scanning ? <Button variant="secondary" onClick={cancelDiscovery}>Cancel discovery</Button> : null}<Button variant="ghost" onClick={refresh} disabled={busy || scanning}><RefreshCw aria-hidden="true" />Refresh</Button><Button variant="secondary" onClick={close}>Close viewer</Button></div></header>
-    <div className="viewer-preparation"><PreparationProgress state={preparation}/></div><p id="viewer-description" className="viewer-description">Focused media. Information is available from its toggle.</p>
+    <div className="viewer-preparation"><PreparationProgress state={preparation}/></div><p id="viewer-description" className="viewer-description">Focused media. Information is available from its toggle.</p><p className="viewer-description" role="status" aria-atomic="true">{item.name}</p>
     <div className="viewer-content" data-information={expanded}>
       <div className="viewer-media">
         {item.kind === 'video'

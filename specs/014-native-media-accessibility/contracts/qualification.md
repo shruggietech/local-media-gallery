@@ -1,0 +1,11 @@
+# S014 Native Qualification Contract
+
+This maintainer-only contract extends existing behavior and does not expose test controls to recipients.
+
+- Native-tests artifacts may expose bounded input/presentation/provider observation commands only to the main window. Normal artifacts exclude those commands, private redirection and listener markers.
+- WebDriver readiness/request/script and session shutdown have explicit deadlines. JavaScript dispatch never certifies trusted keyboard/default activation; native event evidence and observed focus/playback establish that claim.
+- UIA roots at the native app window (WebView descendants may use another PID); Linux AT-SPI runs on an isolated session bus; macOS provider traversal identifies the actual provider scope. Each native tree is bounded to2048 nodes/depth32 and includes a measurable overflow condition.
+- Native zoom/window/theme and actual reduced-motion settings are recorded. Coarse/mixed CSS condition emulation changes/restores only the actual media-rule conditions for that check and is explicitly not a physical-input observation.
+- NVDA uses a verified portable payload, fresh config and gallery-only bounded speech capture; the silence synth generates no audible desktop speech. A pre-existing reader is not terminated or reconfigured. Only the campaign-owned PID/profile is stopped and observed.
+- Runtime receipts bind final source, compiled edition/binary, corresponding normal proof identity, fixture hashes, native environment, terminal results and limitations. Validation rejects mismatches, unavailable elected rows, missing checks and hook leakage.
+- Public matrix rows derive from actual native observations. No implicit feature expansion, unapproved autoplay/editing, source rewrite, sender dependency, new external service or package release is introduced.

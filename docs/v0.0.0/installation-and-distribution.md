@@ -92,3 +92,7 @@ Proof receipts distinguish archive download bytes, extracted application bytes, 
 The initial U-01/U-02 matrix and package policy are defined here and in [edition capabilities](overview.md#editions). Final installer construction, signing credentials, clean-machine installation, broader OS/ABI targets and GUI/media qualification require their own concrete artifacts and evidence. No universal package-size promise is established.
 
 See [verification and compatibility](verification-and-compatibility.md), the [index](index.md) and the [glossary](glossary.md).
+
+## Native behavior qualification
+
+Installation/package identity, extracted CLI behavior and rendered native media/accessibility are separate acceptance scopes. The [native campaign](verification-and-compatibility.md#native-media-and-accessibility-campaign) records observed format/orientation/color/audio and interaction results on each elected WebView. Virtual X11 is not Wayland evidence; native provider exposure is not untested screen-reader speech. No test framework or screen-reader payload becomes a recipient dependency.

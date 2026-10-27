@@ -7,6 +7,9 @@ import path from 'node:path';
 import { root } from './run.mjs';
 
 export const evidenceExclusions = [
+  'specs/014-native-media-accessibility/tasks.md',
+  'specs/014-native-media-accessibility/verification.md',
+  'specs/014-native-media-accessibility/measurements.md',
   'specs/013-thumbnail-jobs-diagnostics/tasks.md',
   'specs/013-thumbnail-jobs-diagnostics/verification.md',
   'specs/013-thumbnail-jobs-diagnostics/measurements.md',
