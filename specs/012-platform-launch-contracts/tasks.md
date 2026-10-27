@@ -42,7 +42,7 @@ Tests are mandatory under the invoked autopilot protocol. Each story has indepen
 
 ## Phase 6: Cross-cutting qualification and delivery
 
-- [x] T022 Update authoritative docs/v0.0.0/, schema examples and dated chronological CHANGELOG.md; resolve U-01/U-02 elected rows and U-08 without claiming final packages (FR-014).
+- [x] T022 Update authoritative docs/v0.0.0/, schema boundaries/rendered canonical JSON and dated chronological CHANGELOG.md; resolve U-01/U-02 elected rows and U-08 without claiming final packages (FR-014).
 - [x] T023 Elect native proof CI for Windows/Ubuntu/macOS and deployment dependencies in scripts/ci.mjs, scripts/prepare.mjs and .github/workflows/ci.yml (FR-002/003/014, SC-001/006).
 - [x] T024 Elect mandatory normal/extracted/native Full/Lite checks and separate timings in scripts/qualify.mjs (FR-014, SC-001..006).
 - [x] T025 Keep normative sources hashed and exclude only delivery receipts in scripts/provenance.mjs (FR-002/014, SC-006).

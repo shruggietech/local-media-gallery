@@ -77,3 +77,15 @@ Corrected Ubuntu run40252676385 passed the strict brand adapter, then exposed hi
 ## Native SQLite parent aliases
 
 Second macOS CI passed core, brand and frontend checks but failed eight shell/history tests because SQLite NOFOLLOW rejects a database filename containing a symbolic-link component. The reported paths begin /var/folders; macOS native parent aliases require resolution to their actual parent location. Resolve Unix database ancestors before native SQLite open, retain final-leaf regular-file checks and NOFOLLOW, keep read-only missing-parent behavior, and use the same resolved database path for write validation and connection. Add parent-alias/final-link and missing-parent regressions. This preserves existing access policy rather than disabling NOFOLLOW. Primary contract: [SQLite open flags](https://www.sqlite.org/c3ref/open.html).
+
+## Explicit accepted-socket mode
+
+Third Ubuntu native qualification passed both normal archives and all state/launch tests. Mac passed47of48shell tests, including state-lock and SQLite alias corrections, then its queued acknowledgement was rejected before child-exit diagnosis. An explicitly nonblocking accepted stream reproduces startup_protocol/WouldBlock on Windows before the fix. Accepted socket mode inheritance is not a portable assumption; set the accepted stream blocking explicitly while retaining each bounded read timeout, the absolute startup deadline, byte/identity limits and nonblocking listener. The deterministic delayed-write regression passes only after this change. Do not add sleeps/retries to hide the existing queued-ack regression.
+
+## Native keyboard completion boundary
+
+Final local acceptance exposed an existing immediate focus-visible assertion after Windows SendWait. OS input delivery does not mean the WebView has processed the Tab event/style update. Preserve actual trusted input and require the active media button to change plus a visible outline within the existing bounded condition waiter; also wait for Escape focus restoration. This strengthens completion observation without arbitrary sleeps, product CSS changes, skipped checks or repeated input.
+
+## Cargo target authority
+
+Bind artifact target metadata to Cargo TARGET at build time rather than inferring the ABI from host OS and architecture. Native proof checks still elect the same three platform targets and validate the compiled target in each extracted artifact. This does not expand the qualification matrix.

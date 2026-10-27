@@ -65,3 +65,23 @@ The first StateLock local preparation failed Clippy redundant_closure_call in th
 ## Accepted operation-owned locks and native SQLite parents
 
 PASS all14checks on 812bc5c0109f7a16cef9b9d4ec523c3054e99e5c8b04a6be462871c717ec3086 (1003files). Preparation 42.94 s, qualification 207.945 s, combined 250.885 s; terminal 2026-10-26T01:30:02.092Z. Includes75Node,37core,48Full/48Lite shell/state,4Python and128exact comparison images,31rendered native groups,6launchgroups,10extracted checks/edition,ordinary artifact exclusion,site/browser,measurements andprovenance. Native Unix parent alias/final-link regressions remain elected in hosted acceptance; no platform result is inherited from Windows. This corrects the second hosted lock/SQLite failures without serialization, retries, skipped tests, disabled NOFOLLOW or changed governed bytes.
+
+## Third hosted macOS receipt admission
+
+Run40254599831 Ubuntu native proof passed, including both normal extracted archives and state/launch tests. Mac passed47of48shell tests, then queued_acknowledgement_survives_child_exit failed with startup_child_exited (child exit0). Preparation412.298s,qualification83.606s,combined495.904s; preserve .local/s012-third-macos. New explicit-nonblocking accepted-stream regression reproduced startup_protocol/WouldBlock10035 on Windows before the fix. Set accepted stream blocking before the existing bounded read/deadline loop, without changing listener nonblocking mode, byte/identity limits or queued-ack assertions. Complete qualification remains required on the new source.
+
+Portable receipt-socket source0d1fa53d9d030e7c50161810945733f3da732e4865aff63f910702688ccec87f passed all14checks (44.657s preparation,297.915s qualification,342.572s combined). Final output-integrity inspection found the new ignored comparison-pixel JSON receipt used Windows default CRLF; explicitly request LF in Python write_text, preserving UTF-8 without BOM. Final qualification is repeated on that exact source before publication.
+
+## Native keyboard synchronization
+
+The LF-finalization run passed repository/core/app/site and both49-test shell suites, then failed the immediate focus-visible assertion at test-native.mjs:304 after actual Tab (88.664s preparation,155.289s qualification,243.953s combined). Preserve .local/s012-finalization-failed.json. SendWait is OS delivery, not WebView event/style completion. Use the existing bounded waiter to require Escape focus restoration, then a different media button and visible outline after one trusted Tab. No input is retried and no assertion is relaxed. Complete acceptance reruns on this source.
+
+## Interrupted native run (2026-10-26)
+
+The stronger keyboard synchronization run logged all49Full/49Lite shell tests,31rendered gallery groups and four launch groups before interruption. No active qualification process or terminal receipt survived continuation. Preserve the log as .local/s012-interrupted-qualification.log; it is incomplete evidence and does not replace a terminal passing qualification. Rebuild with actual Cargo target metadata and repeat all elected checks.
+
+The Cargo-target run passed repository/core/app/site and49Full/49Lite shell tests, then trusted filter keyboard input left all12cards visible (45.6s preparation,102.417s qualification,148.017s combined). Preserve .local/s012-filter-focus-failed.json/log and the native screenshot. Confirm process-scoped native foreground and WebView document focus before DOM setup, then retain the same single trusted filter input and exact10/12card assertions. Add active-element/filter diagnostic capture on failure; no product behavior or input assertion is changed.
+
+## Accepted portable receipt and compiled target (terminal 2026-10-26T06:09:18.468Z)
+
+PASS all14elected checks on 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003files): preparation 39.974s, qualification 201.046s, combined 241.02s. Includes75Node,37core,49Full/49Lite shell/state tests,31Windows rendered groups,6launch groups,10normal extracted checks per edition,4Python pixel regressions and128exact regenerated comparisons, ordinary-window exclusion, website/browser, measurements and unchanged source/governed bytes. Native foreground/document focus synchronization and visible-focus assertions pass without repeated key input. Accepted socket reads retain the bounded deadline and the actual Cargo build target is emitted by each artifact. Third hosted macOS failure remains separately attributed until fresh native hosted evidence passes.

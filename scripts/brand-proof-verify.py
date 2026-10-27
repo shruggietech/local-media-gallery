@@ -73,7 +73,7 @@ def main():
         Image.Image.save = original
         for entry in report:
             entry["path"] = pathlib.Path(entry["path"]).relative_to(kit).as_posix()
-        (kit.parent / "comparison-pixel-verification.json").write_text(json.dumps({"basis": "exact mode/dimensions/pixels; pinned compressed bytes retained", "comparisons": report}, indent=2) + "\n", encoding="utf-8")
+        (kit.parent / "comparison-pixel-verification.json").write_text(json.dumps({"basis": "exact mode/dimensions/pixels; pinned compressed bytes retained", "comparisons": report}, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

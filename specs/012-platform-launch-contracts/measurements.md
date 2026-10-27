@@ -34,3 +34,14 @@ Source 812bc5c0109f7a16cef9b9d4ec523c3054e99e5c8b04a6be462871c717ec3086 (1003 fi
 | --- | --- | --- | --- | --- | --- |
 | full | 18676736 | 7923512 | 22893477 | a3dbea712c869de2910ab4e8ce7e7c6364d0e4f41d308b91d680ef4a7b0b6c2c | 31edaa082ab8d3445ead69a6981b2742f42fc5b0f43ee8ee957be1d691579b82 |
 | lite | 18676736 | 7921479 | 22893482 | 6202f2a0fa26220c12eec06d99f64ae43208bb19205d8db3f1599ed87f38b292 | b29a11683675013c9c24fa77429a640b5ca21057d8a6b15427afda3cbc81c045 |
+
+## Accepted compiled-target local proof
+
+Source 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003 files), terminal 2026-10-26T06:09:18.468Z. Preparation 39.974s; qualification 201.046s; combined 241.02s. All14local checks pass.
+
+| Edition | Executable bytes | Archive bytes | Extracted bytes | Binary SHA256 | Archive SHA256 |
+| --- | --- | --- | --- | --- | --- |
+| full | 18677248 | 7923654 | 22893989 | ad4793ae2b6ae5c85f9f22c253936e13b2d9817f549b1766ccb681068dd834f4 | 1751aedc74d302c3a717a29b9b39a51881e11be4274b5bbd42bf2ba3a99b382f |
+| lite | 18677248 | 7921672 | 22893994 | 256610654a90aa56c7da66bd66ba5e2e2f39ca11435601209bc87024166420a3 | 3a05e831daf0aae7c83205f59ef46258862313b4a8821e6b8a9d153e33533b39 |
+
+Shared runtime directory remains909827702logical bytes, separately observed and not marginal download or complete system closure. Native Linux/macOS acceptance remains tied to its own hosted receipts.

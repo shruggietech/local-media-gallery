@@ -408,13 +408,9 @@ pub fn discovery_result(snapshot: &Snapshot, id: &str) -> Result<OperationResult
     Ok(r)
 }
 pub fn target_triple() -> String {
-    match std::env::consts::OS {
-        "windows" => format!("{}-pc-windows-msvc", std::env::consts::ARCH),
-        "macos" => format!("{}-apple-darwin", std::env::consts::ARCH),
-        "linux" => format!("{}-unknown-linux-gnu", std::env::consts::ARCH),
-        other => format!("{}-{other}", std::env::consts::ARCH),
-    }
+    env!("LMG_BUILD_TARGET").into()
 }
+
 pub fn runtime_observation() -> Value {
     match tauri::webview_version() {
         Ok(version) => {
@@ -668,6 +664,14 @@ pub fn decode_receipt(bytes: &[u8]) -> Result<StartupReceipt, GalleryError> {
         .map_err(|_| GalleryError::new("startup_protocol", "Startup acknowledgement is malformed."))
 }
 fn read_receipt(stream: &mut TcpStream, deadline: Instant) -> Result<StartupReceipt, GalleryError> {
+    // Accepted sockets do not have portable nonblocking inheritance semantics.
+    // Use explicit bounded blocking reads under the existing absolute deadline.
+    stream.set_nonblocking(false).map_err(|error| {
+        GalleryError::new(
+            "startup_protocol",
+            format!("Startup acknowledgement socket mode failed: {error}"),
+        )
+    })?;
     let mut bytes = Vec::new();
     let mut chunk = [0u8; 1024];
     loop {
@@ -1053,6 +1057,31 @@ mod tests {
         )
         .unwrap();
         assert_eq!(result.status, Status::Unavailable);
+    }
+    #[test]
+    fn nonblocking_accepted_stream_uses_bounded_blocking_receipt_reads() {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let mut sender = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (mut accepted, _) = listener.accept().unwrap();
+        accepted.set_nonblocking(true).unwrap();
+        let receipt = StartupReceipt {
+            nonce: Uuid::new_v4().to_string(),
+            result: OperationResult::new(
+                Operation::Open,
+                "bounded-receipt".into(),
+                "ui-startup",
+                Status::Accepted,
+            ),
+        };
+        let mut bytes = serde_json::to_vec(&receipt).unwrap();
+        bytes.push(b'\n');
+        let writer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(50));
+            sender.write_all(&bytes).unwrap();
+        });
+        let result = read_receipt(&mut accepted, Instant::now() + Duration::from_secs(1));
+        writer.join().unwrap();
+        assert_eq!(result.unwrap().result.operation_id, "bounded-receipt");
     }
     #[test]
     fn unacknowledged_child_exit_is_distinct_from_a_deadline() {
