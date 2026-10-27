@@ -26,4 +26,6 @@ with Image.open(source) as image:
     region = image.convert("RGB").crop(box)
     colors = region.getcolors(region.width * region.height)
     assert region.width > 8 and region.height > 8 and len(colors) > 8, "Native video snapshot is blank or lacks decoded pattern detail"
-    print(json.dumps({"hash": hashlib.sha256(region.tobytes()).hexdigest(), "crop": box, "colors": len(colors), "bitmap": {"width": image.width, "height": image.height}}))
+    colored = sum(count for count, rgb in colors if max(rgb) > 80 and max(rgb) - min(rgb) > 60)
+    assert colored >= region.width * region.height / 4, "Native snapshot lacks the known colored video pattern; grayscale activity is insufficient"
+    print(json.dumps({"hash": hashlib.sha256(region.tobytes()).hexdigest(), "crop": box, "colors": len(colors), "coloredPixels": colored, "bitmap": {"width": image.width, "height": image.height}}))

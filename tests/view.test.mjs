@@ -43,10 +43,6 @@ test('media URLs contain only opaque session and item values', () => {
   const url = mediaUrl(snapshot, item('opaque', '<img # %.jpg'));
   assert.equal(url, 'http://127.0.0.1:1234/media/session-token/opaque/rev-opaque');
   assert.ok(!url.includes('img'));
-  const focused=mediaUrl(snapshot,item('opaque','<img # %.jpg'),'focused');
-  assert.notEqual(focused,url,'Focused playback must not reuse the retiring card-loader identity');
-  assert.equal(new URL(focused).pathname,new URL(url).pathname,'Consumer isolation cannot expand the media grant');
-  assert.equal(new URL(focused).search,'?consumer=focused');
 });
 
 

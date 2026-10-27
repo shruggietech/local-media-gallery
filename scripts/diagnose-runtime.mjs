@@ -20,9 +20,10 @@ const fixture=JSON.parse(await readFile(path.join(root,'.local/runtime-fixture.j
 const binary=path.join(input,'bin/local-media-gallery-native-tests'+(process.platform==='win32'?'.exe':''));
 const bytes=await readFile(binary);
 if(process.platform!=='win32')await chmod(binary,0o755);
-let rebuilt;try{rebuilt=JSON.parse(await readFile(path.join(root,'.local/diagnostic-rebuilt.json')));assert.deepEqual(rebuilt.source,await sourceIdentity());assert.equal(digest(bytes),rebuilt.binary.sha256);}catch(e){if(e.code!=='ENOENT')throw e;}
+const nativeRun=process.env.GALLERY_DIAGNOSTIC_NATIVE_RUN;if(nativeRun)assert.match(nativeRun,/^[1-9][0-9]*$/);
+let rebuilt;try{rebuilt=JSON.parse(await readFile(path.join(root,'.local/diagnostic-rebuilt.json')));assert.equal(rebuilt.acceptance,false);if(!nativeRun)assert.deepEqual(rebuilt.source,await sourceIdentity());else{assert.match(rebuilt.source.sha256,/^[a-f0-9]{64}$/);assert.ok(Number.isInteger(rebuilt.source.files)&&rebuilt.source.files>0);}assert.equal(digest(bytes),rebuilt.binary.sha256);assert.equal(String(bytes.length),rebuilt.binary.bytes);}catch(e){if(e.code!=='ENOENT'||nativeRun)throw e;}
 if(!rebuilt)try{const r=JSON.parse(await readFile(path.join(input,'runtime-results-full.json')));assert.equal(digest(bytes),r.binary.sha256);}catch(e){if(e.code!=='ENOENT')throw e;}
-const receipt={kind:'isolated-runtime-diagnostic',acceptance:false,artifactRun:process.env.GALLERY_DIAGNOSTIC_RUN,rebuilt,artifactSource:rebuilt?.source??prior.context.source,harnessSource:await sourceIdentity(),binary:{sha256:digest(bytes),bytes:String(bytes.length)},observations:[],started:new Date().toISOString()};
+const receipt={kind:'isolated-runtime-diagnostic',acceptance:false,artifactRun:process.env.GALLERY_DIAGNOSTIC_RUN,nativeRun:nativeRun||null,rebuilt,artifactSource:rebuilt?.source??prior.context.source,harnessSource:await sourceIdentity(),binary:{sha256:digest(bytes),bytes:String(bytes.length)},observations:[],started:new Date().toISOString()};
 let restore;
 console.log('DIAGNOSTIC ONLY: prior compiled application and current harness; not final-source qualification.');
 try{

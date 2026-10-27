@@ -5,6 +5,7 @@ import path from 'node:path';
 import {root,exportInterface,cargo} from './run.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {digest} from './runtime-evidence.mjs';
+assert.ok(!process.env.GALLERY_DIAGNOSTIC_NATIVE_RUN,'Choose a native rebuild or an identified prior native binary, never both');
 const source=await sourceIdentity();const started=new Date().toISOString();
 await exportInterface();await cargo(['build','--locked','-p','local-media-gallery','--features','native-tests']);
 const name='local-media-gallery-native-tests'+(process.platform==='win32'?'.exe':'');

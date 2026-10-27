@@ -58,6 +58,10 @@ Run40539374790 tested commit7b6732f and sourcec31cc9e8c21223ab20e12782075b2b03f9
 
 Source dbdf5d5d8494edae504c7403791c0b37ea712fee54dcf07bc83189b6ab96db69 (1049 files). All eleven headless steps passed, including85 Node regressions, app/site/brand checks, native unit/state/preparation tests and exact normal Full/Lite archive acceptance. Preparation52.587s, qualification102.550s, combined155.137s; terminal2026-10-27T17:27:55.495Z. All local application launches remained finite command/archive checks; no gallery GUI, reader or input was started.
 
+## Headless campaign 7
+
+Source d1f27286c9e8231e29bfd4609de502e1097950bfc91466d13913fb7c63407329 (1051 files), commit26ea7ba. All eleven headless steps passed after the focused consumer URL and native frame observer changes, including86 Node tests. Preparation51.943s, qualification98.944s, combined150.887s; terminal2026-10-27T17:49:41.675Z. The following grayscale-evidence rejection correction changes source and requires another final campaign. Native acceptance remains isolated and separately pending.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

@@ -49,5 +49,16 @@ class NativeFrameTests(unittest.TestCase):
             image.save(file)
             self.assertNotEqual(self.observe(file)["hash"], original["hash"])
 
+    def test_grayscale_activity_cannot_pass_as_the_colored_decoded_fixture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file = Path(directory) / "spinner.png"
+            image = Image.new("RGB", (64, 64))
+            for y in range(64):
+                for x in range(64):
+                    image.putpixel((x, y), (x * 4,) * 3)
+            image.save(file)
+            with self.assertRaises(AssertionError):
+                self.observe(file)
+
 
 unittest.main()
