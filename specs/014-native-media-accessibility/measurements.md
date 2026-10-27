@@ -78,6 +78,12 @@ Source 4233f874ec4a5c42b6e03684c8925e17fdb6d4b0becd15c07128e488f7de31d4 (1051 fi
 
 Source f12ac3b0b5232fd4ee6117344a4289c5a0e2b8fdb1777532024ea3eda5dca029 (1051 files), commit1294ced. All eleven headless steps passed, including86 Node tests, site/app/brand checks, native units and normal Full/Lite archive acceptance. Preparation51.845s, qualification97.839s, combined149.684s; terminal2026-10-27T18:48:17.003Z. Independent local archive read-back also passes both editions against this exact source. No gallery GUI, reader or desktop input was started locally.
 
+## Fourth hosted campaign
+
+Run40563616988 tested mergead716c9f72063fa52714415083342fce8a995a65 and sourcef12ac3b0b5232fd4ee6117344a4289c5a0e2b8fdb1777532024ea3eda5dca029. Website passed. The repository's new real PNG regression failed because its scope had no Pillow readiness and selected system Python. The already-failed run was canceled before remaining native outcomes, rather than accepting incomplete evidence or delaying corrected-source qualification. Canceled platform preparation/qualification intervals are unavailable, not zero or passed; GitHub terminal job states retain that distinction.
+
+Repository preparation24.153s, qualification2.652s, combined26.805s; terminal2026-10-27T18:50:35.805Z (failed). Corrected repository readiness and all three gates subsequently passed locally with the selected isolated interpreter: preparation1.343s, qualification2.407s, combined3.750s; terminal2026-10-27T18:59:25.958Z. This focused verification is separate from complete source qualification.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

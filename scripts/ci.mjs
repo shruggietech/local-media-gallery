@@ -8,6 +8,7 @@ import { qualification } from './qualification.mjs';
 import { sourceIdentity } from './provenance.mjs';
 import assert from 'node:assert/strict';
 import {digest,validateRuntimeReceipt} from './runtime-evidence.mjs';
+import {preparePython} from './python-environment.mjs';
 
 const scope = process.argv[2];
 const productScopes=['product-windows','product-linux','product-macos'];
@@ -36,6 +37,7 @@ const record = await qualification({
   },
   prepare: async (context) => {
     // Workflow dependency installation is included in preparation accounting below.
+    if(scope==='repository')await preparePython(['Pillow']);
     if (isProduct) {
       assert.equal(process.platform,{'product-windows':'win32','product-linux':'linux','product-macos':'darwin'}[scope]);
       await node(path.join(root, 'scripts/prepare.mjs'));

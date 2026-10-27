@@ -40,10 +40,10 @@ test('independent native audio buffers retain exact original and target attribut
  const wrong=make();wrong.environment.platform='win32';assert.throws(()=>validateRuntimeReceipt(wrong,{...mac,platform:'win32'}));
 });
 test('actual NVDA capture policy excludes unrelated queued text and enforces storage bounds',async()=>{
- await promisify(execFile)(process.platform==='win32'?python:'python3',['tests/nvda-qualification.test.py'],{cwd:root,windowsHide:true,shell:false,timeout:15000});
+ await promisify(execFile)(python,['tests/nvda-qualification.test.py'],{cwd:root,windowsHide:true,shell:false,timeout:15000});
 });
 test('native snapshot evidence rejects blank/clipped frames and excludes changing controls',async()=>{
- await promisify(execFile)(process.platform==='win32'?python:'python3',['tests/runtime-frame.test.py'],{cwd:root,windowsHide:true,shell:false,timeout:15000});
+ await promisify(execFile)(python,['tests/runtime-frame.test.py'],{cwd:root,windowsHide:true,shell:false,timeout:15000});
 });
 test('focus-changing suites refuse the active workstation before launching a GUI',async()=>{
  assert.throws(()=>requireIsolatedDesktop({}),/isolated CI desktop/);

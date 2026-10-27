@@ -4,13 +4,11 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { root, execute } from './run.mjs';
 import {prepareMediaTool} from './prepare-media-tool.mjs';
+import {preparePython} from './python-environment.mjs';
 
 const directory = path.join(root, '.local');
 await mkdir(directory, { recursive: true });
-const python = path.join(directory, 'python', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
-try { await access(python); }
-catch { await execute(process.env.PYTHON_BOOTSTRAP ?? 'python', ['-m', 'venv', path.join(directory, 'python')]); }
-await execute(python, ['-m', 'pip', 'install', '--disable-pip-version-check', '-r', path.join(root, 'requirements-dev.txt')]);
+const python = await preparePython();
 if (process.platform === 'win32' && process.arch === 'x64') {
   const name = 'node-v24.11.0-win-x64.zip';
   const tools = path.join(directory, 'tools');
