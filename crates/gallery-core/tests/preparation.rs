@@ -344,7 +344,14 @@ fn non_unicode_colliding_display_names_generate_distinct_native_entries() {
         .write_to(&mut png, image::ImageFormat::Png)
         .unwrap();
     for name in &names {
-        std::fs::write(root.path().join(name), png.get_ref()).unwrap();
+        if let Err(error) = std::fs::write(root.path().join(name), png.get_ref()) {
+            // APFS rejects ill-formed UTF-8 filenames; exercise byte-preserving names on filesystems that admit them.
+            #[cfg(target_os = "macos")]
+            if error.raw_os_error() == Some(92) {
+                return;
+            }
+            panic!("Native filename creation failed: {error}");
+        }
     }
     let engine = Engine::new();
     let s = engine.open(root.path()).unwrap().session_id.unwrap();
@@ -507,4 +514,59 @@ fn metadata_only_cache_does_not_require_an_original_read() {
             .unwrap()
             .is_none()
     );
+}
+
+#[test]
+fn reused_preview_is_revalidated_after_cache_cleanup_or_source_change() {
+    for change_source in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let local = tempfile::tempdir().unwrap();
+        let source = root.path().join("photo.png");
+        image::RgbaImage::new(8, 8).save(&source).unwrap();
+        let engine = Engine::new();
+        let s = engine.open(root.path()).unwrap().session_id.unwrap();
+        let service = Arc::new(PreparationService::new(
+            engine.clone(),
+            local.path().join("cache"),
+            None,
+        ));
+        let first = service.preview(&s, DestinationKind::Portable).unwrap();
+        service.wait(&first.id);
+        service.start(&s, &first.id, false).unwrap();
+        assert_eq!(service.wait(&first.id).completed, "1");
+        let next = service.preview(&s, DestinationKind::Portable).unwrap();
+        assert_eq!(service.wait(&next.id).reused, "1");
+        if change_source {
+            let mut bytes = std::fs::read(&source).unwrap();
+            let n = bytes.len();
+            bytes[n - 1] ^= 1;
+            let file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&source)
+                .unwrap();
+            let modified = file.metadata().unwrap().modified().unwrap();
+            std::fs::write(&source, bytes).unwrap();
+            file.set_modified(modified).unwrap();
+        } else {
+            let cache = root.path().join(gallery_core::cache::PORTABLE);
+            for e in std::fs::read_dir(cache).unwrap() {
+                let e = e.unwrap();
+                if e.file_name()
+                    .to_string_lossy()
+                    .starts_with(&SourceName::new(OsStr::new("photo.png")).unwrap().key())
+                {
+                    std::fs::remove_file(e.path()).unwrap();
+                }
+            }
+        }
+        service.start(&s, &next.id, false).unwrap();
+        let result = service.wait(&next.id);
+        assert_ne!(
+            result.phase, "success",
+            "A stale reused preview must not certify successful generation"
+        );
+        assert_eq!(result.reused, "0");
+        assert_eq!(result.failed, "1");
+    }
 }

@@ -1035,14 +1035,8 @@ impl PreparationService {
             a.status.skipped = "0".into();
             a.status.failed = "0".into();
         } else {
-            a.status.remaining = Some(
-                preview
-                    .plans
-                    .iter()
-                    .filter(|p| !p.reused)
-                    .count()
-                    .to_string(),
-            );
+            a.status.reused = "0".into();
+            a.status.remaining = Some(preview.plans.len().to_string());
         }
         let cancel = a.cancel.clone();
         a.status.sequence = (a.status.sequence.parse::<u64>().unwrap() + 1).to_string();
@@ -1128,13 +1122,28 @@ impl PreparationService {
             if cancel.is_cancelled() {
                 return Err(cache::error("cancelled"));
             }
-            if plan.reused {
-                continue;
-            }
             let result = (|| {
                 let (file, hash, length) = self.read_source(&plan.source, &cancel)?;
                 if hash != plan.digest || length != plan.length {
                     return Err(cache::error("source_changed"));
+                }
+                if plan.reused {
+                    return self.engine.with_current_root(Some(&session), |_| {
+                        crate::root_identity(&preview.root.dir, &preview.root.path)?;
+                        cache.check()?;
+                        let bytes =
+                            cache::read_bounded(&cache.dir, &plan.slot, cache::ENTRY_LIMIT)?
+                                .ok_or_else(|| cache::error("cache_conflict"))?;
+                        let entry = CacheEntry::parse(&bytes)?;
+                        if entry.source_name != plan.source.name
+                            || entry.source_sha256 != hash
+                            || entry.source_bytes != length.to_string()
+                            || entry.provider != plan.provider
+                        {
+                            return Err(cache::error("cache_conflict"));
+                        }
+                        Ok(())
+                    });
                 }
                 let png = if plan.source.kind == "video" {
                     let h = self
@@ -1174,7 +1183,12 @@ impl PreparationService {
                 })
             })();
             match result {
-                Ok(()) => self.outcome(id, &plan.source.item, "complete", "completed"),
+                Ok(()) => self.outcome(
+                    id,
+                    &plan.source.item,
+                    if plan.reused { "reused" } else { "complete" },
+                    if plan.reused { "reused" } else { "completed" },
+                ),
                 Err(e) => {
                     if e.code == "cancelled" {
                         return Err(e);

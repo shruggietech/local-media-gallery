@@ -289,7 +289,7 @@ pub fn finite(
                 "The gallery directory is unavailable.",
             ));
         }
-        let session = snapshot.session_id.ok_or_else(|| {
+        let session = snapshot.session_id.clone().ok_or_else(|| {
             GalleryError::new("root_unavailable", "The gallery directory is unavailable.")
         })?;
         let job = service.preview(
@@ -308,28 +308,10 @@ pub fn finite(
             terminal = service.wait(&job.id)
         }
         service.shutdown();
-        Ok((session, terminal))
+        Ok((snapshot, terminal))
     })();
     let mut result = match run {
-        Ok((session, terminal)) => {
-            let status = match terminal.phase.as_str() {
-                "success" | "ready" => Status::Success,
-                "partial" => Status::Partial,
-                "cancelled" => Status::Cancelled,
-                "unavailable" => Status::Unavailable,
-                _ => Status::Failed,
-            };
-            let mut result = OperationResult::new(Operation::Prepare, id, "finite-job", status);
-            result.session_id = Some(session);
-            result.error = terminal.error.as_ref().map(|c| launch::OperationError {
-                code: c.clone(),
-                message:
-                    "Preparation did not complete. Inspect the job and diagnostics for recovery."
-                        .into(),
-            });
-            result.data = Some(serde_json::json!({"preparation":terminal}));
-            result
-        }
+        Ok((snapshot, terminal)) => preparation_result(id, snapshot, terminal),
         Err(e) => {
             engine.diagnostics().record(match e.code.as_str() {
                 "root_unavailable" => Event::RootUnavailable,
@@ -357,9 +339,92 @@ pub fn finite(
     result
 }
 
+fn preparation_result(
+    id: String,
+    snapshot: gallery_core::Snapshot,
+    terminal: gallery_core::thumbnail::JobStatus,
+) -> launch::OperationResult {
+    use launch::{Operation, OperationResult, Status};
+    let mut status = match terminal.phase.as_str() {
+        "success" | "ready" => Status::Success,
+        "partial" => Status::Partial,
+        "cancelled" => Status::Cancelled,
+        "unavailable" => Status::Unavailable,
+        _ => Status::Failed,
+    };
+    if matches!(status, Status::Success | Status::Partial) {
+        status = match snapshot.status.as_str() {
+            "complete" => status,
+            "partial" => Status::Partial,
+            "cancelled" => Status::Cancelled,
+            "unavailable" => Status::Unavailable,
+            _ => Status::Failed,
+        };
+    }
+    let mut result = OperationResult::new(Operation::Prepare, id, "finite-job", status);
+    result.session_id = snapshot.session_id;
+    if let Some(discovery) = &snapshot.discovery {
+        result.discovery_operation_id = Some(discovery.id.clone());
+        result.progress = Some(launch::Progress {
+            entries_seen: discovery.entries_seen.clone(),
+            media_seen: discovery.media_seen.clone(),
+        });
+    }
+    result.error = terminal.error.as_ref().map(|c| launch::OperationError {
+        code: c.clone(),
+        message: "Preparation did not complete. Inspect the job and diagnostics for recovery."
+            .into(),
+    });
+    result.data = Some(
+        serde_json::json!({"preparation":terminal,"discovery":snapshot.discovery.map(|d|serde_json::json!({"id":d.id,"phase":d.phase,"entriesSeen":d.entries_seen,"mediaSeen":d.media_seen}))}),
+    );
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn finite_preparation_preserves_incomplete_discovery_and_exact_coverage() {
+        let root = tempfile::tempdir().unwrap();
+        let local = tempfile::tempdir().unwrap();
+        let engine = Engine::new();
+        let snapshot = engine.open(root.path()).unwrap();
+        let service = Arc::new(PreparationService::new(engine, local.path().into(), None));
+        let job = service
+            .preview(
+                snapshot.session_id.as_ref().unwrap(),
+                DestinationKind::Local,
+            )
+            .unwrap();
+        let terminal = service.wait(&job.id);
+        assert_eq!(terminal.phase, "ready");
+        for (phase, expected) in [("complete", 0), ("partial", 3), ("failed", 1)] {
+            for preparation_phase in ["ready", "success"] {
+                let mut discovered = snapshot.clone();
+                discovered.status = phase.into();
+                let discovery = discovered.discovery.as_mut().unwrap();
+                discovery.phase = phase.into();
+                discovery.entries_seen = "9007199254740993".into();
+                discovery.media_seen = "7".into();
+                let discovery_id = discovery.id.clone();
+                let mut preparation = terminal.clone();
+                preparation.phase = preparation_phase.into();
+                let result = preparation_result("operation".into(), discovered, preparation);
+                assert_eq!(result.status.exit_code(), expected);
+                assert_eq!(
+                    result.discovery_operation_id.as_deref(),
+                    Some(discovery_id.as_str())
+                );
+                assert_eq!(result.progress.unwrap().entries_seen, "9007199254740993");
+                let data = result.data.unwrap();
+                assert_eq!(data["discovery"]["phase"], phase);
+                assert_eq!(data["discovery"]["mediaSeen"], "7");
+                assert_eq!(data["preparation"]["phase"], preparation_phase);
+            }
+        }
+        service.shutdown();
+    }
     #[test]
     fn diagnostic_export_is_explicit_utf8_and_preserves_existing_output() {
         let root = tempfile::tempdir().unwrap();
