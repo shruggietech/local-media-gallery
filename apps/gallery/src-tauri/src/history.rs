@@ -50,43 +50,21 @@ fn error(e: impl ToString) -> GalleryError {
     )
 }
 pub fn encode(path: &Path) -> (&'static str, Vec<u8>) {
-    #[cfg(windows)]
-    {
-        use std::os::windows::ffi::OsStrExt;
-        (
-            "windows-utf16le",
-            path.as_os_str()
-                .encode_wide()
-                .flat_map(u16::to_le_bytes)
-                .collect(),
-        )
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStrExt;
-        ("unix-bytes", path.as_os_str().as_bytes().to_vec())
-    }
+    let native = gallery_core::NativePath::from_path(path);
+    (native.encoding.as_str(), native.bytes)
 }
 fn decode(tag: &str, bytes: &[u8]) -> Result<PathBuf, GalleryError> {
-    #[cfg(windows)]
-    {
-        use std::{ffi::OsString, os::windows::ffi::OsStringExt};
-        if tag == "windows-utf16le" && bytes.len().is_multiple_of(2) {
-            let words: Vec<_> = bytes
-                .chunks_exact(2)
-                .map(|v| u16::from_le_bytes([v[0], v[1]]))
-                .collect();
-            return Ok(OsString::from_wide(&words).into());
-        }
+    let encoding = match tag {
+        "windows-utf16le" => gallery_core::PathEncoding::WindowsUtf16Le,
+        "unix-bytes" => gallery_core::PathEncoding::UnixBytes,
+        _ => return Err(error("The native path encoding is unsupported.")),
+    };
+    gallery_core::NativePath {
+        encoding,
+        bytes: bytes.to_vec(),
     }
-    #[cfg(unix)]
-    {
-        use std::{ffi::OsString, os::unix::ffi::OsStringExt};
-        if tag == "unix-bytes" {
-            return Ok(OsString::from_vec(bytes.to_vec()).into());
-        }
-    }
-    Err(error("The native path encoding is unsupported."))
+    .to_path()
+    .map_err(error)
 }
 pub fn location(local_data: Option<PathBuf>) -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
@@ -189,6 +167,28 @@ fn regular(path: &Path) -> Result<(), GalleryError> {
     }
     Ok(())
 }
+// Resolve native ancestor aliases without following the database leaf. macOS
+// commonly spells its temporary root through /var -> /private/var; SQLite's
+// NOFOLLOW rejects that alias even when the leaf itself is a regular file.
+fn database_path(path: &Path) -> Result<PathBuf, std::io::Error> {
+    let parent = path.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "No state parent directory",
+        )
+    })?;
+    let name = path.file_name().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "No state database filename",
+        )
+    })?;
+    #[cfg(unix)]
+    let parent = fs::canonicalize(parent)?;
+    #[cfg(not(unix))]
+    let parent = parent.to_path_buf();
+    Ok(parent.join(name))
+}
 impl History {
     pub fn new(path: Option<PathBuf>, test: bool) -> Self {
         Self { path, test }
@@ -198,6 +198,14 @@ impl History {
             .path
             .as_ref()
             .ok_or_else(|| error("The platform state directory is unavailable."))?;
+        let path = match database_path(path) {
+            Ok(path) => path,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(cause) => return Err(error(cause)),
+        };
+        Self::read_at(&path)
+    }
+    fn read_at(path: &Path) -> Result<Option<Connection>, GalleryError> {
         match fs::symlink_metadata(path) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(error(e)),
@@ -227,6 +235,10 @@ impl History {
             .parent()
             .ok_or_else(|| error("No state parent directory."))?;
         fs::create_dir_all(parent).map_err(error)?;
+        let path = database_path(path).map_err(error)?;
+        let parent = path
+            .parent()
+            .ok_or_else(|| error("No resolved state parent directory."))?;
         let lock_path = parent.join("history.lock");
         if lock_path.exists() {
             regular(&lock_path)?;
@@ -238,18 +250,18 @@ impl History {
             .write(true)
             .open(lock_path)
             .map_err(error)?;
-        lock.try_lock().map_err(error)?;
+        let _lock = crate::state_lock::StateLock::try_acquire(lock).map_err(error)?;
         // Validate existing bytes with a read-only connection before any write.
-        let existed = self.read()?.is_some();
+        let existed = Self::read_at(&path)?.is_some();
         if !existed {
             fs::OpenOptions::new()
                 .create_new(true)
                 .write(true)
-                .open(path)
+                .open(&path)
                 .map_err(error)?;
         }
         let mut db = Connection::open_with_flags(
-            path,
+            &path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX
                 | OpenFlags::SQLITE_OPEN_NOFOLLOW,
@@ -643,5 +655,41 @@ mod tests {
             "A stale expired revision must not resurrect inherited choices"
         );
         assert!(store.recall(&target, AGE + 1000).unwrap().is_none());
+    }
+    #[test]
+    fn missing_history_parent_is_read_only_until_an_explicit_write() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("missing/history.sqlite3");
+        let store = History::new(Some(path.clone()), false);
+        assert!(store.read().unwrap().is_none());
+        assert!(!path.parent().unwrap().exists());
+        store.touch(temp.path(), 100).unwrap();
+        assert!(database_path(&path).unwrap().is_file());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn native_parent_alias_keeps_sqlite_no_follow_and_rejects_final_links() {
+        use std::os::unix::fs::symlink;
+        let temp = tempfile::tempdir().unwrap();
+        let real = temp.path().join("real");
+        fs::create_dir(&real).unwrap();
+        let alias = temp.path().join("alias");
+        symlink(&real, &alias).unwrap();
+        let path = alias.join("history.sqlite3");
+        let store = History::new(Some(path.clone()), false);
+        store.touch(temp.path(), 100).unwrap();
+        assert!(store.recall(temp.path(), 100).unwrap().is_some());
+        assert_eq!(
+            database_path(&path).unwrap(),
+            fs::canonicalize(&real).unwrap().join("history.sqlite3")
+        );
+        let original = fs::read(real.join("history.sqlite3")).unwrap();
+        let linked = alias.join("linked.sqlite3");
+        symlink(real.join("history.sqlite3"), &linked).unwrap();
+        let rejected = History::new(Some(linked), false);
+        assert!(rejected.read().is_err());
+        assert!(rejected.touch(temp.path(), 101).is_err());
+        assert_eq!(fs::read(real.join("history.sqlite3")).unwrap(), original);
     }
 }

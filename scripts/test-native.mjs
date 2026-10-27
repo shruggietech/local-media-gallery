@@ -292,16 +292,18 @@ try {
     assert.equal(await js('return Array.from(document.querySelectorAll("video")).filter(v=>!v.paused).length'), 0);
   });
   await test('native keyboard activation, Escape and focus return', async () => {
+    await input('focus');
+    await visible('document.hasFocus()');
     await js('document.getElementById("media-filter").focus(); return true;');
     await input('keys', ['-Keys', '{HOME}{DOWN}{ENTER}']); await visible('document.querySelectorAll(".media-card").length===10');
     await input('keys', ['-Keys', '{HOME}{ENTER}']); await visible('document.querySelectorAll(".media-card").length===12');
     await js('document.querySelector(".media-open").focus(); return true;');
     await input('keys', ['-Keys', '{ENTER}']); await visible('document.querySelector("dialog")?.open');
-    await input('keys', ['-Keys', '{ESC}']); await visible('!document.querySelector("dialog")');
-    assert.equal(await js('return document.activeElement?.classList.contains("media-open")'), true);
+    await input('keys', ['-Keys', '{ESC}']);
+    await visible('!document.querySelector("dialog") && document.activeElement?.classList.contains("media-open")');
+    await js('window.__keyboardFocusBeforeTab=document.activeElement; return true;');
     await input('keys', ['-Keys', '{TAB}']);
-    assert.equal(await js('return document.activeElement?.classList.contains("media-open")'), true);
-    assert.equal(await js('return getComputedStyle(document.activeElement).outlineStyle !== "none"'), true);
+    await visible('document.activeElement!==window.__keyboardFocusBeforeTab && document.activeElement?.classList.contains("media-open") && getComputedStyle(document.activeElement).outlineStyle!=="none"');
   });
   await test('root replacement stops active playback and revokes old access', async () => {
     await open('clip audio.mp4'); await visible('document.querySelector("dialog video")?.readyState>=1');
@@ -764,6 +766,7 @@ try {
 } catch (error) {
   await mkdir(path.join(root, '.local'), { recursive: true });
   await writeFile(path.join(root, '.local/native-failure.log'), `${error.stack}\n${diagnostics}`);
+  if (session) { try { await writeFile(path.join(root, '.local/native-focus-failure.json'), JSON.stringify(await js('return {hasFocus:document.hasFocus(),active:{tag:document.activeElement?.tagName,id:document.activeElement?.id,classes:document.activeElement?.className},filter:document.getElementById("media-filter")?.value,count:document.querySelectorAll(".media-card").length}'),null,2)+'\n'); } catch {} }
   if (session) { try { await writeFile(path.join(root, '.local/native-failure.png'), Buffer.from(await request(`/session/${session}/screenshot`), 'base64')); } catch {} }
   throw error;
 } finally {

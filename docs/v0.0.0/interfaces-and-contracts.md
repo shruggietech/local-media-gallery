@@ -4,7 +4,7 @@
 
 The application exposes behavior through a command entry point, its native interface and native/frontend communication. Application-owned configuration and release artifacts also form contracts. **IF-01:** Equivalent actions MUST share the same gallery semantics regardless of entry point. Opening a directory through the command must not require a different media manifest from opening it through a native chooser.
 
-The local development executable is `local-media-gallery`, with an optional single directory argument, `--` for a dash-leading path, `--help` and `--version`. Invalid arguments exit with code 2. No directory opens an explicit selection screen. Full/Lite installation and preparation subcommands remain U-08; the operations below also describe those future capabilities.
+The native executable is local-media-gallery (with the platform executable suffix); a Lite artifact may use a distinct filename but identifies its compiled edition. Both use the syntax and result contract below. No command installs or prepares anything until its provider is implemented.
 
 ## Command behavior
 
@@ -16,9 +16,49 @@ The local development executable is `local-media-gallery`, with an optional sing
 | Inspect version/help | Describe the invoked artifact, edition, version, usage and declared prerequisites without claiming unavailable capabilities |
 | Refresh or cancel work | Operate on a defined session/job rather than an unrelated process or collection |
 
-**IF-02:** Command parsing MUST support native paths without requiring users to rewrite separators or strip drive names. Invalid input and launch failure must be reported through meaningful diagnostics and process results. A successful launch of a long-lived UI must be distinguishable from the successful completion of preparation or installation. Whether an opener detaches or waits is part of U-08.
+**IF-02:** Command parsing MUST support native paths without requiring users to rewrite separators or strip drive names. Invalid input and launch failure must be reported through meaningful diagnostics and process results. A successful launch of a long-lived UI must be distinguishable from the successful completion of preparation or installation. The process lifetime choices are specified below.
 
 Machine-readable output, if offered, must have a versioned documented representation and must not be mixed with human progress text on the same channel. Command integration must preserve stdout/stderr and exit behavior when invoked from a terminal or automation. Double-click launches and console child processes must not create flashing terminal windows.
+
+### Native command syntax and process lifetime
+
+```text
+local-media-gallery [open] [DIRECTORY] [--wait | --detach] [--json]
+local-media-gallery resolve [DIRECTORY] [--json]
+local-media-gallery capabilities [--json]
+local-media-gallery prepare [DIRECTORY] [--json]
+local-media-gallery install [--json]
+local-media-gallery --help [--json]
+local-media-gallery --version [--json]
+```
+
+Use -- to terminate options, including for a dash-leading or command-named literal directory; ./open is also a literal path. One root and one lifetime flag are accepted. Conflicting/duplicate options, unknown options and roots on operations that do not accept one fail before profile access. Native args_os preserves paths that are not Unicode. [Root precedence](gallery-lifecycle.md#root-selection-and-identity) applies identically to open and resolve. Resolve previews intended selection only; it does not check existence, discover media or certify access.
+
+Open waits by default. Its process stays alive for the UI lifetime, then reports the UI-lifetime outcome. It does not claim discovery completed successfully merely because the window closed normally. --detach creates an independent child and returns after a matching startup acknowledgement, bounded by 30 seconds. The acknowledgement means the main-window bridge is ready and the initial root request was submitted, or the chooser is ready. Discovery completion is a separate operation. The child uses null inherited streams; Windows children suppress console windows and Unix children form a new process group.
+
+The private startup receipt is bounded to 16 KiB and matches a fresh nonce, operation identity, edition and actual child PID. Malformed, oversized, mismatched and slow receipts cannot extend the deadline. Timeout reports startup_timeout and an unknown child lifetime; it does not kill the child or prove work stopped. A known child exit reports startup_child_exited. Starting a second invocation creates a separate process/window/session; it does not forward roots to or reuse the first. Shared persistent state retains its existing conflict/revision rules.
+
+Prepare/install currently return capability_unavailable (exit 5), make no gallery/profile changes and never report successful work. Help/version/capabilities/resolve are finite operations. Missing prerequisites return actionable runtime/display guidance when application code can run; loader failures before main are covered by archive prerequisite guidance.
+
+### Machine results and exit codes
+
+--json emits exactly one UTF-8 JSON OperationResult on stdout when that channel is available. Human diagnostics go to stderr; progress text never shares machine stdout. Closing/breaking a pipe is an output failure, not successful delivery. Ordinary native GUI launches keep their UI behavior and inherited standard handles; double-click error dialogs do not allocate flashing consoles.
+
+The master schema's operationResult definition requires product, formatVersion (1), version, edition, os, arch, operationId, operation, boundary, status, error, processId, sessionId, discoveryOperationId, root, progress and data. Fields with unavailable facts are explicit null. PIDs and progress counts are decimal strings. Version data identifies targetTriple, buildProfile and bundleIdentifier; capabilities data includes the canonical platform policy and observed runtime. Status is accepted, success, running, partial, cancelled, unavailable or failed. An accepted ui-startup result is distinct from a discovery or ui-lifetime result.
+
+Root uses nativePath: encoding is windows-utf16le or unix-bytes and bytes is the exact integer byte array. Windows byte length must be even; a native decoder rejects the other platform's encoding. Display labels remain separate and are never reopening authority. JSON bytes preserve unpaired native code units and non-UTF-8 Unix names without lossy string conversion. A result's session identity belongs to that operation. A failed pending Open must not borrow the previous still-usable session identity.
+
+| Exit | Meaning |
+| --- | --- |
+| 0 | Successful finite/UI-lifetime result, accepted startup, or running observation at its stated boundary |
+| 1 | Failure, including invalid placement or known child exit before acknowledgement |
+| 2 | invalid_arguments |
+| 3 | Partial operation |
+| 4 | Cancelled operation |
+| 5 | Unavailable capability, discovery root or prerequisite |
+| 6 | startup_timeout, child lifetime unknown |
+
+Error objects retain stable code/message fields. Categories include invalid_arguments, placement_unavailable, capability_unavailable, runtime_unavailable, display_unavailable, startup_child_exited and startup_timeout; discovery results map to root_unavailable, discovery_partial or discovery_failed and retain the observed message. Callers must read boundary/status/code together rather than interpret exit 0 as every possible operation having completed.
 
 ## Native and frontend operations
 
@@ -28,7 +68,9 @@ The native boundary needs operations for root selection/opening, discovery/query
 
 Opening and Refresh acknowledge a reserved request promptly; acknowledgement does not mean enumeration has completed. The initial command-line root is requested after the webview subscribes, so filesystem discovery does not precede the window. One native worker admits directory work, with one replaceable newest pending request. Cancel and Close cancel discovery immediately at cooperative boundaries without waiting behind a blocked discovery or profile-read call. Close retires the root after any already admitted state write; the host waits asynchronously for that commit boundary. A newer Refresh supersedes older requested work; actual enumerations do not overlap.
 
-The snapshot includes a globally increasing decimal-string sequence across root changes and Close. Clients reject older sequences before changing the active root or loading its settings. The independent discovery record contains id, generation, kind (open/refresh), phase, entriesSeen, mediaSeen, requestedRoot and message. Phases are opening, scanning, complete, partial, cancelled, failed and unavailable. Entry/media counts are observed exact decimal strings, not a total or percentage. A failed pending selection can retain the prior usable session. The item stale flag identifies a prior observation not yet confirmed by the latest incomplete scan; it does not itself revoke a valid media grant.
+The main window can request application_info for compiled identity/capability observations and operation_result with operationId for the current discovery result. The latter rejects retired/stale IDs rather than relabeling current state. Discovery cancellation and partial/unavailable outcomes map to the same OperationResult schema. Snapshot nativeRoot and discovery requestedNativeRoot preserve exact access identities; their legacy display strings remain presentation only. These additive fields may be absent in older schema fixtures; new native results return explicit nullable values.
+
+The snapshot includes a globally increasing decimal-string sequence across root changes and Close. Clients reject older sequences before changing the active root or loading its settings. The independent discovery record contains id, generation, kind (open/refresh), phase, entriesSeen, mediaSeen, requestedRoot, requestedNativeRoot, operation-owned sessionId and message. Phases are opening, scanning, complete, partial, cancelled, failed and unavailable. Entry/media counts are observed exact decimal strings, not a total or percentage. A failed pending selection can retain the prior usable session. The item stale flag identifies a prior observation not yet confirmed by the latest incomplete scan; it does not itself revoke a valid media grant.
 
 The first useful observation publishes immediately, with subsequent batches after 32 entries or 100 milliseconds elapsed at an entry boundary, plus terminal publication. This is a scheduling rule, not a throughput guarantee. gallery-changed events report current state. cancel_discovery identifies the current operationId; a stale id is rejected, while a terminal result already committed is retained. Reading a snapshot returns cached observations and does not scan. The interface does not poll snapshots or schedule discovery.
 
@@ -36,7 +78,7 @@ Presentation state uses load_settings with sessionId (null for no root). It retu
 
 forget_history takes sessionId, expectedRevision and an opaque recent id (null clears history). reopen_recent takes only an opaque id, decodes its native path internally and uses ordinary root opening. Failed recent opens preserve the current root. All persistence operations run off the UI thread. Public schema definitions settingsChoices, settingsPatch, portableSettings and recentDirectory describe the storage and result boundaries. See [configuration and state](configuration-and-state.md) for precedence, fields and failure behavior.
 
-Long-running jobs require finite admission, observable progress and cancellation. Totals may initially be unknown; the UI must not invent a completed percentage from an unmeasured total. A terminal outcome should identify what completed, failed or remains resumable. Exact IPC transport, batching, job persistence and identifiers are U-08.
+Long-running jobs require finite admission, observable progress and cancellation. Totals may initially be unknown; the UI must not invent a completed percentage from an unmeasured total. A terminal outcome should identify what completed, failed or remains resumable. Future preparation/installation providers must adopt the same attributable result boundary before reporting available.
 
 loadingMode is automatic, conservative or standard; old user settings may omit it and resolve automatic. It is one ordinary field in settings, sparse choices/patches and per-field sources/savedTo. Effective queue tiers and timings are session observations and are never portable settings.
 
@@ -46,7 +88,7 @@ inspect_metadata accepts request {sessionId,itemId,itemRevision,metadataRevision
 
 The result carries the four request identities, documents and limitations. Each document contains source, label, basis, rank, ambiguous, stale, status, message, node, sourceText and recordPath. Status is ready, invalid, limited, encoding, unreadable or changed. A node is tagged null, boolean, string, number, array or object; numeric value is lexical text, array items are ordered, and object members are ordered {key,value} entries that preserve duplicate keys. Raw source is a quoted UTF-8 string, never embedded untyped JSON numeric values. A missing selector result is absence, separately displayed from a null node.
 
-The metadataNode, metadataDocument, metadataResult, fieldStep and summaryField owned schema definitions describe these boundaries. They do not validate external sidecars. summaryFields is optional in old format-1 user documents and defaults empty, then follows ordinary sparse settings behavior. [Metadata policy](metadata-and-sidecars.md) owns association, budgets, exact values, encoding and request freshness. CLI/process/job choices elsewhere in U-08 remain open.
+The metadataNode, metadataDocument, metadataResult, fieldStep and summaryField owned schema definitions describe these boundaries. They do not validate external sidecars. summaryFields is optional in old format-1 user documents and defaults empty, then follows ordinary sparse settings behavior. [Metadata policy](metadata-and-sidecars.md) owns association, budgets, exact values, encoding and request freshness. The launch/result contract above governs the current CLI boundary.
 
 ## Media delivery and item references
 
@@ -78,12 +120,12 @@ External sidecars remain arbitrary JSON under [metadata and sidecars](metadata-a
 | Cancellation | Requested work stopped at a defined boundary, with completed outputs identified |
 | Internal failure | Unexpected failure with enough diagnostic context for recovery |
 
-**IF-07:** Error presentation MUST retain the affected operation and useful recovery context without executing sidecar content or exposing unnecessary private values. Exact stable error identifiers and numeric process codes are U-08. Unknown failures must not be coerced into success or an empty collection.
+**IF-07:** Error presentation MUST retain the affected operation and useful recovery context without executing sidecar content or exposing unnecessary private values. The launch result contract above defines process codes and typed error categories. Unknown failures must not be coerced into success or an empty collection.
 
 The optional `fontScale` preference accepts `100`, `90` or `80` percent, defaulting to `100` when absent. This is an additive format-1 field; legacy user settings remain readable without a rewrite on load.
 
 ## Open decisions
 
-U-08 retains Full/Lite command syntax, preparation/installation operations and broader error/exit-code compatibility. The current readonly snapshot, preference boundary and local opening syntax are defined above. U-07 retains future cache and migration policies. Semantic requirements above constrain future contracts.
+U-08 is resolved for current command, root, lifetime, snapshot and process-result contracts. Prepare/install remain explicitly unavailable providers; future provider-specific progress, outputs and persistence require their own implementation and compatible contracts. U-07 retains future cache and migration policies.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).

@@ -258,6 +258,19 @@ export async function createModel(base, suppliedManifest) {
           `Invalid historical example ${example}: ${ajv.errorsText(validate.errors)}`,
         );
       }
+      for (const contract of snapshot.contracts ?? []) {
+        assert.match(contract.topic, /^[a-z][a-z0-9-]*$/);
+        assert.equal(contract.source, 'schemas/' + snapshot.version + '/' + contract.topic + '.json');
+        assert.ok(Object.hasOwn(schema.$defs, contract.definition), 'Unknown owned contract definition');
+        const route = '/docs/' + snapshot.version + '/' + contract.topic + '/';
+        const rawPath = '/raw/' + snapshot.version + '/' + contract.topic + '.json';
+        const bytes = await source(contract.source, route, rawPath, snapshot.version);
+        const value = JSON.parse(bytes);
+        const validateContract = ajv.compile({ $schema: schema.$schema, $defs: schema.$defs, $ref: '#/$defs/' + contract.definition });
+        assert.ok(validateContract(value), 'Invalid owned contract: ' + ajv.errorsText(validateContract.errors));
+        pages.push({route,version:snapshot.version,topic:contract.topic,title:contract.title,
+          html:'<h1>' + escape(contract.title) + '</h1>' + renderSchema(value),raw:rawPath});
+      }
       pages.push({
         route: `/docs/${snapshot.version}/schema/`,
         version: snapshot.version,

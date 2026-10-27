@@ -307,7 +307,7 @@ fn reference_case_uses_actual_native_names_without_equating_distinct_hardlinks()
 }
 
 #[test]
-fn non_unicode_index_names_have_distinct_persistable_source_identity() {
+fn native_index_names_have_distinct_persistable_source_identity() {
     let dir = TempDir::new().unwrap();
     fs::write(dir.path().join("a.jpg"), b"media").unwrap();
     #[cfg(windows)]
@@ -318,7 +318,7 @@ fn non_unicode_index_names_have_distinct_persistable_source_identity() {
             std::ffi::OsString::from_wide(&[0xd801, 46, 106, 115, 111, 110]),
         ]
     };
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "macos")))]
     let names = {
         use std::os::unix::ffi::OsStringExt;
         [
@@ -326,7 +326,15 @@ fn non_unicode_index_names_have_distinct_persistable_source_identity() {
             std::ffi::OsString::from_vec(vec![0xfe, b'.', b'j', b's', b'o', b'n']),
         ]
     };
+    #[cfg(target_os = "macos")]
+    let names = [
+        std::ffi::OsString::from("index é.json"),
+        std::ffi::OsString::from("index 雪.json"),
+    ];
+    #[cfg(not(target_os = "macos"))]
     assert_eq!(names[0].to_string_lossy(), names[1].to_string_lossy());
+    #[cfg(target_os = "macos")]
+    assert_ne!(names[0].to_string_lossy(), names[1].to_string_lossy());
     for name in names {
         fs::write(
             dir.path().join(name),

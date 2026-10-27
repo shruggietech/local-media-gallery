@@ -164,27 +164,48 @@ fn explicit_root_alias_is_resolved_but_nested_links_and_cycles_are_not_entered()
 
 #[cfg(unix)]
 #[test]
-fn native_names_with_identical_lossy_labels_keep_distinct_grants() {
+fn native_names_keep_distinct_grants_under_host_filesystem_rules() {
+    #[cfg(not(target_os = "macos"))]
     use std::os::unix::ffi::OsStringExt;
     let root = TempDir::new().unwrap();
-    for byte in [0xfe, 0xff] {
-        let name = std::ffi::OsString::from_vec(vec![byte, b'.', b'j', b'p', b'g']);
-        fs::write(root.path().join(name), [byte]).unwrap();
+    #[cfg(not(target_os = "macos"))]
+    let names =
+        [0xfe, 0xff].map(|byte| std::ffi::OsString::from_vec(vec![byte, b'.', b'j', b'p', b'g']));
+    // The hosted Mac filesystem rejects invalid UTF-8 before discovery. Exercise
+    // real native grants there with distinct Unicode names; the in-memory codec
+    // regression separately retains colliding lossy labels on every platform.
+    #[cfg(target_os = "macos")]
+    let names = [
+        std::ffi::OsString::from("native é.jpg"),
+        std::ffi::OsString::from("native 雪.jpg"),
+    ];
+    for (index, name) in names.iter().enumerate() {
+        fs::write(root.path().join(name), [index as u8]).unwrap();
     }
     let engine = Engine::new();
     let snapshot = engine.open(root.path()).unwrap();
     assert_eq!(snapshot.items.len(), 2);
+    #[cfg(not(target_os = "macos"))]
     assert_eq!(snapshot.items[0].name, snapshot.items[1].name);
+    #[cfg(target_os = "macos")]
+    assert_ne!(snapshot.items[0].name, snapshot.items[1].name);
     assert_ne!(snapshot.items[0].id, snapshot.items[1].id);
+    use std::io::Read;
+    let mut observed = std::collections::HashSet::new();
     for item in &snapshot.items {
-        assert!(
-            engine
-                .open_media(
-                    snapshot.session_id.as_ref().unwrap(),
-                    &item.id,
-                    &item.revision
-                )
-                .is_ok()
-        );
+        let mut opened = engine
+            .open_media(
+                snapshot.session_id.as_ref().unwrap(),
+                &item.id,
+                &item.revision,
+            )
+            .unwrap();
+        let mut bytes = Vec::new();
+        opened.file.read_to_end(&mut bytes).unwrap();
+        observed.insert(bytes);
     }
+    assert_eq!(
+        observed,
+        std::collections::HashSet::from([vec![0], vec![1]])
+    );
 }

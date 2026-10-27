@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { access, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { access, readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -44,6 +44,17 @@ export async function exportInterface() {
     const file = path.join(app, name);
     await writeFile(file, (await readFile(file, 'utf8')).replaceAll('\r\n', '\n'), 'utf8');
   }
+}
+export async function buildEditions({ nativeTests = false } = {}) {
+  const directory=path.join(root,'.local/bin');await mkdir(directory,{recursive:true});const binaries={};
+  for(const edition of ['full','lite']){
+    const features=[...(nativeTests?['native-tests']:[]),...(edition==='lite'?['lite']:[])];
+    await cargo(['build','--locked','-p','local-media-gallery',...(features.length?['--features',features.join(',')]:[])]);
+    const suffix=process.platform==='win32'?'.exe':'';
+    const name='local-media-gallery'+(edition==='lite'?'-lite':'')+(nativeTests?'-native-tests':'')+suffix;
+    const output=path.join(directory,name);await copyFile(path.join(root,'target/debug/local-media-gallery'+suffix),output);binaries[edition]=output;
+  }
+  return binaries;
 }
 export async function checkApp() {
   await cargo(['fmt', '--all', '--', '--check']);

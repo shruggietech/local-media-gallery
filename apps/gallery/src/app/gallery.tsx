@@ -16,7 +16,7 @@ import { useGalleryState } from '../lib/use-gallery-state';
 import { SaveDestinationControl, StateControls } from '../lib/state-controls';
 import { MetadataInspector } from '../lib/metadata-inspector';
 
-const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, sessionId: null, root: null, status: 'selection', revision: '0', mediaOrigin: '', metadataRevision: '0', items: [], issues: [] };
+const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, sessionId: null, root: null, nativeRoot: null, status: 'selection', revision: '0', mediaOrigin: '', metadataRevision: '0', items: [], issues: [] };
 const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);

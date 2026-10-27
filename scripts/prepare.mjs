@@ -32,7 +32,7 @@ if (process.platform === 'win32' && process.arch === 'x64') {
   }
   await execute(executable, ['--version']);
 } else if (!process.env.GALLERY_PROOF_NODE) {
-  throw new Error('Set GALLERY_PROOF_NODE to a native Node 24.11.0 executable for brand proof verification on this host. Native acceptance remains Windows-first.');
+  throw new Error('Set GALLERY_PROOF_NODE to a native Node 24.11.0 executable for brand proof verification on this host. Rendered acceptance remains separately elected.');
 }
 await readFile(path.join(root, 'Cargo.lock'));
 console.log('Preparation complete. Run builds and qualification separately.');

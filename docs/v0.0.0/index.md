@@ -37,12 +37,9 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 
 | ID | Decision still open | Owning chapter |
 | --- | --- | --- |
-| U-01 | Minimum OS versions, CPU architectures, Linux support baseline and exact runtime/package combinations | [Installation and distribution](installation-and-distribution.md#open-decisions) |
-| U-02 | Full/Lite capability and dependency matrix beyond their agreed launch/state roles | [Overview](overview.md#open-decisions) |
 | U-04 | Tested image/video codecs, formats, orientation/color handling and unsupported-media actions | [Browsing and playback](browsing-and-playback.md#open-decisions) |
 | U-05 | Richer preview/autoplay behavior and additional navigation/customization beyond the defined browsing defaults | [Browsing and playback](browsing-and-playback.md#open-decisions) |
 | U-07 | Disposable cache locations and future state migration/backup policies | [Configuration and state](configuration-and-state.md#open-decisions) |
-| U-08 | Executable/subcommand names, exact exit codes, IPC layouts, identifiers and application-schema dialect | [Interfaces and contracts](interfaces-and-contracts.md#open-decisions) |
 | U-09 | Thumbnail encoders, video frame selection, portable cache placement and optional media-tool distribution | [Thumbnails and performance](thumbnails-and-performance.md#open-decisions) |
 | U-11 | Diagnostic fields, export/redaction defaults, log retention and exceptional recovery actions | [Security and reliability](security-and-reliability.md#open-decisions) |
 | U-13 | Exact initial editing actions and their confirmation, undo and write behavior | [Overview](overview.md#open-decisions) |
@@ -51,6 +48,9 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 
 | ID | Resolved contract | Owning chapter |
 | --- | --- | --- |
+| U-01 | Initial six-row platform/dependency and package policy with explicit native proof limits | [Installation and distribution](installation-and-distribution.md#initial-platform-and-dependency-matrix) |
+| U-02 | Shared browsing/settings capabilities, compiled edition identity and explicit unavailable job providers | [Overview](overview.md#editions) |
+| U-08 | Native launch/root/lifetime, exact machine results, exit codes and current IPC identities | [Interfaces and contracts](interfaces-and-contracts.md#command-behavior) |
 | U-03 | Direct-file traversal, root identity and explicit recovery, with mounted/native qualification boundaries | [Gallery lifecycle](gallery-lifecycle.md#open-decisions) |
 | U-06 | Attributed direct sidecar/index association, ordered duplicate members and explicit encoding policy | [Metadata and sidecars](metadata-and-sidecars.md#open-decisions) |
 | U-10 | Attributable small-fixture measurements, finite adaptive loading and portable manual override; tuning proposals retain evidence limits | [Thumbnails and performance](thumbnails-and-performance.md#measurement-evidence-and-interpretation) |

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 param(
     [Parameter(Mandatory)][int]$AppProcessId,
-    [ValidateSet('window', 'keys', 'cancel-picker', 'select-picker')][string]$Action = 'keys',
+    [ValidateSet('window', 'focus', 'keys', 'cancel-picker', 'select-picker')][string]$Action = 'keys',
     [string]$Keys,
     [string]$Directory
 )
@@ -46,13 +46,14 @@ $condition = [System.Windows.Automation.PropertyCondition]::new(
     [System.Windows.Automation.AutomationElement]::ProcessIdProperty, $AppProcessId)
 $window = [System.Windows.Automation.AutomationElement]::FromHandle($app.MainWindowHandle)
 [void][GalleryNativeInput]::SetForegroundWindow($app.MainWindowHandle)
-if ($Action -eq 'keys') {
+if ($Action -in @('focus', 'keys')) {
     $focusDeadline = [DateTime]::UtcNow.AddSeconds(5)
     do {
         $focused = [GalleryNativeInput]::FocusControl($app.MainWindowHandle, [IntPtr]::Zero)
         if (-not $focused) { Start-Sleep -Milliseconds 100 }
     } until ($focused -or [DateTime]::UtcNow -gt $focusDeadline)
     if (-not $focused) { throw 'Cannot confirm the application is foreground; keyboard input was withheld.' }
+    if ($Action -eq 'focus') { return }
     [System.Windows.Forms.SendKeys]::SendWait($Keys)
     return
 }

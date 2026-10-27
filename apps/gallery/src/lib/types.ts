@@ -13,6 +13,8 @@ export interface MediaItem {
   stale: boolean;
 }
 
+export interface NativePath { encoding: 'windows-utf16le' | 'unix-bytes'; bytes: number[] }
+
 export interface DiscoveryState {
   id: string;
   generation: string;
@@ -21,6 +23,8 @@ export interface DiscoveryState {
   entriesSeen: string;
   mediaSeen: string;
   requestedRoot: string | null;
+  requestedNativeRoot: NativePath | null;
+  sessionId: string | null;
   message: string | null;
 }
 
@@ -30,6 +34,7 @@ export interface Snapshot {
   discovery: DiscoveryState | null;
   sessionId: string | null;
   root: string | null;
+  nativeRoot: NativePath | null;
   status: 'selection' | DiscoveryState['phase'];
   revision: string;
   mediaOrigin: string;

@@ -18,7 +18,7 @@ The three target operating systems are Windows, Linux and macOS. Specific OS ver
 
 **DI-02:** Lite MUST run without installing Full on a supported host. Its common browsing behavior MUST NOT depend on the sender's installed state. Lite need not include every runtime or tool shipped with Full. A missing prerequisite must produce an actionable dependency result; it must not silently substitute a different browser-based product or claim that installation succeeded.
 
-MSI is allowed on Windows, alongside any justified EXE entry point. Full installation may be heavy. The documentation must report that footprint rather than using a small launcher size to characterize the complete installation. Exact package formats for each platform remain U-01.
+MSI is allowed on Windows, alongside any justified EXE entry point. Full installation may be heavy. The documentation must report that footprint rather than using a small launcher size to characterize the complete installation. The initial package policy is defined below; proof archives do not implement installation.
 
 ## Installation lifecycle and collisions
 
@@ -56,8 +56,39 @@ The archive must preserve any native bundle structure, executable permissions an
 
 Packaging work must verify the actual extracted recipient experience. A ZIP containing an EXE, a macOS app bundle or a Linux launcher is not, by its extension alone, proof of support. Signing/notarization disposition, runtime discovery and install-free launch results belong in release evidence and the relevant support guidance.
 
+## Initial platform and dependency matrix
+
+The [canonical platform matrix](../../schemas/v0.0.0/platform-matrix.json) separates intended baselines, elected proof hosts and unqualified combinations. Both editions use the same native core, bundled interface, bundled SQLite and host webview. Recipients require no Node, npm, Python, Rust, FFmpeg executable or external database. Build tools are maintainer dependencies. Media decoding still depends on the host runtime and available codecs.
+
+| Native target | Initial baseline and runtime | Elected proof and limits |
+| --- | --- | --- |
+| Windows x86_64 | Windows 10 22H2 or Windows 11, shared Evergreen WebView2, interactive desktop | Windows Server 2025 native CLI/archive proof and separate local Windows 11 rendered acceptance; other client versions require evidence |
+| Linux x86_64 | Ubuntu 24.04 GNU ABI, glibc 2.39 build baseline, GTK3, WebKitGTK 4.1, libsoup3 and distribution media plugins | Ubuntu 24.04 native CLI/archive proof; X11/Wayland rendering and media remain separate |
+| macOS aarch64 | macOS 15, OS-provided WKWebView, Apple Silicon | macOS 15 arm64 native CLI/app-bundle archive proof; desktop, quarantine and translocation remain separate |
+| Windows aarch64 | Intended Windows 11 ARM64 and native Evergreen WebView2 | Retained target, unbuilt/unqualified |
+| Linux aarch64 | Intended Ubuntu 24.04 ARM64 and native GTK/WebKitGTK stack | Retained target, unbuilt/unqualified |
+| macOS x86_64 | Intended macOS 15 Intel and OS WKWebView | Retained target, unbuilt/unqualified |
+
+Ubuntu 24.04 output does not establish Ubuntu 22.04, Debian 12 or older glibc compatibility. Those require an older ABI build and its own native proof. Emulated x64/ARM64 execution does not qualify the corresponding native architecture. The three operating systems remain product targets.
+
+### Package and installation policy
+
+| Platform | Full policy | Lite policy | Signing disposition |
+| --- | --- | --- | --- |
+| Windows | Per-user installation by default under the user's Programs location; machine scope under Program Files is explicit and may elevate; provision or verify shared Evergreen WebView2; MSI permitted | Extractable executable ZIP using the declared shared host runtime | Proof unsigned; final Authenticode disposition must be recorded |
+| Linux | Debian package to system application locations through the package manager, with declared dependencies; other distributions need their own artifacts | Executable tar.gz using host libraries; AppImage requires separate packaging qualification | Proof archive unsigned; final package/repository signing must be recorded |
+| macOS | App bundle in the elected user or system Applications directory, distributed by DMG | App bundle archive placed adjacent to the gallery, preserving bundle structure | Proof ad-hoc or unsigned as observed, unnotarized; final Developer ID, notarization and stapling remain packaging work |
+
+Current exploratory archives contain normal Full/Lite executables, required bundle resources, licenses/notices, exact payload inventories and source/artifact identity. They are not published product packages or final installers. The install and prepare providers report unavailable without making changes. No optional external tool payload is currently shipped. Package collision, upgrade, rollback and removal behavior above remains mandatory for future installers.
+
+### Prerequisites and footprint reporting
+
+Windows GUI launch checks the installed WebView2 runtime and directs a missing-runtime user to install Microsoft's Evergreen Runtime. Linux GUI launch requires an accessible DISPLAY or WAYLAND_DISPLAY and the declared host libraries. Missing Linux dynamic libraries can fail before application code runs; the archive's prerequisite guide and loader diagnostic identify this boundary. macOS uses its OS webview and the selected minimum OS. CLI capabilities reports runtime version observations; it does not certify GUI or codec behavior. See [Tauri prerequisites](https://tauri.app/start/prerequisites/) and [Microsoft WebView2 distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
+
+Proof receipts distinguish archive download bytes, extracted application bytes, executable bytes, installed runtime observations, optional tools and unavailable final-installer footprint. Unknown runtime size is null with a reason, never zero. A shared runtime directory's logical size is not a marginal install cost and excludes other system libraries. Hashes and sizes identify exact artifacts; they do not establish clean-machine independence, signing acceptance or a complete legal release audit.
+
 ## Open decisions
 
-U-01 includes CPU architectures, minimum OS/runtime versions, Linux distribution/library baseline, signing arrangements, package formats, install scopes, destinations and optional dependency payloads. U-02 owns detailed edition capabilities. Resolve package choices using complete download/extracted sizes and native launch evidence; do not infer clean-machine independence from the size of the main executable. No measured package-size promise is established here.
+The initial U-01/U-02 matrix and package policy are defined here and in [edition capabilities](overview.md#editions). Final installer construction, signing credentials, clean-machine installation, broader OS/ABI targets and GUI/media qualification require their own concrete artifacts and evidence. No universal package-size promise is established.
 
 See [verification and compatibility](verification-and-compatibility.md), the [index](index.md) and the [glossary](glossary.md).

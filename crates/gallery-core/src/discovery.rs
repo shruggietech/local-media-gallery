@@ -17,6 +17,8 @@ pub struct DiscoveryState {
     pub entries_seen: String,
     pub media_seen: String,
     pub requested_root: Option<String>,
+    pub requested_native_root: Option<NativePath>,
+    pub session_id: Option<String>,
     pub message: Option<String>,
 }
 
@@ -129,6 +131,14 @@ impl Engine {
             .into(),
             entries_seen: "0".into(),
             media_seen: "0".into(),
+            session_id: match &target {
+                Target::Open(_) => None,
+                Target::Refresh(id) => Some(id.clone()),
+            },
+            requested_native_root: match &target {
+                Target::Open(path) => Some(NativePath::from_path(path)),
+                Target::Refresh(_) => hub.session.as_ref().map(|s| NativePath::from_path(&s.root)),
+            },
             requested_root: match target {
                 Target::Open(path) => Some(path.to_string_lossy().into_owned()),
                 _ => None,
@@ -251,6 +261,7 @@ impl Engine {
             discovery: hub.discovery.clone(),
             session_id: None,
             root: None,
+            native_root: None,
             status: "selection".into(),
             revision: "0".into(),
             media_origin: hub.media_origin.clone(),
@@ -261,6 +272,7 @@ impl Engine {
         if let Some(s) = &hub.session {
             snapshot.session_id = Some(s.id.clone());
             snapshot.root = Some(s.root.to_string_lossy().into_owned());
+            snapshot.native_root = Some(NativePath::from_path(&s.root));
             snapshot.status = s.status.clone();
             snapshot.revision = s.revision.to_string();
             snapshot.metadata_revision = s.metadata_revision.clone();
@@ -401,6 +413,7 @@ impl Engine {
                     items: vec![],
                 });
                 hub.discovery.as_mut().unwrap().phase = "scanning".into();
+                hub.discovery.as_mut().unwrap().session_id = Some(id.clone());
                 hub.sequence += 1;
                 (id, root, dir, HashMap::new(), cancel)
             }

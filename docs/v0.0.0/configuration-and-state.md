@@ -72,6 +72,10 @@ The host reads and writes fixed child names through the held directory capabilit
 | macOS | App-specific Application Support, then state/history.sqlite3 |
 | Linux | Absolute XDG_STATE_HOME/tech.shruggie.local-media-gallery/history.sqlite3, otherwise HOME/.local/state/tech.shruggie.local-media-gallery/history.sqlite3 |
 
+Full uses bundle identifier tech.shruggie.local-media-gallery; Lite uses tech.shruggie.local-media-gallery.lite. Both deliberately resolve current user preferences and machine history beneath the Full product identifier, preserving existing state rather than creating an edition split. Portable settings remain gallery-local and all four save destinations remain available in both editions. This does not copy or require sender state.
+
+Unix database parent aliases are resolved before opening SQLite, including macOS system aliases such as /var. The final database path must still be a regular file and SQLite NOFOLLOW remains enabled; a database leaf symlink is rejected without changing its target. Reading a missing history parent creates no directory.
+
 Relative XDG_STATE_HOME values are ignored. See the [XDG directory specification](https://specifications.freedesktop.org/basedir/latest/) and [Tauri path resolver](https://docs.rs/tauri/latest/tauri/path/struct.PathResolver.html). Linux/macOS native runtime behavior still requires platform qualification.
 
 ## Remembered directory state and decay
@@ -88,7 +92,7 @@ Forget and Clear directory history are idempotent database-row operations. They 
 
 **CS-06:** Invalid stored data is reported and preserved. Missing stores are initialized only when owned by this application. Existing zero-byte, foreign, corrupt or future-version databases are not silently recreated, renamed or downgraded. The supported database has application_id 0x4c4d4701 and user_version 1. Reads validate identity, schema and accessed rows; this is not a whole-database integrity audit. No historical database migration is needed for the first schema; unsupported versions require an explicit future migration.
 
-SQLite uses rollback journaling, parameterized statements, short immediate transactions and a 250 ms busy timeout. Schema checks run read-only before writing and again in the transaction. Conditional row revisions prevent one instance overwriting another's remembered choices; merely opening a folder preserves the choices revision. Store contention falls back to usable temporary choices with a warning.
+SQLite uses rollback journaling, parameterized statements, short immediate transactions and a 250 ms busy timeout. Schema checks run read-only before writing and again in the transaction. Conditional row revisions prevent one instance overwriting another's remembered choices; merely opening a folder preserves the choices revision. Store contention falls back to usable temporary choices with a warning. State-write coordination locks are explicitly released when the owning operation returns, including errors; a duplicate descriptor inherited during another thread's process launch must not extend that operation's lock lifetime. This preserves immediate contention results without serializing independent operations or retrying failed writes.
 
 Settings writes are bounded to one MiB. User and portable saves coordinate cooperating instances, compare the loaded bytes and replace a synchronized complete temporary document. Failures before replacement preserve the prior bytes. Interruption may leave the valid prior document or the fully committed replacement, never an intentionally partial document. An editor ignoring the lock can race the final comparison and rename; this is not a filesystem-wide compare-and-swap guarantee. Root retirement is serialized with bounded state operations; retired-session writes are rejected.
 

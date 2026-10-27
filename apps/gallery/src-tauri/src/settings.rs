@@ -389,13 +389,14 @@ impl SettingsStore {
             .write(true)
             .open(parent.join("settings.lock"))
             .map_err(save_error)?;
-        lock.try_lock().map_err(|error| match error {
-            fs::TryLockError::WouldBlock => GalleryError::new(
-                "settings_conflict",
-                "Another application instance is saving preferences. Changes remain in memory.",
-            ),
-            fs::TryLockError::Error(error) => save_error(error),
-        })?;
+        let _lock =
+            crate::state_lock::StateLock::try_acquire(lock).map_err(|error| match error {
+                fs::TryLockError::WouldBlock => GalleryError::new(
+                    "settings_conflict",
+                    "Another application instance is saving preferences. Changes remain in memory.",
+                ),
+                fs::TryLockError::Error(error) => save_error(error),
+            })?;
         if read_document(&self.path).map_err(save_error)? != state.bytes {
             return Err(GalleryError::new(
                 "settings_conflict",

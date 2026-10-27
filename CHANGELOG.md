@@ -4,9 +4,11 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Measured adaptive loading and sidecar metadata updated on 2026-10-25; product packages remain unpublished.
+Full/Lite platform and launch contracts updated on 2026-10-25; product packages remain unpublished.
 
 ### Added
+
+- Compiled Full/Lite identity, a six-row native platform/dependency policy and source-bound exploratory archives for Windows, Ubuntu and macOS. Define exact native roots, independent windows, wait-by-default and bounded acknowledged detach, typed process/discovery results and explicit unavailable preparation/installation providers.
 
 - Session-scoped automatic loading with sustained pressure reduction, gradual recovery and portable Conservative/Standard overrides. Add repeatable native baseline/final operation, process-memory and separated footprint evidence without claiming unmeasured scale.
 
@@ -76,3 +78,7 @@ Measured adaptive loading and sidecar metadata updated on 2026-10-25; product pa
 - 2026-10-25: Keep metadata observation revisions separate from media identity, observe direct JSON during requested discovery and demand-read only focused expanded information. Use an ordered bounded lexical tree and quoted source/number text rather than map-based JSON conversion. Define explicit filename/index precedence, duplicate/encoding/resource policies and source-role/typed field selectors through the existing settings resolver, with lossless native-component identifiers for non-Unicode index filenames. Add owned metadata schemas, native/WebView regressions and normal-build test-hook exclusion; retain version 0.0.0 and existing package/platform qualification boundaries.
 
 - 2026-10-25: Measure the preserved qualified native baseline before loading-policy changes. Retain the four-preparation ceiling, add finite tiers, bounded latency/frame/failure evidence and held-work pressure, and persist only deliberate loadingMode through the existing resolver. Keep calibration above page/viewer lifetimes, retire stale/hidden work, preserve healthy playback and repair exceptional queue cleanup accounting. Share media-response permits per engine and expose only a native-test counter action. Elect one shared native measurement harness and hidden persistent process observer, with explicit process-cold versus OS-cache uncertainty, endpoint memory and unpublished package footprints. Qualification includes final measurement and excludes only current-slice tasks, verification and measurement receipt files from source hashing; normative tuning remains in hashed contracts/research/code. no bulk-media gate, new dependency or product release is introduced.
+
+- 2026-10-25: Resolve the initial Full/Lite platform, capability and launch contracts without treating proof archives as final installers. Keep shared browsing and all four settings destinations, distinct compiled bundle identifiers with existing shared host-local state, explicit native root precedence, and operation-owned session attribution. Elect Windows x64, Ubuntu 24.04 x64 and macOS 15 arm64 native CLI/archive proofs, retaining all other architecture/GUI/media/installation limits. Separate acknowledgement, UI lifetime and discovery outcomes; bound detach receipts and preserve unknown child lifetime after timeout. Hash normative platform/source contracts and exclude only current delivery receipts.
+
+- 2026-10-25: Native platform CI exposed filesystem-specific test assumptions, PNG compression-only drift in isolated brand comparison images and inherited descriptor retention of state locks. Preserve exact native-path codec coverage and real grant/metadata assertions on each filesystem. Require exact comparison mode/dimensions/pixels before retaining pinned PNG bytes while running the unchanged verifier and manifest checks. Explicitly release user, portable and history coordination locks on every operation return so fork/dup descriptors cannot extend completed lock ownership; retain immediate contention behavior and all existing state tests.

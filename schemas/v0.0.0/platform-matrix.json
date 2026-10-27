@@ -1,0 +1,109 @@
+{
+  "product": "local-media-gallery",
+  "version": "0.0.0",
+  "formatVersion": 1,
+  "publication": "unreleased-proof-policy",
+  "commonCapabilities": [
+    "browse",
+    "filter-sort-page",
+    "focused-viewer",
+    "metadata",
+    "user-remembered-portable-temporary-settings",
+    "manual-refresh",
+    "adaptive-loading"
+  ],
+  "recipientTools": [],
+  "providers": {
+    "open": true,
+    "resolve": true,
+    "prepare": false,
+    "install": false
+  },
+  "rows": [
+    {
+      "id": "windows-x86_64",
+      "os": "windows",
+      "arch": "x86_64",
+      "baseline": "Windows 10 22H2 or Windows 11",
+      "runtime": "Shared Evergreen WebView2 Runtime (MSVC native artifact)",
+      "display": "Interactive Windows desktop",
+      "proof": "windows-2025 native CLI archives; Windows 11 local rendered election",
+      "full": "Per-user installer by default; machine scope explicitly elected; shared WebView provisioning; MSI permitted",
+      "lite": "Extracted executable ZIP with declared host runtime",
+      "signing": "Proof unsigned; Authenticode disposition recorded by final packaging",
+      "qualification": "Exact host/artifact receipts required; other client versions unqualified"
+    },
+    {
+      "id": "linux-x86_64",
+      "os": "linux",
+      "arch": "x86_64",
+      "baseline": "Ubuntu 24.04 GNU ABI (glibc 2.39 build baseline)",
+      "runtime": "GTK3, WebKitGTK 4.1, libsoup3; distribution media plugins",
+      "display": "Accessible X11 or Wayland desktop for GUI; CLI proof does not qualify either backend",
+      "proof": "ubuntu-24.04 native CLI archives",
+      "full": "Debian package, declared package-manager dependencies; alternate distributions require separate artifacts",
+      "lite": "Executable tar.gz using declared host libraries; AppImage remains separate package qualification",
+      "signing": "Proof archive unsigned; package/repository signing disposition recorded by final packaging",
+      "qualification": "Native CLI proof only when receipt passes; GUI/media/older GNU ABI unqualified"
+    },
+    {
+      "id": "macos-aarch64",
+      "os": "macos",
+      "arch": "aarch64",
+      "baseline": "macOS 15 initial proof baseline",
+      "runtime": "OS-provided WKWebView; native Apple Silicon artifact",
+      "display": "Interactive macOS desktop for GUI",
+      "proof": "macos-15 arm64 native CLI app-bundle archives",
+      "full": "App bundle in Applications at elected user/system scope, distributed by DMG",
+      "lite": "App bundle archive adjacent to gallery; preserve bundle structure",
+      "signing": "Proof ad-hoc or unsigned as measured, unnotarized; Developer ID/notarization/stapling remain final packaging",
+      "qualification": "CLI/bundle proof only when receipt passes; GUI/quarantine/translocation and older OS unqualified"
+    },
+    {
+      "id": "windows-aarch64",
+      "os": "windows",
+      "arch": "aarch64",
+      "baseline": "Windows 11 ARM64 intended native target",
+      "runtime": "Native ARM64 Evergreen WebView2",
+      "display": "Interactive desktop",
+      "proof": "not-elected",
+      "full": "Native ARM64 installer with separate integration/provisioning proof",
+      "lite": "Native ARM64 archive with declared host runtime",
+      "signing": "Not qualified",
+      "qualification": "Unbuilt/unqualified; x64 emulation is not native ARM64 evidence"
+    },
+    {
+      "id": "linux-aarch64",
+      "os": "linux",
+      "arch": "aarch64",
+      "baseline": "Ubuntu 24.04 ARM64 intended native target",
+      "runtime": "Native GTK3/WebKitGTK 4.1/libsoup3 and GNU ABI",
+      "display": "X11 or Wayland requires qualification",
+      "proof": "not-elected",
+      "full": "Native distribution package",
+      "lite": "Native archive; portable packaging requires proof",
+      "signing": "Not qualified",
+      "qualification": "Unbuilt/unqualified"
+    },
+    {
+      "id": "macos-x86_64",
+      "os": "macos",
+      "arch": "x86_64",
+      "baseline": "macOS 15 intended Intel target",
+      "runtime": "OS WKWebView; native Intel artifact",
+      "display": "Interactive desktop",
+      "proof": "not-elected",
+      "full": "Native Intel app bundle/DMG",
+      "lite": "Native Intel app bundle archive",
+      "signing": "Not qualified",
+      "qualification": "Unbuilt/unqualified; arm64 or Rosetta results do not qualify native Intel"
+    }
+  ],
+  "limits": [
+    "Proof artifacts are not published product packages or final installers.",
+    "Actual receipts distinguish native CLI, rendered browsing, media and installation evidence.",
+    "Older Linux compatibility requires an older ABI build and native proof; Ubuntu 22.04/Debian 12 are not qualified by Ubuntu 24.04 output.",
+    "Host-local preferences/history may be shared by both editions; recipient state never requires sender state.",
+    "Missing Linux dynamic libraries can fail before main; archive prerequisite guidance covers that boundary."
+  ]
+}

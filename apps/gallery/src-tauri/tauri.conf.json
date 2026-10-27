@@ -3,16 +3,44 @@
   "productName": "Local Media Gallery",
   "version": "0.0.0",
   "identifier": "tech.shruggie.local-media-gallery",
-  "build": { "frontendDist": "../out" },
+  "build": {
+    "frontendDist": "../out"
+  },
   "app": {
-    "windows": [{ "label": "main", "title": "Local Media Gallery", "width": 1200, "height": 800, "minWidth": 480, "minHeight": 480 }],
+    "windows": [
+      {
+        "label": "main",
+        "title": "Local Media Gallery",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 480,
+        "minHeight": 480
+      }
+    ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http://127.0.0.1:*; media-src http://127.0.0.1:*; connect-src ipc: http://ipc.localhost; font-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'",
-      "capabilities": [{ "identifier": "main-window", "windows": ["main"], "permissions": ["core:default"] }]
+      "capabilities": [
+        {
+          "identifier": "main-window",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "core:default"
+          ]
+        }
+      ]
     }
   },
   "bundle": {
     "active": false,
-    "icon": ["../../../brand/kit/icons/windows/classic/app.ico", "../../../brand/kit/icons/apple/macos/AppIcon.icns", "../../../brand/kit/icons/web/favicon-32x32.png"]
+    "icon": [
+      "../../../brand/kit/icons/windows/classic/app.ico",
+      "../../../brand/kit/icons/apple/macos/AppIcon.icns",
+      "../../../brand/kit/icons/web/favicon-32x32.png"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "15.0"
+    }
   }
 }

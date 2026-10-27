@@ -37,6 +37,9 @@ jobs:
             .local/qualification.json
             .local/native-results.json
             .local/normal-results.json
+            .local/launch-results.json
+            .local/proof-results.json
+            .local/proof-build-*/*-proof.zip
             .local/site-artifact.json
             .local/site-browser.json
           include-hidden-files: true

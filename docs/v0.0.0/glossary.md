@@ -55,6 +55,11 @@ Definitions apply to this specification. Product-specific terms are defined loca
 | Webview | A native application's embedded web-content rendering surface, which has platform runtime dependencies without requiring a user-selected browser application | [Tauri process model](https://tauri.app/concept/process-model/), [dependency boundary](architecture.md#dependency-and-build-boundaries) |
 | XDG locations | Linux user directory conventions separating configuration, persistent state and disposable caches | [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir/latest/), [installed locations](configuration-and-state.md#installed-locations) |
 
+| ABI | Application binary interface, including native calling/linking and library compatibility; a newer Linux build does not establish compatibility with an older glibc | [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html), [platform matrix](installation-and-distribution.md#initial-platform-and-dependency-matrix) |
+| Startup acknowledgement | A bounded matching receipt that a detached child's main-window bridge and initial request are ready; distinct from discovery completion | [Process lifetime](interfaces-and-contracts.md#native-command-syntax-and-process-lifetime) |
+| Native path encoding | Exact Windows UTF-16LE code-unit bytes or Unix filesystem bytes, separate from a display label | [Rust OsStr](https://doc.rust-lang.org/std/ffi/struct.OsStr.html), [machine results](interfaces-and-contracts.md#machine-results-and-exit-codes) |
+| Proof archive | An identified exploratory payload with exact inventory and extracted native acceptance; it is not a final installer or published product release | [Package policy](installation-and-distribution.md#package-and-installation-policy) |
+
 ## Maintaining terminology
 
 Major releases require a rescan of the complete documentation for technical vocabulary. Update definitions, primary references and local usage links together. Retained versions must keep definitions consistent with their own contracts; a newer meaning must not silently replace an older release's terminology.

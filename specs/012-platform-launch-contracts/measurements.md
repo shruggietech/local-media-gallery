@@ -1,0 +1,76 @@
+# S012 Measurement and Proof Receipts
+
+## Preliminary Windows integration (2026-10-25)
+
+Preserved .local/s012-preliminary-proof.json and .local/s012-preliminary-launch.json. Both normal archives passed 10 extracted CLI/integrity checks under empty PATH; 6 actual  Windows native-test launch groups passed. Debug normal binary logical bytes 18,669,568 per edition, proof archive 7,921,405 Full / 7,921,013 Lite, extracted payload 22,886,133 Full / 22,886,138Lite. Shared WebView2 version-directory909,827,702 logical bytes, explicitly non-marginal and excluding system libraries. No embedded Authenticode certificate table; final installer/optional tool sizes unavailable/not applicable. These are preliminary method/integration receipts on the then-current source, not final S012 qualification or clean-machine/install evidence. Final source/binary/hosted receipts follow after qualification.
+
+## Initial accepted local proof before hosted corrections
+
+Source d7b7b19a787e8b008af321c52591189bfb7dcdd6a6c5aa212ef56c56f1b64dac, 1,000 files. Preparation 38.242 s, qualification 203.859 s, combined 242.101 s. Native Windows host; normal debug artifacts, not final installer sizes. Each archive passed 10 empty-PATH finite/integrity checks after exact extraction/relocation; both normal ordinary windows passed listener/private-hook exclusion.
+
+| Edition | Executable bytes | Archive bytes | Extracted bytes | Binary SHA256 | Archive SHA256 |
+| --- | --- | --- | --- | --- | --- |
+| full | 18669056 | 7920057 | 22885797 | fc8af6a430a7aea933042c6054c190c977809f0fd47a34e21c631489be30916a | 7c291ffec42ad28bdeef660f99e6473030b52670d3aedab4eeee7c9bc8f07ffc |
+| lite | 18669056 | 7921489 | 22885802 | 60e3b829ad7bd612693860c49b523f50465cf2ae78f0da0d6c8bedc1ad6e6ce7 | 52a79b621e995b9085888f954e7e673e009673dddb64853da3e96f68a1d04a2f |
+
+Shared runtime observation: {"basis":"native version probe; GUI initialization not certified","bytes":null,"provider":"WebView2","status":"available","version":"155.0.4283.62"}. Footprint: {"status":"measured","bytes":"909827702","basis":"Logical installed WebView2 version-directory bytes; shared, excludes Windows system libraries, not marginal download"}. No embedded Authenticode certificate table observed; PE imports captured in the receipt. Final installer unavailable and optional tools not applicable. Preserve earlier preliminary/failed receipts separately.
+
+## Accepted corrected local proof
+
+Source 1831abfb52c71eba111f26d2d9a58366143c71b15e3ea6821ecba53311da73d6 (1002 files). Preparation 42.789 s; qualification 213.719 s; combined 256.508 s. All local checks pass, including corrected filesystem fixtures and strict comparison-pixel equivalence.
+
+| Edition | Executable bytes | Archive bytes | Extracted bytes | Binary SHA256 | Archive SHA256 |
+| --- | --- | --- | --- | --- | --- |
+| full | 18669056 | 7920473 | 22885797 | 0eb08a8cd994d794e76bd2228547d789a4fa86fb5e8a819b3b977e8cc37ed1f4 | 62f57881ccf6189358a1fdab029c440d2ddfb32a08c0e8c1fa694109a1bdf35a |
+| lite | 18669056 | 7921374 | 22885802 | 5524e1df3b276795b2104dca4f526eee41a1b9ec1b70f5e400fcbf8beb0c82cb | a43a87924f83af5c48b9e4c41663aa4a6eeb8b0a078c956e96793676960e0d93 |
+
+Runtime remains separately observed shared WebView2, 909827702 logical bytes; not a marginal download or complete system-library inventory. No final installers or optional media tools.
+
+## Accepted native state corrections
+
+Source 812bc5c0109f7a16cef9b9d4ec523c3054e99e5c8b04a6be462871c717ec3086 (1003 files). Preparation 42.94 s; qualification 207.945 s; combined 250.885 s. All14local checks pass with48Full/48Lite state/shell tests; native Unix alias and inherited-descriptor semantics require their own hosted acceptance.
+
+| Edition | Executable bytes | Archive bytes | Extracted bytes | Binary SHA256 | Archive SHA256 |
+| --- | --- | --- | --- | --- | --- |
+| full | 18676736 | 7923512 | 22893477 | a3dbea712c869de2910ab4e8ce7e7c6364d0e4f41d308b91d680ef4a7b0b6c2c | 31edaa082ab8d3445ead69a6981b2742f42fc5b0f43ee8ee957be1d691579b82 |
+| lite | 18676736 | 7921479 | 22893482 | 6202f2a0fa26220c12eec06d99f64ae43208bb19205d8db3f1599ed87f38b292 | b29a11683675013c9c24fa77429a640b5ca21057d8a6b15427afda3cbc81c045 |
+
+## Accepted compiled-target local proof
+
+Source 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003 files), terminal 2026-10-26T06:09:18.468Z. Preparation 39.974s; qualification 201.046s; combined 241.02s. All14local checks pass.
+
+| Edition | Executable bytes | Archive bytes | Extracted bytes | Binary SHA256 | Archive SHA256 |
+| --- | --- | --- | --- | --- | --- |
+| full | 18677248 | 7923654 | 22893989 | ad4793ae2b6ae5c85f9f22c253936e13b2d9817f549b1766ccb681068dd834f4 | 1751aedc74d302c3a717a29b9b39a51881e11be4274b5bbd42bf2ba3a99b382f |
+| lite | 18677248 | 7921672 | 22893994 | 256610654a90aa56c7da66bd66ba5e2e2f39ca11435601209bc87024166420a3 | 3a05e831daf0aae7c83205f59ef46258862313b4a8821e6b8a9d153e33533b39 |
+
+Shared runtime directory remains909827702logical bytes, separately observed and not marginal download or complete system closure. Native Linux/macOS acceptance remains tied to its own hosted receipts.
+
+## Accepted hosted native proof (2026-10-27)
+
+[Qualification run 40450500747](https://github.com/shruggietech/local-media-gallery/actions/runs/40450500747) passed all five elected checks for implementation 34d710f612a629e2ea917938ab23f3c36a8d8eef, tested merge revision 30cfd5cdd41bee83b3ac8cf295fe44db561f27a1 and accepted source 839c3713f5b6fb5dbe56ac2bb3fff9bcdab1334f908ba33cdcc44e5eb09653ab (1003 files). Independent downloaded-archive read-back checked exact archive bytes/hashes, entries, payload bytes/hashes, native tar modes, embedded proof identities/inventory and macOS bundle metadata. Each normal extracted Full/Lite artifact passed native CLI/provenance/integrity checks on its own runner; no foreign executable was run on Windows.
+
+| Scope | Preparation seconds | Qualification seconds | Combined seconds |
+| --- | --- | --- | --- |
+| repository | 15.29 | 1.232 | 16.522 |
+| product-windows | 609.356 | 133.809 | 743.165 |
+| product-linux | 357.053 | 37.24 | 394.293 |
+| product-macos | 564.041 | 104.025 | 668.066 |
+| website | 78.995 | 58.274 | 137.269 |
+
+| Target | Edition | Checks | Binary bytes | Archive bytes | Extracted bytes | Binary SHA256 | Archive SHA256 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| x86_64-pc-windows-msvc | full | 10 | 18596864 | 7925715 | 22825810 | 2c422b41990e9d099d9942edc9fbfbabc93a7acbaeafb1154bb5366c36902ba3 | 2d97a8b468c226168341c6ac2e2707cf619eaa60542472b5439868768b9ba277 |
+| x86_64-pc-windows-msvc | lite | 10 | 18596864 | 7922897 | 22825815 | 6b6f2db5ee46b9dbd7e74ddae0d9c7ad68ceaedba25133b7649a2655cbf93701 | 7a4594b3d9f6bab381ff1d0b115b521b77c100b01fae44e4c05d90f7723b0daa |
+| x86_64-unknown-linux-gnu | full | 10 | 117256656 | 28376598 | 121609916 | e4760fff2747c82eb770ea57c5ea7fb5dc3ea833a55fc2f1a898b47aef4177bd | a0e856b28fc2c72140579456c1ae1a63655aafbb828184e782219453bfdba085 |
+| x86_64-unknown-linux-gnu | lite | 11 | 117256552 | 28376629 | 121609817 | 4e82a5c41e1cdc35be2ca665dc435e61f5524a6a96cab933d8eb3959264538f6 | 8c0049d5eeef392e797fdfe65c3b826718f4c0828092894e07b8d2a54ec2f8bd |
+| aarch64-apple-darwin | full | 10 | 33323896 | 9865380 | 37509793 | 4a2b84d5dec88464b32a47b859b05cd972b9de40316d9737a390085ae5f8230d | 6ac2d23c5e62ef1268349d1c3f72956213bfb645c4a8fb3e99c662a15cd4cd0f |
+| aarch64-apple-darwin | lite | 10 | 33323912 | 9867232 | 37509819 | 6beb8d19b1bb687d377338dff8a6da6f2187d251a7fc29b6a4d501da785fedcf | e5d5d1437b8dfd66281ebef668c96a7faa16f524cd4acee09ff6883a014cbadc |
+
+product-windows: runtime observation {"basis":"native version probe; GUI initialization not certified","bytes":null,"provider":"WebView2","status":"available","version":"155.0.4283.62"}. Runtime footprint {"status":"measured","bytes":"909827702","basis":"Logical installed WebView2 version-directory bytes; shared, excludes Windows system libraries, not marginal download"}.
+
+product-linux: runtime observation {"basis":"native version probe; GUI initialization not certified","bytes":null,"provider":"WebKitGTK","status":"available","version":"2.52.6"}. Runtime footprint {"status":"unavailable","bytes":null,"basis":"Attributable complete shared-runtime bytes unavailable; OS/system libraries remain separate"}.
+
+product-macos: runtime observation {"basis":"native version probe; GUI initialization not certified","bytes":null,"provider":"WKWebView","status":"available","version":"20621.3.11.11.3"}. Runtime footprint {"status":"unavailable","bytes":null,"basis":"Attributable complete shared-runtime bytes unavailable; OS/system libraries remain separate"}.
+
+These are normal debug proof artifacts, with final installer footprints unavailable and optional product tools not applicable. Windows local rendered/media acceptance is separate from hosted finite CLI/archive proof. Linux/macOS GUI/media, other architectures, older Linux ABI, macOS quarantine/translocation and clean-machine installation remain unqualified; final packages remain downstream work.
