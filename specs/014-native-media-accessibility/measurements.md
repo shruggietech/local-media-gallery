@@ -98,6 +98,16 @@ After the two CI corrections, complete headless campaign13 passed source24c2638c
 
 Run40569222067 tested source24c2638cfc541b77e935cb2282305b7bb5dec25546007ff37b2078c92fb87677, mergee347774ccfe01b15c6b160e6bc1843320d8e8a59. Repository passed: preparation29.773s, qualification2.687s, combined32.460s, terminal2026-10-27T19:27:45.460Z. Website passed: preparation67.366s, qualification52.120s, combined119.486s, terminal2026-10-27T19:29:14.486Z. Linux passed: preparation760.176s, qualification113.813s, combined873.989s, terminal2026-10-27T19:41:46.989Z. macOS passed: preparation857.122s, qualification194.939s, combined1052.061s, terminal2026-10-27T19:44:48.061Z. Independent source/binary/runtime and normal archive read-back passed Linux/macOS editions. Windows failed the older suite's unacknowledged preference transition after both native editions passed: preparation847.535s, qualification260.474s, combined1108.009s, terminal2026-10-27T19:45:50.359Z. Its later legacy groups were not run; the complete Windows scope is not accepted.
 
+## Headless campaign 14 and superseded seventh hosted campaign
+
+Complete headless campaign14 passed source009bc999269887145f167e45ff1919c0050cc979d4570ac46235946259f16aa3 (1053 files), commit8f05717. Preparation46.941s, qualification98.283s, combined145.224s; terminal2026-10-27T19:59:17.228Z. All eleven gates passed with86 Node tests; interactive observer quoting was subsequently corrected and this source is not final native acceptance. Hosted run40573649983 was canceled before native terminal results after the focused diagnostic exposed that correction. Canceled native intervals are unavailable, not accepted or zero-length qualification.
+
+## Focused legacy success and headless campaign 15
+
+Non-acceptance diagnostic40574185133 reused identified source24c2638 native binaries with harness source6c6c8a20d4df2b92f7b09ecacfc770bc75c294970781f800adb1003e94a5cb49. Its four selected scripts passed from2026-10-27T20:02:19.469Z through20:05:10.771Z (171.302s). This diagnostic interval excludes its prerequisite preparation and is not substituted for qualification.
+
+Complete headless campaign15 passed source6c6c8a20d4df2b92f7b09ecacfc770bc75c294970781f800adb1003e94a5cb49 (1053 files), commitcad5bad. Preparation45.554s, qualification96.936s, combined142.490s; terminal2026-10-27T20:08:51.344Z. All eleven gates passed with86 Node tests. Fresh complete hosted run40575065867 is pending; repository and website are green. Native acceptance and final hosted read-back remain required.
+
 ## Accounting policy
 
 Readiness includes builds/tool/fixture preparation; timed qualification begins only afterward. Retain all attempts separately, terminal timestamp authority, target660s/hard900s and15s reserve. Prior development/research is not silently included in these campaign windows. Interactive acceptance remains mandatory on isolated hosted desktops and is reported separately from headless local success.

@@ -717,8 +717,13 @@ try {
   await test('native pressure, hidden retirement and mode changes preserve sources, page and healthy focused playback',async()=>{
     await holdDecodes();
     try {
-      await select('media-filter','video');await select('media-filter','all');
+      await select('media-filter','video');await visible('document.querySelectorAll(".media-card").length===1');
+      await select('media-filter','all');await visible('document.querySelectorAll(".media-card").length===2');
+      // Pressure contracts only apply to demanded work. Keep the held image
+      // visible when automatic policy contracts its prefetch margin.
+      await js('const card=[...document.querySelectorAll(".media-card")].find(card=>card.dataset.name===arguments[0]);card.scrollIntoView({block:"center"});return true;',['image2.jpg']);
       await visible('window.__s011Held.length>0');
+      await visible('Number(document.querySelector(".media-grid")?.dataset.activeLoads)>0');
       await visible('Number(document.querySelector(".media-grid")?.dataset.loadingLimit)===1');
       await js('Object.defineProperty(document,"visibilityState",{configurable:true,get:()=>"hidden"});document.dispatchEvent(new Event("visibilitychange"));return true;');
       await visible('document.querySelectorAll(".media-grid img[src],.media-grid video[src]").length===0');
@@ -782,7 +787,11 @@ try {
 } catch (error) {
   await mkdir(path.join(root, '.local'), { recursive: true });
   await writeFile(path.join(root, '.local/native-failure.log'), `${error.stack}\n${diagnostics}`);
-  if (session) { try { await writeFile(path.join(root, '.local/native-focus-failure.json'), JSON.stringify(await js('return {hasFocus:document.hasFocus(),active:{tag:document.activeElement?.tagName,id:document.activeElement?.id,classes:document.activeElement?.className},filter:document.getElementById("media-filter")?.value,count:document.querySelectorAll(".media-card").length}'),null,2)+'\n'); } catch {} }
+  if (session) { try {
+    const observation=await js('const grid=document.querySelector(".media-grid"),scroll=document.querySelector(".bb-app-frame__scroll");return {hasFocus:document.hasFocus(),visibility:document.visibilityState,active:{tag:document.activeElement?.tagName,id:document.activeElement?.id,classes:document.activeElement?.className},filter:document.getElementById("media-filter")?.value,mode:document.getElementById("loading-mode")?.value,viewport:{width:innerWidth,height:innerHeight},scroll:scroll&&{top:scroll.scrollTop,rect:scroll.getBoundingClientRect().toJSON()},grid:grid&&{...grid.dataset},held:window.__s011Held?.length,cards:[...document.querySelectorAll(".media-card")].slice(0,12).map(card=>({name:card.dataset.name,rect:card.getBoundingClientRect().toJSON(),images:[...card.querySelectorAll("img")].map(image=>({loaded:image.naturalWidth>0,source:Boolean(image.getAttribute("src"))}))}))}');
+    await writeFile(path.join(root,'.local/native-focus-failure.json'),JSON.stringify(observation,null,2)+'\n');
+    console.error('Native failure observation: '+JSON.stringify(observation));
+  } catch {} }
   if (session) { try { await writeFile(path.join(root, '.local/native-failure.png'), Buffer.from(await request(`/session/${session}/screenshot`), 'base64')); } catch {} }
   throw error;
 } finally {

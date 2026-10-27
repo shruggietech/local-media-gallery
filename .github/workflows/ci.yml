@@ -71,6 +71,9 @@ jobs:
             .local/runtime-fixture.json
             .local/runtime-session-*/*.png
             .local/native-results.json
+            .local/native-failure.log
+            .local/native-focus-failure.json
+            .local/native-failure.png
             .local/preparation-results.json
             .local/launch-results.json
             .local/measurement.json

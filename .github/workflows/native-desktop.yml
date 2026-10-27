@@ -71,6 +71,9 @@ jobs:
           path: |
             .local/qualification.json
             .local/native-results.json
+            .local/native-failure.log
+            .local/native-focus-failure.json
+            .local/native-failure.png
             .local/normal-results.json
             .local/launch-results.json
             .local/proof-results.json
@@ -153,6 +156,9 @@ jobs:
             .local/runtime-diagnostic.json
             .local/legacy-diagnostic.json
             .local/native-results.json
+            .local/native-failure.log
+            .local/native-focus-failure.json
+            .local/native-failure.png
             .local/preparation-results.json
             .local/launch-results.json
             .local/measurement.json
