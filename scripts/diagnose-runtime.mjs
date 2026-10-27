@@ -27,7 +27,7 @@ let restore;
 console.log('DIAGNOSTIC ONLY: prior compiled application and current harness; not final-source qualification.');
 try{
  restore=await prepareRuntimeDesktop();
- try{await node(path.join(root,'scripts/test-runtime.mjs'),['--diagnostic-style'],{env:{...environment,GALLERY_TEST_BINARY:binary,GALLERY_TEST_EDITION:'full'}});}catch(e){receipt.campaignFailure=e.message;}
+ try{await node(path.join(root,'scripts/test-runtime.mjs'),['--diagnostic-style',...(process.platform==='darwin'?['--diagnostic-source']:[])],{env:{...environment,GALLERY_TEST_BINARY:binary,GALLERY_TEST_EDITION:'full'}});}catch(e){receipt.campaignFailure=e.message;}
  receipt.campaign=JSON.parse(await readFile(path.join(root,'.local/runtime-results-full.json')));
  if(process.platform==='darwin')await diagnoseMacVideo();
  await verifyRuntimeFixture(fixture);assert.equal(digest(await readFile(binary)),receipt.binary.sha256);

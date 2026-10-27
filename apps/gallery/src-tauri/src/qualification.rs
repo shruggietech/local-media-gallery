@@ -48,6 +48,16 @@ pub async fn test_native_qualification(
             let (send, receive) = tokio::sync::oneshot::channel();
             window
                 .with_webview(move |webview| {
+                    if action == "accessibility" {
+                        if let Some(root) = unsafe { macos::remote_root(webview.inner()) } {
+                            // Native AX requests may call back into AppKit. Leave its
+                            // main loop free while the bounded client walks the tree.
+                            std::thread::spawn(move || {
+                                let _ = send.send(Ok(unsafe { macos::remote_tree(root) }));
+                            });
+                            return;
+                        }
+                    }
                     let result =
                         unsafe { macos::observe(webview.inner(), &action, key.as_deref()) };
                     let _ = send.send(result);
@@ -107,17 +117,20 @@ mod macos {
             }
         }
     }
-    unsafe fn remote_tree(webview: &AnyObject) -> Option<Value> {
+    pub unsafe fn remote_root(pointer: *mut std::ffi::c_void) -> Option<usize> {
         unsafe {
+            let webview = &*(pointer as *mut AnyObject);
             // Test-only WebKit client bridge, matching WebKitTestRunner. AppKit's
             // NSAccessibilityRemoteUIElement is a provider proxy, not an AXUIElement.
-            if !supports(webview, sel!(_remoteAccessibilityChildToken)) {
-                return None;
-            }
             let _: Option<Retained<AnyObject>> =
                 msg_send![webview, accessibilityAttributeValue:&*NSString::from_str("AXRole")];
             let token: Option<Retained<AnyObject>> =
-                msg_send![webview, _remoteAccessibilityChildToken];
+                if supports(webview, sel!(_remoteAccessibilityChildToken)) {
+                    msg_send![webview, _remoteAccessibilityChildToken]
+                } else {
+                    let class = objc2::runtime::AnyClass::get(c"NSAccessibilityRemoteUIElement")?;
+                    msg_send![class, remoteTokenForLocalUIElement:webview]
+                };
             let token = token?;
             let symbol = dlsym(
                 (-2isize) as *mut _,
@@ -132,6 +145,13 @@ mod macos {
             if root.is_null() {
                 return None;
             }
+            // Transfer this one owned CF reference to the client thread.
+            Some(root as usize)
+        }
+    }
+    pub unsafe fn remote_tree(root: usize) -> Value {
+        unsafe {
+            let root = root as *const std::ffi::c_void;
             let mut queue = VecDeque::from([(OwnedCf(root), 0usize)]);
             let mut seen = HashSet::new();
             let mut records = Vec::new();
@@ -205,9 +225,7 @@ mod macos {
                 attributes.insert("depth".into(), json!(depth));
                 records.push(Value::Object(attributes));
             }
-            Some(
-                json!({"method":"WebKit remote-token/ApplicationServices native AX client (test-only SPI)","nodes":records.len(),"records":records,"overflow":overflow,"remoteErrors":errors,"speech":"VoiceOver not exercised"}),
-            )
+            json!({"method":"WebKit remote-token/ApplicationServices native AX client (test-only SPI)","nodes":records.len(),"records":records,"overflow":overflow,"remoteErrors":errors,"speech":"VoiceOver not exercised"})
         }
     }
     #[link(name = "ApplicationServices", kind = "framework")]
@@ -316,9 +334,6 @@ mod macos {
             }
             return Ok(json!({"method":"AppKit queued NSEvent"}));
         }
-        if let Some(tree) = unsafe { remote_tree(webview) } {
-            return Ok(tree);
-        }
         let root = unsafe { Retained::retain(pointer as *mut AnyObject) }.ok_or_else(error)?;
         let mut queue = VecDeque::from([(root, 0usize)]);
         let mut seen = HashSet::new();
@@ -386,7 +401,7 @@ mod macos {
             }
         }
         Ok(
-            json!({"method":"AppKit/WKWebView provider","nodes":records.len(),"overflow":overflow,"records":records,"remoteErrors":remote_errors,"speech":"VoiceOver not exercised"}),
+            json!({"method":"AppKit/WKWebView provider","nodes":records.len(),"overflow":overflow,"records":records,"remoteErrors":remote_errors,"bridge":{"childTokenSelector":unsafe{supports(webview,sel!(_remoteAccessibilityChildToken))},"remoteClass":objc2::runtime::AnyClass::get(c"NSAccessibilityRemoteUIElement").is_some(),"clientSymbol":unsafe{!dlsym((-2isize) as *mut _,c"_AXUIElementCreateWithRemoteToken".as_ptr()).is_null()}},"speech":"VoiceOver not exercised"}),
         )
     }
 }
