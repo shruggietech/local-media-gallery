@@ -42,11 +42,17 @@ A disconnected external location must remain distinguishable from deletion. Inco
 
 **SR-07:** Diagnostics MUST identify the failing operation and useful context while avoiding unnecessary disclosure of private paths, sidecar payloads or credentials in ordinary output. A user-requested diagnostic export must describe what it includes. Logs must distinguish application version, edition and relevant runtime facts from speculation about a cause.
 
-Exact log fields, redaction defaults, export interaction and retention are U-11. No telemetry service or external submission workflow is established here. Reporting a vulnerability follows the project's [security policy](../../SECURITY.md), independently of automatic local diagnostics.
+Diagnostics retain at most 256 records and 262144 exact serialized-record bytes in memory until process exit. Oldest records are evicted with an exact decimal dropped count. No ordinary disk log is written. Context contains product/release, edition, OS/architecture, compiled target and nullable observed runtime. Records contain sequence/time, opaque operation/session/item/job identities, operation/boundary/status, stable category/code, internally defined message/recovery and nullable exact counts. Missing facts are null; counts do not pass through floating-point conversion.
+
+Categories distinguish roots/items, unsupported media, invalid/future/unavailable state, conflicts, complete/partial/cancelled preparation, helper availability/failure/timeout, cache validation and internal failures. Media errors are observed before HTTP mapping. Renderer observations accept only defined decode/playback categories for current granted items and are coalesced. Paths, credentials, raw errors/stderr, recents, settings values, media and sidecar payloads never enter ordinary reports.
+
+The gallery's Diagnostics control explicitly inspects the current process and describes export contents. Export uses a native save dialog and a new user-selected UTF-8/LF JSON file; existing output is preserved and a write failure may leave an incomplete user-selected file. The diagnostics command describes its own invocation only. Requested --diagnostics attaches a report inside the preparation operation result. No report is submitted automatically and no telemetry service is introduced. Reporting a vulnerability follows the project's [security policy](../../SECURITY.md).
+
+Cancelled/interrupted preparation preserves completed valid cache entries. Abandoned validated staging is eligible for explicit owned cleanup; incomplete/future/unrecognized records remain untouched. Use originals after cache loss or corruption. Invalid/future convenience state remains byte-preserved with in-memory defaults and recovery guidance; restoring/removing a state file is an explicit owner action, never automatic recovery.
 
 ## Open decisions
 
-U-11 owns diagnostic/export/retention details and exceptional recovery actions. The initial traversal/storage policy is defined in [gallery lifecycle](gallery-lifecycle.md#open-decisions); U-07 owns persistent-store migration and concurrency; U-08 owns handler/transport specifics. These choices must preserve bounded access, attributable failures and source preservation without adding unrelated product-use restrictions.
+U-11 diagnostic/export/retention and recovery behavior is defined above. The initial traversal/storage policy is defined in [gallery lifecycle](gallery-lifecycle.md#open-decisions); U-07 owns persistent-store migration and concurrency; U-08 owns handler/transport specifics. These choices must preserve bounded access, attributable failures and source preservation without adding unrelated product-use restrictions.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
 

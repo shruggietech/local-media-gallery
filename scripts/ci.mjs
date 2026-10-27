@@ -37,6 +37,7 @@ const record = await qualification({
     if (isProduct) {
       assert.equal(process.platform,{'product-windows':'win32','product-linux':'linux','product-macos':'darwin'}[scope]);
       await node(path.join(root, 'scripts/prepare.mjs'));
+      await node(path.join(root,'scripts/create-fixture.mjs'));
       await exportInterface();
       await cargo(['test', '--locked', '--workspace', '--no-run']);
       binaries=await buildEditions();
@@ -61,7 +62,7 @@ const record = await qualification({
   ...(isProduct ? [{
     name: 'native shell and persistent-state unit tests',
     run: () => cargo(['test', '--locked', '-p', 'local-media-gallery']),
-  }, {name:'Lite shell and state unit tests',run:()=>cargo(['test','--locked','-p','local-media-gallery','--features','lite'])}, {name:'Normal Full/Lite extracted native proof',run:()=>node(path.join(root,'scripts/test-proof.mjs'))}] : [])],
+  }, {name:'Lite shell and state unit tests',run:()=>cargo(['test','--locked','-p','local-media-gallery','--features','lite'])}, {name:'Preparation native authority/cancellation regressions',run:()=>cargo(['test','--locked','-p','gallery-core','--features','discovery-tests','--test','preparation'])}, {name:'Normal Full/Lite extracted native proof',run:()=>node(path.join(root,'scripts/test-proof.mjs'))}] : [])],
 });
 if (process.env.CI_PREPARATION_STARTED) {
   const start = new Date(process.env.CI_PREPARATION_STARTED).getTime();

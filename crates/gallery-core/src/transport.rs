@@ -49,6 +49,10 @@ struct MediaState {
 pub fn media_router(engine: Engine, host: String) -> Router {
     Router::new()
         .route("/media/{session}/{item}/{revision}", get(media))
+        .route(
+            "/thumbnail/{session}/{item}/{revision}/{interest}",
+            get(thumbnail),
+        )
         .with_state(MediaState { engine, host })
 }
 pub async fn serve_media(engine: Engine) -> std::io::Result<()> {
@@ -102,9 +106,24 @@ async fn media(
     else {
         return error(StatusCode::SERVICE_UNAVAILABLE);
     };
-    let opened =
-        tokio::task::spawn_blocking(move || state.engine.open_media(&session, &item, &revision))
-            .await;
+    let diagnostics = state.engine.diagnostics();
+    let source_context = (session.clone(), item.clone());
+    let opened = tokio::task::spawn_blocking(move || {
+        state
+            .engine
+            .open_media(&session, &item, &revision)
+            .inspect_err(|e| {
+                state.engine.diagnostics().scoped(
+                    crate::diagnostics::Event::from_code(&e.code),
+                    None,
+                    Some(&session),
+                    Some(&item),
+                    None,
+                    None,
+                )
+            })
+    })
+    .await;
     let Ok(Ok(resource)) = opened else {
         return error(StatusCode::NOT_FOUND);
     };
@@ -153,13 +172,73 @@ async fn media(
     }
     let mut file = tokio::fs::File::from_std(resource.file);
     if file.seek(std::io::SeekFrom::Start(offset)).await.is_err() {
+        diagnostics.scoped(
+            crate::diagnostics::Event::MediaRead,
+            None,
+            Some(&source_context.0),
+            Some(&source_context.1),
+            None,
+            None,
+        );
         return error(StatusCode::INTERNAL_SERVER_ERROR);
     }
     let stream = ReaderStream::with_capacity(file.take(length), 64 * 1024)
         .take_until(resource.cancel.cancelled_owned())
         .map(move |result| {
             let _lease = &permit;
+            if result.is_err() {
+                diagnostics.record(crate::diagnostics::Event::MediaRead);
+            }
             result
         });
     builder.body(Body::from_stream(stream)).unwrap()
+}
+
+async fn thumbnail(
+    State(state): State<MediaState>,
+    Path((session, item, revision, interest)): Path<(String, String, String, String)>,
+    headers: HeaderMap,
+) -> Response<Body> {
+    let fail = |status| {
+        Response::builder()
+            .status(status)
+            .header("Cache-Control", "no-store")
+            .body(Body::empty())
+            .unwrap()
+    };
+    if headers.get("host").and_then(|v| v.to_str().ok()) != Some(state.host.as_str()) {
+        return fail(StatusCode::FORBIDDEN);
+    }
+    let origin = headers
+        .get("origin")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    if headers.contains_key("origin") && origin.as_deref().is_none_or(|o| !allowed_origin(o)) {
+        return fail(StatusCode::FORBIDDEN);
+    }
+    let Some(service) = state.engine.inner.preparation.lock().unwrap().upgrade() else {
+        return fail(StatusCode::NOT_FOUND);
+    };
+    let Ok(permit) = service.validation_permit() else {
+        return fail(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let result = tokio::task::spawn_blocking(move || {
+        service.lookup_interest(&session, &item, &revision, &interest, permit)
+    })
+    .await;
+    let Ok(Ok(Some(png))) = result else {
+        return fail(StatusCode::NOT_FOUND);
+    };
+    let mut response = Response::builder()
+        .status(200)
+        .header("Cache-Control", "no-store")
+        .header("Content-Type", "image/png")
+        .header("Content-Length", png.len())
+        .header("X-Content-Type-Options", "nosniff")
+        .header("Referrer-Policy", "no-referrer")
+        .header("Vary", "Origin");
+    if let Some(origin) = origin {
+        response = response.header("Access-Control-Allow-Origin", origin)
+    }
+    response.body(Body::from(png)).unwrap()
 }

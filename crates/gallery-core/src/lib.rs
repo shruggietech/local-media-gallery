@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Readonly gallery sessions. Display labels never authorize filesystem access.
+pub mod cache;
+pub mod diagnostics;
 mod discovery;
 mod metadata;
 mod metadata_json;
 mod native_path;
+pub mod thumbnail;
 mod transport;
 #[cfg(any(test, feature = "discovery-tests"))]
 pub use discovery::TestDiscoveryConfig;
@@ -113,6 +116,8 @@ struct Hub {
     discovery: Option<DiscoveryState>,
 }
 struct Inner {
+    diagnostics: Arc<diagnostics::DiagnosticStore>,
+    preparation: Mutex<std::sync::Weak<thumbnail::PreparationService>>,
     hub: Mutex<Hub>,
     scan: Mutex<()>,
     state_gate: Mutex<()>,
@@ -229,8 +234,21 @@ impl Engine {
         )
     }
     pub fn new() -> Self {
+        Self::with_diagnostics(diagnostics::DiagnosticContext::native(
+            "unknown", None, None,
+        ))
+    }
+    pub fn set_preparation(&self, service: &Arc<thumbnail::PreparationService>) {
+        *self.inner.preparation.lock().unwrap() = Arc::downgrade(service);
+    }
+    pub fn diagnostics(&self) -> Arc<diagnostics::DiagnosticStore> {
+        self.inner.diagnostics.clone()
+    }
+    pub fn with_diagnostics(context: diagnostics::DiagnosticContext) -> Self {
         Self {
             inner: Arc::new(Inner {
+                diagnostics: Arc::new(diagnostics::DiagnosticStore::new(context)),
+                preparation: Mutex::new(std::sync::Weak::new()),
                 hub: Mutex::new(Hub::default()),
                 scan: Mutex::new(()),
                 state_gate: Mutex::new(()),

@@ -33,6 +33,8 @@ const record = await qualification({
     { name: 'native shell argument tests', run: () => cargo(['test', '--locked', '-p', 'local-media-gallery']) },
     { name: 'Lite shell and state tests', run: () => cargo(['test','--locked','-p','local-media-gallery','--features','lite']) },
     { name: 'Windows WebView2 functional acceptance', run: () => node(path.join(root, 'scripts/test-native.mjs'), [], { env: { ...environment, GALLERY_TEST_BINARY: path.join(binaryDirectory, 'local-media-gallery-native-tests.exe') } }) },
+    { name: 'Windows rendered optional preparation and diagnostic export', run:()=>node(path.join(root,'scripts/test-preparation.mjs'),[],{env:{...environment,GALLERY_TEST_BINARY:nativeBinaries.full}}) },
+    { name: 'Native preparation authority and cancellation regressions',run:()=>cargo(['test','--locked','-p','gallery-core','--features','discovery-tests','--test','preparation']) },
     { name: 'Windows Full/Lite native launch contracts', run: () => node(path.join(root,'scripts/test-launch.mjs'),['--full',nativeBinaries.full,'--lite',nativeBinaries.lite]) },
     { name: 'Normal Full/Lite extracted archive acceptance', run: () => node(path.join(root,'scripts/test-proof.mjs')) },
     { name: 'Windows native operation and resource measurements', run: async () => {
@@ -49,6 +51,8 @@ const record = await qualification({
 record.version = '0.0.0'; record.source = source;
 if (record.result === 'pass') {
   record.native = JSON.parse(await readFile(path.join(root, '.local/native-results.json')));
+  record.preparation=JSON.parse(await readFile(path.join(root,'.local/preparation-results.json')));
+  assert.equal(record.preparation.binarySha256,record.native.binarySha256);
   record.measurement = JSON.parse(await readFile(path.join(root, '.local/measurement.json')));
   record.launch = JSON.parse(await readFile(path.join(root, '.local/launch-results.json')));
   record.proof = JSON.parse(await readFile(path.join(root, '.local/proof-results.json')));

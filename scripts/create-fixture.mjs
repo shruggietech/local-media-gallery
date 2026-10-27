@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { root, execute, python } from './run.mjs';
+import {prepareMediaTool} from './prepare-media-tool.mjs';
 
 export async function inventory(directory) {
   const records = [];
@@ -23,7 +24,7 @@ export async function createFixture() {
   const base = path.join(root, '.local/fixtures'); await mkdir(base, { recursive: true });
   const directory = await mkdtemp(path.join(base, 'gallery-'));
   await execute(python, [path.join(root, 'scripts/create-fixture.py'), directory]);
-  const ffmpeg = process.env.FFMPEG ?? 'ffmpeg';
+  const ffmpeg = (await prepareMediaTool()).binary;
   const common = ['-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=12'];
   await execute(ffmpeg, [...common, '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100', '-t', '4', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-movflags', '+faststart', '-shortest', path.join(directory, 'clip audio.mp4')]);
   await execute(ffmpeg, [...common, '-t', '3', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-an', '-movflags', '+faststart', path.join(directory, 'clip silent.mp4')]);

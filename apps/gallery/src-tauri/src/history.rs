@@ -94,8 +94,9 @@ fn validate(db: &Connection) -> Result<(), GalleryError> {
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .map_err(error)?;
     if app != APPLICATION || version != 1 {
-        return Err(error(
-            "The database identity or schema version is unsupported.",
+        return Err(GalleryError::new(
+            "history_version",
+            "The database identity or schema version is unsupported. Existing bytes were preserved.",
         ));
     }
     let mut stmt = db.prepare("PRAGMA table_info(locations)").map_err(error)?;

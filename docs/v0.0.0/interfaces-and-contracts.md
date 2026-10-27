@@ -4,7 +4,7 @@
 
 The application exposes behavior through a command entry point, its native interface and native/frontend communication. Application-owned configuration and release artifacts also form contracts. **IF-01:** Equivalent actions MUST share the same gallery semantics regardless of entry point. Opening a directory through the command must not require a different media manifest from opening it through a native chooser.
 
-The native executable is local-media-gallery (with the platform executable suffix); a Lite artifact may use a distinct filename but identifies its compiled edition. Both use the syntax and result contract below. No command installs or prepares anything until its provider is implemented.
+The native executable is local-media-gallery (with the platform executable suffix); a Lite artifact may use a distinct filename but identifies its compiled edition. Both use the syntax and result contract below. Optional preparation is implemented as described below; installation remains unavailable.
 
 ## Command behavior
 
@@ -26,7 +26,8 @@ Machine-readable output, if offered, must have a versioned documented representa
 local-media-gallery [open] [DIRECTORY] [--wait | --detach] [--json]
 local-media-gallery resolve [DIRECTORY] [--json]
 local-media-gallery capabilities [--json]
-local-media-gallery prepare [DIRECTORY] [--json]
+local-media-gallery prepare [DIRECTORY] [--thumbnails | --clean-cache] [--cache local|portable] [--ffmpeg ABSOLUTE --ffmpeg-sha256 HEX] [--diagnostics] [--json]
+local-media-gallery diagnostics [--json]
 local-media-gallery install [--json]
 local-media-gallery --help [--json]
 local-media-gallery --version [--json]
@@ -38,7 +39,7 @@ Open waits by default. Its process stays alive for the UI lifetime, then reports
 
 The private startup receipt is bounded to 16 KiB and matches a fresh nonce, operation identity, edition and actual child PID. Malformed, oversized, mismatched and slow receipts cannot extend the deadline. Timeout reports startup_timeout and an unknown child lifetime; it does not kill the child or prove work stopped. A known child exit reports startup_child_exited. Starting a second invocation creates a separate process/window/session; it does not forward roots to or reuse the first. Shared persistent state retains its existing conflict/revision rules.
 
-Prepare/install currently return capability_unavailable (exit 5), make no gallery/profile changes and never report successful work. Help/version/capabilities/resolve are finite operations. Missing prerequisites return actionable runtime/display guidance when application code can run; loader failures before main are covered by archive prerequisite guidance.
+Install currently returns capability_unavailable (exit 5), makes no gallery/profile changes and never reports successful work. Prepare previews or runs explicitly selected optional work as described below. Help/version/capabilities/resolve are finite operations. Missing prerequisites return actionable runtime/display guidance when application code can run; loader failures before main are covered by archive prerequisite guidance.
 
 ### Machine results and exit codes
 
@@ -129,3 +130,7 @@ The optional `fontScale` preference accepts `100`, `90` or `80` percent, default
 U-08 is resolved for current command, root, lifetime, snapshot and process-result contracts. Prepare/install remain explicitly unavailable providers; future provider-specific progress, outputs and persistence require their own implementation and compatible contracts. U-07 retains future cache and migration policies.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
+
+## Optional preparation and diagnostics
+
+A bare prepare previews only, without writes. --thumbnails explicitly generates; --clean-cache explicitly removes validated owned cache output. Full finite preparation requires an explicit resolved directory; Lite retains its native placement default. Helper path/hash options are paired and the path must be absolute. Generation and cleanup flags conflict. Ctrl-C/termination requests cancellation and preserves completed entries; terminal stopped results require observed helper exit. One OperationResult contains the job state, discovery identity, phase and exact observed counts, and, when requested, its redacted diagnostic report. A successful preview or generation over an incomplete discovery remains partial (exit 3); success over the observed subset does not certify complete directory coverage. diagnostics describes only that invocation. Installation remains a separate unavailable provider. See [thumbnail policy](thumbnails-and-performance.md) and [diagnostic retention/export](security-and-reliability.md).

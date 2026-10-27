@@ -201,6 +201,12 @@ impl Engine {
                 hub.request.as_ref().unwrap().cancel.cancel();
                 let state = hub.discovery.as_mut().unwrap();
                 state.phase = "cancelled".into();
+                self.inner.diagnostics.discovery(
+                    &state.id,
+                    state.session_id.as_deref(),
+                    &state.phase,
+                    state.media_seen.parse().unwrap_or(0),
+                );
                 state.message = Some("Discovery cancelled. Available observations remain; Refresh to check the folder again.".into());
                 hub.sequence += 1;
             }
@@ -312,6 +318,12 @@ impl Engine {
         }
         let state = hub.discovery.as_mut().unwrap();
         state.phase = if unavailable { "unavailable" } else { "failed" }.into();
+        self.inner.diagnostics.discovery(
+            &state.id,
+            state.session_id.as_deref(),
+            &state.phase,
+            state.media_seen.parse().unwrap_or(0),
+        );
         state.message = Some(error.message.clone());
         hub.sequence += 1;
         true
@@ -727,6 +739,14 @@ impl Engine {
             .into();
         state.entries_seen = entries_seen.to_string();
         state.media_seen = media_seen.to_string();
+        if terminal.is_some() {
+            self.inner.diagnostics.discovery(
+                &state.id,
+                state.session_id.as_deref(),
+                &state.phase,
+                media_seen as u64,
+            );
+        }
         hub.sequence += 1;
         true
     }

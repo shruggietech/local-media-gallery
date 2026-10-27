@@ -10,13 +10,15 @@
     "metadata",
     "user-remembered-portable-temporary-settings",
     "manual-refresh",
-    "adaptive-loading"
+    "adaptive-loading",
+    "optional-thumbnail-jobs",
+    "process-diagnostics"
   ],
   "recipientTools": [],
   "providers": {
     "open": true,
     "resolve": true,
-    "prepare": false,
+    "prepare": true,
     "install": false
   },
   "rows": [

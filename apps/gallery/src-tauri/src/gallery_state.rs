@@ -71,6 +71,9 @@ pub fn resolve(
 }
 impl GalleryState {
     pub fn new(engine: Engine, user: SettingsStore, history: History) -> Self {
+        if let Some(event) = user.diagnostic() {
+            engine.diagnostics().record(event);
+        }
         Self {
             engine,
             user,
@@ -130,7 +133,13 @@ impl GalleryState {
                 dir,
                 self.user.envelope().test_page_size.is_some(),
             ));
+            if let Some(event) = state.portable.as_ref().and_then(|p| p.diagnostic) {
+                self.engine.diagnostics().record(event);
+            }
             if let Err(e) = root_identity(dir, path) {
+                self.engine
+                    .diagnostics()
+                    .record(gallery_core::diagnostics::Event::from_code(&e.code));
                 state.warnings.push(e.message);
                 return Ok(state);
             }
@@ -138,13 +147,21 @@ impl GalleryState {
             // Keep touch before recall because expiry can replace its revision.
             self.engine.with_current_root(id, |_| {
                 if let Err(e) = self.history.touch(path, now()) {
+                    self.engine
+                        .diagnostics()
+                        .record(gallery_core::diagnostics::Event::from_code(&e.code));
                     state.warnings.push(e.message);
                 }
                 Ok(())
             })?;
             match self.history.recall(path, now()) {
                 Ok(row) => state.remembered = row,
-                Err(e) => state.warnings.push(e.message),
+                Err(e) => {
+                    self.engine
+                        .diagnostics()
+                        .record(gallery_core::diagnostics::Event::from_code(&e.code));
+                    state.warnings.push(e.message)
+                }
             }
         }
         Ok(state)
@@ -184,6 +201,11 @@ impl GalleryState {
         let recents = match self.history.list(time) {
             Ok(rows) => rows,
             Err(e) => {
+                self.engine.diagnostics().observation(
+                    gallery_core::diagnostics::Event::from_code(&e.code),
+                    state.id.as_deref().unwrap_or(""),
+                    "",
+                );
                 warnings.push(e.message);
                 vec![]
             }
@@ -218,8 +240,14 @@ impl GalleryState {
             destinations,
         }
     }
+    pub fn diagnose(&self, e: &GalleryError) {
+        self.engine
+            .diagnostics()
+            .record(gallery_core::diagnostics::Event::from_code(&e.code));
+    }
     pub fn load(&self, id: Option<&str>) -> Result<Envelope, GalleryError> {
         self.load_with_probe(id, || {})
+            .inspect_err(|e| self.diagnose(e))
     }
     fn load_with_probe(
         &self,

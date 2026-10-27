@@ -79,7 +79,7 @@ Ubuntu 24.04 output does not establish Ubuntu 22.04, Debian 12 or older glibc co
 | Linux | Debian package to system application locations through the package manager, with declared dependencies; other distributions need their own artifacts | Executable tar.gz using host libraries; AppImage requires separate packaging qualification | Proof archive unsigned; final package/repository signing must be recorded |
 | macOS | App bundle in the elected user or system Applications directory, distributed by DMG | App bundle archive placed adjacent to the gallery, preserving bundle structure | Proof ad-hoc or unsigned as observed, unnotarized; final Developer ID, notarization and stapling remain packaging work |
 
-Current exploratory archives contain normal Full/Lite executables, required bundle resources, licenses/notices, exact payload inventories and source/artifact identity. They are not published product packages or final installers. The install and prepare providers report unavailable without making changes. No optional external tool payload is currently shipped. Package collision, upgrade, rollback and removal behavior above remains mandatory for future installers.
+Current exploratory archives contain normal Full/Lite executables, required bundle resources, licenses/notices, exact payload inventories and source/artifact identity. They are not published product packages or final installers. The install provider remains unavailable. Optional prepare previews and thumbnail generation are implemented; they never install tools or platform launchers. No optional external tool payload is shipped. Package collision, upgrade, rollback and removal behavior above remains mandatory for future installers.
 
 ### Prerequisites and footprint reporting
 

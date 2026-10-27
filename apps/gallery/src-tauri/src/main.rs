@@ -5,6 +5,7 @@ mod gallery_state;
 mod history;
 mod launch;
 mod portable;
+mod preparation;
 mod settings;
 mod state_lock;
 use discovery::DiscoveryWorker;
@@ -98,14 +99,16 @@ async fn save_settings(
     main_window(&window)?;
     let store = Arc::clone(store.inner());
     tauri::async_runtime::spawn_blocking(move || {
-        store.change(
-            request.session_id.as_deref(),
-            &request.expected_revision,
-            &request.destination,
-            request.patch,
-            request.remove.as_deref(),
-            request.clear,
-        )
+        store
+            .change(
+                request.session_id.as_deref(),
+                &request.expected_revision,
+                &request.destination,
+                request.patch,
+                request.remove.as_deref(),
+                request.clear,
+            )
+            .inspect_err(|e| store.diagnose(e))
     })
     .await
     .map_err(|_| {
@@ -126,7 +129,9 @@ async fn forget_history(
     main_window(&window)?;
     let store = Arc::clone(store.inner());
     tauri::async_runtime::spawn_blocking(move || {
-        store.forget(id.as_deref(), session_id.as_deref(), &expected_revision)
+        store
+            .forget(id.as_deref(), session_id.as_deref(), &expected_revision)
+            .inspect_err(|e| store.diagnose(e))
     })
     .await
     .map_err(|_| GalleryError::new("internal", "History could not be changed."))?
@@ -141,9 +146,11 @@ async fn reopen_recent(
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
     let store = Arc::clone(store.inner());
-    let path = tauri::async_runtime::spawn_blocking(move || store.recent_path(&id))
-        .await
-        .map_err(|_| GalleryError::new("internal", "The recent directory could not open."))??;
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        store.recent_path(&id).inspect_err(|e| store.diagnose(e))
+    })
+    .await
+    .map_err(|_| GalleryError::new("internal", "The recent directory could not open."))??;
     enqueue_open(&app, &runtime, path)
 }
 #[tauri::command]
@@ -187,6 +194,7 @@ fn startup(window: WebviewWindow, runtime: State<Runtime>) -> Result<Snapshot, G
 fn application_info(window: WebviewWindow) -> Result<launch::OperationResult, GalleryError> {
     main_window(&window)?;
     let request = launch::Request {
+        preparation: launch::PreparationOptions::default(),
         operation: launch::Operation::Capabilities,
         root: None,
         mode: launch::Mode::Wait,
@@ -273,6 +281,8 @@ async fn close_gallery(
     app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
+    app.state::<Arc<gallery_core::thumbnail::PreparationService>>()
+        .cancel_current();
     let engine = runtime.engine.clone();
     tauri::async_runtime::spawn_blocking(move || engine.close(&session_id))
         .await
@@ -289,6 +299,8 @@ fn enqueue_open(
         .worker
         .get()
         .ok_or_else(|| GalleryError::new("internal", "Discovery is unavailable."))?;
+    app.state::<Arc<gallery_core::thumbnail::PreparationService>>()
+        .cancel_current();
     worker.submit(runtime.engine.begin_open(&path));
     Ok(publish(app, runtime))
 }
@@ -313,6 +325,12 @@ fn test_discovery_control(
     config: Option<gallery_core::TestDiscoveryConfig>,
 ) -> Result<serde_json::Value, GalleryError> {
     main_window(&window)?;
+    if let Some(action) = action.strip_prefix("preparation_") {
+        return window
+            .state::<Arc<gallery_core::thumbnail::PreparationService>>()
+            .test_control(action)
+            .map(serde_json::Value::Bool);
+    }
     if action == "s011_resource_snapshot" {
         return Ok(serde_json::to_value(runtime.engine.test_resource_snapshot()).unwrap());
     }
@@ -349,7 +367,13 @@ fn run_application(
     initial: Option<PathBuf>,
     startup_receipt: Arc<Mutex<Option<launch::ReceiptTarget>>>,
 ) -> Result<i32, GalleryError> {
-    let engine = Engine::new();
+    let engine = Engine::with_diagnostics(preparation::context());
+    let service = Arc::new(gallery_core::thumbnail::PreparationService::new(
+        engine.clone(),
+        preparation::cache_root(),
+        None,
+    ));
+    engine.set_preparation(&service);
     let transport =
         std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).and_then(|listener| {
             listener.set_nonblocking(true)?;
@@ -365,6 +389,18 @@ fn run_application(
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
     #[cfg(feature = "native-tests")]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        preparation::preparation_preview,
+        preparation::preparation_start,
+        preparation::preparation_cleanup,
+        preparation::preparation_cancel,
+        preparation::preparation_status,
+        preparation::select_thumbnail_helper,
+        preparation::preparation_cancel_inspection,
+        preparation::cache_interest,
+        preparation::cache_cancel,
+        preparation::diagnostics_snapshot,
+        preparation::diagnostics_export,
+        preparation::report_media_observation,
         startup,
         operation_result,
         application_info,
@@ -383,6 +419,18 @@ fn run_application(
     ]);
     #[cfg(not(feature = "native-tests"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        preparation::preparation_preview,
+        preparation::preparation_start,
+        preparation::preparation_cleanup,
+        preparation::preparation_cancel,
+        preparation::preparation_status,
+        preparation::select_thumbnail_helper,
+        preparation::preparation_cancel_inspection,
+        preparation::cache_interest,
+        preparation::cache_cancel,
+        preparation::diagnostics_snapshot,
+        preparation::diagnostics_export,
+        preparation::report_media_observation,
         startup,
         operation_result,
         application_info,
@@ -400,7 +448,9 @@ fn run_application(
     ]);
     let mut context = tauri::generate_context!();
     context.config_mut().identifier = launch::identifier(launch::edition()).into();
+    let shutdown_service = service.clone();
     let app=builder
+        .manage(service)
         .manage(Runtime {
             engine,
             initial_root: Mutex::new(initial),
@@ -410,6 +460,8 @@ fn run_application(
             startup_receipt,
         })
         .setup(move |app| {
+            let handle=app.handle().clone();
+            app.state::<Arc<gallery_core::thumbnail::PreparationService>>().set_notify(Arc::new(move|status|{let _=handle.emit_to("main","preparation-changed",status);}));
             let settings = match app.path().app_config_dir().map(launch::shared_state_directory) {
                 Ok(directory) => {
                     #[cfg(feature = "native-tests")]
@@ -450,6 +502,7 @@ fn run_application(
         })
         .on_window_event(|window, event| {
             if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                window.state::<Arc<gallery_core::thumbnail::PreparationService>>().cancel_current();
                 let runtime = window.state::<Runtime>();
                 runtime.initial_root.lock().unwrap().take();
                 if let Some(worker) = runtime.worker.get() { worker.shutdown(); }
@@ -461,7 +514,9 @@ fn run_application(
         })
         .build(context)
         .map_err(|e|GalleryError::new("launch_failed",format!("The native application could not start: {e}. {}",launch::runtime_guidance())))?;
-    Ok(app.run_return(|_, _| {}))
+    let code = app.run_return(|_, _| {});
+    shutdown_service.shutdown();
+    Ok(code)
 }
 
 fn output(result: &launch::OperationResult, machine: bool) -> i32 {
@@ -522,6 +577,15 @@ fn main() {
     } else {
         None
     };
+    if matches!(
+        request.operation,
+        Operation::Prepare | Operation::Diagnostics
+    ) {
+        std::process::exit(output(
+            &preparation::finite(&request, id, root.as_deref()),
+            request.json,
+        ));
+    }
     if request.operation != Operation::Open {
         std::process::exit(output(
             &launch::finite(&request, id, root.as_deref()),
