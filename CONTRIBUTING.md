@@ -22,12 +22,14 @@ npm run check:docs
 npm test
 npm run build:app
 npm run check:app
-npm run qualify
+npm run qualify -- --headless
 ```
 
-These validate repository integrity, documentation structure/references, importer and JSON contracts, pure view logic, Rust discovery/access/streaming, TypeScript, brand lint/proofs, static export and actual Windows WebView2 behavior. Native testing uses twelve candidates and real Windows input/picker controls; allow the automated app to finish its interaction. No personal collection or bulk fixture is needed. Native WebDriver is feature-gated out of the normal application. The independent website uses `npm run build:site`, `npm run check:site` and `npm run test:site`. Install its pinned Chromium runtime before rendered checks.
+These headless commands validate repository/documentation integrity, importer and JSON contracts, pure view logic, Rust discovery/access/streaming, TypeScript, brand proofs, static export and normal extracted CLI archives. They do not exercise native gallery interaction. The independent website uses `npm run build:site`, `npm run check:site` and `npm run test:site`; install its pinned Chromium runtime before headless rendered checks.
 
-The exact pinned brand verifier runs in an ignored temporary copy with verified recovery bytes, Node 24.11.0 and Pillow 12.3.0, using the delivered approved proof matrix. It checks all 36 verifier conditions and the glyph validator without changing `brand/kit`. Other hosts may supply `GALLERY_PROOF_NODE` pointing to an actual native Node 24.11.0 runtime; no Linux/macOS native qualification is claimed.
+The exact pinned brand verifier runs in an ignored temporary copy with verified recovery bytes, Node 24.11.0 and Pillow 12.3.0, using the delivered approved proof matrix. It checks all 36 verifier conditions and the glyph validator without changing `brand/kit`. Other hosts may supply `GALLERY_PROOF_NODE` pointing to an actual native Node 24.11.0 runtime. Brand verification is distinct from system-WebView qualification.
+
+Interactive native tests refuse the active workstation. Run them only on explicitly isolated CI desktops; do not opt the owner workstation into that context. Hosted product scopes elect the Full/Lite system-WebView media/accessibility campaign and preserve the existing Windows browsing, preparation, launch, measurement and ordinary-build gates. Small synthetic fixtures require no personal collection. NVDA is a pinned isolated maintainer tool for Windows semantic speech-generation checks with silent output. Native WebDriver and test commands are excluded from normal product artifacts. Receipts identify each actual runtime/display/assistive condition.
 
 For release qualification, verify prerequisites before starting the qualification clock. Target 660 seconds with a 900-second hard limit and a fifteen-second provisional finalization reserve. Target-only overruns are advisory. Report preparation, qualification and combined time separately; terminal completion timestamps govern acceptance. Functional, integrity, provenance and elected checks remain mandatory. User observations normally follow releases as issues; do not invent an attended pre-release verification gate.
 

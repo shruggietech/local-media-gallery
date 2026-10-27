@@ -38,11 +38,11 @@ An extension is a discovery hint, not proof of a codec. When a format cannot be 
 
 Loading many videos must not automatically create an unbounded set of active decoders. Only the active page mounts gallery cards. Visible and nearby cards share at most four concurrent image-load/decode or video-metadata preparation admissions, with automatic pressure reduction and manual loading choices defined in [loading policy](thumbnails-and-performance.md#adaptive-loading); cached unchanged facts can be reused. Video cards use placeholders and never autoplay. Leaving a page, changing sessions or opening the focused viewer cancels obsolete work and unloads media sources.
 
-While the focused viewer is open, gallery media elements and probes are absent. Playback starts only by user action in the selected viewer; closing it or replacing the item/root stops playback and releases its source. Native controls and a named Play/Pause action provide playback. Previous/Next follow the complete filtered sort order across page boundaries. Closing restores the corresponding gallery page and focused card. Escape closes the viewer. Richer previews and autoplay preferences remain U-05. Resource adaptation must not silently change an explicit playback choice or pretend a paused item has finished playing.
+While the focused viewer is open, gallery media elements and probes are absent. Playback starts only by user action in the selected viewer; closing it or replacing the item/root stops playback and releases its source. Native controls and a named Play/Pause action provide playback. Previous/Next follow the complete filtered sort order across page boundaries. Changing the focused item announces its filename without moving navigation focus. Closing restores the corresponding gallery page and focused card. Escape closes the viewer. Richer previews and autoplay preferences remain U-05. Resource adaptation must not silently change an explicit playback choice or pretend a paused item has finished playing.
 
 ## Interaction, accessibility and feedback
 
-**BP-06:** Interactive controls MUST be keyboard operable, visibly focused and named for assistive technology. Selection, focus and playback state must not be communicated only through color. Dialog/viewer transitions must preserve a meaningful focus destination on opening and closing. Reduced-motion preferences must be respected.
+**BP-06:** Interactive controls MUST be keyboard operable, visibly focused and named for assistive technology. Selection, focus and playback state must not be communicated only through color. Dialog/viewer transitions must preserve a meaningful focus destination on opening and closing. Reduced-motion preferences must be respected. In short or zoomed windows the viewer provides scrolling to reveal essential controls and information rather than clipping its footer.
 
 Adopt WCAG AA as the accessibility target and follow the delivered brand's focus, contrast and component rules. [WCAG 2.2](https://www.w3.org/TR/WCAG22/) supplies an external reference for evaluating relevant web interface behavior; conformance requires rendered checks, not a declaration in the source. See [brand integration](brand.md) for the governed visual vocabulary.
 
@@ -50,6 +50,12 @@ The UI must distinguish loading, unsupported media, missing files and recoverabl
 
 ## Open decisions
 
-U-04 owns format/codec support, orientation and color behavior, and unsupported-media actions. U-05 retains richer previews, autoplay policy and additional navigation/customization beyond the explicit defaults above. U-13 in [overview](overview.md#open-decisions) owns editing. Choosing a media library or layout dependency does not settle these choices by implication.
+The [native qualification rows](verification-and-compatibility.md#native-media-and-accessibility-campaign) define the initial measured format, orientation, SDR color and audio boundaries. Unsupported items remain inspectable with an explanation and explicit Refresh. U-04 retains additional formats/profiles and external opening or conversion actions beyond those rows. U-05 retains richer previews, autoplay policy and additional navigation/customization beyond the explicit defaults above. U-13 in [overview](overview.md#open-decisions) owns editing. Choosing a media library or layout dependency does not settle these choices by implication.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
+
+## Media qualification boundaries
+
+Original-image orientation and color are interpreted by the native runtime. Qualification records actual dimensions and known SDR pixel samples, including embedded sRGB metadata, rather than inferring support from filename extensions. The first/default frame of a static image observation does not qualify animation. Derived PNG previews retain their separate [unmanaged color policy](thumbnails-and-performance.md#cache-identity-and-freshness).
+
+Video support is established independently for decoded frames, play/pause/seek and decoded audio graph behavior. A clip with an audio stream may contain silence; an unmuted player alone does not establish an audio signal. Physical speaker audibility, HDR and display calibration require separate observations. Elected system/format results and assistive limits are retained with [native qualification](verification-and-compatibility.md#native-media-and-accessibility-campaign).

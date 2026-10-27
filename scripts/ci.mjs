@@ -3,15 +3,18 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { root, node, cargo, execute, exportInterface, buildEditions } from './run.mjs';
+import { root, node, cargo, execute, exportInterface, buildEditions, environment } from './run.mjs';
 import { qualification } from './qualification.mjs';
 import { sourceIdentity } from './provenance.mjs';
 import assert from 'node:assert/strict';
+import {digest,validateRuntimeReceipt} from './runtime-evidence.mjs';
+import {preparePython} from './python-environment.mjs';
 
 const scope = process.argv[2];
 const productScopes=['product-windows','product-linux','product-macos'];
 const isProduct=productScopes.includes(scope);
 let binaries;
+let nativeBinaries;
 if (!['repository', ...productScopes, 'website'].includes(scope)) throw new Error('Unknown CI scope');
 const npm =
   process.env.npm_execpath ?? path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
@@ -28,12 +31,13 @@ const record = await qualification({
       scope,
       evidence:
         isProduct
-          ? 'Hosted native compile/unit/frontend/brand and extracted CLI proof, rendered browsing is separately elected'
+          ? 'Hosted native units, extracted normal CLI archives and isolated system-WebView media/accessibility qualification'
           : scope,
     };
   },
   prepare: async (context) => {
     // Workflow dependency installation is included in preparation accounting below.
+    if(scope==='repository')await preparePython(['Pillow']);
     if (isProduct) {
       assert.equal(process.platform,{'product-windows':'win32','product-linux':'linux','product-macos':'darwin'}[scope]);
       await node(path.join(root, 'scripts/prepare.mjs'));
@@ -44,6 +48,10 @@ const record = await qualification({
       await node(path.join(root,'scripts/build-proof.mjs'),['--full',binaries.full,'--lite',binaries.lite]);
       await cargo(['test','--locked','-p','local-media-gallery','--features','lite','--no-run']);
       await cargo(['clippy', '--locked', '--workspace', '--all-targets', '--', '-D', 'warnings']);
+      await node(path.join(root,'scripts/create-runtime-fixture.mjs'));
+      if(process.platform==='win32')await node(path.join(root,'scripts/prepare-screen-reader.mjs'));
+      nativeBinaries=await buildEditions({nativeTests:true});
+      await cargo(['clippy','--locked','-p','local-media-gallery','--features','native-tests','--all-targets','--','-D','warnings']);
     }
     if (scope === 'website') {
       if (process.env.GALLERY_SITE_BROWSER) await access(process.env.GALLERY_SITE_BROWSER);
@@ -62,7 +70,15 @@ const record = await qualification({
   ...(isProduct ? [{
     name: 'native shell and persistent-state unit tests',
     run: () => cargo(['test', '--locked', '-p', 'local-media-gallery']),
-  }, {name:'Lite shell and state unit tests',run:()=>cargo(['test','--locked','-p','local-media-gallery','--features','lite'])}, {name:'Preparation native authority/cancellation regressions',run:()=>cargo(['test','--locked','-p','gallery-core','--features','discovery-tests','--test','preparation'])}, {name:'Normal Full/Lite extracted native proof',run:()=>node(path.join(root,'scripts/test-proof.mjs'))}] : [])],
+  }, {name:'Lite shell and state unit tests',run:()=>cargo(['test','--locked','-p','local-media-gallery','--features','lite'])}, {name:'Preparation native authority/cancellation regressions',run:()=>cargo(['test','--locked','-p','gallery-core','--features','discovery-tests','--test','preparation'])}, {name:'Normal Full/Lite extracted native proof',run:()=>node(path.join(root,'scripts/test-proof.mjs'))},
+  {name:'Isolated Full/Lite native media and accessibility',run:()=>node(path.join(root,'scripts/test-runtime-platform.mjs'))},
+  ...(scope==='product-windows'?[
+   {name:'Existing Windows rendered browsing acceptance',run:()=>node(path.join(root,'scripts/test-native.mjs'),[],{env:{...environment,GALLERY_TEST_BINARY:nativeBinaries.full}})},
+   {name:'Existing Windows preparation and diagnostic export',run:()=>node(path.join(root,'scripts/test-preparation.mjs'),[],{env:{...environment,GALLERY_TEST_BINARY:nativeBinaries.full}})},
+   {name:'Existing Windows Full/Lite launch contracts',run:()=>node(path.join(root,'scripts/test-launch.mjs'),['--full',nativeBinaries.full,'--lite',nativeBinaries.lite])},
+   {name:'Existing Windows operation and resource measurements',run:()=>node(path.join(root,'scripts/measure-native.mjs'),['--binary',nativeBinaries.full,'--label','adaptive','--output',path.join(root,'.local/measurement.json')])},
+   {name:'Normal Windows GUI and automation exclusion',run:()=>node(path.join(root,'scripts/test-normal.mjs'))},
+  ]:[])] : [])],
 });
 if (process.env.CI_PREPARATION_STARTED) {
   const start = new Date(process.env.CI_PREPARATION_STARTED).getTime();
@@ -81,8 +97,15 @@ record.artifacts = [];
 if (record.result === 'pass' && scope === 'website')
   record.artifacts = JSON.parse(await readFile(path.join(root, '.local/site-artifact.json'))).files;
 if(record.result==='pass'&&isProduct){
+  record.runtime=JSON.parse(await readFile(path.join(root,'.local/runtime-results.json')));
+  assert.equal(record.runtime.result,'pass');assert.deepEqual(record.runtime.source,record.context.source);
+  assert.deepEqual(record.runtime.records.map(r=>r.edition).sort(),['full','lite']);
+  const fixture=JSON.parse(await readFile(path.join(root,'.local/runtime-fixture.json')));
+  for(const entry of record.runtime.records)validateRuntimeReceipt(entry,{source:record.context.source,binarySha256:digest(await readFile(nativeBinaries[entry.edition])),fixtureSha256:fixture.sha256,edition:entry.edition,platform:process.platform});
   record.proof=JSON.parse(await readFile(path.join(root,'.local/proof-results.json')));
   assert.deepEqual(record.proof.source,record.context.source);assert.equal(record.proof.revision,record.context.revision);
+  for(const entry of record.runtime.records){const proof=record.proof.records.find(p=>p.edition===entry.edition);assert.ok(proof);entry.normalProof={targetTriple:proof.targetTriple,binary:proof.binary,archive:proof.archive};}
+  await writeFile(path.join(root,'.local/runtime-results.json'),JSON.stringify(record.runtime,null,2)+'\n');
   for(const proof of record.proof.records)record.artifacts.push({path:proof.archive.path,bytes:proof.archive.bytes,sha256:proof.archive.sha256,edition:proof.edition});
 }
 

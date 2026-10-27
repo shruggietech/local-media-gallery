@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 param(
     [Parameter(Mandatory)][int]$AppProcessId,
-    [ValidateSet('window', 'focus', 'keys', 'cancel-picker', 'select-picker', 'select-file', 'save-file')][string]$Action = 'keys',
+    [ValidateSet('window', 'focus', 'keys', 'scan-keys', 'cancel-picker', 'select-picker', 'select-file', 'save-file')][string]$Action = 'keys',
     [string]$Keys,
     [string]$Directory
 )
 $ErrorActionPreference = 'Stop'
+if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { throw 'Native input requires an explicitly isolated CI desktop; active workstation focus must not be changed.' }
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -14,6 +15,26 @@ using System;
 using System.Text;
 using System.Runtime.InteropServices;
 public static class GalleryNativeInput {
+    [StructLayout(LayoutKind.Sequential)] public struct KeyboardInput { public ushort virtualKey, scanCode; public uint flags, time; public UIntPtr extraInfo; }
+    [StructLayout(LayoutKind.Sequential)] public struct MouseInput { public int x, y; public uint data, flags, time; public UIntPtr extraInfo; }
+    [StructLayout(LayoutKind.Explicit)] public struct InputUnion { [FieldOffset(0)] public KeyboardInput keyboard; [FieldOffset(0)] public MouseInput mouse; }
+    [StructLayout(LayoutKind.Sequential)] public struct Input { public uint type; public InputUnion value; }
+    [DllImport("user32.dll", SetLastError=true)] private static extern uint SendInput(uint count, Input[] inputs, int size);
+    [DllImport("user32.dll", EntryPoint="MapVirtualKeyW")] private static extern uint MapVirtualKey(uint code, uint mapType);
+    public static int InputSize() { return Marshal.SizeOf(typeof(Input)); }
+    private static Input Scan(ushort virtualKey, bool up) {
+        uint scan = MapVirtualKey(virtualKey, 0);
+        if (scan == 0) throw new InvalidOperationException("Native scan code is unavailable.");
+        return new Input { type=1, value=new InputUnion { keyboard=new KeyboardInput { scanCode=(ushort)scan, flags=8u | (up ? 2u : 0u) } } };
+    }
+    public static void SendScanKeys(string key) {
+        ushort code;
+        switch (key) { case "Tab": case "ShiftTab": code=9; break; case "Space": code=32; break; case "Escape": code=27; break; case "Enter": code=13; break; default: throw new ArgumentException("Unexpected native key."); }
+        Input[] inputs = key == "ShiftTab" ? new Input[] { Scan(16,false), Scan(code,false), Scan(code,true), Scan(16,true) } : new Input[] { Scan(code,false), Scan(code,true) };
+        int size=InputSize();
+        if (size != (IntPtr.Size == 8 ? 40 : 28)) throw new InvalidOperationException("Unexpected native INPUT layout.");
+        if (SendInput((uint)inputs.Length, inputs, size) != inputs.Length) throw new InvalidOperationException("Native SendInput did not admit every event ("+Marshal.GetLastWin32Error()+").");
+    }
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr handle);
     [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr handle, uint message, IntPtr wparam, IntPtr lparam);
     [DllImport("user32.dll", EntryPoint="SendMessageW", CharSet=CharSet.Unicode)] public static extern IntPtr ReplaceText(IntPtr handle, uint message, IntPtr wparam, string text);
@@ -46,7 +67,7 @@ $condition = [System.Windows.Automation.PropertyCondition]::new(
     [System.Windows.Automation.AutomationElement]::ProcessIdProperty, $AppProcessId)
 $window = [System.Windows.Automation.AutomationElement]::FromHandle($app.MainWindowHandle)
 [void][GalleryNativeInput]::SetForegroundWindow($app.MainWindowHandle)
-if ($Action -in @('focus', 'keys')) {
+if ($Action -in @('focus', 'keys', 'scan-keys')) {
     $focusDeadline = [DateTime]::UtcNow.AddSeconds(5)
     do {
         $focused = [GalleryNativeInput]::FocusControl($app.MainWindowHandle, [IntPtr]::Zero)
@@ -54,7 +75,8 @@ if ($Action -in @('focus', 'keys')) {
     } until ($focused -or [DateTime]::UtcNow -gt $focusDeadline)
     if (-not $focused) { throw 'Cannot confirm the application is foreground; keyboard input was withheld.' }
     if ($Action -eq 'focus') { return }
-    [System.Windows.Forms.SendKeys]::SendWait($Keys)
+    if ($Action -eq 'scan-keys') { [GalleryNativeInput]::SendScanKeys($Keys) }
+    else { [System.Windows.Forms.SendKeys]::SendWait($Keys) }
     return
 }
 $deadline = [DateTime]::UtcNow.AddSeconds(8)

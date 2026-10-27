@@ -23,6 +23,13 @@ const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, se
 const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);
+function videoErrorMessage(code: number | undefined) {
+  if (code === 1) return 'Video loading was interrupted. Refresh to check the folder again.';
+  if (code === 2) return 'This video could not be read. Refresh to check the folder again.';
+  if (code === 3) return 'This video could not be decoded. Refresh to check the folder again.';
+  if (code === 4) return 'This video format or codec is unavailable in the current runtime.';
+  return 'This video is unavailable. Refresh to check the folder again.';
+}
 type Queue = ReturnType<typeof createAdmissionQueue>;
 type LoadingPolicy = ReturnType<typeof createLoadingPolicy>;
 
@@ -96,14 +103,14 @@ const MediaCard = memo(function MediaCard({ snapshot, item, facts, updateFacts, 
       </span>
       <span className="media-caption"><span title={item.name}>{item.name}</span><StatusBadge status={facts.error || item.issue || item.stale ? 'warning' : 'neutral'}>{facts.error || item.issue ? 'Unavailable' : item.stale ? 'Not rechecked' : item.kind === 'image' ? 'Image' : 'Video'}</StatusBadge></span>
     </button>
-    {needsVideoFacts && admitted && source && !facts.error ? <video className="metadata-probe" ref={video} src={source} crossOrigin="anonymous" preload="metadata" aria-hidden="true" tabIndex={-1}
+    {needsVideoFacts && admitted && source && !facts.error ? <video className="metadata-probe" ref={video} crossOrigin="anonymous" preload="metadata" src={source} aria-hidden="true" tabIndex={-1}
       onLoadedMetadata={event => {
         const element = event.currentTarget;
         const done = settled.current; if (video.current !== element || !done) return; settled.current = null;
         updateFacts(key, { width: element.videoWidth, height: element.videoHeight, duration: element.duration });
         element.removeAttribute('src'); element.load(); done();
       }}
-      onError={event => { const done = settled.current; if (video.current !== event.currentTarget || !event.currentTarget.getAttribute('src')) return; settled.current = null; updateFacts(key, { error: 'This video format or codec is unavailable in the current runtime.' }); done?.('failure'); }} /> : null}
+      onError={event => { const done = settled.current; if (video.current !== event.currentTarget || !event.currentTarget.getAttribute('src')) return; settled.current = null; updateFacts(key, { error: videoErrorMessage(event.currentTarget.error?.code) }); done?.('failure'); }} /> : null}
   </article>;
 });
 
@@ -187,6 +194,9 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
   }, []);
   useEffect(() => {
     const element = video.current; setPlaying(false); setPlayError('');
+    // Select the configured source after the modal is connected and shown.
+    // WebKit's WebM player can fail when its first load starts on the detached node.
+    element?.load();
     return () => { if (element) { element.pause(); element.removeAttribute('src'); element.load(); } };
   }, [key]);
   useEffect(() => { const element = video.current; if (!facts.error && element?.error) element.load(); }, [facts.error, key]);
@@ -198,14 +208,14 @@ function Viewer({ snapshot, item, facts, updateFacts, expanded, toggleInformatio
   const source = mediaUrl(snapshot, item);
   return <dialog className="bb-dialog media-viewer" ref={dialog} aria-labelledby="viewer-title" aria-describedby="viewer-description" onCancel={event => { event.preventDefault(); close(); }}>
     <header className="viewer-header"><h2 id="viewer-title" title={item.name}>{item.name}</h2><div className="header-actions"><DisclosureButton variant="ghost" expanded={expanded} controls="viewer-information" onClick={toggleInformation}><Info aria-hidden="true" />Information</DisclosureButton>{scanning ? <Button variant="secondary" onClick={cancelDiscovery}>Cancel discovery</Button> : null}<Button variant="ghost" onClick={refresh} disabled={busy || scanning}><RefreshCw aria-hidden="true" />Refresh</Button><Button variant="secondary" onClick={close}>Close viewer</Button></div></header>
-    <div className="viewer-preparation"><PreparationProgress state={preparation}/></div><p id="viewer-description" className="viewer-description">Focused media. Information is available from its toggle.</p>
+    <div className="viewer-preparation"><PreparationProgress state={preparation}/></div><p id="viewer-description" className="viewer-description">Focused media. Information is available from its toggle.</p><p className="viewer-description" role="status" aria-atomic="true">{item.name}</p>
     <div className="viewer-content" data-information={expanded}>
       <div className="viewer-media">
         {item.kind === 'video'
-          ? <video key={key} ref={video} src={source} controls crossOrigin="anonymous" preload="metadata" aria-label={'Video ' + item.name}
+          ? <video key={key} ref={video} controls crossOrigin="anonymous" preload="metadata" src={source} aria-label={'Video ' + item.name}
             onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
             onLoadedMetadata={event => updateFacts(key, { width: event.currentTarget.videoWidth, height: event.currentTarget.videoHeight, duration: event.currentTarget.duration })}
-            onError={event => updateFacts(key, { error: event.currentTarget.error?.code === 3 ? 'This video could not be decoded. Refresh to check the folder again.' : 'This video format or codec is unavailable in the current runtime.' })} />
+            onError={event => updateFacts(key, { error: videoErrorMessage(event.currentTarget.error?.code) })} />
           : !facts.error ? <img key={key} src={source} alt={item.name} crossOrigin="anonymous"
             onLoad={event => updateFacts(key, { width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
             onError={() => updateFacts(key, { error: 'This image is unavailable or unsupported in the current runtime. Refresh to check the folder again.' })} /> : <ImageIcon aria-hidden="true" />}

@@ -93,3 +93,5 @@ Cleanup streams bounded per-file checks, with one worker and cancellation betwee
 Once a cached card image is validated and decoded, its covered original card source and metadata probe retire. Thumbnail dimensions remain separate from original media facts. Focused viewing opens its independent original source; releasing a card source does not certify immediate reclamation of browser-internal decoder memory.
 
 Explicit Refresh retires visible cache interests and revalidates full source content even when observed native size/timestamps and item revision are unchanged. An owned cache with only metadata and no output records is rejected without hashing original files.
+
+Original-media native qualification remains independent of the preview provider. Tagged sRGB/orientation samples and moving video/audio observations describe the elected original renderer; they do not change the unmanaged first-frame PNG policy or make an encoder a browsing prerequisite. See [native qualification](verification-and-compatibility.md#native-media-and-accessibility-campaign).

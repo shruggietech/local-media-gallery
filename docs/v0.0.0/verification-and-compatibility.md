@@ -84,7 +84,7 @@ Retained documentation must continue to describe its corresponding release even 
 
 Release notes contain short user-relevant highlights, any necessary migration action and a final link to the master changelog. Repository workflow follows the contribution/merge policy.
 
-The initial U-01/U-02 policy is [explicitly bounded by its platform rows](installation-and-distribution.md#initial-platform-and-dependency-matrix). Retained unbuilt architectures and untested runtime/installer combinations remain unqualified. Resolve U-04 before codec claims and retain measured U-10 scenario limits for numerical performance claims. Other open decisions must be resolved before their affected contracts are presented as complete. This allows scoped implementation to proceed without substituting a plan for delivered behavior.
+The initial U-01/U-02 policy is [explicitly bounded by its platform rows](installation-and-distribution.md#initial-platform-and-dependency-matrix). Retained unbuilt architectures and untested runtime/installer combinations remain unqualified. Initial media claims follow the native rows below; U-04 retains additional profiles/formats and external opening/conversion. Retain measured U-10 scenario limits for numerical performance claims. Other open decisions must be resolved before their affected contracts are presented as complete. This allows scoped implementation to proceed without substituting a plan for delivered behavior.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
 
@@ -111,3 +111,37 @@ Deterministic loading tests cover sustained latency/failure/frame pressure, held
 ## Launch and edition qualification
 
 Windows rendered acceptance exercises both compiled editions: Full chooser and normal close/lifetime result, Lite adjacent root from an unrelated working directory, explicit override, relocation with fresh recipient state, acknowledged detach with a surviving child, discovery failure/recovery, cancellation, stale-operation rejection and independent simultaneous sessions. Exact native roots and actual machine/native results validate against the owned schema. Normal Full/Lite binaries must open ordinary windows while excluding private test hooks and the automation listener. These results remain distinct from the three hosted CLI archive proofs. Original fixture media and extracted payload bytes are compared before and after acceptance. Adversarial receipt tests cover nonce/PID mismatches, size/deadline bounds, slow input, known child exit, timeout without killing the child and rejected late acknowledgement.
+
+## Native media and accessibility campaign
+
+Native media/interaction acceptance uses each elected system WebView, separately from normal extracted CLI proof and website Chromium checks. The campaign covers Windows x86_64/WebView2, Ubuntu 24.04 x86_64/WebKitGTK on an isolated X11 virtual display, and macOS 15 arm64/WKWebView. Every row requires its own source/artifact/runtime receipt. An unavailable display, accessibility provider or audio graph is a failed/unavailable check, never a codec result.
+
+The small separate corpus contains PNG, JPEG, static GIF, WebP, BMP, TIFF and AVIF candidates, all eight EXIF orientations, alpha and tagged sRGB SDR samples, damaged data, moving H264/AAC and VP9/Opus tone clips and a silent control. Actual image samples, changing decoded frames, trusted playback/pause/seek, exact original partial reads and decoded audio-graph samples establish independent observations. A successful capability hint or unmuted element is insufficient. These observations do not qualify animation, HDR/wide-gamut output, physical display calibration or speaker audibility.
+
+Native UI Automation, AT-SPI and WebKit/ApplicationServices provider-tree observations are recorded independently of DOM/axe checks. The elected Windows screen-reader campaign uses actual NVDA 2026.3 focus/item speech with an isolated profile and silence synthesizer. This establishes semantic speech generation, not audible voice quality. The macOS test-only client uses WebKit's remote accessibility token bridge to query the actual web-content provider; private API availability is checked and never replaced by DOM labels. That observation does not establish external VoiceOver speech; Linux AT-SPI client results do not establish Orca speech. Coarse/mixed stylesheet-condition emulation is identified separately from physical touch. Native default DPI/scale observations and explicit zoom/window conditions remain distinct.
+
+### Observed image and color boundaries
+
+| Elected native environment | Decoded original image samples | Retained unsupported samples |
+| --- | --- | --- |
+| Windows Server 2025 x86_64, WebView2/Chromium 155 | PNG, JPEG, static GIF, WebP, BMP, AVIF | TIFF and damaged JPEG |
+| Ubuntu 24.04 x86_64, WebKitGTK 2.52.6, X11/Xvfb | PNG, JPEG, static GIF, WebP, BMP | AVIF, TIFF and damaged JPEG |
+| macOS 15 arm64, WKWebView framework 20621.3.11.11.3 | PNG, JPEG, static GIF, WebP, BMP, TIFF, AVIF | Damaged JPEG |
+
+All three environments interpret the eight synthetic JPEG EXIF orientations with the expected dimensions/corner order and decode the known alpha, tagged sRGB SDR and panorama samples. These are finite representative original-image observations. They do not qualify every file variation within a format, animated images, wide-gamut/HDR output or a physical display's profile/calibration. Unsupported and damaged items retain their identity and information; a transport failure cannot certify unsupported decoding.
+
+### Audio and presentation boundaries
+
+| Elected runtime | Moving playback, pause, seek and original partial reads | Audio observation |
+| --- | --- | --- |
+| Windows Server 2025/WebView2 | MP4/H264 with AAC, MP4/H264 without audio, WebM/VP9 with Opus | Media-element tone graphs and no-audio control |
+| Ubuntu 24.04/WebKitGTK with the recorded GStreamer plugins | Same three finite samples | Media-element tone graphs and no-audio control |
+| macOS 15/WKWebView | Same three finite samples, with explicit post-mount source initialization | AAC media-element graph and no-audio control; independent exact-original Opus buffer graph |
+
+These rows require the corresponding exact-source per-edition runtime receipt. Builds, mixed-source diagnostics and another platform's result cannot qualify a row. Mac WebM frame comparisons use native-view snapshots with a central decoded-video crop because this WebKit version blocks canvas read-back. Blank or grayscale activity and changes outside that crop cannot pass the known colored-pattern observation.
+
+Video observations distinguish changing native frames and seeking from audio measurement. The finite clips use 160x96 YUV420 video at 12 frames per second for four seconds: H264/AAC and VP9/Opus with a mono 48kHz 440Hz tone, plus an H264 control without an audio track. Media-element graph samples identify native decoded tone behavior and the no-audio control where that observer works. On macOS, the elected VP9/Opus audio observation instead hashes the exact granted original and measures a native decoded-buffer graph after closing its ordinary video viewer. That independent graph cannot certify media-element audio output or synchronized audio seeking. All audio observations route through silent gain and do not establish physical speaker audibility. [WebKit's WebM audio observer issue](https://bugs.webkit.org/show_bug.cgi?id=276813) describes a relevant engine boundary; actual runtime receipts, rather than that report, establish each result.
+
+Presentation observations identify native reduced-motion preferences, both rendered themes, the host's reported default scale/DPR, and native zoom 2 in a 480x600 logical window. Controls can be scrolled into view without footer clipping. Coarse/mixed stylesheet branches retain 44 CSS-pixel targets at the 80% text preset, while fine-pointer desktop controls keep their compact defaults. These conditions do not qualify physical touch hardware, every system display-scale setting or every assistive reader configuration.
+
+All focus-changing acceptance is restricted to explicitly isolated CI desktops. Local `npm run qualify -- --headless` runs repository, app, website, unit, integrity and finite normal-archive checks without opening the gallery or injecting input. Its receipt is headless evidence only. Existing Windows rendered browsing, preparation/export, launch, measurements and ordinary-build exclusion remain mandatory on the isolated Windows runner; the new runtime campaign runs both editions on each elected OS. No active owner workstation or attended owner walkthrough is required.

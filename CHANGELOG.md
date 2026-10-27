@@ -4,9 +4,13 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Optional thumbnail jobs and process diagnostics updated on 2026-10-27; product packages remain unpublished.
+Native media/accessibility qualification and optional thumbnail/diagnostic work updated on 2026-10-27; product packages remain unpublished.
 
 ### Added
+
+- Native system-WebView qualification with an independent orientation/SDR/tone corpus, actual playback/seek/range/audio observations, native accessibility clients and isolated NVDA semantic speech evidence. Current-item changes gain a concise announcement, short/zoomed viewers retain reachable scrolling, coarse-input disclosures/cards retain minimum targets, and interrupted/read failures remain distinct from unavailable codecs.
+- Initialize focused video sources after the viewer is connected and shown, with CORS/preload configured before source assignment. Native qualification distinguishes Mac WebM snapshot/buffer observations from media-element output and waits for every essential native accessible control.
+- Qualification decisions (2026-10-27): reuse the embedded three-platform driver, distinguish native input/provider/speech evidence, preserve ordinary artifact hook exclusion and run all focus-changing tests on isolated CI desktops. Local qualification is explicitly headless; existing native gates remain mandatory remotely. Manual isolated diagnostics can reuse identified prior test artifacts, keeping their compiled source separate from the current harness and excluding those mixed-source results from final acceptance. Repository readiness prepares its pinned image-test dependency in the shared isolated Python environment before the qualification clock starts.
 
 - Compiled Full/Lite identity, a six-row native platform/dependency policy and source-bound exploratory archives for Windows, Ubuntu and macOS. Define exact native roots, independent windows, wait-by-default and bounded acknowledged detach, typed process/discovery results and explicit unavailable preparation/installation providers.
 

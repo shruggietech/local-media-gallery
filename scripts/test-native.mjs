@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+import {requireIsolatedDesktop} from './desktop-isolation.mjs';
+requireIsolatedDesktop();
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { readFile, readdir, writeFile, mkdir, mkdtemp, copyFile, rename, rm } from 'node:fs/promises';
@@ -52,7 +54,11 @@ async function openSettled(directory) {
   return until(async()=>{const s=await snapshot();return s.discovery?.id===id&&!['opening','scanning'].includes(s.discovery.phase)?s:false;},'Requested folder terminal outcome');
 }
 const visible = script => until(() => js(`return Boolean(${script})`), script);
-const click = text => js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b)throw Error("Missing button "+arguments[0]); b.click(); return true;', [text]);
+async function click(text) {
+  await js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b)throw Error("Missing button "+arguments[0]); b.click(); return true;', [text]);
+  // Let React commit the action and finish queued viewer focus restoration.
+  await js('return await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
+}
 const open = name => js('const card=[...document.querySelectorAll(".media-card")].find(c=>c.dataset.name===arguments[0]); if(!card)throw Error("Missing card"); card.querySelector("button").click(); return true;', [name]);
 const select = (id, value) => js('const el=document.getElementById(arguments[0]); el.value=arguments[1]; el.dispatchEvent(new Event("change",{bubbles:true})); return true;', [id, value]);
 const input = (action, extra = []) => execute('C:/Program Files/PowerShell/7/pwsh.exe', ['-NoProfile', '-NonInteractive', '-File', path.join(root, 'scripts/native-input.ps1'), '-AppProcessId', String(child.pid), '-Action', action, ...extra]);
@@ -208,7 +214,10 @@ try {
     await rm(path.join(directory,anchor)); await click('Refresh'); await until(async()=> (await snapshot()).status==='complete','Removed anchor completion');
     await visible('document.getElementById("page-jump").value==="2" && [...document.querySelectorAll(".media-card")].some(c=>c.dataset.name==="image13.jpg")');
     assert.equal(await js('return document.body.textContent.includes("previous location changed")'),true);
-    await select('page-size','48'); await click('Hide controls'); await openSettled(fixture.directory); await visible('document.querySelectorAll(".media-card").length===12');
+    await select('page-size','48'); await click('Hide controls');
+    await until(async()=>{const saved=JSON.parse(await readFile(settingsFile));return saved.pageSize===48&&saved.controlsExpanded===false;},'Saved collapsed controls before changing settings scope');
+    await openSettled(fixture.directory); await visible('document.querySelectorAll(".media-card").length===12');
+    await visible('[...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="Show controls" && !b.disabled)');
   });
   await test('state save destination is visible before opening controls', async () => {
     assert.equal(await js('return Boolean(document.querySelector("[data-save-destination]"))'), true, 'A reader must see where explicit choices will be saved even with controls collapsed');
@@ -223,10 +232,12 @@ try {
   });
   await test('native folder picker cancellation preserves session', async () => {
     const before = await snapshot();
+    const controlsBefore=await js('return document.getElementById("collection-controls")!==null');
     await js('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Choose folder").focus(); return true;');
     await input('keys', ['-Keys', '{ENTER}']); await input('cancel-picker');
     await visible('!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.includes("Choose folder")).disabled');
     assert.equal((await snapshot()).sessionId, before.sessionId);
+    assert.equal(await js('return document.getElementById("collection-controls")!==null'),controlsBefore,'Picker cancellation preserves presentation');
   });
   await click('Show controls');
   await test('sorting, filters and scoped empty state', async () => {
@@ -405,7 +416,10 @@ try {
     await select('page-size','48'); await select('media-sort','name'); await select('media-direction','asc');
     await visible('document.querySelectorAll(".media-card").length===12');
     await click('Hide controls');
-    await pause(300);
+    // Compact desktop density has a fixed reference size; smaller windows may wrap.
+    await js('return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",{action:"presentation",width:1280,height:900,zoom:1})');
+    await visible('window.innerWidth>=1200 && window.innerHeight>=800');
+    await js('return await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
     const geometry=await js('const bar=document.querySelector(".app-header").getBoundingClientRect();const grid=document.querySelector(".media-grid");const cards=[...grid.querySelectorAll(".media-card")].map(c=>{const r=c.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}});return {barHeight:bar.height,buttonHeights:[...document.querySelectorAll(".app-header button,.collection-navigation button")].map(b=>b.getBoundingClientRect().height),gap:getComputedStyle(grid).gap,cards,scrollbar:getComputedStyle(document.querySelector(".bb-app-frame__scroll")).scrollbarWidth}');
     assert.ok(geometry.barHeight>=44 && geometry.barHeight<=49,JSON.stringify(geometry));
     assert.ok(geometry.buttonHeights.every(h=>h>=30 && h<=35),JSON.stringify(geometry.buttonHeights));
@@ -703,13 +717,20 @@ try {
   await test('native pressure, hidden retirement and mode changes preserve sources, page and healthy focused playback',async()=>{
     await holdDecodes();
     try {
-      await select('media-filter','video');await select('media-filter','all');
+      await select('media-filter','video');await visible('document.querySelectorAll(".media-card").length===1');
+      await select('media-filter','all');await visible('document.querySelectorAll(".media-card").length===2');
+      // Pressure contracts only apply to demanded work. Keep the held image
+      // visible when automatic policy contracts its prefetch margin.
+      await js('const card=[...document.querySelectorAll(".media-card")].find(card=>card.dataset.name===arguments[0]);card.scrollIntoView({block:"center"});return true;',['image2.jpg']);
       await visible('window.__s011Held.length>0');
+      await visible('Number(document.querySelector(".media-grid")?.dataset.activeLoads)>0');
       await visible('Number(document.querySelector(".media-grid")?.dataset.loadingLimit)===1');
       await js('Object.defineProperty(document,"visibilityState",{configurable:true,get:()=>"hidden"});document.dispatchEvent(new Event("visibilitychange"));return true;');
       await visible('document.querySelectorAll(".media-grid img[src],.media-grid video[src]").length===0');
       await releaseDecodes();
       await js('delete document.visibilityState;document.dispatchEvent(new Event("visibilitychange"));return true;');
+      await visible('[...document.querySelectorAll(".media-card")].some(card=>card.dataset.name==="image2.jpg")');
+      await js('const card=[...document.querySelectorAll(".media-card")].find(card=>card.dataset.name===arguments[0]);card.scrollIntoView({block:"center"});return true;',['image2.jpg']);
       await visible('[...document.querySelectorAll(".media-grid img")].some(i=>i.naturalWidth>0)');
       assert.equal(await js('return Number(document.querySelector(".media-grid").dataset.loadingLimit)'),1,'Hidden period does not reset or promote calibration');
       assert.equal(await js('return [...document.querySelectorAll(".media-card")].some(c=>c.textContent.includes("Media unavailable"))'),false,'Cancelled decode rejection must not poison usable media');
@@ -766,7 +787,11 @@ try {
 } catch (error) {
   await mkdir(path.join(root, '.local'), { recursive: true });
   await writeFile(path.join(root, '.local/native-failure.log'), `${error.stack}\n${diagnostics}`);
-  if (session) { try { await writeFile(path.join(root, '.local/native-focus-failure.json'), JSON.stringify(await js('return {hasFocus:document.hasFocus(),active:{tag:document.activeElement?.tagName,id:document.activeElement?.id,classes:document.activeElement?.className},filter:document.getElementById("media-filter")?.value,count:document.querySelectorAll(".media-card").length}'),null,2)+'\n'); } catch {} }
+  if (session) { try {
+    const observation=await js('const grid=document.querySelector(".media-grid"),scroll=document.querySelector(".bb-app-frame__scroll");return {hasFocus:document.hasFocus(),visibility:document.visibilityState,active:{tag:document.activeElement?.tagName,id:document.activeElement?.id,classes:document.activeElement?.className},filter:document.getElementById("media-filter")?.value,mode:document.getElementById("loading-mode")?.value,viewport:{width:innerWidth,height:innerHeight},scroll:scroll&&{top:scroll.scrollTop,rect:scroll.getBoundingClientRect().toJSON()},grid:grid&&{...grid.dataset},held:window.__s011Held?.length,cards:[...document.querySelectorAll(".media-card")].slice(0,12).map(card=>({name:card.dataset.name,rect:card.getBoundingClientRect().toJSON(),images:[...card.querySelectorAll("img")].map(image=>({loaded:image.naturalWidth>0,source:Boolean(image.getAttribute("src"))}))}))}');
+    await writeFile(path.join(root,'.local/native-focus-failure.json'),JSON.stringify(observation,null,2)+'\n');
+    console.error('Native failure observation: '+JSON.stringify(observation));
+  } catch {} }
   if (session) { try { await writeFile(path.join(root, '.local/native-failure.png'), Buffer.from(await request(`/session/${session}/screenshot`), 'base64')); } catch {} }
   throw error;
 } finally {

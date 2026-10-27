@@ -37,7 +37,7 @@ Each entry has one owning chapter. It must be resolved, or explicitly excluded f
 
 | ID | Decision still open | Owning chapter |
 | --- | --- | --- |
-| U-04 | Tested image/video codecs, formats, orientation/color handling and unsupported-media actions | [Browsing and playback](browsing-and-playback.md#open-decisions) |
+| U-04 | Additional formats/profiles and external opening or conversion beyond the measured native viewing rows | [Browsing and playback](browsing-and-playback.md#open-decisions) |
 | U-05 | Richer preview/autoplay behavior and additional navigation/customization beyond the defined browsing defaults | [Browsing and playback](browsing-and-playback.md#open-decisions) |
 | U-07 | Disposable cache locations and future state migration/backup policies | [Configuration and state](configuration-and-state.md#open-decisions) |
 | U-13 | Exact initial editing actions and their confirmation, undo and write behavior | [Overview](overview.md#open-decisions) |

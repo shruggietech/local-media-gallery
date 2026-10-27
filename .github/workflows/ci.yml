@@ -23,6 +23,9 @@ jobs:
         with:
           node-version: 24.11.0
           cache: npm
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
       - run: npm ci
       - run: npm run ci -- repository
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -38,6 +41,7 @@ jobs:
     timeout-minutes: 45
     env:
       CARGO_BUILD_JOBS: 2
+      GALLERY_ISOLATED_DESKTOP: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -62,6 +66,18 @@ jobs:
             .local/ci-product-windows.json
             .local/proof-results.json
             .local/proof-build-*/*-proof.zip
+            .local/bin/*native-tests*
+            .local/runtime-results*.json
+            .local/runtime-fixture.json
+            .local/runtime-session-*/*.png
+            .local/native-results.json
+            .local/native-failure.log
+            .local/native-focus-failure.json
+            .local/native-failure.png
+            .local/preparation-results.json
+            .local/launch-results.json
+            .local/measurement.json
+            .local/normal-results.json
           include-hidden-files: true
           if-no-files-found: error
   native-proof:
@@ -79,6 +95,11 @@ jobs:
     env:
       CARGO_BUILD_JOBS: 1
       MACOSX_DEPLOYMENT_TARGET: '15.0'
+      GALLERY_ISOLATED_DESKTOP: '1'
+      GSETTINGS_BACKEND: keyfile
+      XDG_CONFIG_HOME: ${{ github.workspace }}/.local/desktop-config
+      WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+      LIBGL_ALWAYS_SOFTWARE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -97,10 +118,16 @@ jobs:
       - name: Install Linux native prerequisites
         if: runner.os == 'Linux'
         run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev patchelf
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev patchelf xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
       - run: npm ci
-      - run: npm run ci -- ${{ matrix.scope }}
+      - name: Run native qualification on isolated Linux display
+        if: runner.os == 'Linux'
+        run: dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1200x24' npm run ci -- ${{ matrix.scope }}
+      - name: Run native qualification on isolated macOS desktop
+        if: runner.os == 'macOS'
+        run: npm run ci -- ${{ matrix.scope }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -109,6 +136,10 @@ jobs:
             .local/ci-${{ matrix.scope }}.json
             .local/proof-results.json
             .local/proof-build-*/*-proof.tar.gz
+            .local/bin/*native-tests*
+            .local/runtime-results*.json
+            .local/runtime-fixture.json
+            .local/runtime-session-*/*.png
           include-hidden-files: true
           if-no-files-found: error
   website:

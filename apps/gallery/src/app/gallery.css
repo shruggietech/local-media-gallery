@@ -75,6 +75,8 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
   .bb-app-frame[data-bb-host="tauri"] .bb-field { gap: var(--lo-space-1); }
 }
 @media (any-pointer: coarse) {
+  .bb-app-frame[data-bb-host="tauri"] select.bb-field__control { appearance: none; padding-inline-end: var(--lo-space-7); background-image: linear-gradient(45deg, transparent 50%, var(--bb-text-primary) 50%), linear-gradient(135deg, var(--bb-text-primary) 50%, transparent 50%); background-position: right var(--lo-space-4) center, right var(--lo-space-2) center; background-size: var(--lo-space-2) var(--lo-space-2); background-repeat: no-repeat; }
+  .media-open, .state-controls summary, .metadata-inspector summary { min-block-size: var(--bb-interaction-target-minimum); min-inline-size: var(--bb-interaction-target-minimum); }
   .bb-app-frame[data-bb-host="tauri"] .bb-control, .bb-app-frame[data-bb-host="tauri"] .bb-field__control { min-block-size: var(--bb-interaction-target-minimum); min-inline-size: var(--bb-interaction-target-minimum); padding-block: var(--bb-spacing-control-block); padding-inline: var(--bb-spacing-control-inline); border-radius: var(--bb-spacing-control-inline); }
   .bb-app-frame[data-bb-host="tauri"] .bb-icon-button { padding-inline: var(--bb-spacing-control-inline); }
   .bb-app-frame[data-bb-host="tauri"] .bb-field { gap: var(--bb-spacing-control-block); }
@@ -87,7 +89,7 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
   .viewer-content[data-information="true"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
   .viewer-information { padding-inline-start: 0; padding-block-start: var(--lo-space-3); border-inline-start: 0; border-block-start: var(--bb-border-default) solid var(--bb-action-primary); }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none; transition: none; scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none; transition: none; scroll-behavior: auto; } .bb-app-frame .scroll-indicator { transition: none; } }
 
 .save-destination .bb-field { margin: 0; }
 .save-destination select { max-width: 12rem; }
@@ -111,7 +113,7 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 .metadata-leaf .bb-button, .metadata-node > details > .metadata-children > .bb-button { justify-self: start; }
 .metadata-inspector code, .metadata-raw { font-family: var(--bb-typography-mono-family); font-weight: 400; white-space: pre-wrap; overflow-wrap: anywhere; }
 .metadata-inspector summary { cursor: pointer; padding-block: var(--lo-space-2); }
-.metadata-inspector summary:focus-visible { outline: var(--bb-focus-width) solid var(--bb-focus-ring); outline-offset: var(--bb-focus-offset); }
+.metadata-inspector summary:focus-visible, .state-controls summary:focus-visible { outline: var(--bb-focus-width) solid var(--bb-focus-ring); outline-offset: var(--bb-focus-offset); }
 .metadata-raw { max-inline-size: 100%; }
 
 /* Optional derived cards have independent facts and bounded native admission. */
@@ -122,6 +124,15 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 .preparation-facts dd { margin-inline-start: 0; overflow-wrap: anywhere; font-family: var(--bb-typography-mono-family); }
 .media-viewer[open] { grid-template-rows: auto auto minmax(0, 1fr) auto; }
 .viewer-preparation { max-block-size: var(--lo-space-10); overflow: auto; }
+
+/* Short or zoomed windows keep one scroll owner for otherwise clipped controls. */
+@media (max-height: 45rem) {
+  .media-viewer[open] { overflow: auto; grid-template-rows: auto auto minmax(min-content, 1fr) auto; }
+  .viewer-content { min-block-size: var(--lo-space-10); }
+}
+@media (max-height: 45rem) and (max-width: 45rem) {
+  .viewer-content[data-information="true"] { min-block-size: calc(var(--lo-space-10) * 2 + var(--lo-space-3)); grid-template-rows: minmax(var(--lo-space-10), 3fr) minmax(var(--lo-space-10), 2fr); }
+}
 
 #bb-overlay-root .bb-dialog[role="dialog"] { position: fixed; inset-block-start: 50%; inset-inline-start: 50%; transform: translate(-50%, -50%); inline-size: min(calc(100% - var(--lo-space-5)), calc(var(--lo-space-10) * 6)); max-block-size: calc(var(--bb-visual-viewport-height, 100dvh) - var(--lo-space-5)); overflow: auto; z-index: 10; }
 #bb-overlay-root > [data-state="open"]:has(+ .bb-dialog[role="dialog"]) { position: fixed; inset: 0; background: var(--bb-surface-background); z-index: 9; }
