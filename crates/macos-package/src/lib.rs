@@ -181,6 +181,11 @@ fn walk(base: &Path, dir: &Path, files: &mut Vec<String>) -> Result<()> {
 
 /// Resolve existing OS aliases, then retain absent normal suffix components.
 /// No mutation occurs here. An existing final symlink is always a collision.
+pub fn command_location(value: &Path) -> Result<PathBuf> {
+    let parent = value.parent().ok_or("Missing command parent")?;
+    Ok(fs::canonicalize(parent)?.join(value.file_name().ok_or("Missing command name")?))
+}
+
 pub fn destination(value: &Path) -> Result<PathBuf> {
     if !value.is_absolute()
         || value
@@ -275,7 +280,8 @@ mod lifecycle {
         }
         for dir in std::env::split_paths(path) {
             let candidate = dir.join("local-media-gallery");
-            if fs::symlink_metadata(&candidate).is_ok() && candidate != command {
+            if fs::symlink_metadata(&candidate).is_ok() && command_location(&candidate)? != command
+            {
                 return Err("Existing visible command collision".into());
             }
         }
@@ -410,6 +416,30 @@ mod tests {
     use super::*;
     fn payload() -> Payload {
         serde_json::from_value(serde_json::json!({"formatVersion":1,"product":"local-media-gallery","kind":"macos-application-payload","version":"0.0.0","edition":"full","os":"macos","arch":"aarch64","targetTriple":"aarch64-apple-darwin","buildProfile":"release","generation":"test","source":{},"revision":"test","bundle":"Full.app","binary":"Contents/MacOS/local-media-gallery","files":[{"path":"Contents/MacOS/local-media-gallery","bytes":"3","sha256":hash(b"app"),"mode":"755"},{"path":"Contents/Info.plist","bytes":"3","sha256":hash(b"app"),"mode":"644"},{"path":"Contents/_CodeSignature/CodeResources","bytes":"3","sha256":hash(b"app"),"mode":"644"}]})).unwrap()
+    }
+    #[test]
+    fn command_parent_alias_resolves_without_following_command_symlink() {
+        let tmp = tempfile::tempdir().unwrap();
+        let parent = tmp.path().join("bin");
+        fs::create_dir(&parent).unwrap();
+        let command = parent.join("local-media-gallery");
+        fs::write(&command, b"command").unwrap();
+        let alias = parent.join("..").join("bin").join("local-media-gallery");
+        assert_eq!(
+            command_location(&alias).unwrap(),
+            fs::canonicalize(&parent)
+                .unwrap()
+                .join("local-media-gallery")
+        );
+        #[cfg(unix)]
+        {
+            let link = tmp.path().join("alias");
+            std::os::unix::fs::symlink(&parent, &link).unwrap();
+            assert_eq!(
+                command_location(&link.join("local-media-gallery")).unwrap(),
+                command_location(&command).unwrap()
+            );
+        }
     }
     #[test]
     fn rejects_traversal_duplicate_missing_signature_and_wrong_identity() {

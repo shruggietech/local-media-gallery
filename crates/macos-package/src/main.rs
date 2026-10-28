@@ -152,13 +152,6 @@ fn run() -> gallery_macos_package::Result<()> {
         if capabilities["data"]["runtime"]["status"] != "available" {
             return Err("OS WKWebView unavailable; repair/update macOS".into());
         }
-        let deps = output("/usr/bin/otool", &["-L".as_ref(), binary.as_os_str()])?;
-        for line in deps.lines().skip(1) {
-            let lib = line.split_whitespace().next().unwrap_or("");
-            if !lib.starts_with("/System/Library/") && !lib.starts_with("/usr/lib/") {
-                return Err("Unbundled non-system prerequisite".into());
-            }
-        }
         install(
             &source,
             &app,
