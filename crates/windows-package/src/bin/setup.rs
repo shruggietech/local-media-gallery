@@ -78,9 +78,16 @@ fn run() -> Result<serde_json::Value, String> {
     {
         return Err("Canceled before application or runtime changes".into());
     }
-    let invoke = |file: PathBuf, args: Vec<std::ffi::OsString>| -> Result<u32, String> {
-        let mut child = Command::new(file)
-            .args(args)
+    let invoke = |file: PathBuf,
+                  args: Vec<std::ffi::OsString>,
+                  raw_property: Option<std::ffi::OsString>|
+     -> Result<u32, String> {
+        let mut command = Command::new(file);
+        command.args(args);
+        if let Some(property) = raw_property {
+            command.raw_arg(property);
+        }
+        let mut child = command
             .creation_flags(0x08000000)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -106,6 +113,7 @@ fn run() -> Result<serde_json::Value, String> {
         let status = invoke(
             base.join(input["bootstrapper"]["path"].as_str().unwrap()),
             vec!["/silent".into(), "/install".into()],
+            None,
         )?;
         runtime_exit = Some(status);
         if ![0, 3010].contains(&status) {
@@ -125,7 +133,7 @@ fn run() -> Result<serde_json::Value, String> {
         if machine { "machine" } else { "user" },
         std::process::id()
     ));
-    let mut msi_args = vec![
+    let msi_args = vec![
         if remove { "/x".into() } else { "/i".into() },
         base.join(input["msi"]["path"].as_str().unwrap())
             .into_os_string(),
@@ -134,11 +142,9 @@ fn run() -> Result<serde_json::Value, String> {
         "/L*v".into(),
         log.as_os_str().to_owned(),
     ];
-    let mut target = std::ffi::OsString::from("INSTALLDIR=");
-    target.push(&directory);
-    msi_args.push(target);
+    let target = gallery_windows_package::msi_directory_property(&directory)?;
     eprintln!("Starting Windows Installer; log: {}", log.display());
-    let status = invoke(system, msi_args)
+    let status = invoke(system, msi_args, Some(target))
         .map_err(|error| format!("{error}. Installation log: {}", log.display()))?;
     if ![0, 3010].contains(&status) {
         return Err(format!(

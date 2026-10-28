@@ -204,9 +204,42 @@ pub fn check_path(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Windows Installer quotes a property's value, rather than its whole assignment.
+#[cfg(windows)]
+pub fn msi_directory_property(path: &Path) -> Result<std::ffi::OsString, String> {
+    use std::os::windows::ffi::OsStrExt;
+    if path
+        .as_os_str()
+        .encode_wide()
+        .any(|unit| unit < 32 || unit == 34)
+    {
+        return Err("Installation path contains an invalid Windows filename character".into());
+    }
+    let mut argument = std::ffi::OsString::from("INSTALLDIR=\"");
+    argument.push(path);
+    argument.push("\"");
+    Ok(argument)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    #[test]
+    fn installer_property_keeps_native_paths_in_one_quoted_value() {
+        use std::os::windows::ffi::{OsStrExt, OsStringExt};
+        let mut units = "C:\\Gallery 雪 ".encode_utf16().collect::<Vec<_>>();
+        units.extend([0xd800, 92]);
+        let path = std::ffi::OsString::from_wide(&units);
+        let actual = msi_directory_property(Path::new(&path)).unwrap();
+        let mut expected = "INSTALLDIR=\"".encode_utf16().collect::<Vec<_>>();
+        expected.extend(units);
+        expected.push(34);
+        assert_eq!(actual.encode_wide().collect::<Vec<_>>(), expected);
+        for invalid in ["C:\\bad\" REBOOT=Force", "C:\\bad\npath", "C:\\bad\0path"] {
+            assert!(msi_directory_property(Path::new(invalid)).is_err());
+        }
+    }
     #[test]
     fn machine_scope_cannot_be_satisfied_by_a_user_only_runtime() {
         let result = runtime_for_scope(
