@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateRuntimeReceipt, signalObservation, digest} from '../scripts/runtime-evidence.mjs';
+import {validateRuntimeReceipt, signalObservation, digest, validateAudioProgress} from '../scripts/runtime-evidence.mjs';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {python,root} from '../scripts/run.mjs';
@@ -49,4 +49,13 @@ test('focus-changing suites refuse the active workstation before launching a GUI
  assert.throws(()=>requireIsolatedDesktop({}),/isolated CI desktop/);
  assert.throws(()=>requireIsolatedDesktop({GITHUB_ACTIONS:'true'}),/isolated CI desktop/);
  for(const script of ['build-macos-packages','test-macos-packages','ci-macos-packages','build-windows-packages','test-windows-packages','ci-windows-packages','diagnose-runtime','diagnose-legacy-windows','test-runtime-platform','test-runtime','test-native','test-preparation','test-launch','test-normal','measure-native','qualify'])await assert.rejects(promisify(execFile)(process.execPath,['scripts/'+script+'.mjs'],{cwd:root,windowsHide:true,shell:false,timeout:10000,env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:''}}),e=>e.stderr.includes('isolated CI desktop'));
+});
+
+test('audible PCM with a frozen or suspended graph cannot certify live audio progress',()=>{
+ const samples=Array.from({length:4096},(_,i)=>Math.sin(2*Math.PI*440*i/48000)*0.2);
+ const signal=signalObservation(samples,48000);assert.ok(signal.rms>0.01);
+ assert.deepEqual(validateAudioProgress('running',1,1.25),{before:1,after:1.25});
+ for(const [state,before,after] of [['running',1,1],['running',1,0],['suspended',1,2],['running',NaN,2],['running',0,Infinity]])assert.throws(()=>validateAudioProgress(state,before,after));
+ const r=receipt();r.media.push({type:'video',codec:'h264',outcome:'supported',retained:true,inspectable:true,frequency:440,audio:{method:'media-element',state:'running',sampleRate:48000,rms:signal.rms,fftPeakHz:440,clock:{before:1,after:1}}});
+ assert.throws(()=>validateRuntimeReceipt(r,expected));r.media.at(-1).audio.clock.after=1.25;validateRuntimeReceipt(r,expected);
 });

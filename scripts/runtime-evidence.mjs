@@ -12,6 +12,11 @@ export function signalObservation(samples,sampleRate){
  for(let i=0;i<samples.length;i++){assert.ok(Number.isFinite(samples[i]));energy+=samples[i]**2;if(i&&samples[i-1]<=0&&samples[i]>0)crossings++;}
  return {rms:Math.sqrt(energy/samples.length),peakHz:crossings*sampleRate/samples.length};
 }
+export function validateAudioProgress(state,before,after){
+ assert.equal(state,'running','Native audio graph is suspended');
+ assert.ok(Number.isFinite(before)&&before>=0&&Number.isFinite(after)&&after>before,'Native audio graph clock did not advance');
+ return {before,after};
+}
 export function validateRuntimeReceipt(r,expected){
  assert.equal(r.formatVersion,1);assert.equal(r.result,'pass');assert.deepEqual(r.source,expected.source);
  assert.notEqual(r.acceptance,false);assert.equal(r.diagnosticStyle,undefined);assert.equal(r.diagnosticReload,undefined);
@@ -32,7 +37,7 @@ export function validateRuntimeReceipt(r,expected){
  for(const media of r.media){
   assert.ok(['supported','unsupported'].includes(media.outcome));assert.equal(media.retained,true);assert.equal(media.inspectable,true);
   if(media.type==='video'&&media.outcome==='supported'){
-   const audio=media.audio;assert.ok(['media-element','native-original-buffer'].includes(audio.method));assert.equal(audio.state,'running');
+   const audio=media.audio;assert.ok(['media-element','native-original-buffer'].includes(audio.method));assert.equal(audio.state,'running');if(audio.clock)validateAudioProgress(audio.state,audio.clock.before,audio.clock.after);
    assert.ok(Number.isFinite(audio.sampleRate)&&audio.sampleRate>0);assert.ok(Number.isFinite(audio.rms)&&audio.rms>=0);assert.ok(Number.isFinite(audio.fftPeakHz));
    if(media.frequency){assert.ok(audio.rms>0.01);assert.ok(Math.abs(audio.fftPeakHz-media.frequency)<30);}else assert.ok(audio.rms<0.0001);
    if(audio.method==='native-original-buffer'){

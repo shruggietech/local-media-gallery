@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import os from 'node:os';
 import { root, environment, execute } from './run.mjs';
+import {availableLoopbackPort,observeChild,readyDriver} from './native-driver-lifecycle.mjs';
 import { inventory } from './create-fixture.mjs';
 import {prepareMediaTool} from './prepare-media-tool.mjs';
 import { summarize, validateMeasurement, operations } from './measurement.mjs';
@@ -71,11 +72,11 @@ try {
     const settings = await mkdtemp(path.join(root, '.local/measurement-settings-'));
     const history = await mkdtemp(path.join(root, '.local/measurement-history-'));
     const profile = await mkdtemp(path.join(root, '.local/measurement-webview-')); profiles.push(profile);
-    const port = 44000 + Math.floor(Math.random() * 10000); const origin = 'http://127.0.0.1:' + port;
+    const port = await availableLoopbackPort(); const origin = 'http://127.0.0.1:' + port;
     const notBefore = new Date().toISOString(); const began = performance.now();
     const child = spawn(binary, [directory], { cwd: root, env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), GALLERY_TEST_SETTINGS_DIR: settings, GALLERY_TEST_HISTORY_DIR: history, WEBVIEW2_USER_DATA_FOLDER: profile }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
-    let diagnostics = ''; let session;
-    child.stdout.on('data', b => { diagnostics += b; }); child.stderr.on('data', b => { diagnostics += b; }); child.on('error', e => { diagnostics += e.message; });
+    const observation=observeChild(child);
+    let session;
     const request = async (route, body, method = body === undefined ? 'GET' : 'POST') => {
       const response = await fetch(origin + route, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000) });
       const result = await response.json(); if (!response.ok || result.value?.error) throw new Error(result.value?.message ?? 'Driver HTTP ' + response.status); return result.value;
@@ -88,7 +89,7 @@ try {
     const measure = async (name, action) => { const start = performance.now(); const result = await action(); samples[name].push(performance.now() - start); return result; };
     const resource = async () => label === 'baseline' ? { status: 'unavailable', basis: 'unchanged baseline has no native resource counter action' } : js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"s011_resource_snapshot",config:null})');
     try {
-      await until(async () => { if (child.exitCode !== null) throw Error(diagnostics); const r = await fetch(origin + '/status', { signal: AbortSignal.timeout(500) }); return r.ok; }, 'Driver readiness');
+      await readyDriver(child,origin,observation,15000);
       session = (await until(() => request('/session', { capabilities: { alwaysMatch: { 'wdio:tauriServiceOptions': { windowLabel: 'main' } } } }), 'Main window')).sessionId;
       await until(() => js('return document.querySelectorAll(".media-card").length===12 && [...document.querySelectorAll(".media-card img")].some(i=>i.naturalWidth>0)'), 'First usable rendered cards');
       samples.startup.push(performance.now() - began);
