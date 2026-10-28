@@ -97,7 +97,7 @@ public static class CandidateShortcut {
   object instance=Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046")));
   try {((IPersistFile)instance).Load(file,0);var link=(CandidateShellLinkW)instance;
    var target=new StringBuilder(32768);var arguments=new StringBuilder(32768);var directory=new StringBuilder(32768);
-   Marshal.ThrowExceptionForHR(link.GetPath(target,target.Capacity,IntPtr.Zero,4));
+   Marshal.ThrowExceptionForHR(link.GetPath(target,target.Capacity,IntPtr.Zero,0));
    Marshal.ThrowExceptionForHR(link.GetArguments(arguments,arguments.Capacity));
    Marshal.ThrowExceptionForHR(link.GetWorkingDirectory(directory,directory.Capacity));
    return new[]{target.ToString(),arguments.ToString(),directory.ToString()};
