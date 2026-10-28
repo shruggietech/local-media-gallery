@@ -1092,7 +1092,7 @@ name = "gallery-core"
 version = "0.0.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "cap-fs-ext",
  "cap-std",
  "futures-util",
