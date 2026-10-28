@@ -221,9 +221,53 @@ pub fn msi_directory_property(path: &Path) -> Result<std::ffi::OsString, String>
     Ok(argument)
 }
 
+#[cfg(windows)]
+pub fn expand_registry_path(value: &std::ffi::OsStr) -> Result<std::ffi::OsString, String> {
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn ExpandEnvironmentStringsW(source: *const u16, destination: *mut u16, size: u32) -> u32;
+    }
+    let mut source = value.encode_wide().collect::<Vec<_>>();
+    if source.contains(&0) {
+        return Err("Registry PATH contains an embedded null".into());
+    }
+    source.push(0);
+    let mut expanded = vec![0u16; 32768];
+    let size = unsafe {
+        ExpandEnvironmentStringsW(
+            source.as_ptr(),
+            expanded.as_mut_ptr(),
+            expanded.len() as u32,
+        )
+    };
+    if size == 0 || size as usize > expanded.len() {
+        return Err(
+            "Registry PATH expansion failed or exceeds the Windows environment limit".into(),
+        );
+    }
+    Ok(std::ffi::OsString::from_wide(
+        &expanded[..size as usize - 1],
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    #[test]
+    fn expandable_registry_path_uses_the_actual_native_environment() {
+        let mut expected = std::env::var_os("SystemRoot").unwrap();
+        expected.push("\\System32;C:\\Gallery 雪");
+        assert_eq!(
+            expand_registry_path(std::ffi::OsStr::new(
+                "%SystemRoot%\\System32;C:\\Gallery 雪"
+            ))
+            .unwrap(),
+            expected
+        );
+        assert!(expand_registry_path(std::ffi::OsStr::new("C:\\valid\0;C:\\hidden")).is_err());
+    }
     #[cfg(windows)]
     #[test]
     fn installer_property_keeps_native_paths_in_one_quoted_value() {

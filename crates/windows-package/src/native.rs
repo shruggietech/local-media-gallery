@@ -142,7 +142,12 @@ pub fn registry(machine: bool, key: &str, name: &str) -> Result<Option<OsString>
     while b.last() == Some(&0) {
         b.pop();
     }
-    Ok(Some(OsString::from_wide(&b)))
+    let value = OsString::from_wide(&b);
+    Ok(Some(if kind == 2 && name.eq_ignore_ascii_case("Path") {
+        crate::expand_registry_path(&value)?
+    } else {
+        value
+    }))
 }
 fn guid(scope: &str, identity: &str) -> String {
     let h = hash(format!("{scope}\0{identity}").as_bytes());
