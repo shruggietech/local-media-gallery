@@ -76,6 +76,25 @@ Param(
             @{productCode=$properties.ProductCode;version=$properties.ProductVersion;manufacturer=$properties.Manufacturer;allUsers=$properties.ALLUSERS;packageCode=$summary.Property(9);template=$summary.Property(7)} | ConvertTo-Json -Compress
             exit 0
         }
+        # Map image resources as data, without running entrypoints or DllMain.
+        Add-Type @'
+using System;using System.IO;using System.Xml;using System.Runtime.InteropServices;
+public static class CandidateManifest {
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr LoadLibraryExW(string path,IntPtr file,uint flags);
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] static extern IntPtr FindResourceW(IntPtr module,IntPtr name,IntPtr type);
+ [DllImport("kernel32.dll")] static extern uint SizeofResource(IntPtr module,IntPtr resource);
+ [DllImport("kernel32.dll")] static extern IntPtr LoadResource(IntPtr module,IntPtr resource);
+ [DllImport("kernel32.dll")] static extern IntPtr LockResource(IntPtr resource);
+ [DllImport("kernel32.dll")] static extern bool FreeLibrary(IntPtr module);
+ public static string Level(string path) {
+  IntPtr module=LoadLibraryExW(path,IntPtr.Zero,0x22);if(module==IntPtr.Zero)throw new Exception("Read-only PE resource mapping failed: "+Marshal.GetLastWin32Error());
+  try {IntPtr resource=FindResourceW(module,(IntPtr)1,(IntPtr)24);if(resource==IntPtr.Zero)resource=FindResourceW(module,(IntPtr)2,(IntPtr)24);if(resource==IntPtr.Zero)return "";
+   uint length=SizeofResource(module,resource);if(length==0||length>1048576)throw new Exception("Manifest resource size bound");byte[] bytes=new byte[length];IntPtr address=LockResource(LoadResource(module,resource));if(address==IntPtr.Zero)throw new Exception("Manifest resource unavailable");Marshal.Copy(address,bytes,0,(int)length);
+   var settings=new XmlReaderSettings{DtdProcessing=DtdProcessing.Prohibit,XmlResolver=null};using(var reader=XmlReader.Create(new MemoryStream(bytes),settings)){while(reader.Read())if(reader.NodeType==XmlNodeType.Element&&reader.LocalName=="requestedExecutionLevel")return reader.GetAttribute("level")??"";}return "";
+  } finally {FreeLibrary(module);}
+ }
+}
+'@
         $data=[IO.File]::ReadAllBytes($File)
         $pe=[BitConverter]::ToUInt32($data,0x3c)
         if ([BitConverter]::ToUInt32($data,$pe) -ne 0x4550) { throw 'Invalid PE signature' }
@@ -89,7 +108,7 @@ Param(
             imports=@(Get-ImageImport -Index 1 -Stride 20 -NameOffset 12)
             delayImports=@(Get-ImageImport -Index 13 -Stride 32 -NameOffset 4)
             fileVersion=[Diagnostics.FileVersionInfo]::GetVersionInfo($File).FileVersion
-            requestedExecutionLevel=([regex]::Match([Text.Encoding]::UTF8.GetString($data),'<requestedExecutionLevel\s+level="([^"]+)"')).Groups[1].Value
+            requestedExecutionLevel=[CandidateManifest]::Level($File)
             signature=[ordered]@{ status=$signature.Status.ToString(); subject=$signature.SignerCertificate.Subject; thumbprint=$signature.SignerCertificate.Thumbprint }
         } | ConvertTo-Json -Depth 5 -Compress
     } catch { Write-Error $_; exit 1 }
