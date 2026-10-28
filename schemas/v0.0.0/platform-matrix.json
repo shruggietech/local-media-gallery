@@ -56,10 +56,10 @@
       "runtime": "OS-provided WKWebView; native Apple Silicon artifact",
       "display": "Interactive macOS desktop for GUI",
       "proof": "macos-15 arm64 native CLI app-bundle archives and isolated WKWebView rendered/media/native AX election",
-      "full": "App bundle in Applications at elected user/system scope, distributed by DMG",
-      "lite": "App bundle archive adjacent to gallery; preserve bundle structure",
-      "signing": "Proof ad-hoc or unsigned as measured, unnotarized; Developer ID/notarization/stapling remain final packaging",
-      "qualification": "Exact per-edition CLI/runtime receipts required; VoiceOver speech, WebM media-element audio output, quarantine/translocation and older OS unqualified"
+      "full": "Candidate Full DMG with native user/system Applications installer and elected command integration; exact ownership and selective removal",
+      "lite": "Native app ZIP adjacent to gallery, preserving bundle/modes; explicit root for recognized translocation",
+      "signing": "Candidates ad-hoc signed, unnotarized/unpublished; Developer ID, notarization and stapling require separate credentials and receipts",
+      "qualification": "Exact source-bound ordinary package and native runtime receipts required; VoiceOver speech, WebM media-element audio output, actual translocation and older OS remain separate"
     },
     {
       "id": "windows-aarch64",

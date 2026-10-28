@@ -11,6 +11,7 @@ import {digest,validateRuntimeReceipt} from './runtime-evidence.mjs';
 import {preparePython} from './python-environment.mjs';
 
 const scope = process.argv[2];
+if(scope==='macos-packages'){await import('./ci-macos-packages.mjs');process.exit(process.exitCode??0);}
 if(scope==='windows-packages'){await import('./ci-windows-packages.mjs');process.exit(process.exitCode??0);}
 const productScopes=['product-windows','product-linux','product-macos'];
 const isProduct=productScopes.includes(scope);

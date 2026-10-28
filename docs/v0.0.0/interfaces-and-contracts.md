@@ -127,7 +127,7 @@ The optional `fontScale` preference accepts `100`, `90` or `80` percent, default
 
 ## Open decisions
 
-U-08 is resolved for current command, root, lifetime, snapshot and process-result contracts. Optional preparation is implemented; the application's global install command remains an unavailable provider. Windows candidate setup entrypoints are separate, hash-bound MSI/prerequisite clients described in [installation](installation-and-distribution.md#windows-candidate-operations). Future provider-specific progress, outputs and persistence require their own implementation and compatible contracts. U-07 retains future cache and migration policies.
+U-08 is resolved for current command, root, lifetime, snapshot and process-result contracts. Optional preparation is implemented; the application's global install command remains an unavailable provider. Windows candidate setup entrypoints are separate, hash-bound MSI/prerequisite clients described in [installation](installation-and-distribution.md#windows-candidate-operations). The [macOS candidate payload schema](../../schemas/v0.0.0/macos-packages.schema.json) identifies complete signed app inventories, with native Full lifecycle entrypoints documented in [macOS installation](installation-and-distribution.md#macos-candidate-operations). Future provider-specific progress, outputs and persistence require their own implementation and compatible contracts. U-07 retains future cache and migration policies.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
 
