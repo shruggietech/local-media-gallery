@@ -235,7 +235,10 @@ try {
   await test('native folder picker cancellation preserves session', async () => {
     const before = await snapshot();
     const controlsBefore=await js('return document.getElementById("collection-controls")!==null');
+    await input('focus');
+    await visible('document.hasFocus()');
     await js('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Choose folder").focus(); return true;');
+    await visible('document.activeElement?.textContent.trim()==="Choose folder"');
     await input('keys', ['-Keys', '{ENTER}']); await input('cancel-picker');
     await visible('!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.includes("Choose folder")).disabled');
     assert.equal((await snapshot()).sessionId, before.sessionId);
