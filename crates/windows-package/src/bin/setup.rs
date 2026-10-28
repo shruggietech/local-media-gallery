@@ -102,6 +102,7 @@ fn run() -> Result<serde_json::Value, String> {
     let before = native::scoped_runtime(machine);
     let mut runtime_exit = None;
     if !remove && (before.is_err() || provision) {
+        eprintln!("Verifying Microsoft WebView2 prerequisite through its pinned bootstrapper");
         let status = invoke(
             base.join(input["bootstrapper"]["path"].as_str().unwrap()),
             vec!["/silent".into(), "/install".into()],
@@ -136,7 +137,9 @@ fn run() -> Result<serde_json::Value, String> {
     let mut target = std::ffi::OsString::from("INSTALLDIR=");
     target.push(&directory);
     msi_args.push(target);
-    let status = invoke(system, msi_args)?;
+    eprintln!("Starting Windows Installer; log: {}", log.display());
+    let status = invoke(system, msi_args)
+        .map_err(|error| format!("{error}. Installation log: {}", log.display()))?;
     if ![0, 3010].contains(&status) {
         return Err(format!(
             "Windows Installer returned {status}. No verified success. Inspect {} and retained installation state before retrying",
