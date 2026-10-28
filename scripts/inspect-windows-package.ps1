@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    Inspect candidate PE architecture, dependencies and Authenticode disposition.
+    Inspect candidate PE, MSI and native Unicode shortcut metadata.
 .DESCRIPTION
     Read-only build evidence, intended for isolated Windows qualification. Does not
     install software, start a browser, use the clipboard or alter the registry.
     Embedded and delay import directories are both audited; signing is reported
     independently from recipient trust prompts and clean-machine qualification.
 .PARAMETER File
-    Absolute PE file to inspect. Alias: f.
+    Absolute PE, MSI or shortcut file to inspect. Alias: f.
 .PARAMETER Help
     Display detailed help. Alias: h.
 .EXAMPLE
@@ -16,8 +16,11 @@
 .EXAMPLE
     ./inspect-windows-package.ps1 -f C:/candidate/MicrosoftEdgeWebview2Setup.exe
     Inspect the exact vendor bootstrapper before execution.
+.EXAMPLE
+    ./inspect-windows-package.ps1 -f 'C:/candidate/Local Media Gallery.lnk'
+    Read the actual Unicode shortcut target without resolving or launching it.
 .OUTPUTS
-    One JSON object, with architecture, import lists, version and signature.
+    One JSON object with PE identity, MSI identity or Unicode shortcut metadata.
 #>
 [CmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='None',DefaultParameterSetName='Default')]
 Param(
@@ -65,6 +68,47 @@ Param(
     if (($Help) -or ($PSCmdlet.ParameterSetName -eq 'HelpText')) { Get-Help $ThisScriptPath -Detailed; exit 0 }
     $ErrorActionPreference='Stop'
     try {
+        if ([IO.Path]::GetExtension($File) -eq '.lnk') {
+            Add-Type @'
+using System;using System.Text;using System.Runtime.InteropServices;using System.Runtime.InteropServices.ComTypes;
+[ComImport,Guid("000214F9-0000-0000-C000-000000000046"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface CandidateShellLinkW {
+ [PreserveSig] int GetPath([Out,MarshalAs(UnmanagedType.LPWStr)] StringBuilder value,int count,IntPtr data,uint flags);
+ [PreserveSig] int GetIDList(out IntPtr value);
+ [PreserveSig] int SetIDList(IntPtr value);
+ [PreserveSig] int GetDescription([Out,MarshalAs(UnmanagedType.LPWStr)] StringBuilder value,int count);
+ [PreserveSig] int SetDescription([MarshalAs(UnmanagedType.LPWStr)] string value);
+ [PreserveSig] int GetWorkingDirectory([Out,MarshalAs(UnmanagedType.LPWStr)] StringBuilder value,int count);
+ [PreserveSig] int SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string value);
+ [PreserveSig] int GetArguments([Out,MarshalAs(UnmanagedType.LPWStr)] StringBuilder value,int count);
+ [PreserveSig] int SetArguments([MarshalAs(UnmanagedType.LPWStr)] string value);
+ [PreserveSig] int GetHotkey(out short value);
+ [PreserveSig] int SetHotkey(short value);
+ [PreserveSig] int GetShowCmd(out int value);
+ [PreserveSig] int SetShowCmd(int value);
+ [PreserveSig] int GetIconLocation([Out,MarshalAs(UnmanagedType.LPWStr)] StringBuilder value,int count,out int index);
+ [PreserveSig] int SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string value,int index);
+ [PreserveSig] int SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string value,uint reserved);
+ [PreserveSig] int Resolve(IntPtr window,uint flags);
+ [PreserveSig] int SetPath([MarshalAs(UnmanagedType.LPWStr)] string value);
+}
+public static class CandidateShortcut {
+ public static string[] Read(string file) {
+  object instance=Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046")));
+  try {((IPersistFile)instance).Load(file,0);var link=(CandidateShellLinkW)instance;
+   var target=new StringBuilder(32768);var arguments=new StringBuilder(32768);var directory=new StringBuilder(32768);
+   Marshal.ThrowExceptionForHR(link.GetPath(target,target.Capacity,IntPtr.Zero,4));
+   Marshal.ThrowExceptionForHR(link.GetArguments(arguments,arguments.Capacity));
+   Marshal.ThrowExceptionForHR(link.GetWorkingDirectory(directory,directory.Capacity));
+   return new[]{target.ToString(),arguments.ToString(),directory.ToString()};
+  } finally {Marshal.FinalReleaseComObject(instance);}
+ }
+}
+'@
+            $actual=[CandidateShortcut]::Read($File)
+            @{path=$File;target=$actual[0];arguments=$actual[1];workingDirectory=$actual[2]} | ConvertTo-Json -Compress
+            exit 0
+        }
         if ([IO.Path]::GetExtension($File) -eq '.msi') {
             $engine=New-Object -ComObject WindowsInstaller.Installer
             $database=$engine.OpenDatabase($File,0)
