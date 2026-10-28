@@ -8,6 +8,9 @@ Native media/accessibility qualification and optional thumbnail/diagnostic work 
 
 ### Added
 
+- macOS release-profile Full DMG and portable Lite ZIP candidates, with a native scope-aware installer, exact signed bundle inventories and selective removal retaining galleries and user state. Candidates use ad-hoc signatures and remain unnotarized/unpublished.
+- Packaging decisions (2026-10-28): preserve the elected macOS15 Apple Silicon baseline, default user Applications/local command scope and explicitly elevated system scope. Verify ordinary candidates on an isolated hosted desktop using an external native observer. Known translocated Lite placement requires a selected gallery; external-volume galleries remain supported.
+
 - Windows release-profile Full/Lite candidate packaging, scope-specific MSI installation with actual ownership checks, trusted prerequisite entrypoints, native installed/extracted journeys and selective removal that retains galleries and user state. Candidates remain unsigned and unpublished.
 - Packaging decisions (2026-10-27): use standard Windows Installer transactions with explicit file/integration ownership, default user scope and a separately elevated machine entrypoint. Pin build/vendor inputs, keep shared Evergreen independent, and qualify ordinary recipient binaries on isolated hosted Windows. Correct native harness shutdown/profile/port diagnostics without weakening existing assertions.
 

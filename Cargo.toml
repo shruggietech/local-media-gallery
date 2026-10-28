@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/gallery-core", "crates/windows-package", "apps/gallery/src-tauri"]
+members = ["crates/gallery-core", "crates/windows-package", "crates/macos-package", "apps/gallery/src-tauri"]
 resolver = "2"
 
 [workspace.package]

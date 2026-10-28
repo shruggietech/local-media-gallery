@@ -21,22 +21,22 @@ Independent test: isolated actual user/machine installation, repeat, native brow
 - [x] T007 [US1] Author explicit scope-specific MSI file/component/registry/shortcut/PATH tables without broad deletion or MajorUpgrade in `packaging/windows/installer.wxs` (FR-003/005/007).
 - [x] T008 [US1] Implement registered package/component, actual destination/integration and native architecture/ownership preflight plus deferred read-back in `crates/windows-package/src/native.rs` (FR-004/005/011).
 - [x] T009 [US1] Implement hash-bound user and machine prerequisite entrypoints, hidden noninteractive children, native runtime verification and actionable failures in `crates/windows-package/src/bin/setup.rs` and `build.rs` (FR-003/006/007/011).
-- [ ] T010 [US1] Build release Full/MSI/setup candidates and verify input signature/version/imports in `scripts/build-windows-packages.mjs` and `scripts/inspect-windows-package.ps1` (FR-001/002/006/013).
-- [ ] T011 [US1] Exercise install/repeat/collision/fresh registry PATH and ordinary native Full use in `scripts/test-windows-packages.mjs` and `scripts/windows-package-ui.ps1` (FR-003/004/005/007/014).
+- [x] T010 [US1] Build release Full/MSI/setup candidates and verify input signature/version/imports in `scripts/build-windows-packages.mjs` and `scripts/inspect-windows-package.ps1` (FR-001/002/006/013).
+- [x] T011 [US1] Exercise install/repeat/collision/fresh registry PATH and ordinary native Full use in `scripts/test-windows-packages.mjs` and `scripts/windows-package-ui.ps1` (FR-003/004/005/007/014).
 
 ## Phase 4: US2 Extract Lite (P1)
 
 Independent test: normal release Lite at a Unicode gallery root, explicit-root and in-place launch, move, modify media and real Refresh; controlled native loader failure remains a separate observation from physically absent runtime.
 
-- [ ] T012 [US2] Build self-contained release Lite archive with executable at root and complete auxiliary/notices inventory in `scripts/build-windows-packages.mjs` (FR-001/008/009).
-- [ ] T013 [US2] Exercise ordinary Lite native UI/pixels, relocation, actual Refresh and actionable process-local native runtime lookup failure in `scripts/test-windows-packages.mjs` and `scripts/windows-package-ui.ps1` (FR-008/009/014).
+- [x] T012 [US2] Build self-contained release Lite archive with executable at root and complete auxiliary/notices inventory in `scripts/build-windows-packages.mjs` (FR-001/008/009).
+- [x] T013 [US2] Exercise ordinary Lite native UI/pixels, relocation, actual Refresh and actionable process-local native runtime lookup failure in `scripts/test-windows-packages.mjs` and `scripts/windows-package-ui.ps1` (FR-008/009/014).
 
 ## Phase 5: US3 Owned removal (P1)
 
 Independent test: uninstall each real MSI, compare media/sidecars/settings and foreign extras immediately before/after; remove Lite package files only.
 
 - [x] T014 [US3] Add removal ownership checks and selective standard MSI removal in `crates/windows-package/src/native.rs` and `packaging/windows/installer.wxs`; shared runtime and default user state are outside ownership (FR-010/011).
-- [ ] T015 [US3] Exercise uninstall with foreign data/integration sentinels and retained real profile/state in `scripts/test-windows-packages.mjs` (FR-010/014).
+- [x] T015 [US3] Exercise uninstall with foreign data/integration sentinels and retained real profile/state in `scripts/test-windows-packages.mjs` (FR-010/014).
 
 ## Phase 6: US4 Candidate identity/evidence (P2)
 
@@ -44,15 +44,15 @@ Independent test: independently read archive/payload/MSI/install identities, rej
 
 - [x] T016 [US4] Define candidate contract in `schemas/v0.0.0/windows-packages.schema.json` and exact-source archive/installed evidence validation in `scripts/windows-package-evidence.mjs` with unknown values null plus reason (FR-002/012/013/014).
 - [x] T017 [US4] Add separate required isolated Windows package campaign to `.github/workflows/ci.yml` and `scripts/ci.mjs`, preserving all existing gates and one readiness/660-target/900-hard/15-reserve clock (FR-014/015).
-- [ ] T018 [US4] Independently inspect hosted package inventories and bind installed/extracted/native fixture receipts in `specs/015-windows-packaging/verification.md` (FR-002/012/013/014).
+- [x] T018 [US4] Independently inspect hosted package inventories and bind installed/extracted/native fixture receipts in `specs/015-windows-packaging/verification.md` (FR-002/012/013/014).
 
 ## Phase 7: Integration and delivery
 
 - [x] T019 Correct bounded native-driver lifecycle/profile/port diagnostics in `scripts/native-driver-lifecycle.mjs`, `scripts/test-native.mjs`, `scripts/test-preparation.mjs` with a meaningful owned-process regression in `tests/native-driver-lifecycle.test.mjs`; preserve assertions and readiness deadlines (FR-015).
 - [x] T020 Update authoritative candidate installation/platform/schema documentation and `CHANGELOG.md`, with no public planning links or release-pointer promotion (FR-016).
 - [x] T021 Run repository/app/site/headless qualification and record separate preparation/qualification/combined terminal evidence in `specs/015-windows-packaging/{verification,measurements}.md`; check UTF-8/LF/mojibake and governed bytes (FR-015).
-- [ ] T022 Push official #22 PR automatically, attach it, monitor required CI, handle every finding under at most two review rounds and record final SHA/checks/threads in `specs/015-windows-packaging/verification.md` (FR-017).
-- [ ] T023 Ping owner for final review/merge with candidate evidence and concrete unqualified limits in `specs/015-windows-packaging/verification.md`; do not merge/tag/release (FR-013/016/017).
+- [x] T022 Push official #22 PR automatically, attach it, monitor required CI, handle every finding under at most two review rounds and record final SHA/checks/threads in `specs/015-windows-packaging/verification.md` (FR-017).
+- [x] T023 Ping owner for final review/merge with candidate evidence and concrete unqualified limits in `specs/015-windows-packaging/verification.md`; do not merge/tag/release (FR-013/016/017).
 
 ## Dependencies and execution
 

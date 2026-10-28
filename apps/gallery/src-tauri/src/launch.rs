@@ -286,6 +286,17 @@ pub fn default_root(
             .map(|p| Some(p.to_path_buf()))
             .ok_or_else(placement_error);
     }
+    // Apple provides no supported original-path recovery for translocated apps.
+    // Known temporary placement must not become an implicit gallery. Real
+    // external volumes remain valid; explicit roots are resolved before here.
+    if os == "macos"
+        && context
+            .executable
+            .components()
+            .any(|c| c.as_os_str() == "AppTranslocation")
+    {
+        return Err(placement_error());
+    }
     let parent = context.executable.parent().ok_or_else(placement_error)?;
     if os == "macos"
         && parent
@@ -1050,6 +1061,38 @@ mod tests {
                 .unwrap_err()
                 .code,
             "placement_unavailable"
+        );
+    }
+    #[test]
+    fn macos_translocation_requires_explicit_root_but_external_volumes_work() {
+        let temporary = Placement {
+            executable: PathBuf::from(
+                "/private/var/folders/session/AppTranslocation/id/d/Lite.app/Contents/MacOS/local-media-gallery",
+            ),
+            appimage: None,
+            appdir: None,
+        };
+        assert_eq!(
+            default_root(Edition::Lite, "macos", &temporary)
+                .unwrap_err()
+                .code,
+            "placement_unavailable"
+        );
+        assert!(
+            resolve_root(Edition::Lite, Some(std::env::temp_dir()), &temporary)
+                .unwrap()
+                .is_some()
+        );
+        let external = Placement {
+            executable: PathBuf::from(
+                "/Volumes/Shared gallery/Lite.app/Contents/MacOS/local-media-gallery",
+            ),
+            appimage: None,
+            appdir: None,
+        };
+        assert_eq!(
+            default_root(Edition::Lite, "macos", &external).unwrap(),
+            Some(PathBuf::from("/Volumes/Shared gallery"))
         );
     }
     #[test]

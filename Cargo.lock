@@ -1108,6 +1108,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gallery-macos-package"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "gallery-windows-package"
 version = "0.0.0"
 dependencies = [
