@@ -10,4 +10,6 @@ Repository check, all 96 Node tests, package units/Clippy and script syntax pass
 
 ## Review accounting
 
-Maximum requested review rounds: 2. No PR or review round yet. Owner final merge boundary remains unchanged.
+Maximum requested review rounds: 2. Official PR #55 opened on af247ff; first automatic round completed with two findings. Both fixed in eefa496, replied to and resolved promptly. Recipient otool dependency removed; native dependency inspection stays in build qualification. PATH parent aliases are canonicalized, keeping separate exact command-symlink ownership. Local package units/Clippy pass, including actual filesystem alias regression.
+
+Local documentation build/checks and ten rendered website groups pass. Native candidate campaign and existing hosted scopes remain in progress. Final second review request is reserved until corrected implementation qualification stabilizes. Owner final merge boundary remains unchanged.
