@@ -28,3 +28,16 @@ updates:
       cargo-compatible:
         patterns: ["*"]
         update-types: [minor, patch]
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python-compatible:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # Exact recovered brand-renderer attestation includes Pillow 12.3.0; requires kit refresh #57.
+      - dependency-name: Pillow
+        versions: [">12.3.0"]
