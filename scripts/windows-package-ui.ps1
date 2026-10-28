@@ -43,6 +43,7 @@ Param(
 
     if (($Help) -or ($PSCmdlet.ParameterSetName -eq 'HelpText')) { Get-Help $ThisScriptPath -Detailed; exit 0 }
     $ErrorActionPreference='Stop'
+    [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
     if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { throw 'Ordinary candidate UI observation requires isolated CI' }
     try {
         Add-Type -AssemblyName UIAutomationClient

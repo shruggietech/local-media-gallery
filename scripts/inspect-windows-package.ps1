@@ -67,6 +67,7 @@ Param(
 
     if (($Help) -or ($PSCmdlet.ParameterSetName -eq 'HelpText')) { Get-Help $ThisScriptPath -Detailed; exit 0 }
     $ErrorActionPreference='Stop'
+    [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
     try {
         if ([IO.Path]::GetExtension($File) -eq '.lnk') {
             Add-Type @'
@@ -106,7 +107,14 @@ public static class CandidateShortcut {
 }
 '@
             $actual=[CandidateShortcut]::Read($File)
-            @{path=$File;target=$actual[0];arguments=$actual[1];workingDirectory=$actual[2]} | ConvertTo-Json -Compress
+            @{
+                path=$File
+                target=$actual[0]
+                arguments=$actual[1]
+                workingDirectory=$actual[2]
+                nativeTarget=@{encoding='windows-utf16le';bytes=@([Text.Encoding]::Unicode.GetBytes($actual[0]))}
+                nativeWorkingDirectory=@{encoding='windows-utf16le';bytes=@([Text.Encoding]::Unicode.GetBytes($actual[2]))}
+            } | ConvertTo-Json -Depth 5 -Compress
             exit 0
         }
         if ([IO.Path]::GetExtension($File) -eq '.msi') {
