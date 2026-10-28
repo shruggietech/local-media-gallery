@@ -1,5 +1,7 @@
 # S014 Qualification Measurements
 
+Merged-main final Windows retry: source92563faf, squash3640110, run40588403204. Preparation769.783s, qualification342.625s, combined1112.408s; terminal2026-10-27T22:31:50.396Z. All eleven gates and independent Windows archive/native/legacy read-back pass. The first preparation-driver startup failure remains a separate failed attempt; no assertion or deadline was weakened.
+
 ## Preliminary native regressions
 
 Development checks exercised real Windows system-WebView media, trusted input, UIA and isolated NVDA semantic speech before the owner prohibited workstation focus changes. The initial filename-announcement regression failed before the product fix and passed afterward. Narrow/zoomed viewer clipping failed before the layout correction; its corrected native acceptance and the expanded coarse/mixed target checks are elected only on isolated CI. These checks are not final-source or cross-platform acceptance.
@@ -107,6 +109,30 @@ Complete headless campaign14 passed source009bc999269887145f167e45ff1919c0050cc9
 Non-acceptance diagnostic40574185133 reused identified source24c2638 native binaries with harness source6c6c8a20d4df2b92f7b09ecacfc770bc75c294970781f800adb1003e94a5cb49. Its four selected scripts passed from2026-10-27T20:02:19.469Z through20:05:10.771Z (171.302s). This diagnostic interval excludes its prerequisite preparation and is not substituted for qualification.
 
 Complete headless campaign15 passed source6c6c8a20d4df2b92f7b09ecacfc770bc75c294970781f800adb1003e94a5cb49 (1053 files), commitcad5bad. Preparation45.554s, qualification96.936s, combined142.490s; terminal2026-10-27T20:08:51.344Z. All eleven gates passed with86 Node tests. Fresh complete hosted run40575065867 is pending; repository and website are green. Native acceptance and final hosted read-back remain required.
+
+## Eighth hosted campaign
+
+Run40575065867 tested source6c6c8a20d4df2b92f7b09ecacfc770bc75c294970781f800adb1003e94a5cb49, merge97b0402c42fc6763a49f412f7e39ffd3d00c7fe5. Linux passed: preparation651.272s, qualification90.297s, combined741.569s, terminal2026-10-27T20:19:00.569Z. macOS passed: preparation961.629s, qualification212.959s, combined1174.588s, terminal2026-10-27T20:26:16.588Z. Both editions on both platforms passed independent native/binary/source/archive read-back. Windows passed both new runtime editions, then failed the older pressure test's limit1 wait: preparation817.690s, qualification305.448s, combined1123.138s, terminal2026-10-27T20:25:33.843Z. Its complete scope is not accepted. Preparation exceeding900s is separate from the qualification hard limit; no preparation time is omitted or relabelled.
+
+## Headless campaign 16
+
+Complete headless campaign16 passed source92563faf93624fcd205fe8d8e9dd1964863cf95c83e6e8727ff8be16f2ac33ed (1053 files), commit6e8c439. Preparation47.051s, qualification100.572s, combined147.623s; terminal2026-10-27T20:32:46.158Z. All eleven gates passed with86 Node tests and independent local Full/Lite archive read-back. The source remains frozen while focused pressure-demand diagnosis40578411280 runs; no local interactive acceptance is admitted.
+
+## Consecutive explicit-demand diagnostic receipts
+
+Diagnostic40578411280 passed the four selected legacy scripts from2026-10-27T20:30:31.784Z through20:33:19.857Z (168.073s). Unchanged-source repeat40579421650 passed them from2026-10-27T20:37:12.753Z through20:40:08.871Z (176.118s). Both separately bind harness source92563faf and prior compiled source6c6c8a20, and both retain acceptancefalse. Their selected-script durations exclude prerequisite preparation and are not substituted for full qualification. Complete run40579425935 remains pending.
+
+## Ninth hosted campaign, attempt 1
+
+Source92563faf93624fcd205fe8d8e9dd1964863cf95c83e6e8727ff8be16f2ac33ed (1053 files), run40579425935, tested merge074ccb1339428d097cceca0aff2573bb476bb5df. Repository passed: preparation26.818s, qualification2.622s, combined29.440s, terminal2026-10-27T20:36:10.440Z. Website passed: preparation72.408s, qualification58.098s, combined130.506s, terminal2026-10-27T20:37:52.506Z. Linux passed: preparation806.239s, qualification123.546s, combined929.785s, terminal2026-10-27T20:51:14.785Z. macOS passed: preparation1157.273s, qualification221.060s, combined1378.333s, terminal2026-10-27T20:58:44.333Z. Independent read-back passes those four scopes and all four Linux/macOS archives.
+
+Windows failed at the15s native input-helper bound after native images: preparation817.057s, qualification187.544s, combined1004.601s, terminal2026-10-27T20:52:35.664Z. Its full scope is not accepted. A single Windows-only retry on unchanged source started after the remaining macOS job completed. Retry preparation and qualification will be accounted separately; earlier elapsed time and failure remain retained here.
+
+## Ninth hosted campaign, accepted Windows retry
+
+On unchanged source92563faf, the single Windows-only retry passed all eleven gates: preparation657.301s, qualification334.352s, combined991.653s; terminal2026-10-27T21:17:23.666Z. Other passing scopes retain the attempt1 measurements above. Final independent read-back passes all five scopes, six native-edition receipts and six normal archives. The earlier187.544s failed Windows qualification remains a separate failed attempt, not an omitted warm-up.
+
+The owner merged PR#53 at2026-10-27T21:38:04Z as3640110. Housekeeping verified the accepted branch/squash Git tree equality, synchronized main and removed the completed branch. Post-merge main CI has its own run40588403204 and is distinct from these accepted PR measurements. No release was published.
 
 ## Accounting policy
 

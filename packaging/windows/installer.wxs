@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="@PRODUCT@" Name="Local Media Gallery Full" Language="1033" Version="0.0.0" Manufacturer="ShruggieTech" UpgradeCode="@UPGRADE@">
+    <Package Id="@PACKAGE@" InstallerVersion="500" Compressed="yes" InstallScope="@INSTALL_SCOPE@" Platform="x64" Description="Local Media Gallery Full candidate" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="REBOOT" Value="ReallySuppress" />
+    <Property Id="INSTALLDIR" Secure="yes" />
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="@BASE@">
+        @PROGRAMS@
+      </Directory>
+      <Directory Id="@MENU_DIRECTORY@" Name="." />
+    </Directory>
+    <DirectoryRef Id="INSTALLDIR">
+      @FILES@
+      <Component Id="Integration" Guid="@INTEGRATION_GUID@" Win64="yes">
+        <RegistryKey Root="@HIVE@" Key="Software\ShruggieTech\LocalMediaGallery">
+          <RegistryValue Name="ProductCode" Value="@PRODUCT@" Type="string" KeyPath="yes" />
+          <RegistryValue Name="PackageCode" Value="@PACKAGE@" Type="string" />
+          <RegistryValue Name="InstallDir" Value="[INSTALLDIR]" Type="string" />
+          <RegistryValue Name="PayloadSha256" Value="@PAYLOAD_SHA@" Type="string" />
+        </RegistryKey>
+        <Environment Id="CommandPath" Name="PATH" Value="[INSTALLDIR]" Action="set" Part="last" System="@SYSTEM@" Permanent="no" />
+        <Shortcut Id="StartShortcut" Directory="@MENU_DIRECTORY@" Name="Local Media Gallery" Target="[INSTALLDIR]local-media-gallery.exe" WorkingDirectory="INSTALLDIR" Advertise="no" />
+        <RemoveFolder Id="RemoveInstallDir" On="uninstall" />
+        @REMOVE_FOLDERS@
+      </Component>
+    </DirectoryRef>
+    <Feature Id="Application" Title="Local Media Gallery" Level="1">
+      @COMPONENT_REFS@
+      <ComponentRef Id="Integration" />
+    </Feature>
+    <Binary Id="Ownership" SourceFile="@HELPER@" />
+    <CustomAction Id="Preflight" BinaryKey="Ownership" DllEntry="Preflight" Execute="immediate" Return="check" />
+    <CustomAction Id="SetInstallLocation" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
+    <CustomAction Id="VerifyInstalled" BinaryKey="Ownership" DllEntry="VerifyInstalled" Execute="deferred" Impersonate="@IMPERSONATE@" Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="SetInstallLocation" After="CostFinalize">1</Custom>
+      <Custom Action="Preflight" Before="InstallInitialize">1</Custom>
+      <Custom Action="VerifyInstalled" Before="InstallFinalize">NOT REMOVE="ALL"</Custom>
+    </InstallExecuteSequence>
+  </Product>
+</Wix>

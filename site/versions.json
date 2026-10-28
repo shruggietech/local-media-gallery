@@ -73,6 +73,9 @@
         }
       ],
       "schema": "schemas/v0.0.0/local-media-gallery.schema.json",
+      "additionalSchemas": [
+        { "source": "schemas/v0.0.0/windows-packages.schema.json", "topic": "windows-packages-schema", "title": "Windows candidate payload schema" }
+      ],
       "examples": [
         "schemas/v0.0.0/examples/selection.json"
       ],

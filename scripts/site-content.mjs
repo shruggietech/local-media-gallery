@@ -280,6 +280,12 @@ export async function createModel(base, suppliedManifest) {
         raw: `/raw/${snapshot.version}/local-media-gallery.schema.json`,
       });
     }
+    for(const entry of snapshot.additionalSchemas??[]){
+      assert.match(entry.topic,/^[a-z][a-z0-9-]*$/);assert.ok(entry.source.startsWith('schemas/'+snapshot.version+'/')&&entry.source.endsWith('.schema.json'));
+      const route='/docs/'+snapshot.version+'/'+entry.topic+'/';const rawPath='/raw/'+snapshot.version+'/'+path.posix.basename(entry.source);
+      const bytes=await source(entry.source,route,rawPath,snapshot.version);const schema=JSON.parse(bytes);assert.equal(schema['x-release-version'],snapshot.version.slice(1));new Ajv({strict:false}).compile(schema);
+      pages.push({route,version:snapshot.version,topic:entry.topic,title:entry.title,html:'<h1>'+escape(entry.title)+'</h1>'+renderSchema(schema),raw:rawPath});
+    }
     inventory.set(`${snapshot.version}:CHANGELOG.md`, '/changelog/');
     inventory.set(`${snapshot.version}:SECURITY.md`, '/support/');
   }
