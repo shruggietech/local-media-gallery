@@ -8,7 +8,7 @@ use std::{
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub fn hash(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -542,5 +542,20 @@ mod tests {
         assert!(no_links(&bundle, Path::new("file")).is_err());
         assert_eq!(fs::read(outside).unwrap(), b"retain");
         assert!(destination(&bundle.join("file")).is_err());
+    }
+}
+
+#[cfg(test)]
+mod digest_compatibility {
+    #[test]
+    fn preserves_sha256_known_vectors() {
+        assert_eq!(
+            super::hash(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        assert_eq!(
+            super::hash(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     }
 }

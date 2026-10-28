@@ -32,7 +32,7 @@ pub fn error(code: &str) -> GalleryError {
     )
 }
 pub fn sha(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 pub fn digest(
     file: &mut std::fs::File,
@@ -62,7 +62,7 @@ pub fn digest_checked(
     }
     file.seek(SeekFrom::Start(0))
         .map_err(|_| error("source_changed"))?;
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -576,4 +576,19 @@ fn io_error(error: std::io::Error) -> GalleryError {
         std::io::ErrorKind::AlreadyExists => "cache_conflict",
         _ => "cache_unavailable",
     })
+}
+
+#[cfg(test)]
+mod digest_compatibility {
+    #[test]
+    fn preserves_sha256_known_vectors() {
+        assert_eq!(
+            super::sha(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        assert_eq!(
+            super::sha(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
 }

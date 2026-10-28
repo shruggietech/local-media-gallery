@@ -9,7 +9,7 @@ pub mod native;
 pub const PAYLOAD: &str = include_str!(concat!(env!("OUT_DIR"), "/payload.json"));
 pub const SETUP: &str = include_str!(concat!(env!("OUT_DIR"), "/setup.json"));
 pub fn hash(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 pub fn runtime_for_scope<T>(
     machine: bool,
@@ -64,7 +64,7 @@ pub fn open_verified_input(path: &Path, record: &FileRecord) -> Result<fs::File,
         }
         hasher.update(&buffer[..n]);
     }
-    if total != expected || format!("{:x}", hasher.finalize()) != record.sha256 {
+    if total != expected || hex::encode(hasher.finalize()) != record.sha256 {
         return Err(format!("Input identity differs: {}", path.display()));
     }
     Ok(file)
@@ -378,5 +378,20 @@ mod tests {
         let alias = physical.join("redirect");
         std::os::unix::fs::symlink(&physical, &alias).unwrap();
         assert!(check_path(&alias).is_err());
+    }
+}
+
+#[cfg(test)]
+mod digest_compatibility {
+    #[test]
+    fn preserves_sha256_known_vectors() {
+        assert_eq!(
+            super::hash(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        assert_eq!(
+            super::hash(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     }
 }
