@@ -10,7 +10,7 @@
       <Directory Id="@BASE@">
         @PROGRAMS@
       </Directory>
-      <Directory Id="ProgramMenuFolder" />
+      <Directory Id="@MENU_DIRECTORY@" Name="." />
     </Directory>
     <DirectoryRef Id="INSTALLDIR">
       @FILES@
@@ -22,7 +22,7 @@
           <RegistryValue Name="PayloadSha256" Value="@PAYLOAD_SHA@" Type="string" />
         </RegistryKey>
         <Environment Id="CommandPath" Name="PATH" Value="[INSTALLDIR]" Action="set" Part="last" System="@SYSTEM@" Permanent="no" />
-        <Shortcut Id="StartShortcut" Directory="ProgramMenuFolder" Name="Local Media Gallery" Target="[INSTALLDIR]local-media-gallery.exe" WorkingDirectory="INSTALLDIR" Advertise="no" />
+        <Shortcut Id="StartShortcut" Directory="@MENU_DIRECTORY@" Name="Local Media Gallery" Target="[INSTALLDIR]local-media-gallery.exe" WorkingDirectory="INSTALLDIR" Advertise="no" />
         <RemoveFolder Id="RemoveInstallDir" On="uninstall" />
         @REMOVE_FOLDERS@
       </Component>

@@ -26,6 +26,7 @@ const MACHINE: &str = "{F81110E5-48A6-4096-B065-752E0D3B61C0}";
 const KEY: &str = "Software\\ShruggieTech\\LocalMediaGallery";
 #[link(name = "msi")]
 unsafe extern "system" {
+    fn MsiSetTargetPathW(h: u32, directory: *const u16, path: *const u16) -> u32;
     fn MsiGetPropertyW(h: u32, name: *const u16, value: *mut u16, length: *mut u32) -> u32;
     fn MsiSetPropertyW(h: u32, name: *const u16, value: *const u16) -> u32;
     fn MsiGetProductInfoExW(
@@ -404,6 +405,17 @@ fn preflight(h: u32) -> Result<(), String> {
         _ => return Err("Unknown product scope".into()),
     };
     let directory = PathBuf::from(get(h, "INSTALLDIR")?);
+    if machine {
+        let link = shortcut(true)?;
+        let menu = link.parent().ok_or("Common Programs folder unavailable")?;
+        let status =
+            unsafe { MsiSetTargetPathW(h, wide("MachinePrograms").as_ptr(), wide(menu).as_ptr()) };
+        if status != 0 {
+            return Err(format!(
+                "Cannot bind actual machine common Programs directory: {status}"
+            ));
+        }
+    }
     validate_destination(&directory, machine)?;
     if text(h, "REMOVE")? != "ALL" {
         scoped_runtime(machine)?;
