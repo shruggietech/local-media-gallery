@@ -5,8 +5,39 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      npm-compatible:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # The delivered brand adapter requires this exact version. Revisit with a kit update.
+      - dependency-name: radix-ui
+        versions: [">1.6.7"]
+      # CI qualifies Node 24; keep its API declarations on the same major.
+      - dependency-name: "@types/node"
+        versions: [">=25.0.0"]
+      # The installed parser supports TypeScript <6.1; TS7 also replaces the JS compiler API.
+      - dependency-name: typescript
+        versions: [">=6.1.0"]
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      cargo-compatible:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python-compatible:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # Exact recovered brand-renderer attestation includes Pillow 12.3.0; requires kit refresh #57.
+      - dependency-name: Pillow
+        versions: [">12.3.0"]

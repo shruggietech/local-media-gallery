@@ -8,6 +8,8 @@ Native media/accessibility qualification and optional thumbnail/diagnostic work 
 
 ### Added
 
+- Dependency maintenance (2026-10-28): consolidate Ajv 8.20.0, Cheerio 1.2.0, Node 24 API declarations and TypeScript 6.0.3; remove deprecated compiler configuration without changing brand path resolution. Group compatible Dependabot updates and retain explicit toolchain/brand adapter compatibility bounds. Carry completed macOS package verification receipts forward after the owner merge.
+
 - macOS release-profile Full DMG and portable Lite ZIP candidates, with a native scope-aware installer, exact signed bundle inventories and selective removal retaining galleries and user state. Candidates use ad-hoc signatures and remain unnotarized/unpublished.
 - Packaging decisions (2026-10-28): preserve the elected macOS15 Apple Silicon baseline, default user Applications/local command scope and explicitly elevated system scope. Verify ordinary candidates on an isolated hosted desktop using an external native observer. Known translocated Lite placement requires a selected gallery; external-volume galleries remain supported.
 

@@ -43,6 +43,8 @@ Console children on Windows must use `CREATE_NO_WINDOW` or an equivalent guarant
 
 ## Commits and pull requests
 
+Dependency updates must preserve the elected toolchain and delivered brand adapter contracts. Dependabot groups compatible minor/patch updates to reduce overlapping lockfile changes. Node API declarations follow the qualified Node 24 major. TypeScript 6.0 retains the compiler API used by the current tools and fits the installed parser's `<6.1` peer range; newer compiler families need a coordinated tooling migration. The delivered brand kit requires exact `radix-ui@1.6.7`; revisit that dependency through the brand-kit update workflow. The recovered brand renderer attestation also binds Pillow 12.3.0; issue #57 tracks the governed refresh needed for patched Pillow. Keep the corresponding Dependabot exclusions aligned when these contracts change.
+
 Use focused conventional commits. Update Unreleased in the changelog for behavior or workflow changes. Link the related issue in each pull request and describe changed behavior, checks and unverified limits. Follow the owner's merge authorization, squash merge and delete merged branches. Release notes contain short highlights and end with a link to the master changelog. Repository publication does not create a product release; packages, signing, hosting and release automation remain separate work.
 
 ## Hosted checks

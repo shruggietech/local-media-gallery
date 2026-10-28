@@ -17,7 +17,6 @@
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "baseUrl": ".",
     "paths": {
       "@brand/*": [
         "../../brand/kit/*"
