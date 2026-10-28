@@ -68,7 +68,10 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
-          restore-keys: cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          restore-keys: |
+            cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
       - run: npm ci
       - run: npm run ci -- product-windows
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -136,7 +139,10 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
-          restore-keys: cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          restore-keys: |
+            cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
       - run: npm ci
       - run: npm run ci -- windows-packages
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -197,7 +203,10 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
-          restore-keys: cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          restore-keys: |
+            cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
       - run: npm ci
       - run: npm run ci -- macos-packages
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -277,7 +286,10 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
-          restore-keys: cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          restore-keys: |
+            cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
       - run: npm ci
       - name: Run native qualification on isolated Linux display
         if: runner.os == 'Linux'

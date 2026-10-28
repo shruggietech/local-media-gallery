@@ -9,6 +9,7 @@ Native media/accessibility qualification and optional thumbnail/diagnostic work 
 ### Added
 
 - Dependency maintenance (2026-10-28): consolidate Ajv 8.20.0, Cheerio 1.2.0, Node 24 API declarations and TypeScript 6.0.3; remove deprecated compiler configuration without changing brand path resolution. Group compatible Dependabot updates and retain explicit toolchain/brand adapter compatibility bounds. Carry completed macOS package verification receipts forward after the owner merge.
+- Fresh dependency scan (2026-10-28): update Next.js 16.4.3, Playwright 1.64.1, UUID 1.29.0, native WebDriver plugin 1.5.1, SHA-2 0.11.1, Base64 0.23.1 and rusqlite 0.41.0. Preserve exact workspace lockfile declarations. Reuse scope/runner-image Cargo cache hints across lockfile changes while retaining actual locked builds and native qualification.
 
 - macOS release-profile Full DMG and portable Lite ZIP candidates, with a native scope-aware installer, exact signed bundle inventories and selective removal retaining galleries and user state. Candidates use ad-hoc signatures and remain unnotarized/unpublished.
 - Packaging decisions (2026-10-28): preserve the elected macOS15 Apple Silicon baseline, default user Applications/local command scope and explicitly elevated system scope. Verify ordinary candidates on an isolated hosted desktop using an external native observer. Known translocated Lite placement requires a selected gallery; external-volume galleries remain supported.
