@@ -33,3 +33,9 @@ At most two external source review waves are authorized. No review requested bef
 ## Advisory and publication boundary
 
 The patched manifest and implementation can be qualified on this PR. GitHub default-branch alert closure requires the owner's squash merge and subsequent scanner readback. A backported GLib source may remain a version-only alert; scanner recognition is not proof of the implementation's bytes. No advisory dismissal or production package release is performed here.
+
+## Initial review and hosted failure
+
+At head `7159178fd75a7f37511f331c7dd844c0298042f7`, [run40878652038](https://github.com/shruggietech/local-media-gallery/actions/runs/40878652038) tested merge `dad67470f64f2977c1f7c8cdab3168376fbf007f`, source `58ba0bb6416c0132979108ef06ce488f4a21d8e314658e28a39e07d0bbe928c6` (1271files). Repository, website and both package scopes passed. Native macOS failed final receipt validation because the new validator required numeric hashes despite the existing VP9 snapshot SHA256 representation. Actual clock/frame and PCM observations are retained in artifact12899259141. Its preparation/qualification/combined seconds are810.858/153.110/963.968; the qualification itself is below both targets. The corrected validator accepts only the actual numeric-canvas or exact native-snapshot hash forms, still rejects unchanged frames/stopped clocks and prevents a terminal exception from retaining a pass result. Original failed evidence is retained, never promoted as a successful rerun.
+
+Initial code review completed2026-10-29T13:06:43Z with one finding: preserve unchanged historical baseline measurement support. Fixed in `2a66bc6`, replied and thread resolved. Seven driver tests include the actual Windows TCP-table observation; all108Node tests and source/docs checks passed. Initial security review completed2026-10-29T13:11:58Z with no additional comments posted. The second/final review wave remains unused pending native corrections.

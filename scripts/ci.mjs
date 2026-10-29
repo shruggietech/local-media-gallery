@@ -77,6 +77,7 @@ const record = await qualification({
   }, {name:'Lite shell and state unit tests',run:()=>cargo(['test','--locked','-p','local-media-gallery','--features','lite'])}, {name:'Preparation native authority/cancellation regressions',run:()=>cargo(['test','--locked','-p','gallery-core','--features','discovery-tests','--test','preparation'])}, {name:'Normal Full/Lite extracted native proof',run:()=>node(path.join(root,'scripts/test-proof.mjs'))},
   {name:'Isolated Full/Lite native media and accessibility',run:()=>node(path.join(root,'scripts/test-runtime-platform.mjs'))},
   ...(scope==='product-windows'?[
+   {name:'Owned driver and unchanged baseline listener regressions',run:()=>execute(process.execPath,['--test','tests/native-driver-lifecycle.test.mjs'])},
    {name:'Existing Windows rendered browsing acceptance',run:()=>node(path.join(root,'scripts/test-native.mjs'),[],{env:{...environment,GALLERY_TEST_BINARY:nativeBinaries.full}})},
    {name:'Existing Windows preparation and diagnostic export',run:()=>node(path.join(root,'scripts/test-preparation.mjs'),[],{env:{...environment,GALLERY_TEST_BINARY:nativeBinaries.full}})},
    {name:'Existing Windows Full/Lite launch contracts',run:()=>node(path.join(root,'scripts/test-launch.mjs'),['--full',nativeBinaries.full,'--lite',nativeBinaries.lite])},

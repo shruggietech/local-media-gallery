@@ -78,3 +78,5 @@ No constitution exception. The vendored subtree is required because the maintain
 ## Initial review correction
 
 2026-10-29: The historical measured baseline lacks the new native qualification command. Preserve it unchanged. For baseline measurements only, use the already persistent Windows process observer to read the actual TCP listener owner PID before/after session creation, inside the same15-second readiness deadline. Current artifacts retain nonce/PID proof. Headless legacy protocol, unrelated-owner and deadline regressions plus a real Windows TCP-table observation validate this compatibility path without launching a GUI or rebuilding the historical artifact.
+
+Qualification receipts, task progress and measurements follow the same explicit source-digest exclusion policy used for prior slices. The specification, plan, research, code, dependency manifests and governed inventories remain included. Final GitHub checks and artifact revisions are still verified against the actual PR commit.

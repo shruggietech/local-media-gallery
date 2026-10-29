@@ -136,7 +136,7 @@ try{
  await check('integrity',async()=>{await verifyRuntimeFixture(fixture);assert.equal(digest(await readFile(binary)),record.binary.sha256);assert.deepEqual(await sourceIdentity(),source);});
  record.result=diagnosticStyle?'diagnostic-pass':'pass';record.terminalFinished=new Date().toISOString();
  if(!diagnosticStyle)validateRuntimeReceipt(record,{source,binarySha256:digest(bytes),fixtureSha256:fixture.sha256,edition:record.edition,platform:process.platform});
-}catch(error){record.failure=error.stack;console.error(error.stack);process.exitCode=1;}
+}catch(error){record.result='fail';record.failure=error.stack;console.error(error.stack);process.exitCode=1;}
 finally{
  const cleanupFailures=[];
  if(app)try{record.mediaLoadConfiguration??=await app.js('return window.__runtimeVideoLoads');}catch{}
