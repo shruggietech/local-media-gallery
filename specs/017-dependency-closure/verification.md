@@ -13,7 +13,7 @@ Spec Kit feature `017-dependency-closure`, branch `codex/s017-dependency-closure
 
 Node 24.11.0, Python 3.12 and Rust 1.96 on Windows, using hidden noninteractive launchers. No local native GUI, focus, keyboard or screen-reader acceptance was run.
 
-`npm run check`, `npm test`, `check:docs`, `check:app`, native-test-feature Clippy and full site build/link/rendered checks passed. The final local suite contains 109 passing Node tests, including real early exit, listener collision/unavailability, legacy baseline compatibility, actual Windows listener-PID attribution, PCM corruption/absence/ownership, canonical proof tampering, vendor changed/missing/extra bytes, stopped clocks, unchanged frames and contradictory success receipts.
+`npm run check`, `npm test`, `check:docs`, `check:app`, native-test-feature Clippy and full site build/link/rendered checks passed. The final local suite contains 110 passing Node tests, including real early exit, listener collision/unavailability, legacy baseline compatibility, actual Windows listener-PID attribution, PCM corruption/absence/ownership, canonical proof tampering, vendor changed/missing/extra bytes, stopped clocks, unchanged frames and contradictory success receipts.
 
 The exact recovered verifier with Pillow 13 passed 36 checks with zero problems and zero skipped inputs; the glyph validator passed all 15 checks. Every one of the 128 comparison images is recomputed and checked for exact mode, dimensions and pixels while retaining its pinned encoding. Site checks passed 42 HTML pages, 2,887 local links/fragments, 31 exact raw sources and ten rendered groups. The UTF-8/LF, mojibake, local-link and version checks passed.
 
@@ -39,7 +39,7 @@ Independent readback verified all seven source-bound receipts, six native Full/L
 
 See [measurements](measurements.md) for chronological terminal timestamps and separate preparation/qualification/combined accounting. Maximum qualification was 379.488 seconds, below the 660-second target and 900-second hard limit. The existing 15-second provisional finalization reserve remains enforced.
 
-A final receipt-only commit records completion. The explicit established exclusions cover this feature's tasks, verification and measurements; specification, plan, research, code, manifests and governed inventories remain included. Source identity is checked unchanged across closeout. The actual final PR commit still receives its own terminal CI, with the final live check receipt linked from the PR.
+The first receipt-only commit records the initial qualified implementation. The explicit established exclusions cover this feature's tasks, verification and measurements; specification, plan, research, code, manifests and governed inventories remain included. Source identity was checked unchanged across that first receipt closeout; the later license-catalog correction has a new identity. The actual final PR commit still receives its own terminal CI, with the final live check receipt linked from the PR.
 
 ## External reviews
 
@@ -63,7 +63,7 @@ All review threads are resolved. No further review request is authorized by this
 
 ## Convergence and handoff
 
-The final assessment covers ten functional requirements, five success criteria, ten acceptance scenarios, five primary plan decisions plus two operational decisions, and five constitutional principles. No missing, partial, contradictory or unrequested implementation remains; no convergence tasks were appended. All 21 implementation and review-correction tasks are complete.
+The final assessment covers ten functional requirements, five success criteria, ten acceptance scenarios, five primary plan decisions plus two operational decisions, and five constitutional principles. No missing, partial, contradictory or unrequested implementation remains; no convergence tasks were appended. All 22 implementation, review-correction and artifact-inventory tasks are complete.
 
 Owner final review and squash merge remain the publication boundary. Default-branch advisory closure requires post-merge scanner readback; a truthful GLib backport may remain a version-only finding. No advisory dismissal, product release or signing promotion is claimed. Physical speakers, additional platform baselines and historical baseline GUI measurements were not newly qualified by this slice.
 
@@ -72,3 +72,9 @@ Owner final review and squash merge remain the publication boundary. Default-bra
 Artifact convergence found that the existing license selector treated every null Cargo source as owned code, omitting the newly vendored GLib catalog entry. The selector now uses actual workspace membership, with a regression for registered, vendored and owned packages. This correction preserves recipient LICENSE/COPYRIGHT inventory entries; it does not alter the governed kit or patched crate bytes. Final qualification and artifact readback bind this correction to its own source revision. The review cap remains two rounds; no additional review was requested.
 
 On the receipt closeout head ff4b939, the Windows package preparation failed a 30-second rustc --version probe after release compilation. Its failed artifact12903501718 and log are retained, and one targeted same-head retry was requested. No packaging qualification ran in the failed attempt, and no assertion was changed.
+
+### Qualified license catalog
+
+The targeted unchanged-head ff4b939 Windows packaging retry passed, preserving the other six passing scopes. The subsequent license correction cf32eb99d76fd4049a2eb2cbd90571e0c0d374dc has source `4861353d4da5f8b601a557fdb33eaa4d7edf3250dc138b27467dbb3f2b0bae8c` (1,269 files), tested merge `e63e8ee54ab3e32309c7852e67d498157dd329b4`, [run 40891827017](https://github.com/shruggietech/local-media-gallery/actions/runs/40891827017). Its hosted Linux qualification passed. Independent readback verified both complete Full/Lite proof archives, every inventory hash, and exact normalized upstream `rust/glib-0.18.5/LICENSE` and `COPYRIGHT` bytes in both actual recipient catalogs. Windows and macOS correctly omit this Linux-only dependency. Local source/docs checks and all 110 tests passed.
+
+Convergence rechecked ten FRs, five buildable success criteria, ten acceptance scenarios, eight plan/operational decisions and five constitutional principles. No further buildable gaps were found; no empty convergence phase was appended. The final metadata commit changes only excluded task/verification records and preserves this qualified source identity. Its own terminal complete CI and final artifact readback are linked from the live PR handoff, which is the final merge-readiness receipt.
