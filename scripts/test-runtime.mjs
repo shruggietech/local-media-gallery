@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {root,python} from './run.mjs';
+import {root,python,environment} from './run.mjs';
+import {captureLinuxOutput} from './native-pcm.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {digest,signalObservation,validateRuntimeReceipt,unsupportedVideoError} from './runtime-evidence.mjs';
 import {verifyRuntimeFixture} from './create-runtime-fixture.mjs';
@@ -23,7 +24,7 @@ const record={formatVersion:1,result:'fail',source,edition:process.env.GALLERY_T
 let app,reader;
 async function check(name,fn){await fn();record.checks.push({name,result:'pass',terminalFinished:new Date().toISOString()});console.log('PASS native runtime '+name);}
 try{
- await verifyRuntimeFixture(fixture);app=await openRuntime(binary,fixture);
+ await verifyRuntimeFixture(fixture);app=await openRuntime(binary,fixture);record.appPid=app.child.pid;
  const js=(fn,...args)=>app.js('return await ('+fn.toString()+')(...arguments);',args);
  await until(()=>js(()=>document.querySelectorAll('.media-card').length>0),'Native gallery cards');
  if(diagnosticStyle){const style=await readFile(path.join(root,'apps/gallery/src/app/gallery.css'),'utf8');record.acceptance=false;record.diagnosticStyle={sha256:digest(Buffer.from(style)),bytes:String(Buffer.byteLength(style))};await js(text=>{const style=document.createElement('style');style.textContent=text;document.head.append(style);return true;},style);}
@@ -57,17 +58,17 @@ try{
   for(const entry of videos){
    await open(entry.name);await inspect();
    if(diagnosticReload&&process.platform==='darwin'){await js(()=>{document.querySelector('dialog[open] video').load();return true;});record.diagnosticReload='Explicit same-source post-mount load; diagnostic only';}
-   const audioMethod=process.platform==='darwin'&&entry.codec==='vp9'?'native-original-buffer':'media-element';let decodedSource;
+   const audioMethod=process.platform==='linux'?'native-output-monitor':process.platform==='darwin'&&entry.codec==='vp9'?'native-original-buffer':'media-element';let decodedSource;
    if(audioMethod==='media-element')await js(()=>{const video=document.querySelector('dialog[open] video');const context=new AudioContext();const source=context.createMediaElementSource(video);const analyser=context.createAnalyser();analyser.fftSize=4096;const gain=context.createGain();gain.gain.value=0;source.connect(analyser).connect(gain).connect(context.destination);window.__runtimeAudio={context,source,analyser};return true;});
    await app.focus('Play');await js(()=>{document.querySelector('dialog[open] video').scrollIntoView({block:'center'});return true;});await app.nativeKey('Space');
-   try{await until(()=>js(independent=>{const v=document.querySelector('dialog[open] video');return v.error||(v.readyState>=2&&v.currentTime>0.3&&!v.paused&&(independent||window.__runtimeAudio?.context.state==='running'));},audioMethod==='native-original-buffer'),'Trusted native playback/audio graph '+entry.name,15000);}catch(error){
-    record.playbackFailure=await js(()=>{const v=document.querySelector('dialog[open] video');return {hasFocus:document.hasFocus(),active:document.activeElement?.textContent?.trim(),key:window.__runtimeKey??null,audioState:window.__runtimeAudio?.context.state??null,video:v?{readyState:v.readyState,networkState:v.networkState,currentTime:v.currentTime,paused:v.paused,ended:v.ended,error:v.error?.code??null}:null};});
+   try{await until(()=>js(independent=>{const v=document.querySelector('dialog[open] video');return v.error||(v.readyState>=2&&v.currentTime>0.3&&!v.paused&&(independent||window.__runtimeAudio?.context.state==='running'));},audioMethod!=='media-element'),'Trusted native playback/audio graph '+entry.name,15000);}catch(error){
+    record.playbackFailure=await js(()=>{const v=document.querySelector('dialog[open] video');return {hasFocus:document.hasFocus(),active:document.activeElement?.textContent?.trim(),key:window.__runtimeKey??null,audioState:window.__runtimeAudio?.context.state??null,audioClock:window.__runtimeAudio?.context.currentTime??null,video:v?{readyState:v.readyState,networkState:v.networkState,currentTime:v.currentTime,paused:v.paused,ended:v.ended,error:v.error?.code??null}:null};});
     throw new Error(error.message+'; observed '+JSON.stringify(record.playbackFailure),{cause:error});
    }
    assert.equal((await js(()=>window.__runtimeKey)).trusted,true);
    const failure=await js(()=>document.querySelector('dialog[open] video')?.error?.code??null);
    if(failure){const errorCode=unsupportedVideoError(failure);record.media.push({...entry,outcome:'unsupported',errorCode,reason:await js(()=>document.querySelector('dialog[open] .media-error')?.textContent??''),retained:true,inspectable:true});await js(async()=>{if(window.__runtimeAudio){await window.__runtimeAudio.context.close();delete window.__runtimeAudio;}return true;});await close();continue;}
-   let sample=audioMethod==='media-element'?await sampleAudio():null;
+   let sample=audioMethod==='media-element'?await sampleAudio():audioMethod==='native-output-monitor'?await captureLinuxOutput({appPid:app.child.pid,hidden,environment,hasAudio:entry.audio}):null;
    let frameIndex=0;
    const frame=audioMethod==='native-original-buffer'?async()=>{
     const geometry=await js(()=>{const v=document.querySelector('dialog[open] video');return {rect:v.getBoundingClientRect().toJSON(),width:v.videoWidth,height:v.videoHeight,time:v.currentTime,viewport:{width:innerWidth,height:innerHeight}};});
@@ -84,9 +85,9 @@ try{
     await js(async raw=>{const context=new AudioContext();const buffer=await context.decodeAudioData(Uint8Array.from(raw).buffer);const source=context.createBufferSource();source.buffer=buffer;const analyser=context.createAnalyser();analyser.fftSize=4096;const gain=context.createGain();gain.gain.value=0;source.connect(analyser).connect(gain).connect(context.destination);source.start();window.__runtimeAudio={context,source,analyser};return true;},[...encoded]);
     await app.focus('Show controls');await app.nativeKey('Space');await until(()=>js(()=>window.__runtimeAudio.context.state==='running'&&window.__runtimeAudio.context.currentTime>0.3),'Native independent PCM graph');sample=await sampleAudio();await app.click('Hide controls');
    }
-   const signal=signalObservation(sample.samples,sample.sampleRate);if(entry.audio){assert.ok(signal.rms>0.01,'Audible-signal fixture decoded PCM is silent');assert.ok(Math.abs(sample.fftPeakHz-440)<30,'Decoded tone frequency');}else assert.ok(signal.rms<0.0001,'Silent control emitted decoded audio');
-   await js(async()=>{await window.__runtimeAudio.context.close();delete window.__runtimeAudio;return true;});
-   record.media.push({...entry,outcome:'supported',retained:true,inspectable:true,frames:{before,moving,sought},range:{status:range.status,contentRange:range.contentRange,sha256:digest(Buffer.from(range.bytes))},audio:{method:audioMethod,decodedSource,state:sample.state,sampleRate:sample.sampleRate,rms:signal.rms,fftPeakHz:sample.fftPeakHz,output:audioMethod==='native-original-buffer'?'Exact original decoded after closing the viewer through native buffer/analyser graph; independent of media-element output. Physical speakers not tested.':'Media-element graph to silent gain; physical speakers not tested.'}});if(audioMethod==='media-element')await close();
+   const signal=audioMethod==='native-output-monitor'?{rms:sample.rms}:signalObservation(sample.samples,sample.sampleRate);const frequencyHz=audioMethod==='native-output-monitor'?sample.frequencyHz:sample.fftPeakHz;record.audioObservations??=[];record.audioObservations.push({fixture:entry.name,method:audioMethod,state:sample.state,sampleRate:sample.sampleRate,samples:audioMethod==='native-output-monitor'?sample.samples:sample.samples.length,rms:signal.rms,frequencyHz,clock:{before:before.time,moving:moving.time},capture:audioMethod==='native-output-monitor'?sample:undefined});if(entry.audio){assert.ok(signal.rms>0.01,'Audible-signal fixture decoded PCM is silent');assert.ok(Math.abs(frequencyHz-440)<30,'Decoded tone frequency');}else assert.ok(signal.rms<0.0001,'Silent control emitted decoded audio');
+   await js(async()=>{if(window.__runtimeAudio){await window.__runtimeAudio.context.close();delete window.__runtimeAudio;}return true;});
+   record.media.push({...entry,outcome:'supported',retained:true,inspectable:true,frames:{before,moving,sought},range:{status:range.status,contentRange:range.contentRange,sha256:digest(Buffer.from(range.bytes))},audio:{...(audioMethod==='native-output-monitor'?sample:{}),method:audioMethod,decodedSource,state:sample.state,sampleRate:sample.sampleRate,rms:signal.rms,fftPeakHz:sample.fftPeakHz,output:audioMethod==='native-output-monitor'?sample.output:audioMethod==='native-original-buffer'?'Exact original decoded after closing the viewer through native buffer/analyser graph; independent of media-element output. Physical speakers not tested.':'Media-element graph to silent gain; physical speakers not tested.'}});if(audioMethod!=='native-original-buffer')await close();
   }
   record.mediaLoadConfiguration=await js(()=>window.__runtimeVideoLoads);assert.equal(record.mediaLoadConfiguration.overflow,false);assert.ok(record.mediaLoadConfiguration.records.length>0);for(const load of record.mediaLoadConfiguration.records){assert.equal(load.crossOrigin,'anonymous','CORS must be configured before assigning the video source');assert.equal(load.preload,'metadata','Preload must be configured before assigning the video source');}
   assert.ok(record.media.some(e=>e.type==='video'&&e.outcome==='supported'),'No native video playback was qualified');
@@ -137,6 +138,7 @@ finally{
  const cleanupFailures=[];
  if(app)try{record.mediaLoadConfiguration??=await app.js('return window.__runtimeVideoLoads');}catch{}
  if(reader){try{record.screenReader=await reader.read();}catch(e){cleanupFailures.push('Reader receipt: '+e.message);}try{await reader.stop();}catch(e){cleanupFailures.push('Reader shutdown: '+e.message);}}
+ if(record.result!=='pass'&&process.platform==='linux'){try{record.audioService={info:(await hidden('pactl',['info'])).stdout.split('\n').filter(s=>/^(Server Name|Server Version|Default Sink|Default Source|Sample Specification):/.test(s)).slice(0,8),inputs:JSON.parse((await hidden('pactl',['--format=json','list','sink-inputs'])).stdout).slice(0,16).map(s=>({index:s.index,sink:s.sink,corked:s.corked,pid:s.properties?.['application.process.id'],sampleSpec:s.sample_specification}))};}catch(e){record.audioService={error:e.message.slice(0,2048)};}}
  if(app){record.sessionDirectory=app.directory;if(record.result!=='pass'){record.nativeOutput=app.output();try{record.failureObservation=await app.js('const v=document.querySelector("dialog[open] video");return {ready:document.readyState,activeTag:document.activeElement?.tagName,activeLabel:document.activeElement?.getAttribute("aria-label"),activeButton:document.activeElement?.matches("button")?document.activeElement.textContent.trim().slice(0,128):null,viewer:document.querySelector("dialog[open] h2")?.textContent,key:window.__runtimeKey,video:v?{readyState:v.readyState,networkState:v.networkState,errorCode:v.error?.code,errorMessage:v.error?.message,rect:v.getBoundingClientRect().toJSON(),paused:v.paused,time:v.currentTime}:null}');}catch{}}try{await app.close();}catch(e){cleanupFailures.push('Application shutdown: '+e.message);}}
  if(cleanupFailures.length){record.cleanupFailures=cleanupFailures;record.result='fail';record.failure??=cleanupFailures.join('; ');process.exitCode=1;}
  record.terminalFinished=new Date().toISOString();await writeFile(path.join(root,'.local/runtime-results-'+record.edition+'.json'),JSON.stringify(record,null,2)+'\n');

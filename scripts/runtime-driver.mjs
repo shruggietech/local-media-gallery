@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
 import {spawn,execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {mkdtemp,mkdir,readFile,writeFile,copyFile} from 'node:fs/promises';
@@ -15,15 +16,15 @@ export async function hidden(file,args,options={}){return call(file,args,{cwd:ro
 async function stop(child){if(child.exitCode!==null||child.signalCode!==null)return;await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Native child exit was not observed')),5000);child.once('exit',()=>{clearTimeout(timer);resolve();});child.kill();});}
 export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
  requireIsolatedDesktop();
- const directory=await mkdtemp(path.join(root,'.local/runtime-session-'));const port=await availableLoopbackPort();const origin='http://127.0.0.1:'+port;
- let output='';const child=spawn(binary,[fixture.directory],{cwd:root,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe'],env:{...environment,TAURI_WEBDRIVER_PORT:String(port),GALLERY_TEST_SETTINGS_DIR:path.join(directory,'settings'),GALLERY_TEST_HISTORY_DIR:path.join(directory,'history'),GALLERY_TEST_PAGE_SIZE:'4',...(process.platform==='win32'?{WEBVIEW2_USER_DATA_FOLDER:path.join(directory,'webview'),WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:reducedMotion?'--force-prefers-reduced-motion':''}:{})}});
+ const directory=await mkdtemp(path.join(root,'.local/runtime-session-'));const port=await availableLoopbackPort();const origin='http://127.0.0.1:'+port;const nonce=randomUUID();
+ let output='';const child=spawn(binary,[fixture.directory],{cwd:root,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe'],env:{...environment,TAURI_WEBDRIVER_PORT:String(port),GALLERY_TEST_DRIVER_NONCE:nonce,...(process.platform==='linux'?{PULSE_SINK:'lmg_qualification'}:{}),GALLERY_TEST_SETTINGS_DIR:path.join(directory,'settings'),GALLERY_TEST_HISTORY_DIR:path.join(directory,'history'),GALLERY_TEST_PAGE_SIZE:'4',...(process.platform==='win32'?{WEBVIEW2_USER_DATA_FOLDER:path.join(directory,'webview'),WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:reducedMotion?'--force-prefers-reduced-motion':''}:{})}});
  child.stdout.on('data',b=>output=(output+b).slice(-32768));child.stderr.on('data',b=>output=(output+b).slice(-32768));let spawnError;child.once('error',e=>spawnError=e);
  const observation=observeChild(child);
  async function request(route,body,method=body===undefined?'GET':'POST',timeout=15000){
   if(spawnError)throw spawnError;if(child.exitCode!==null)throw new Error('Native app exited '+child.exitCode+': '+output);
   const response=await fetch(origin+route,{method,headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});const r=await response.json();if(!response.ok||r.value?.error)throw new Error(r.value?.message??'Native WebDriver HTTP '+response.status);return r.value;
  }
- let session;try{await readyDriver(child,origin,observation,20000);session=(await request('/session',{capabilities:{alwaysMatch:{'wdio:tauriServiceOptions':{windowLabel:'main'}}}})).sessionId;await until(()=>request('/session/'+session+'/execute/sync',{script:'return document.readyState === "complete" && Boolean(document.querySelector(".app-header"));',args:[]},'POST',2000),'Native frontend readiness',20000);}catch(e){await stop(child);throw e;}
+ let session;try{session=await readyDriver(child,origin,observation,20000,{nonce,context:{operation:'native-runtime',edition:process.env.GALLERY_TEST_EDITION??'full',fixture:fixture.sha256}});await until(()=>request('/session/'+session+'/execute/sync',{script:'return document.readyState === "complete" && Boolean(document.querySelector(".app-header"));',args:[]},'POST',2000),'Native frontend readiness',20000);}catch(e){await stop(child);throw e;}
  const js=(script,args=[])=>request('/session/'+session+'/execute/sync',{script,args});
  const command=(action,extra={})=>js('return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",arguments[0]);',[{action,...extra}]);
  const nativeKey=async key=>{

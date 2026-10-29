@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { downloadKit, installKit, readLocalKit, readZip, safePath, selectRelease, sha256, updateStatus, verifyInstalled, verifyKit } from '../scripts/sync-brand-kit.mjs';
+import { verifyApprovedProofFiles, downloadKit, installKit, readLocalKit, readZip, safePath, selectRelease, sha256, updateStatus, verifyInstalled, verifyKit } from '../scripts/sync-brand-kit.mjs';
 
 const encode = (value) => Buffer.from(`${JSON.stringify(value)}\n`);
 function crc32(bytes) {
@@ -164,4 +164,11 @@ test('a self-consistent manifest cannot change consumer identity', () => {
   entry.sha256 = sha256(kit.files.get(entry.path));
   kit.files.set('manifest.json', encode(manifest));
   assert.throws(() => verifyKit(kit.files), /Consumer identity or bundle differs/);
+});
+
+test('Canonical upstream proofs bind source, exact inventory and canonical record',async()=>{
+ const base=new URL('../brand/',import.meta.url);const lock=JSON.parse(await readFile(new URL('approved-proofs/lock.json',base),'utf8'));const kitLock=JSON.parse(await readFile(new URL('lock.json',base),'utf8'));const files=new Map(await Promise.all(lock.files.map(async e=>[e.path,await readFile(new URL('approved-proofs/'+e.path,base))])));const report=JSON.parse(files.get('localmedia-gallery/identity-continuity-report.json'));const kit=new Map([[report.record_path,await readFile(new URL('kit/'+report.record_path,base))]]);
+ verifyApprovedProofFiles(files,lock,kit,kitLock);
+ for(const mutate of [l=>l.sourceRevision='f'.repeat(40),l=>l.archiveSha256='bad',l=>l.files.pop(),l=>l.files[0].sha256='f'.repeat(64)]){const changed=structuredClone(lock);mutate(changed);assert.throws(()=>verifyApprovedProofFiles(files,changed,kit,kitLock));}
+ const changed=new Map(files);changed.set(lock.files[1].path,Buffer.from('tampered'));assert.throws(()=>verifyApprovedProofFiles(changed,lock,kit,kitLock));const extra=new Map(files);extra.set('localmedia-gallery/extra.png',Buffer.from('extra'));assert.throws(()=>verifyApprovedProofFiles(extra,lock,kit,kitLock));assert.throws(()=>verifyApprovedProofFiles(files,lock,new Map(),kitLock));
 });

@@ -29,9 +29,9 @@ Every number below is measured from the shipped files at run time.
 | `specimen-mark-visible` | pass | localmedia-gallery-type-specimen.svg mark region has 13375 non-background pixels |
 | `svg-no-live-text` | pass | 48 SVGs, all type outlined |
 | `svg-viewbox` | pass | 44 vector SVGs resolved inside viewBox; 4 lossless raster wrappers use generator-checked bounds |
-| `ico-entries` | pass | favicons\favicon.ico: 7 entries (16x16,24x24,32x32,48x48,64x64,128x128,256x256) |
-| `ico-entries` | pass | icons\web\favicon.ico: 7 entries (16x16,24x24,32x32,48x48,64x64,128x128,256x256) |
-| `ico-entries` | pass | icons\windows\classic\app.ico: 7 entries (16x16,24x24,32x32,48x48,64x64,128x128,256x256) |
+| `ico-entries` | pass | icons/windows/classic/app.ico: 7 entries (16x16,24x24,32x32,48x48,64x64,128x128,256x256) |
+| `ico-entries` | pass | icons/web/favicon.ico: 7 entries (16x16,24x24,32x32,48x48,64x64,128x128,256x256) |
+| `ico-entries` | pass | favicons/favicon.ico: 7 entries (16x16,24x24,32x32,48x48,64x64,128x128,256x256) |
 | `pdf-fonts-embedded` | pass | 1 PDFs, all fonts embedded; 4 embedded Type3 glyph fonts (inline CharProcs) |
 | `approved-messaging` | pass | approved roles match portable and portal projections |
 | `approved-messaging-pdf` | pass | approved roles match extracted PDF cover text |

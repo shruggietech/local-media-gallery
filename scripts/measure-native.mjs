@@ -6,7 +6,9 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { readFile, writeFile, mkdir, mkdtemp, copyFile, stat, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash,randomUUID } from 'node:crypto';
+import {availableLoopbackPort,observeChild,readyDriver,stopOwnedChild} from './native-driver-lifecycle.mjs';
+import {sourceIdentity} from './provenance.mjs';
 import { performance } from 'node:perf_hooks';
 import os from 'node:os';
 import { root, environment, execute } from './run.mjs';
@@ -22,6 +24,7 @@ const preparationStarted = new Date().toISOString();
 const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
 const binary = path.resolve(option('--binary', path.join(root, '.local/bin/local-media-gallery-native-tests.exe')));
 const label = option('--label', 'adaptive');
+const source = await sourceIdentity();
 const output = path.resolve(option('--output', path.join(root, '.local/measurement.json')));
 const prepared = JSON.parse(await readFile(option('--fixture', path.join(root, '.local/native-fixture.json'))));
 const directory = await mkdtemp(path.join(root, '.local/measurement-fixture-'));
@@ -71,11 +74,10 @@ try {
     const settings = await mkdtemp(path.join(root, '.local/measurement-settings-'));
     const history = await mkdtemp(path.join(root, '.local/measurement-history-'));
     const profile = await mkdtemp(path.join(root, '.local/measurement-webview-')); profiles.push(profile);
-    const port = 44000 + Math.floor(Math.random() * 10000); const origin = 'http://127.0.0.1:' + port;
+    const port = await availableLoopbackPort(); const origin = 'http://127.0.0.1:' + port; const nonce=randomUUID();
     const notBefore = new Date().toISOString(); const began = performance.now();
-    const child = spawn(binary, [directory], { cwd: root, env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), GALLERY_TEST_SETTINGS_DIR: settings, GALLERY_TEST_HISTORY_DIR: history, WEBVIEW2_USER_DATA_FOLDER: profile }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
-    let diagnostics = ''; let session;
-    child.stdout.on('data', b => { diagnostics += b; }); child.stderr.on('data', b => { diagnostics += b; }); child.on('error', e => { diagnostics += e.message; });
+    const child = spawn(binary, [directory], { cwd: root, env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), GALLERY_TEST_DRIVER_NONCE:nonce, GALLERY_TEST_SETTINGS_DIR: settings, GALLERY_TEST_HISTORY_DIR: history, WEBVIEW2_USER_DATA_FOLDER: profile }, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+    const observation=observeChild(child); let session;
     const request = async (route, body, method = body === undefined ? 'GET' : 'POST') => {
       const response = await fetch(origin + route, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000) });
       const result = await response.json(); if (!response.ok || result.value?.error) throw new Error(result.value?.message ?? 'Driver HTTP ' + response.status); return result.value;
@@ -88,8 +90,7 @@ try {
     const measure = async (name, action) => { const start = performance.now(); const result = await action(); samples[name].push(performance.now() - start); return result; };
     const resource = async () => label === 'baseline' ? { status: 'unavailable', basis: 'unchanged baseline has no native resource counter action' } : js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"s011_resource_snapshot",config:null})');
     try {
-      await until(async () => { if (child.exitCode !== null) throw Error(diagnostics); const r = await fetch(origin + '/status', { signal: AbortSignal.timeout(500) }); return r.ok; }, 'Driver readiness');
-      session = (await until(() => request('/session', { capabilities: { alwaysMatch: { 'wdio:tauriServiceOptions': { windowLabel: 'main' } } } }), 'Main window')).sessionId;
+      session = await readyDriver(child,origin,observation,15000,{nonce,context:{operation:'native-measurement',label,trial:trial+1,edition:'full',source}});
       await until(() => js('return document.querySelectorAll(".media-card").length===12 && [...document.querySelectorAll(".media-card img")].some(i=>i.naturalWidth>0)'), 'First usable rendered cards');
       samples.startup.push(performance.now() - began);
       console.log(label + ' trial ' + (trial + 1) + ': first usable native cards');
@@ -135,9 +136,12 @@ try {
       const after = await observe({ action: 'memory', rootPid: child.pid, notBefore }); memory.push({ trial, phase: 'after exercise', ...after });
       runs.push({ trial, browser, scroll, focus, seek, metadata, nativeResources, cache: 'first launch fresh application/WebView profile; discovery and interactions warm within that session; OS cache unknown' });
       console.log('PASS ' + label + ' native measurement trial ' + (trial + 1));
+    } catch(error) {
+      await writeFile(output+'.failure.json',JSON.stringify({result:'fail',label,trial:trial+1,edition:'full',source,origin,driver:observation(),failure:error.stack,terminalFinished:new Date().toISOString()},null,2)+'\n');
+      throw error;
     } finally {
       if (session) await request('/session/' + session, undefined, 'DELETE').catch(() => {});
-      if (child.exitCode === null) await new Promise(resolve => { child.once('exit', resolve); child.kill(); });
+      await stopOwnedChild(child);
     }
   }
   assert.deepEqual(await inventory(directory), records, 'Measurement mutated source corpus');

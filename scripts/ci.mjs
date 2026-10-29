@@ -46,6 +46,7 @@ const record = await qualification({
       await node(path.join(root,'scripts/create-fixture.mjs'));
       await exportInterface();
       await cargo(['test', '--locked', '--workspace', '--no-run']);
+      if(process.platform==='linux')await cargo(['test','--release','--locked','-p','gallery-core','--test','glib_variant_iter','--no-run']);
       binaries=await buildEditions();
       await node(path.join(root,'scripts/build-proof.mjs'),['--full',binaries.full,'--lite',binaries.lite]);
       await cargo(['test','--locked','-p','local-media-gallery','--features','lite','--no-run']);
@@ -69,6 +70,7 @@ const record = await qualification({
       ? ['check:site', 'test:site']
       : ['check:app']
   ).map((name) => ({ name: `npm run ${name}`, run: command(name) })),
+  ...(scope==='product-linux'?[{name:'Optimized corrected GLib string iterator',run:()=>cargo(['test','--release','--locked','-p','gallery-core','--test','glib_variant_iter'])}]:[]),
   ...(isProduct ? [{
     name: 'native shell and persistent-state unit tests',
     run: () => cargo(['test', '--locked', '-p', 'local-media-gallery']),

@@ -1,6 +1,7 @@
 [workspace]
 members = ["crates/gallery-core", "crates/windows-package", "crates/macos-package", "apps/gallery/src-tauri"]
 resolver = "2"
+exclude = ["vendor/glib-0.18.5"]
 
 [workspace.package]
 version = "0.0.0"
@@ -14,3 +15,7 @@ debug = 1
 [profile.release]
 strip = true
 lto = "thin"
+
+# GHSA-wrw7-89jp-8q8g: exact upstream iterator fix in the compatible GTK3 family.
+[patch.crates-io]
+glib = { path = "vendor/glib-0.18.5" }

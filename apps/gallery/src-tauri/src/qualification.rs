@@ -22,6 +22,14 @@ pub async fn test_native_qualification(
 ) -> Result<Value, GalleryError> {
     crate::main_window(&window)?;
     match action.as_str() {
+        "identity" => {
+            let nonce = std::env::var("GALLERY_TEST_DRIVER_NONCE").map_err(|_| error())?;
+            let port = std::env::var("TAURI_WEBDRIVER_PORT")
+                .map_err(|_| error())?
+                .parse::<u16>()
+                .map_err(|_| error())?;
+            Ok(json!({"pid":std::process::id(),"nonce":nonce,"port":port}))
+        }
         "presentation" => {
             if let Some(z) = zoom {
                 if ![1.0, 2.0].contains(&z) {

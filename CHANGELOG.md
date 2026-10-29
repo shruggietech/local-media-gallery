@@ -8,6 +8,9 @@ Native media/accessibility qualification and optional thumbnail/diagnostic work 
 
 ### Added
 
+- Dependency closure (2026-10-29): adopt formal BrandBuilder 3.1.1 with patched Pillow 13 and its separately published, exact canonical proof inventory. Preserve recovered verifier bytes, every pixel comparison and full manifest checks. Apply the exact upstream GLib iterator correction to the compatible GTK3 family with offline source provenance and an optimized Linux regression.
+- Qualification decisions (2026-10-29): require child-only nonce/PID proof for native driver readiness, preserve bounded startup/measurement diagnostics and existing deadlines, and observe Linux application output through a finite, process-attributed PulseAudio monitor capture. Preserve trusted input, frame/clock progression, tone/silent PCM assertions and isolated hosted desktops. Keep advisory recognition distinct from corrected implementation and owner-merged manifest state.
+
 - Dependency maintenance (2026-10-28): consolidate Ajv 8.20.0, Cheerio 1.2.0, Node 24 API declarations and TypeScript 6.0.3; remove deprecated compiler configuration without changing brand path resolution. Group compatible Dependabot updates and retain explicit toolchain/brand adapter compatibility bounds. Carry completed macOS package verification receipts forward after the owner merge.
 - Fresh dependency scan (2026-10-28): update Next.js 16.4.3, Playwright 1.64.1, UUID 1.29.0, native WebDriver plugin 1.5.1, SHA-2 0.11.1, Base64 0.23.1 and rusqlite 0.41.0. Preserve exact workspace lockfile declarations. Reuse scope/runner-image Cargo cache hints across lockfile changes while retaining actual locked builds and native qualification.
 

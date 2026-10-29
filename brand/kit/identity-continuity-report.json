@@ -7,26 +7,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-black/comparison-color-difference.png",
-              "sha256": "52dfe43025076f8a3b6d08d341916b9e38c0ecf7f4e6c75f0097e9ead901da27"
+              "sha256": "789cc3d7c8416b40a4f20155ece071c362f85d610e71b32b328bfc12b4cf2ead"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-black/comparison-overlay.png",
-              "sha256": "f8fba2e628db28151cd38cde23f6686d3a86e418e896c5f02b711627e06b5c05"
+              "sha256": "c189f6e7ed1d2738d4b889c84f69d36b5702d8fdfe39cd036449fc50e9f455ad"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-black/comparison-side-by-side.png",
-              "sha256": "ebb9c21b816d859f065ef358ded2257a57d1c34f8b8fdc1dfca247ce812cbd2a"
+              "sha256": "9c4a79f42b1d6ff61d048d11f4ec04eb627b1c1b240c38a4dbbd4747dbdae0cc"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-black/comparison-silhouette-xor.png",
-              "sha256": "232c2eac760eae604f9dd43352c0b272396b7cfaf220081b54583b6d0cbc2320"
+              "sha256": "50b068e07b4bf235705c19b77da49fdbbc7e98ddc0a46f1c6659cca98c963904"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-16-black.png",
-        "sha256": "f8fba2e628db28151cd38cde23f6686d3a86e418e896c5f02b711627e06b5c05",
+        "sha256": "c189f6e7ed1d2738d4b889c84f69d36b5702d8fdfe39cd036449fc50e9f455ad",
         "size_px": 16,
         "surface": "black",
         "variant": "full"
@@ -36,26 +36,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-dark/comparison-color-difference.png",
-              "sha256": "52dfe43025076f8a3b6d08d341916b9e38c0ecf7f4e6c75f0097e9ead901da27"
+              "sha256": "789cc3d7c8416b40a4f20155ece071c362f85d610e71b32b328bfc12b4cf2ead"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-dark/comparison-overlay.png",
-              "sha256": "78ec92dec9cd18dee60e2af4601bf2546f99a3a1e2f3e601b119b3060a84f6e6"
+              "sha256": "c325326a2ebd761eeb6a1eb7e676204931f21e48636fbcc871163bc4dec50ae1"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-dark/comparison-side-by-side.png",
-              "sha256": "d3201a3849f3ebda355d1d407720e35fdcc075abb7cb94cfd3ad0b95474185b8"
+              "sha256": "a35ce5d4b29ea39df5d918213a46de49b31cde74fc5c5bfb356cdeb79ea97d27"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-dark/comparison-silhouette-xor.png",
-              "sha256": "232c2eac760eae604f9dd43352c0b272396b7cfaf220081b54583b6d0cbc2320"
+              "sha256": "50b068e07b4bf235705c19b77da49fdbbc7e98ddc0a46f1c6659cca98c963904"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-16-dark.png",
-        "sha256": "78ec92dec9cd18dee60e2af4601bf2546f99a3a1e2f3e601b119b3060a84f6e6",
+        "sha256": "c325326a2ebd761eeb6a1eb7e676204931f21e48636fbcc871163bc4dec50ae1",
         "size_px": 16,
         "surface": "dark",
         "variant": "full"
@@ -65,26 +65,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-light/comparison-color-difference.png",
-              "sha256": "52dfe43025076f8a3b6d08d341916b9e38c0ecf7f4e6c75f0097e9ead901da27"
+              "sha256": "789cc3d7c8416b40a4f20155ece071c362f85d610e71b32b328bfc12b4cf2ead"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-light/comparison-overlay.png",
-              "sha256": "0b96c8b26ff5a0d4f63e371a6ae7dd09ad8fe3ac953ef8bb09219dc812c1f163"
+              "sha256": "314337fdda501057029f3839fcc91bf7133794f0fc17401ffe49145fc89ecee2"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-light/comparison-side-by-side.png",
-              "sha256": "7f03d7c3701b94e93ba9256d45cad17ae441077530f3a6781f1e31b6d06cc985"
+              "sha256": "ce427a9530d0518fa00d9bf818badf3ab32fb26444e2837508cce14d8180fc2d"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-light/comparison-silhouette-xor.png",
-              "sha256": "232c2eac760eae604f9dd43352c0b272396b7cfaf220081b54583b6d0cbc2320"
+              "sha256": "50b068e07b4bf235705c19b77da49fdbbc7e98ddc0a46f1c6659cca98c963904"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-16-light.png",
-        "sha256": "0b96c8b26ff5a0d4f63e371a6ae7dd09ad8fe3ac953ef8bb09219dc812c1f163",
+        "sha256": "314337fdda501057029f3839fcc91bf7133794f0fc17401ffe49145fc89ecee2",
         "size_px": 16,
         "surface": "light",
         "variant": "full"
@@ -94,26 +94,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-white/comparison-color-difference.png",
-              "sha256": "52dfe43025076f8a3b6d08d341916b9e38c0ecf7f4e6c75f0097e9ead901da27"
+              "sha256": "789cc3d7c8416b40a4f20155ece071c362f85d610e71b32b328bfc12b4cf2ead"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-white/comparison-overlay.png",
-              "sha256": "cc139eb06d5c61121d544905ebfa3b6799c5216289a6fea466a4e371a4a331fa"
+              "sha256": "0c8984cbaed2e8f28ce70c5e4a67de90850a54fa574714e1191e1b8870677eef"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-white/comparison-side-by-side.png",
-              "sha256": "dcc776fc686ecc3a652a85f2d6d466e1a8031d100e54e39438afb5fc24a81dd3"
+              "sha256": "7c584779df21a6edcc3deb4c750df85a6c70be38ffc81d83b2054a0518762a4d"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-16-white/comparison-silhouette-xor.png",
-              "sha256": "232c2eac760eae604f9dd43352c0b272396b7cfaf220081b54583b6d0cbc2320"
+              "sha256": "50b068e07b4bf235705c19b77da49fdbbc7e98ddc0a46f1c6659cca98c963904"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-16-white.png",
-        "sha256": "cc139eb06d5c61121d544905ebfa3b6799c5216289a6fea466a4e371a4a331fa",
+        "sha256": "0c8984cbaed2e8f28ce70c5e4a67de90850a54fa574714e1191e1b8870677eef",
         "size_px": 16,
         "surface": "white",
         "variant": "full"
@@ -123,15 +123,15 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-black/comparison-color-difference.png",
-              "sha256": "30a5faf4033e50a90a2878943dfcf4cc66c8feff3fe92c17dc8c7e7a30e9e845"
+              "sha256": "8fc79f5e2d71a3cf5cfd6c8f2ceea6f9eb529f647e7de97bd6a8b3f3f4e34274"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-black/comparison-overlay.png",
-              "sha256": "4881455daca3b8eed2952d7b0b80e138782e81021ad2499f8c1d7683b5c1ba66"
+              "sha256": "74460f6b43e8b71f7f8aa1ad30abcb81ec09e850fedb2ed4394218f3a3ac6188"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-black/comparison-side-by-side.png",
-              "sha256": "b035a2b9a9f00e1d0dc4776c065d1364d96fe79958b6d3e1315609b9b23fbc1e"
+              "sha256": "cdb160203eadf02f34c4b522d7e130c0254a9621b335e3dcdd2fa78dc26e40d2"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-black/comparison-silhouette-xor.png",
@@ -142,7 +142,7 @@
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-32-black.png",
-        "sha256": "4881455daca3b8eed2952d7b0b80e138782e81021ad2499f8c1d7683b5c1ba66",
+        "sha256": "74460f6b43e8b71f7f8aa1ad30abcb81ec09e850fedb2ed4394218f3a3ac6188",
         "size_px": 32,
         "surface": "black",
         "variant": "full"
@@ -152,15 +152,15 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-dark/comparison-color-difference.png",
-              "sha256": "30a5faf4033e50a90a2878943dfcf4cc66c8feff3fe92c17dc8c7e7a30e9e845"
+              "sha256": "8fc79f5e2d71a3cf5cfd6c8f2ceea6f9eb529f647e7de97bd6a8b3f3f4e34274"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-dark/comparison-overlay.png",
-              "sha256": "3f892b7e139fbba068522d0cab48e1ccbd7a825fb0f6995547e78755097efe75"
+              "sha256": "7613908ad9a1e6462b7026f0ed99f50b9bcb5819df5d2317201e0f91a6e3ada1"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-dark/comparison-side-by-side.png",
-              "sha256": "16561c79f19480b23a2b2f3beeb25729875bd0278eb6bba63706153845866073"
+              "sha256": "f01e29f80570d8ea384bc59c4cac849512c9cf9509464e02a78acc8ae6c2761d"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-dark/comparison-silhouette-xor.png",
@@ -171,7 +171,7 @@
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-32-dark.png",
-        "sha256": "3f892b7e139fbba068522d0cab48e1ccbd7a825fb0f6995547e78755097efe75",
+        "sha256": "7613908ad9a1e6462b7026f0ed99f50b9bcb5819df5d2317201e0f91a6e3ada1",
         "size_px": 32,
         "surface": "dark",
         "variant": "full"
@@ -181,15 +181,15 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-light/comparison-color-difference.png",
-              "sha256": "30a5faf4033e50a90a2878943dfcf4cc66c8feff3fe92c17dc8c7e7a30e9e845"
+              "sha256": "8fc79f5e2d71a3cf5cfd6c8f2ceea6f9eb529f647e7de97bd6a8b3f3f4e34274"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-light/comparison-overlay.png",
-              "sha256": "9e86ce63fca993e887701e0168707f28fb9ac05763308c5722c9a1171e127b8c"
+              "sha256": "24b82faffe6a91c5b32769dd3ee12658bd7d356ee3bcd07625bb9b3188674831"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-light/comparison-side-by-side.png",
-              "sha256": "882026c636fc78dcc6b6b0277a849b9c35fcaf55ba5948df21e008425bba2934"
+              "sha256": "1c1d7a6ca141d775598dba0095c5c5207e4c184ea9288bc79636f1e7f1869dd0"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-light/comparison-silhouette-xor.png",
@@ -200,7 +200,7 @@
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-32-light.png",
-        "sha256": "9e86ce63fca993e887701e0168707f28fb9ac05763308c5722c9a1171e127b8c",
+        "sha256": "24b82faffe6a91c5b32769dd3ee12658bd7d356ee3bcd07625bb9b3188674831",
         "size_px": 32,
         "surface": "light",
         "variant": "full"
@@ -210,15 +210,15 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-white/comparison-color-difference.png",
-              "sha256": "30a5faf4033e50a90a2878943dfcf4cc66c8feff3fe92c17dc8c7e7a30e9e845"
+              "sha256": "8fc79f5e2d71a3cf5cfd6c8f2ceea6f9eb529f647e7de97bd6a8b3f3f4e34274"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-white/comparison-overlay.png",
-              "sha256": "2d3c67229b5c32ef305b6cb331efdd160964f7b49164faf466fdef8ca5bd182f"
+              "sha256": "b88e21e29d09459b8afcca4f9e477a71269699dbc7849e61ed4eb927966954a5"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-white/comparison-side-by-side.png",
-              "sha256": "3a87fd2fef4f7da02f93ea0b2cbcfe6d6db1e82511b08e9f102e6c32fd273523"
+              "sha256": "5e77a494f2995968ebd5e074ff8c20c83684fa6d7ac22a9348638b756954c257"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-32-white/comparison-silhouette-xor.png",
@@ -229,7 +229,7 @@
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-32-white.png",
-        "sha256": "2d3c67229b5c32ef305b6cb331efdd160964f7b49164faf466fdef8ca5bd182f",
+        "sha256": "b88e21e29d09459b8afcca4f9e477a71269699dbc7849e61ed4eb927966954a5",
         "size_px": 32,
         "surface": "white",
         "variant": "full"
@@ -239,26 +239,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-black/comparison-color-difference.png",
-              "sha256": "e0a600268e4e838cbb2d645ad9b64530a4ccac386ae25907aad6d9f68271b733"
+              "sha256": "9c9eb7ed565a3af086dee2cbfb27132f0c052240c6f69b019049399c82fc1df0"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-black/comparison-overlay.png",
-              "sha256": "13c9fc5d518b51ecadd76375a3023e9f17e31fadb68a3b2d5c6f580bd3363b03"
+              "sha256": "8f3694b241df2511d9ba22cb65f41606dd182a8727cd53e5a776e9aff3b04b40"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-black/comparison-side-by-side.png",
-              "sha256": "4ba58321e7e4c70d0a6404bdc461ff5dc890b2e49a61974d59fbbf5122adc7fc"
+              "sha256": "37052bb33ed7e35a335af3b5a16bc76e8575812e1f41f66a1d949133f6400308"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-black/comparison-silhouette-xor.png",
-              "sha256": "052c48aa8b5e4f2c40bcd0d1bb7a4b93276276285dfa3e8a971b435dc88fdfee"
+              "sha256": "8d447892b6efbc450beab391a7003090694cfcd0014d20766150112cab1675a0"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-64-black.png",
-        "sha256": "13c9fc5d518b51ecadd76375a3023e9f17e31fadb68a3b2d5c6f580bd3363b03",
+        "sha256": "8f3694b241df2511d9ba22cb65f41606dd182a8727cd53e5a776e9aff3b04b40",
         "size_px": 64,
         "surface": "black",
         "variant": "full"
@@ -268,26 +268,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-dark/comparison-color-difference.png",
-              "sha256": "e0a600268e4e838cbb2d645ad9b64530a4ccac386ae25907aad6d9f68271b733"
+              "sha256": "9c9eb7ed565a3af086dee2cbfb27132f0c052240c6f69b019049399c82fc1df0"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-dark/comparison-overlay.png",
-              "sha256": "1c5f51cba4d52089b675c0b08212a8178ef853e99ac16659c7791f731585f022"
+              "sha256": "6362210dc084f15e40fa4bd10d64ba449fcb9bf59b3286d1f6f703de270cfdd9"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-dark/comparison-side-by-side.png",
-              "sha256": "2a47db3636d3ca9c19cdac84c3e7073ad84a22a02d8f5e1ad8c801eb2f8929bf"
+              "sha256": "47dcd1fb60432580bb3803e72d016223da2f71ee9d61b707b00d9110c8ef20ba"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-dark/comparison-silhouette-xor.png",
-              "sha256": "052c48aa8b5e4f2c40bcd0d1bb7a4b93276276285dfa3e8a971b435dc88fdfee"
+              "sha256": "8d447892b6efbc450beab391a7003090694cfcd0014d20766150112cab1675a0"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-64-dark.png",
-        "sha256": "1c5f51cba4d52089b675c0b08212a8178ef853e99ac16659c7791f731585f022",
+        "sha256": "6362210dc084f15e40fa4bd10d64ba449fcb9bf59b3286d1f6f703de270cfdd9",
         "size_px": 64,
         "surface": "dark",
         "variant": "full"
@@ -297,26 +297,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-light/comparison-color-difference.png",
-              "sha256": "e0a600268e4e838cbb2d645ad9b64530a4ccac386ae25907aad6d9f68271b733"
+              "sha256": "9c9eb7ed565a3af086dee2cbfb27132f0c052240c6f69b019049399c82fc1df0"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-light/comparison-overlay.png",
-              "sha256": "a1afb41c4668cc75953f18629b08395a2bea0eca2844a9f406b5117b8fa427a4"
+              "sha256": "6f61cf8e7376275f08c4fb10a1aeb984e98f91834ba82a9ecf83668bc598d59c"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-light/comparison-side-by-side.png",
-              "sha256": "2295a6d52844accc346f1396558d810f04a4ec0affec91e16e363ee7664bd7a1"
+              "sha256": "5a946c45b704e59f9d03d2a31090fa25dfc5da360a6a59a3b796cd553805a094"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-light/comparison-silhouette-xor.png",
-              "sha256": "052c48aa8b5e4f2c40bcd0d1bb7a4b93276276285dfa3e8a971b435dc88fdfee"
+              "sha256": "8d447892b6efbc450beab391a7003090694cfcd0014d20766150112cab1675a0"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-64-light.png",
-        "sha256": "a1afb41c4668cc75953f18629b08395a2bea0eca2844a9f406b5117b8fa427a4",
+        "sha256": "6f61cf8e7376275f08c4fb10a1aeb984e98f91834ba82a9ecf83668bc598d59c",
         "size_px": 64,
         "surface": "light",
         "variant": "full"
@@ -326,26 +326,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-white/comparison-color-difference.png",
-              "sha256": "e0a600268e4e838cbb2d645ad9b64530a4ccac386ae25907aad6d9f68271b733"
+              "sha256": "9c9eb7ed565a3af086dee2cbfb27132f0c052240c6f69b019049399c82fc1df0"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-white/comparison-overlay.png",
-              "sha256": "815933d38744809a957873a6e132492a7aa191dad6cfcb3b0629e28fa5be82ef"
+              "sha256": "8fe99d5addbd3d41f1ad6a8d57b2179688206edf163f1e1f060c50a837d20c09"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-white/comparison-side-by-side.png",
-              "sha256": "62993f87ca53cd70576f65a4ac8fc85483781fd80fc94e30e2e615b46f6cb57e"
+              "sha256": "ad729373cd5522ffb8cc0b8eec7f2d56cd5686ac6c7c5b4acd7ad86470995c38"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-64-white/comparison-silhouette-xor.png",
-              "sha256": "052c48aa8b5e4f2c40bcd0d1bb7a4b93276276285dfa3e8a971b435dc88fdfee"
+              "sha256": "8d447892b6efbc450beab391a7003090694cfcd0014d20766150112cab1675a0"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-64-white.png",
-        "sha256": "815933d38744809a957873a6e132492a7aa191dad6cfcb3b0629e28fa5be82ef",
+        "sha256": "8fe99d5addbd3d41f1ad6a8d57b2179688206edf163f1e1f060c50a837d20c09",
         "size_px": 64,
         "surface": "white",
         "variant": "full"
@@ -355,26 +355,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-black/comparison-color-difference.png",
-              "sha256": "42c7d7a412f704e9468d9ba58292b23e1d659ddb4e839345ad08bb37b44ee2e5"
+              "sha256": "004c0da60be05efebf543eb7ed2a51aba399a57d19c58d74290344ce5c54a1f3"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-black/comparison-overlay.png",
-              "sha256": "453e3da065aa4d6829813973c28cf2e285665427f83dfcfebedeea1935a2762c"
+              "sha256": "199ce191e28317cca32ffa322d620b9a0488318ff144ee387afb9566dbfc0a44"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-black/comparison-side-by-side.png",
-              "sha256": "f66d1241b3eaf9198552e76a0ce3db838232cacbe1bf059cc5f0f306116694f7"
+              "sha256": "557b64f5191904c39d163ef8da145db8a2c54b14afb70b6d4e808d53ea508cce"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-black/comparison-silhouette-xor.png",
-              "sha256": "aebc86755d7beb8b01bcd992ab44e1133afcb473511b7832eb82228be275473f"
+              "sha256": "3c6c50f94ab35e9f96c772731fe6b7950048179bc81b8ab0396cc1edbde89163"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-256-black.png",
-        "sha256": "453e3da065aa4d6829813973c28cf2e285665427f83dfcfebedeea1935a2762c",
+        "sha256": "199ce191e28317cca32ffa322d620b9a0488318ff144ee387afb9566dbfc0a44",
         "size_px": 256,
         "surface": "black",
         "variant": "full"
@@ -384,26 +384,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-dark/comparison-color-difference.png",
-              "sha256": "42c7d7a412f704e9468d9ba58292b23e1d659ddb4e839345ad08bb37b44ee2e5"
+              "sha256": "004c0da60be05efebf543eb7ed2a51aba399a57d19c58d74290344ce5c54a1f3"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-dark/comparison-overlay.png",
-              "sha256": "954fc7d477ddd7732cea1547820036c93de02ad8aeb853ec7fee9ed3190cd38d"
+              "sha256": "25638aa7f42ce3f9dce6d57b523fb97cc1497ff7b84c05e6edc91671cdacd539"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-dark/comparison-side-by-side.png",
-              "sha256": "7e33a8f63c6c297d96ca3c77a2e8a2c5fff147cf7635d076d4b6906017aea40e"
+              "sha256": "938de484af3ddb6ef48ee2c43e8b87a40075dd7d670eb901991f52fdee95fcec"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-dark/comparison-silhouette-xor.png",
-              "sha256": "aebc86755d7beb8b01bcd992ab44e1133afcb473511b7832eb82228be275473f"
+              "sha256": "3c6c50f94ab35e9f96c772731fe6b7950048179bc81b8ab0396cc1edbde89163"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-256-dark.png",
-        "sha256": "954fc7d477ddd7732cea1547820036c93de02ad8aeb853ec7fee9ed3190cd38d",
+        "sha256": "25638aa7f42ce3f9dce6d57b523fb97cc1497ff7b84c05e6edc91671cdacd539",
         "size_px": 256,
         "surface": "dark",
         "variant": "full"
@@ -413,26 +413,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-light/comparison-color-difference.png",
-              "sha256": "42c7d7a412f704e9468d9ba58292b23e1d659ddb4e839345ad08bb37b44ee2e5"
+              "sha256": "004c0da60be05efebf543eb7ed2a51aba399a57d19c58d74290344ce5c54a1f3"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-light/comparison-overlay.png",
-              "sha256": "3797f35b5267695cf044f8f4938dfd1e91e3514ff34870a520359e9bcddcb5ef"
+              "sha256": "da01a5c31081b60fad1324071d0395c3b047e79c0d192789ed23eb237551ae8d"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-light/comparison-side-by-side.png",
-              "sha256": "ee88ee4df3451bfc5dddfca3e4a37eda5bbc71326378c3d8f941cb3b20a444e0"
+              "sha256": "337021f597326036b92fe9400fcecddd3e6f72e21c7d7e52ebbb1f8246deb34f"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-light/comparison-silhouette-xor.png",
-              "sha256": "aebc86755d7beb8b01bcd992ab44e1133afcb473511b7832eb82228be275473f"
+              "sha256": "3c6c50f94ab35e9f96c772731fe6b7950048179bc81b8ab0396cc1edbde89163"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-256-light.png",
-        "sha256": "3797f35b5267695cf044f8f4938dfd1e91e3514ff34870a520359e9bcddcb5ef",
+        "sha256": "da01a5c31081b60fad1324071d0395c3b047e79c0d192789ed23eb237551ae8d",
         "size_px": 256,
         "surface": "light",
         "variant": "full"
@@ -442,26 +442,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-white/comparison-color-difference.png",
-              "sha256": "42c7d7a412f704e9468d9ba58292b23e1d659ddb4e839345ad08bb37b44ee2e5"
+              "sha256": "004c0da60be05efebf543eb7ed2a51aba399a57d19c58d74290344ce5c54a1f3"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-white/comparison-overlay.png",
-              "sha256": "dafaef1377f7dff927b8724785c7f22197ab812ab979eabf1f5409f45b4a0e29"
+              "sha256": "c56ee686797bccb6df795493ea538e5fd5858722c45e28d04619e42d0f4700af"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-white/comparison-side-by-side.png",
-              "sha256": "0dfaffb6c7c394afd73e13ffc48ac909646153c44ac70fc720cdf07e7131f39b"
+              "sha256": "08f42e5eb547dc91e4eddda7a91c02865872fa7b492e70cbd1601e5008aca036"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/full-256-white/comparison-silhouette-xor.png",
-              "sha256": "aebc86755d7beb8b01bcd992ab44e1133afcb473511b7832eb82228be275473f"
+              "sha256": "3c6c50f94ab35e9f96c772731fe6b7950048179bc81b8ab0396cc1edbde89163"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/full-256-white.png",
-        "sha256": "dafaef1377f7dff927b8724785c7f22197ab812ab979eabf1f5409f45b4a0e29",
+        "sha256": "c56ee686797bccb6df795493ea538e5fd5858722c45e28d04619e42d0f4700af",
         "size_px": 256,
         "surface": "white",
         "variant": "full"
@@ -471,26 +471,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-black/comparison-color-difference.png",
-              "sha256": "52dfe43025076f8a3b6d08d341916b9e38c0ecf7f4e6c75f0097e9ead901da27"
+              "sha256": "789cc3d7c8416b40a4f20155ece071c362f85d610e71b32b328bfc12b4cf2ead"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-black/comparison-overlay.png",
-              "sha256": "d0bde4bb9debf84be6494d0679d31f807064942febf750ceea7507f135bf79fe"
+              "sha256": "269c2fb3fb905d300fd212039e52a2403c22f47433a116e7d0314b4a06f653ea"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-black/comparison-side-by-side.png",
-              "sha256": "60976de40d9453197209cb4d569a06fe3f9bb293395ead1217ebb90ddbb78562"
+              "sha256": "71df48ca05121a3763aec62c2168fbac6df4fb8eaddbeeb7675dcec1dd065cbc"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-black/comparison-silhouette-xor.png",
-              "sha256": "232c2eac760eae604f9dd43352c0b272396b7cfaf220081b54583b6d0cbc2320"
+              "sha256": "50b068e07b4bf235705c19b77da49fdbbc7e98ddc0a46f1c6659cca98c963904"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-16-black.png",
-        "sha256": "d0bde4bb9debf84be6494d0679d31f807064942febf750ceea7507f135bf79fe",
+        "sha256": "269c2fb3fb905d300fd212039e52a2403c22f47433a116e7d0314b4a06f653ea",
         "size_px": 16,
         "surface": "black",
         "variant": "reduced"
@@ -500,26 +500,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-dark/comparison-color-difference.png",
-              "sha256": "52dfe43025076f8a3b6d08d341916b9e38c0ecf7f4e6c75f0097e9ead901da27"
+              "sha256": "789cc3d7c8416b40a4f20155ece071c362f85d610e71b32b328bfc12b4cf2ead"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-dark/comparison-overlay.png",
-              "sha256": "1b702f5967162e67365ca4e2c49c4c04b46c1f4e7440f0e381c54b19aeb3b9c8"
+              "sha256": "27a511dd2f32f6e2d4b641623197757880628cdbb18722b6287f6bc903a60089"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-dark/comparison-side-by-side.png",
-              "sha256": "09d0bbe9160f46e7a985c7e483ee8f376632f5c4d1b5f4caecf6257e73491428"
+              "sha256": "7386e9e31c3162f9e86276dd61a2e6ecfbd836fda6d579c46e2d826397b179ef"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-dark/comparison-silhouette-xor.png",
-              "sha256": "232c2eac760eae604f9dd43352c0b272396b7cfaf220081b54583b6d0cbc2320"
+              "sha256": "50b068e07b4bf235705c19b77da49fdbbc7e98ddc0a46f1c6659cca98c963904"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-16-dark.png",
-        "sha256": "1b702f5967162e67365ca4e2c49c4c04b46c1f4e7440f0e381c54b19aeb3b9c8",
+        "sha256": "27a511dd2f32f6e2d4b641623197757880628cdbb18722b6287f6bc903a60089",
         "size_px": 16,
         "surface": "dark",
         "variant": "reduced"
@@ -529,26 +529,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-light/comparison-color-difference.png",
-              "sha256": "52dfe43025076f8a3b6d08d341916b9e38c0ecf7f4e6c75f0097e9ead901da27"
+              "sha256": "789cc3d7c8416b40a4f20155ece071c362f85d610e71b32b328bfc12b4cf2ead"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-light/comparison-overlay.png",
-              "sha256": "a3ba3de3e490523963a1cf8ee0a2332193285ecf7f2b852ef3c7e18a9532f69d"
+              "sha256": "bfc0a59206682fe183d4ba0c5e4c0fa53ef304ba8e36708ba02201dd2442248b"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-light/comparison-side-by-side.png",
-              "sha256": "3cdffa1f6c32049f1f074e9871ca04eb3e7e43faff2de8db70a0e02549baf0bd"
+              "sha256": "8aa5a057f0475c0745ccbcb02d51983e44b4dd629ff3ad3379c2a864ba5cfbc4"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-light/comparison-silhouette-xor.png",
-              "sha256": "232c2eac760eae604f9dd43352c0b272396b7cfaf220081b54583b6d0cbc2320"
+              "sha256": "50b068e07b4bf235705c19b77da49fdbbc7e98ddc0a46f1c6659cca98c963904"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-16-light.png",
-        "sha256": "a3ba3de3e490523963a1cf8ee0a2332193285ecf7f2b852ef3c7e18a9532f69d",
+        "sha256": "bfc0a59206682fe183d4ba0c5e4c0fa53ef304ba8e36708ba02201dd2442248b",
         "size_px": 16,
         "surface": "light",
         "variant": "reduced"
@@ -558,26 +558,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-white/comparison-color-difference.png",
-              "sha256": "52dfe43025076f8a3b6d08d341916b9e38c0ecf7f4e6c75f0097e9ead901da27"
+              "sha256": "789cc3d7c8416b40a4f20155ece071c362f85d610e71b32b328bfc12b4cf2ead"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-white/comparison-overlay.png",
-              "sha256": "fa1a2e07e2a8bbbea3ef61db51c1cd6d2ee1f7847c26e3c2d29baa702a708b93"
+              "sha256": "99fc524e232c47ccdd46eb0aec410edd8057a77e1ae8bd3b6d0b6333305c79d7"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-white/comparison-side-by-side.png",
-              "sha256": "e0d1cf378131e13406d6dfcee7ab79d98f6ccc7490ad517b6354d78a15389ac7"
+              "sha256": "1366656b5ae016293b5d260d65112c9dbc47dfd89051172377033d2ab7c94847"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-16-white/comparison-silhouette-xor.png",
-              "sha256": "232c2eac760eae604f9dd43352c0b272396b7cfaf220081b54583b6d0cbc2320"
+              "sha256": "50b068e07b4bf235705c19b77da49fdbbc7e98ddc0a46f1c6659cca98c963904"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-16-white.png",
-        "sha256": "fa1a2e07e2a8bbbea3ef61db51c1cd6d2ee1f7847c26e3c2d29baa702a708b93",
+        "sha256": "99fc524e232c47ccdd46eb0aec410edd8057a77e1ae8bd3b6d0b6333305c79d7",
         "size_px": 16,
         "surface": "white",
         "variant": "reduced"
@@ -587,15 +587,15 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-black/comparison-color-difference.png",
-              "sha256": "30a5faf4033e50a90a2878943dfcf4cc66c8feff3fe92c17dc8c7e7a30e9e845"
+              "sha256": "8fc79f5e2d71a3cf5cfd6c8f2ceea6f9eb529f647e7de97bd6a8b3f3f4e34274"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-black/comparison-overlay.png",
-              "sha256": "d0b703d5898353e9c33e8aad32cde40732d311e2e3bf616c39b04471abf5074a"
+              "sha256": "8268ada2b2e7505b8451772ddd4e7bf12f715d7b55f2a8a0139b86082484f0a0"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-black/comparison-side-by-side.png",
-              "sha256": "e566b39eeeab9a70561c37a7ba6452df967cb789d7e1321cb8720cf108a45778"
+              "sha256": "f2a2521eff6def9d7d3d4d6b191f5c055ec0b29daf8450562dc0e3eda7f2de8c"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-black/comparison-silhouette-xor.png",
@@ -606,7 +606,7 @@
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-32-black.png",
-        "sha256": "d0b703d5898353e9c33e8aad32cde40732d311e2e3bf616c39b04471abf5074a",
+        "sha256": "8268ada2b2e7505b8451772ddd4e7bf12f715d7b55f2a8a0139b86082484f0a0",
         "size_px": 32,
         "surface": "black",
         "variant": "reduced"
@@ -616,15 +616,15 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-dark/comparison-color-difference.png",
-              "sha256": "30a5faf4033e50a90a2878943dfcf4cc66c8feff3fe92c17dc8c7e7a30e9e845"
+              "sha256": "8fc79f5e2d71a3cf5cfd6c8f2ceea6f9eb529f647e7de97bd6a8b3f3f4e34274"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-dark/comparison-overlay.png",
-              "sha256": "5df6e0e646b9232882312570ed74ad18e2bab132e8cc4e8e3ae0ee32807a03f5"
+              "sha256": "860461a52148fafdc1c508ac0d3cfbe89377c66d7f94a87a1193a2d0f6494bea"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-dark/comparison-side-by-side.png",
-              "sha256": "8233511ea414dff56dedb89c19b41d05eee6a4cabb004089d4cad344c220d9df"
+              "sha256": "58fd965c022222e3d4bcb0122a4c8f0cc3d4b7f7fefd0f5e3c814eec0cc85f13"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-dark/comparison-silhouette-xor.png",
@@ -635,7 +635,7 @@
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-32-dark.png",
-        "sha256": "5df6e0e646b9232882312570ed74ad18e2bab132e8cc4e8e3ae0ee32807a03f5",
+        "sha256": "860461a52148fafdc1c508ac0d3cfbe89377c66d7f94a87a1193a2d0f6494bea",
         "size_px": 32,
         "surface": "dark",
         "variant": "reduced"
@@ -645,15 +645,15 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-light/comparison-color-difference.png",
-              "sha256": "30a5faf4033e50a90a2878943dfcf4cc66c8feff3fe92c17dc8c7e7a30e9e845"
+              "sha256": "8fc79f5e2d71a3cf5cfd6c8f2ceea6f9eb529f647e7de97bd6a8b3f3f4e34274"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-light/comparison-overlay.png",
-              "sha256": "f57a5963a26265cf1dee7bb5aee932e59887c099ea154ed5ee9c92fa509cc06c"
+              "sha256": "0d82a4ed3d6a650351f88b5f32a7bbf53d83685ad3affdb0bf91e6b80559fa54"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-light/comparison-side-by-side.png",
-              "sha256": "e9ede1d99b91565561a25d83d444f796324812dd49efd6acee848ccae3ecfd0d"
+              "sha256": "73a21f65eada1d4ff1fef20d67156df58bb069235485f92689001e84ab5b8f5a"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-light/comparison-silhouette-xor.png",
@@ -664,7 +664,7 @@
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-32-light.png",
-        "sha256": "f57a5963a26265cf1dee7bb5aee932e59887c099ea154ed5ee9c92fa509cc06c",
+        "sha256": "0d82a4ed3d6a650351f88b5f32a7bbf53d83685ad3affdb0bf91e6b80559fa54",
         "size_px": 32,
         "surface": "light",
         "variant": "reduced"
@@ -674,15 +674,15 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-white/comparison-color-difference.png",
-              "sha256": "30a5faf4033e50a90a2878943dfcf4cc66c8feff3fe92c17dc8c7e7a30e9e845"
+              "sha256": "8fc79f5e2d71a3cf5cfd6c8f2ceea6f9eb529f647e7de97bd6a8b3f3f4e34274"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-white/comparison-overlay.png",
-              "sha256": "4e609f3e77824b1456458dec320e58465989b409557e0f14816d44f700db7fa7"
+              "sha256": "ad4005370af46b7b4c6b1f7e5ec0d1b21a8b9cbc4e2725f7be31479d8296e2d5"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-white/comparison-side-by-side.png",
-              "sha256": "d772060ab16e38fdd86d84bcfafcef71d7f09fd6c8b0e96371a2d9abaef7f86b"
+              "sha256": "79835c512f864de8d23af969b8430afa3cbf2af16ca09326fd45264b8eb484c4"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-32-white/comparison-silhouette-xor.png",
@@ -693,7 +693,7 @@
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-32-white.png",
-        "sha256": "4e609f3e77824b1456458dec320e58465989b409557e0f14816d44f700db7fa7",
+        "sha256": "ad4005370af46b7b4c6b1f7e5ec0d1b21a8b9cbc4e2725f7be31479d8296e2d5",
         "size_px": 32,
         "surface": "white",
         "variant": "reduced"
@@ -703,26 +703,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-black/comparison-color-difference.png",
-              "sha256": "e0a600268e4e838cbb2d645ad9b64530a4ccac386ae25907aad6d9f68271b733"
+              "sha256": "9c9eb7ed565a3af086dee2cbfb27132f0c052240c6f69b019049399c82fc1df0"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-black/comparison-overlay.png",
-              "sha256": "a843469a4f8377c303d3ee7176d2fea52f5b153b13e36e732c15ffba507b5913"
+              "sha256": "b7a71fe55c7296628ff5a158e358c76a1eb96e82d436f71cf6edb11cc613dd8a"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-black/comparison-side-by-side.png",
-              "sha256": "ec723c25eccfb5edb5919603f0dbfb1fa5f26cf605fe3a39cddc4aa3fada4c8a"
+              "sha256": "c117f77ccab4e688ae6393cb6c0bdfd3b9c910445d7310d19753a50557d90a70"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-black/comparison-silhouette-xor.png",
-              "sha256": "052c48aa8b5e4f2c40bcd0d1bb7a4b93276276285dfa3e8a971b435dc88fdfee"
+              "sha256": "8d447892b6efbc450beab391a7003090694cfcd0014d20766150112cab1675a0"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-64-black.png",
-        "sha256": "a843469a4f8377c303d3ee7176d2fea52f5b153b13e36e732c15ffba507b5913",
+        "sha256": "b7a71fe55c7296628ff5a158e358c76a1eb96e82d436f71cf6edb11cc613dd8a",
         "size_px": 64,
         "surface": "black",
         "variant": "reduced"
@@ -732,26 +732,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-dark/comparison-color-difference.png",
-              "sha256": "e0a600268e4e838cbb2d645ad9b64530a4ccac386ae25907aad6d9f68271b733"
+              "sha256": "9c9eb7ed565a3af086dee2cbfb27132f0c052240c6f69b019049399c82fc1df0"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-dark/comparison-overlay.png",
-              "sha256": "8503d8e402b114d8a13bb8183feb0319c00e03683d5e1133623384f0318f3a5c"
+              "sha256": "01d24818c390fd65ed9811bc1e28e437f91b4bae69a71845a9dcf18513296269"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-dark/comparison-side-by-side.png",
-              "sha256": "f7e00cbb69ac44a11e9f0cc8e0f62e7408fe6b9657dcde1f08fa4b48fb51a976"
+              "sha256": "97b2083515e174fea18edf9b1ea922bb121b13580fa681fe3d68443ca78088fa"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-dark/comparison-silhouette-xor.png",
-              "sha256": "052c48aa8b5e4f2c40bcd0d1bb7a4b93276276285dfa3e8a971b435dc88fdfee"
+              "sha256": "8d447892b6efbc450beab391a7003090694cfcd0014d20766150112cab1675a0"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-64-dark.png",
-        "sha256": "8503d8e402b114d8a13bb8183feb0319c00e03683d5e1133623384f0318f3a5c",
+        "sha256": "01d24818c390fd65ed9811bc1e28e437f91b4bae69a71845a9dcf18513296269",
         "size_px": 64,
         "surface": "dark",
         "variant": "reduced"
@@ -761,26 +761,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-light/comparison-color-difference.png",
-              "sha256": "e0a600268e4e838cbb2d645ad9b64530a4ccac386ae25907aad6d9f68271b733"
+              "sha256": "9c9eb7ed565a3af086dee2cbfb27132f0c052240c6f69b019049399c82fc1df0"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-light/comparison-overlay.png",
-              "sha256": "f0886f9ec70460aa1e422fa3919b21b986d7527d7dd49049c7b63b83068de939"
+              "sha256": "fac8d6afda4dc95b55752216216118303598013751f20d41c53a311893ee9d8c"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-light/comparison-side-by-side.png",
-              "sha256": "f17cf84a5fb48c040a67f4c72e8fa552c94bd6e9cede3b387567b0c325717e0c"
+              "sha256": "353e1b3016d9fa2b4ac8630b7ed1423e37594148d2d17153b98062b019a36585"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-light/comparison-silhouette-xor.png",
-              "sha256": "052c48aa8b5e4f2c40bcd0d1bb7a4b93276276285dfa3e8a971b435dc88fdfee"
+              "sha256": "8d447892b6efbc450beab391a7003090694cfcd0014d20766150112cab1675a0"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-64-light.png",
-        "sha256": "f0886f9ec70460aa1e422fa3919b21b986d7527d7dd49049c7b63b83068de939",
+        "sha256": "fac8d6afda4dc95b55752216216118303598013751f20d41c53a311893ee9d8c",
         "size_px": 64,
         "surface": "light",
         "variant": "reduced"
@@ -790,26 +790,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-white/comparison-color-difference.png",
-              "sha256": "e0a600268e4e838cbb2d645ad9b64530a4ccac386ae25907aad6d9f68271b733"
+              "sha256": "9c9eb7ed565a3af086dee2cbfb27132f0c052240c6f69b019049399c82fc1df0"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-white/comparison-overlay.png",
-              "sha256": "092e8c5356b832133c41cefca907de311068befd0135bcc93281a51977e1ff4a"
+              "sha256": "5d72327ced5ac4d38a776660c2d036ab2589273bf5aeb9f7e95194fd3641c553"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-white/comparison-side-by-side.png",
-              "sha256": "800a141ed81d3c20f65d5d2510be8d46fdab86a8c21ec60e6a09802f19c153a0"
+              "sha256": "baf0f59b6049b4e1c901e678a00da6b10da99af3f362cdf7f9925831e867d8c4"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-64-white/comparison-silhouette-xor.png",
-              "sha256": "052c48aa8b5e4f2c40bcd0d1bb7a4b93276276285dfa3e8a971b435dc88fdfee"
+              "sha256": "8d447892b6efbc450beab391a7003090694cfcd0014d20766150112cab1675a0"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-64-white.png",
-        "sha256": "092e8c5356b832133c41cefca907de311068befd0135bcc93281a51977e1ff4a",
+        "sha256": "5d72327ced5ac4d38a776660c2d036ab2589273bf5aeb9f7e95194fd3641c553",
         "size_px": 64,
         "surface": "white",
         "variant": "reduced"
@@ -819,26 +819,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-black/comparison-color-difference.png",
-              "sha256": "42c7d7a412f704e9468d9ba58292b23e1d659ddb4e839345ad08bb37b44ee2e5"
+              "sha256": "004c0da60be05efebf543eb7ed2a51aba399a57d19c58d74290344ce5c54a1f3"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-black/comparison-overlay.png",
-              "sha256": "a5804cfaa105fb106ffc47326b98acbe7392f0b156113080f0cbc07d42b45f70"
+              "sha256": "3813baa7832d827dbaa9cb2866fd1aabd5d6d49e1cc74705a31c0a60ea8f5300"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-black/comparison-side-by-side.png",
-              "sha256": "dadff1dea9c02639c7e223070bbffdc2bc3eed8afd1e2e4532cec3ae539b93ec"
+              "sha256": "37e0b72dd6edceb7aec706e9ee64c7a26226e86291241050804261af60512e9f"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-black/comparison-silhouette-xor.png",
-              "sha256": "aebc86755d7beb8b01bcd992ab44e1133afcb473511b7832eb82228be275473f"
+              "sha256": "3c6c50f94ab35e9f96c772731fe6b7950048179bc81b8ab0396cc1edbde89163"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-256-black.png",
-        "sha256": "a5804cfaa105fb106ffc47326b98acbe7392f0b156113080f0cbc07d42b45f70",
+        "sha256": "3813baa7832d827dbaa9cb2866fd1aabd5d6d49e1cc74705a31c0a60ea8f5300",
         "size_px": 256,
         "surface": "black",
         "variant": "reduced"
@@ -848,26 +848,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-dark/comparison-color-difference.png",
-              "sha256": "42c7d7a412f704e9468d9ba58292b23e1d659ddb4e839345ad08bb37b44ee2e5"
+              "sha256": "004c0da60be05efebf543eb7ed2a51aba399a57d19c58d74290344ce5c54a1f3"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-dark/comparison-overlay.png",
-              "sha256": "b37732fae66fcb7c794502c4f5a2e4ec5fc1a1a2fad9e7ff95b62fdc6f2984ad"
+              "sha256": "1287888fb1587e0883d710975892370ca9654de30d6b9a15193f787b5edfe58d"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-dark/comparison-side-by-side.png",
-              "sha256": "34a7d842e636d8491912dc89e0f1c2a2a2ae988a585eec6899235108858b5030"
+              "sha256": "d9303bae1dd68caba3acb755b16f8bc2f32a2ef9523294a486ea5786c26612c4"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-dark/comparison-silhouette-xor.png",
-              "sha256": "aebc86755d7beb8b01bcd992ab44e1133afcb473511b7832eb82228be275473f"
+              "sha256": "3c6c50f94ab35e9f96c772731fe6b7950048179bc81b8ab0396cc1edbde89163"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-256-dark.png",
-        "sha256": "b37732fae66fcb7c794502c4f5a2e4ec5fc1a1a2fad9e7ff95b62fdc6f2984ad",
+        "sha256": "1287888fb1587e0883d710975892370ca9654de30d6b9a15193f787b5edfe58d",
         "size_px": 256,
         "surface": "dark",
         "variant": "reduced"
@@ -877,26 +877,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-light/comparison-color-difference.png",
-              "sha256": "42c7d7a412f704e9468d9ba58292b23e1d659ddb4e839345ad08bb37b44ee2e5"
+              "sha256": "004c0da60be05efebf543eb7ed2a51aba399a57d19c58d74290344ce5c54a1f3"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-light/comparison-overlay.png",
-              "sha256": "cd911a5833ba8bac418ea644a987d88faad5455ac0b193c6b78fd51d6b753e8e"
+              "sha256": "894fc80d1b93510e696d48a5f19fb28d93c96d0be7f8e28ee225c296ee17f7bd"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-light/comparison-side-by-side.png",
-              "sha256": "c9eb91bf0bd506cb09f79a61833d4ebf5bd4ac02c8e76f529c58753c1b3c31fc"
+              "sha256": "89917b08d7368cee2d3603f0d42004d746057f560bb1dff86692697f54a93ac9"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-light/comparison-silhouette-xor.png",
-              "sha256": "aebc86755d7beb8b01bcd992ab44e1133afcb473511b7832eb82228be275473f"
+              "sha256": "3c6c50f94ab35e9f96c772731fe6b7950048179bc81b8ab0396cc1edbde89163"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-256-light.png",
-        "sha256": "cd911a5833ba8bac418ea644a987d88faad5455ac0b193c6b78fd51d6b753e8e",
+        "sha256": "894fc80d1b93510e696d48a5f19fb28d93c96d0be7f8e28ee225c296ee17f7bd",
         "size_px": 256,
         "surface": "light",
         "variant": "reduced"
@@ -906,26 +906,26 @@
           "evidence": {
             "color_difference": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-white/comparison-color-difference.png",
-              "sha256": "42c7d7a412f704e9468d9ba58292b23e1d659ddb4e839345ad08bb37b44ee2e5"
+              "sha256": "004c0da60be05efebf543eb7ed2a51aba399a57d19c58d74290344ce5c54a1f3"
             },
             "overlay": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-white/comparison-overlay.png",
-              "sha256": "3ee6eadc12bb4256c25b101eeb4d3995263e2750b28fb074bbd867a3da937c7c"
+              "sha256": "df9ff74d4df6ed387e62b9cd48b1b4542c77a422fabb15c8340cfee2db0bfb09"
             },
             "side_by_side": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-white/comparison-side-by-side.png",
-              "sha256": "7b37e7e8d0fdccbb7e4fedfa5cad15b2797db7ef7e8ec110d48ef560346088d2"
+              "sha256": "180b55054557424614c51f4c730ae83248bfd3dec4c8eab6bfa4f88bd863f026"
             },
             "silhouette_xor": {
               "path": "qc/identity-continuity-proofs/comparisons/reduced-256-white/comparison-silhouette-xor.png",
-              "sha256": "aebc86755d7beb8b01bcd992ab44e1133afcb473511b7832eb82228be275473f"
+              "sha256": "3c6c50f94ab35e9f96c772731fe6b7950048179bc81b8ab0396cc1edbde89163"
             }
           },
           "passes": true,
           "same_renderer": false
         },
         "path": "qc/identity-continuity-proofs/reduced-256-white.png",
-        "sha256": "3ee6eadc12bb4256c25b101eeb4d3995263e2750b28fb074bbd867a3da937c7c",
+        "sha256": "df9ff74d4df6ed387e62b9cd48b1b4542c77a422fabb15c8340cfee2db0bfb09",
         "size_px": 256,
         "surface": "white",
         "variant": "reduced"
@@ -933,7 +933,7 @@
     ],
     "renderer": {
       "id": "node-resvg",
-      "settings_sha256": "81b841e338dbc368d9fb425ba67e1931cc8950a9411cf8aa78d6964a8bcc0c93",
+      "settings_sha256": "8e44d449cfae04743c0358b48a85944253cec430bb927ac9d5ad24323356447a",
       "version": "v24.11.0"
     },
     "status": "passed"
@@ -941,7 +941,7 @@
   "record_file_sha256": "67102286cceb6f71998fe1e6fc06d4a866f1fe947de9aaea4abe2c4e5e69f515",
   "record_path": "identity-continuity.json",
   "record_sha256": "74bb45e37d3a347c488e72f11a4ecf018a2fe797992e8a2b8f7c3ce9a65d386e",
-  "report_sha256": "7549314719c249aa41997dad0811797bac0b5af56f4700ccaf10cf5d162f3eb7",
+  "report_sha256": "489c5ff3a57f038b09d86ceede4ebbb9a237a5dce17d1c0b03b4d022a9c306e1",
   "schema_version": 1,
   "snapshot_sha256": "be206ff13cf83fabb8472c6ce17c9919a8821a10aac558235f101fe546d64512",
   "source_class": "glyphkit-constructed",

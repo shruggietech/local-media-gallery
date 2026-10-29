@@ -1,20 +1,24 @@
 {
   "schemaVersion": 1,
+  "sourceKind": "github-release",
+  "publicationStatus": "release",
   "sourceRepository": "https://github.com/shruggietech/shruggie-brand",
-  "sourceKind": "supplied-archive",
-  "publicationStatus": "candidate",
-  "archiveName": "localmedia-gallery-brand-1.0.0-bb3.1.0.zip",
-  "archiveSha256": "27e866241058486192a831589f5e4b256caacadd794bc280b56cc967ae151ee5",
+  "releaseTag": "v3.1.1",
+  "releaseUrl": "https://github.com/shruggietech/shruggie-brand/releases/tag/v3.1.1",
+  "publishedAt": "2026-10-28T22:36:13Z",
+  "archiveName": "localmedia-gallery-brand-1.0.0-bb3.1.1.zip",
+  "archiveUrl": "https://github.com/shruggietech/shruggie-brand/releases/download/v3.1.1/localmedia-gallery-brand-1.0.0-bb3.1.1.zip",
+  "checksumUrl": "https://github.com/shruggietech/shruggie-brand/releases/download/v3.1.1/SHA256SUMS",
   "brandVersion": "1.0.0",
-  "brandbuilderVersion": "3.1.0",
-  "releaseTag": "v3.1.0",
-  "sourceRevision": "2589678e971ae654579e9dbb9575661775c4a6ec",
-  "canonVersion": "2.1.0",
-  "manifestSha256": "47152c96e7597fc3c24fad9c8c338df4048e83827a5d5e0e5c5e4eb37dabbd27",
+  "brandbuilderVersion": "3.1.1",
+  "archiveSha256": "8dccfe8af1ccada6d683af5d3208bdcc4423e8efc0539f86d0233bfe21531095",
+  "manifestSha256": "d84b52bf509c4909968884efba0106dfc9a38db7f352ef6075325cb05ab44bbb",
   "legalSha256": {
     "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "LICENSE-BRAND.md": "bd1107a804108bbe02955ca64000945322a6fc2456b45b795dac11a253c0023a",
     "NOTICE": "d919688fd2c931500447418b628dfd0acf4d82c88d7eb392692bb629f7d0193f"
   },
+  "sourceRevision": "65af667461798738b0cf381b7c8bc4487afd853a",
+  "canonVersion": "2.1.0",
   "fileCount": 572
 }

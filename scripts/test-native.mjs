@@ -26,12 +26,13 @@ let settingsFile = path.join(settingsDirectory, 'settings.json');
 const binary = process.env.GALLERY_TEST_BINARY ?? path.join(root, 'target/debug/local-media-gallery.exe');
 const port = await availableLoopbackPort();
 const origin = `http://127.0.0.1:${port}`;
-let diagnostics = '';
+let diagnostics = '';let driverNonce,driverObservation;
 function launch(args) {
-  const app = spawn(binary, args, { cwd: root, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), WEBVIEW2_USER_DATA_FOLDER:path.join(root,'.local','native-webview-'+randomUUID()), GALLERY_TEST_SETTINGS_DIR: settingsDirectory, GALLERY_TEST_HISTORY_DIR: historyDirectory, GALLERY_TEST_PAGE_SIZE: "4" } });
-  app.stdout.on('data', b => { diagnostics += b; }); app.stderr.on('data', b => { diagnostics += b; });
+  driverNonce=randomUUID();
+  const app = spawn(binary, args, { cwd: root, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'], env: { ...environment, TAURI_WEBDRIVER_PORT: String(port), GALLERY_TEST_DRIVER_NONCE:driverNonce, WEBVIEW2_USER_DATA_FOLDER:path.join(root,'.local','native-webview-'+randomUUID()), GALLERY_TEST_SETTINGS_DIR: settingsDirectory, GALLERY_TEST_HISTORY_DIR: historyDirectory, GALLERY_TEST_PAGE_SIZE: "4" } });
+  app.stdout.on('data', b => { diagnostics = (diagnostics+b).slice(-32768); }); app.stderr.on('data', b => { diagnostics = (diagnostics+b).slice(-32768); });
   app.on('error', error => { diagnostics += error.message; });
-  return app;
+  driverObservation=observeChild(app);return app;
 }
 let child = launch([fixture.directory]);
 let session;
@@ -66,8 +67,7 @@ const select = (id, value) => js('const el=document.getElementById(arguments[0])
 const input = (action, extra = []) => execute('C:/Program Files/PowerShell/7/pwsh.exe', ['-NoProfile', '-NonInteractive', '-File', path.join(root, 'scripts/native-input.ps1'), '-AppProcessId', String(child.pid), '-Action', action, ...extra]);
 async function test(name, body) { await body(); passed.push(name); console.log(`PASS ${name}`); }
 async function connect() {
-  await readyDriver(child,origin,observeChild(child),20000);
-  session = (await until(() => request('/session', { capabilities: { alwaysMatch: { 'wdio:tauriServiceOptions': { windowLabel: 'main' } } } }), 'Native main-window readiness', 20000)).sessionId;
+  session = await readyDriver(child,origin,driverObservation,20000,{nonce:driverNonce,context:{operation:'native-acceptance',edition:'full'}});
 }
 async function stop() {
   if (session) { await request(`/session/${session}`, undefined, 'DELETE'); session = null; }

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { root, execute, python, environment } from './run.mjs';
-import { verifyInstalled } from './sync-brand-kit.mjs';
+import { verifyInstalled,verifyApprovedProofs } from './sync-brand-kit.mjs';
 
 const kit = path.join(root, 'brand/kit');
 await verifyInstalled(path.join(root, 'brand'));
@@ -21,11 +21,13 @@ const extract = 'import pathlib,sys,zipfile; base=pathlib.Path(sys.argv[2]).reso
 await execute(python, ['-c', extract, archive, recovery]);
 await writeFile(path.join(recovery, 'package.json'), '{"type":"commonjs"}\n');
 const approved = path.join(temporary, 'approved');
-await cp(kit, path.join(approved, contract.brand.slug), { recursive: true });
+await verifyApprovedProofs(path.join(root,'brand'));
+await cp(path.join(root,'brand/approved-proofs'),approved,{recursive:true});
 const proofNode = process.env.GALLERY_PROOF_NODE ?? path.join(root, '.local/tools/node-v24.11.0-win-x64/node.exe');
 const env = { ...environment, GP_NODE: proofNode, GP_APPROVED_PROOF_ROOT: approved };
 await execute(python, [path.join(root, 'tests/brand-proof-test.py')]);
 await execute(python, [path.join(root, 'scripts/brand-proof-verify.py'), path.join(recovery, 'templates/verify.py'), copy], { cwd: copy, env });
 await execute(python, [path.join(recovery, 'templates/validate_glyph.py'), path.join(copy, 'brand.json')], { cwd: copy, env });
 await verifyInstalled(path.join(root, 'brand'));
+await verifyApprovedProofs(path.join(root,'brand'));
 console.log('Pinned kit and glyph checks passed through an isolated exact recovery; installed kit bytes unchanged.');

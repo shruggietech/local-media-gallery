@@ -17,11 +17,11 @@
   "bundle": {
     "schema_version": 1,
     "package": {
-      "id": "localmedia-gallery-brand-1.0.0-bb3.1.0",
-      "filename": "localmedia-gallery-brand-1.0.0-bb3.1.0.zip",
+      "id": "localmedia-gallery-brand-1.0.0-bb3.1.1",
+      "filename": "localmedia-gallery-brand-1.0.0-bb3.1.1.zip",
       "brand_slug": "localmedia-gallery",
       "brand_version": "1.0.0",
-      "brandbuilder_version": "3.1.0"
+      "brandbuilder_version": "3.1.1"
     },
     "versions": {
       "canon_version": "2.1.0",
@@ -30,30 +30,30 @@
       "web_react_adapter_version": "1.1.0",
       "egui_adapter_version": "1.0.2",
       "wordpress_adapter_version": "1.0.0",
-      "compiler_version": "3.1.0",
+      "compiler_version": "3.1.1",
       "brand_version": "1.0.0"
     },
-    "source_revision": "2589678e971ae654579e9dbb9575661775c4a6ec",
+    "source_revision": "65af667461798738b0cf381b7c8bc4487afd853a",
     "publication": {
-      "status": "candidate",
-      "version": "3.1.0",
-      "tag": "v3.1.0"
+      "status": "release",
+      "version": "3.1.1",
+      "tag": "v3.1.1"
     },
     "checksum_authority": {
       "algorithm": "sha256",
       "manifest": "manifest.json",
-      "release_checksums": null
+      "release_checksums": "SHA256SUMS"
     }
   },
   "release_impact": {
     "$schema": "release-impact.schema.json",
     "schema_version": 1,
-    "brandbuilder_version": "3.1.0",
+    "brandbuilder_version": "3.1.1",
     "identity_redesign": false,
     "surfaces": {
       "identity": {
         "classification": "unaffected",
-        "summary": "Existing approved masters and proof bytes remain unchanged. Local Media Gallery 1.0.0 is a new, separately approved Jade identity with photo and video cutouts."
+        "summary": "Approved logo geometry and source masters remain unchanged. Seven edited brands receive patch package versions for messaging; identity remains governed by their existing continuity records."
       },
       "palette": {
         "classification": "unaffected",
@@ -65,7 +65,7 @@
       },
       "platform_assets": {
         "classification": "optional",
-        "summary": "Regenerate to adopt optional source-owned horizontal wordmark rows, centered-group slogan-only social images, and corrected long-name/compound type specimens. Existing default logo layouts and approved social images remain unchanged."
+        "summary": "Regenerate and repin to adopt exact approved messaging in generated packages. Approved logo geometry, platform icon layouts and social-image compositions remain unchanged."
       },
       "web_react": {
         "classification": "unaffected",
@@ -76,16 +76,16 @@
         "summary": "The egui adapter API and output semantics remain unchanged."
       },
       "wordpress": {
-        "classification": "unaffected",
-        "summary": "WordPress adapter 1.0.0 retains its public contract and supports the compatible Brand Canon 2.1.0 tuple."
+        "classification": "optional",
+        "summary": "Regenerate WordPress starters to adopt exact approved site descriptions and omit the hero description when the canonical site-metadata role is absent or unresolved. WordPress adapter 1.0.0 retains its public API."
       },
       "documentation": {
         "classification": "required",
-        "summary": "Publish Local Media Gallery guidelines, approved exact messages, registries and downloads through standard generated routes. Brand Canon 2.1.0 adds optional lockup layout and social composition fields; earlier conforming inputs remain supported."
+        "summary": "Publish seven brands' exact approved message decisions, corrected portfolio heading and complete card-title layout, and all 68 labeled References entries. Brand Canon 2.1.0 and existing adapter APIs remain unchanged."
       },
       "recovery": {
         "classification": "required",
-        "summary": "Repinning BrandBuilder 3.1.0 requires its exact new package IDs and checksums. The verified site hosts thirteen brands; ten owned archives join the skill and portable distribution, while three client kits remain hosted candidates. Previously published packages remain immutable recovery inputs."
+        "summary": "Repinning BrandBuilder 3.1.1 requires exact new package IDs and checksums. The site hosts thirteen verified brands; ten owned archives join the skill and portable distribution, while three client kits remain hosted candidates. Previously published packages remain immutable recovery inputs."
       }
     }
   },
@@ -96,7 +96,7 @@
     "web_react_adapter_version": "1.1.0",
     "egui_adapter_version": "1.0.2",
     "wordpress_adapter_version": "1.0.0",
-    "compiler_version": "3.1.0",
+    "compiler_version": "3.1.1",
     "brand_version": "1.0.0"
   },
   "bindings": {
@@ -140,19 +140,19 @@
     "success": "zero verifier problems and zero glyph failures"
   },
   "recovery": {
-    "distribution": "shruggie-brandbuilder-3.1.0.skill",
-    "path": "enforcement/distributions/shruggie-brandbuilder-3.1.0.skill",
-    "sha256": "893a4db143379f68a6b66bed13bc0d648b9931ef11a176570367ebab21b867ed",
+    "distribution": "shruggie-brandbuilder-3.1.1.skill",
+    "path": "enforcement/distributions/shruggie-brandbuilder-3.1.1.skill",
+    "sha256": "4bf6d5a1b02a59c08c37ba6b2fc8967b1f30b23d49cf049f505219f56800fde4",
     "extract_to": "enforcement/brandbuilder",
     "sources": [
       {
         "kind": "delivered-bundle",
-        "path": "enforcement/distributions/shruggie-brandbuilder-3.1.0.skill",
+        "path": "enforcement/distributions/shruggie-brandbuilder-3.1.1.skill",
         "network_required": false
       },
       {
         "kind": "authoritative-release",
-        "version": "3.1.0",
+        "version": "3.1.1",
         "network_requires_authorization": true
       }
     ],

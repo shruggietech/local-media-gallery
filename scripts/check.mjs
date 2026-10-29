@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { access, readFile, readdir } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { verifyInstalled } from './sync-brand-kit.mjs';
+import { verifyInstalled,verifyApprovedProofs } from './sync-brand-kit.mjs';
+import {checkGlibVendor} from './check-vendor.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const skip = new Set(['.git', '.agents', '.local', 'node_modules', 'brand/kit', '.specify/scripts', '.specify/templates', '.specify/LICENSE']);
+const skip = new Set(['.git', '.agents', '.local', 'node_modules', 'brand/kit', 'brand/approved-proofs', '.specify/scripts', '.specify/templates', '.specify/LICENSE', 'vendor/glib-0.18.5']);
 const textExtensions = new Set(['.md', '.json', '.mjs', '.cjs', '.ts', '.tsx', '.css', '.toml', '.rs', '.yml', '.yaml', '.ps1', '.py', '.wxs', '.swift']);
 const rootText = new Set(['AGENTS.md', 'LICENSE', 'NOTICE', 'VERSION', '.gitignore', '.gitattributes', '.editorconfig']);
 const decoder = new TextDecoder('utf-8', { fatal: true });
@@ -40,6 +41,7 @@ async function inspect(relative = '') {
   }
 }
 
+await checkGlibVendor();
 await inspect();
 const version = (await readFile(join(root, 'VERSION'), 'utf8')).trim();
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
@@ -65,4 +67,5 @@ for (const command of ['constitution', 'specify', 'clarify', 'plan', 'tasks', 'a
 }
 const brand = await verifyInstalled(join(root, 'brand'));
 assert.ok(brand, 'Brand kit is missing');
+await verifyApprovedProofs(join(root,'brand'));
 console.log(`Checked ${count} authored/configuration text files, local links, version alignment, Spec Kit integration and ${brand.fileCount} brand files (${brand.sourceKind}, ${brand.publicationStatus}).`);

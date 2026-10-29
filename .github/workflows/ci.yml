@@ -92,7 +92,7 @@ jobs:
             .local/native-failure.png
             .local/preparation-results.json
             .local/launch-results.json
-            .local/measurement.json
+            .local/measurement*.json
             .local/normal-results.json
           include-hidden-files: true
           if-no-files-found: error
