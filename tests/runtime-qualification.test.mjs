@@ -49,7 +49,7 @@ test('native snapshot evidence rejects blank/clipped frames and excludes changin
 test('focus-changing suites refuse the active workstation before launching a GUI',async()=>{
  assert.throws(()=>requireIsolatedDesktop({}),/isolated CI desktop/);
  assert.throws(()=>requireIsolatedDesktop({GITHUB_ACTIONS:'true'}),/isolated CI desktop/);
- for(const script of ['build-macos-packages','test-macos-packages','ci-macos-packages','build-windows-packages','test-windows-packages','ci-windows-packages','diagnose-runtime','diagnose-legacy-windows','test-runtime-platform','test-runtime','test-native','test-preparation','test-launch','test-normal','measure-native','qualify'])await assert.rejects(promisify(execFile)(process.execPath,['scripts/'+script+'.mjs'],{cwd:root,windowsHide:true,shell:false,timeout:10000,env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:''}}),e=>e.stderr.includes('isolated CI desktop'));
+ for(const script of ['build-linux-packages','test-linux-packages','ci-linux-packages','build-macos-packages','test-macos-packages','ci-macos-packages','build-windows-packages','test-windows-packages','ci-windows-packages','diagnose-runtime','diagnose-legacy-windows','test-runtime-platform','test-runtime','test-native','test-preparation','test-launch','test-normal','measure-native','qualify'])await assert.rejects(promisify(execFile)(process.execPath,['scripts/'+script+'.mjs'],{cwd:root,windowsHide:true,shell:false,timeout:10000,env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:''}}),e=>e.stderr.includes('isolated CI desktop'));
 });
 
 test('Native output receipts reject unavailable PCM, unrelated streams and invalid frequency',()=>{
@@ -62,3 +62,5 @@ test('Native output receipts reject unavailable PCM, unrelated streams and inval
 test('Actual macOS native snapshot hashes remain valid frame evidence',()=>{
  const r=receipt();r.environment.platform='darwin';r.media=[{name:'tone.webm',type:'video',codec:'vp9',frequency:440,outcome:'supported',retained:true,inspectable:true,frames:Object.fromEntries(Object.entries(frames()).map(([key,f],i)=>[key,{...f,hash:String(i+1).repeat(64),method:'Native-view snapshot, central decoded video region'}])),audio:{method:'media-element',state:'running',sampleRate:48000,rms:0.08,fftPeakHz:440}}];validateRuntimeReceipt(r,{...expected,platform:'darwin'});const changed=structuredClone(r);changed.media[0].frames.moving.hash=changed.media[0].frames.before.hash;assert.throws(()=>validateRuntimeReceipt(changed,{...expected,platform:'darwin'}));
 });
+
+test('External Linux package observer refuses local desktop before importing GUI bindings',async()=>{await assert.rejects(promisify(execFile)(python,['scripts/linux-package-ui.py','inspect','1','unused.json'],{cwd:root,windowsHide:true,shell:false,timeout:10000,env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:''}}),e=>e.stderr.includes('isolated hosted desktop'));});

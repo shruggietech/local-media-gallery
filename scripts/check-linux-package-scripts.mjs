@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
+import assert from 'node:assert/strict';import {mkdtemp,writeFile,mkdir} from 'node:fs/promises';import path from 'node:path';
+import {root,execute} from './run.mjs';import {renderLauncher,renderMaintainerScripts} from './linux-package-scripts.mjs';
+assert.equal(process.platform,'linux');await mkdir(path.join(root,'.local'),{recursive:true});const directory=await mkdtemp(path.join(root,'.local/linux-shellcheck-'));const scripts={...renderMaintainerScripts([{path:'usr/bin/local-media-gallery',sha256:'a'.repeat(64),bytes:'3',mode:'755'}]),full:renderLauncher('full'),lite:renderLauncher('lite')};for(const [name,text]of Object.entries(scripts)){const file=path.join(directory,name);await writeFile(file,text);await execute('/usr/bin/shellcheck',['--shell=sh','--severity=style',file]);}console.log('Generated POSIX package scripts pass ShellCheck before native build admission.');
