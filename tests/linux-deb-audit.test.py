@@ -11,11 +11,13 @@ spec=importlib.util.spec_from_file_location('deb_audit',file)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 content=b'payload'
 def entry(name): return {'path':name,'sha256':hashlib.sha256(content).hexdigest(),'bytes':str(len(content)),'mode':'644'}
-def tar(name='usr/bin/app',kind=tarfile.REGTYPE,mode=0o644):
+def tar(name='usr/bin/app',kind=tarfile.REGTYPE,mode=0o644,directory=None):
     out=io.BytesIO()
     with tarfile.open(fileobj=out,mode='w:xz') as archive:
         record=tarfile.TarInfo(name);record.type=kind;record.linkname='/outside';record.mode=mode;record.uid=record.gid=0;record.size=len(content) if kind==tarfile.REGTYPE else 0
         archive.addfile(record,io.BytesIO(content) if record.size else None)
+        if directory is not None:
+            parent=tarfile.TarInfo(directory);parent.type=tarfile.DIRTYPE;parent.mode=0o755;parent.uid=parent.gid=0;archive.addfile(parent)
     return out.getvalue()
 def ar(members):
     raw=b'!<arch>\n'
@@ -24,9 +26,10 @@ def ar(members):
     return raw
 with tempfile.TemporaryDirectory(prefix='lmg-deb-audit-') as tmp:
     package=Path(tmp)/'candidate.deb';inventory={'data':[entry('usr/bin/app')],'control':[entry('control')]}
+    package.write_bytes(ar([('debian-binary',b'2.0\n'),('control.tar.xz',tar('control')),('data.tar.xz',tar(directory='usr/bin'))]));assert module.audit_deb(package,inventory)=={'dataFiles':1,'controlFiles':1}
     base=[('debian-binary',b'2.0\n'),('control.tar.xz',tar('control')),('data.tar.xz',tar())]
     package.write_bytes(ar(base));assert module.audit_deb(package,inventory)=={'dataFiles':1,'controlFiles':1}
-    for bad in [tar('../outside'),tar('/outside'),tar('usr/bin/app',tarfile.SYMTYPE),tar('usr/bin/app',tarfile.LNKTYPE),tar('usr/bin/app',mode=0o755)]:
+    for bad in [tar('../outside'),tar('/outside'),tar('usr/bin/app',tarfile.SYMTYPE),tar('usr/bin/app',tarfile.LNKTYPE),tar('usr/bin/app',mode=0o755),tar(directory='etc')]:
         package.write_bytes(ar(base[:2]+[('data.tar.xz',bad)]))
         try: module.audit_deb(package,inventory)
         except (AssertionError,ValueError): pass

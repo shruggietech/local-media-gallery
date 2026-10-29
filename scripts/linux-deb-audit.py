@@ -29,6 +29,10 @@ def expected_files(entries):
 
 def audit_tar(data,entries):
     expected=expected_files(entries)
+    parents={'','.'}
+    for name in expected:
+        parts=PurePosixPath(name).parts
+        parents.update('/'.join(parts[:i]) for i in range(1,len(parts)))
     seen=set()
     with tarfile.open(fileobj=io.BytesIO(data),mode='r:*') as archive:
         count=0
@@ -38,6 +42,7 @@ def audit_tar(data,entries):
             name=member.name.removeprefix('./').rstrip('/')
             if member.isdir():
                 if name not in ('','.'): normal(name)
+                assert name in parents, 'Unlisted Debian directory'
                 assert member.mode==0o755
                 continue
             name=normal(name)
