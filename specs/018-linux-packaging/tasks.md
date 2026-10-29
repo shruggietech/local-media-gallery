@@ -17,31 +17,31 @@
 
 - [x] T004 [US1] Add failing strict Full identity/modes/path/duplicate/source/schema regressions in tests/linux-packages.test.mjs and injection/protocol/preflight regressions in tests/linux-package-scripts.test.mjs (FR-002/003/009).
 - [x] T005 [US1] Implement scripts/linux-packages.mjs, scripts/linux-package-scripts.mjs and schemas/v0.0.0/linux-packages.schema.json with formatVersion1/version0.0.0/full|lite/linux/x86_64/release,32hex generation,64hex source,40hex revision, decimal byte strings and only644|755 modes; embed trusted fixed file/metadata authority and reject links/redirected parents (FR-002/003/009).
-- [ ] T006 [US1] Implement ordinary Full release assembly in scripts/build-linux-packages.mjs and pre-extraction audit in scripts/linux-deb-audit.py using existing notices, exact governed icons, derived dpkg-shlibdeps and declared media plugins; build actual .deb with preinst/prerm/postinst/postrm guards including failed-upgrade and non-mutating abort-remove (FR-002 through FR-005/009).
-- [ ] T007 [US1] Implement actual APT/dpkg install/repeat/foreign/changed/mode/link/candidate/removal/purge/config-files and retention cases in scripts/test-linux-packages.mjs; verify actual registered/installed results and retained shared dependencies without autoremove (FR-002 through FR-005, SC-001/003).
+- [x] T006 [US1] Implement ordinary Full release assembly in scripts/build-linux-packages.mjs and pre-extraction audit in scripts/linux-deb-audit.py using existing notices, exact governed icons, derived dpkg-shlibdeps and declared media plugins; build actual .deb with preinst/prerm/postinst/postrm guards including failed-upgrade and non-mutating abort-remove (FR-002 through FR-005/009).
+- [x] T007 [US1] Implement actual APT/dpkg install/repeat/foreign/changed/mode/link/candidate/removal/purge/config-files and retention cases in scripts/test-linux-packages.mjs; verify actual registered/installed results and retained shared dependencies without autoremove (FR-002 through FR-005, SC-001/003).
 
 ## Phase 4: US2 portable Lite
 
 **Goal**: Extracted ordinary Lite works without Full or sender state. **Independent test**: External-root/explicit/relocated/native Refresh with portable settings.
 
 - [x] T008 [US2] Add failing Lite entrypoint/binary/mode/unsafe-archive/footprint rejection coverage in tests/linux-packages.test.mjs and tests/linux-lite-archive.test.py; add real launcher arguments/path/missing-ELF cases in tests/linux-package-scripts.test.mjs (FR-006/009/010).
-- [ ] T009 [US2] Assemble mode-preserving Lite tar.gz in scripts/build-linux-packages.mjs with adjacent external launcher/ELF, complete notices/metadata and exact inventory; enforce raw TAR modes in scripts/proof-archive.py before extraction and verify complete bytes/modes (FR-006/009/010).
-- [ ] T010 [US2] Exercise actual extracted Lite after Full removal with fresh host-local profile, minimal PATH, unrelated CWD, space/non-ASCII in-place/explicit roots, relocation/Refresh/portable settings and retained data in scripts/test-linux-packages.mjs (FR-006/007, SC-002).
+- [x] T009 [US2] Assemble mode-preserving Lite tar.gz in scripts/build-linux-packages.mjs with adjacent external launcher/ELF, complete notices/metadata and exact inventory; enforce raw TAR modes in scripts/proof-archive.py before extraction and verify complete bytes/modes (FR-006/009/010).
+- [x] T010 [US2] Exercise actual extracted Lite after Full removal with fresh host-local profile, minimal PATH, unrelated CWD, space/non-ASCII in-place/explicit roots, relocation/Refresh/portable settings and retained data in scripts/test-linux-packages.mjs (FR-006/007, SC-002).
 
 ## Phase 5: US3 prerequisite and evidence
 
 **Goal**: Actionable host diagnostics and source-bound actual native evidence. **Independent test**: Copied-ELF missing-library and empty-display negatives, actual ordinary native video/PCM and exact archive/footprint readback.
 
-- [ ] T011 [US3] Implement supported-host/architecture/ELF loader preflight in scripts/linux-package-scripts.mjs; preserve unchanged args/finite headless CLI, correct empty-display native precondition in apps/gallery/src-tauri/src/launch.rs, and qualify real copied-ELF missing-library/empty-display cases in scripts/test-linux-packages.mjs (FR-001/008, SC-003).
-- [ ] T012 [US3] Implement bounded external native observer/pixel checks in scripts/linux-package-ui.py and linux-package-pixels.py, actual trusted Play and changing decoded frames plus existing PID-owned PulseAudio PCM in scripts/test-linux-packages.mjs; reject missing/foreign/unavailable observations in scripts/linux-packages.mjs and tests/linux-packages.test.mjs (FR-007/009/011, SC-004).
-- [ ] T013 [US3] Integrate isolated linux-packages scope and artifact/failure retention in scripts/ci-linux-packages.mjs, ci.mjs and .github/workflows/ci.yml; preserve all existing platform/media gates,660/900/15s and separate accounting; enforce fail-fast and actual generated-script ShellCheck in scripts/check-linux-package-scripts.mjs and exact source before/after (FR-001/009 through FR-011).
+- [x] T011 [US3] Implement supported-host/architecture/ELF loader preflight in scripts/linux-package-scripts.mjs; preserve unchanged args/finite headless CLI, correct empty-display native precondition in apps/gallery/src-tauri/src/launch.rs, and qualify real copied-ELF missing-library/empty-display cases in scripts/test-linux-packages.mjs (FR-001/008, SC-003).
+- [x] T012 [US3] Implement bounded external native observer/pixel checks in scripts/linux-package-ui.py and linux-package-pixels.py, actual trusted Play and changing decoded frames plus existing PID-owned PulseAudio PCM in scripts/test-linux-packages.mjs; reject missing/foreign/unavailable observations in scripts/linux-packages.mjs and tests/linux-packages.test.mjs (FR-007/009/011, SC-004).
+- [x] T013 [US3] Integrate isolated linux-packages scope and artifact/failure retention in scripts/ci-linux-packages.mjs, ci.mjs and .github/workflows/ci.yml; preserve all existing platform/media gates,660/900/15s and separate accounting; enforce fail-fast and actual generated-script ShellCheck in scripts/check-linux-package-scripts.mjs and exact source before/after (FR-001/009 through FR-011).
 
 ## Phase 6: Integration and publication
 
 - [x] T014 Update docs/v0.0.0/{installation-and-distribution,verification-and-compatibility,interfaces-and-contracts}.md, schemas/v0.0.0/platform-matrix.json, site/versions.json, CONTRIBUTING.md, CHANGELOG.md, scripts/check.mjs and provenance.mjs for authoritative package contracts, shell encoding, dated decisions and established S018 evidence exclusions (FR-012/011).
 - [x] T015 Run npm run check, npm test, check:docs, check:app and affected site/contract checks through hidden local headless tooling; retain actual logs in specs/018-linux-packaging/verification.md (FR-009/011, all SCs).
-- [ ] T016 Commit/push official PR, complete all applicable hosted scopes and at most two code/security review waves; respond to and resolve every comment, update issue/project state and actual required-check policy after new scope passes (FR-013, SC-005).
-- [ ] T017 Run Spec Kit convergence and final source/binary/archive/native/footprint readback, record separate accounting in specs/018-linux-packaging/{verification,measurements}.md and live PR handoff, and stop for owner final review/squash merge (FR-009 through FR-013, SC-004/005).
+- [x] T016 Commit/push official PR, complete all applicable hosted scopes and at most two code/security review waves; respond to and resolve every comment, update issue/project state and actual required-check policy after new scope passes (FR-013, SC-005).
+- [x] T017 Run Spec Kit convergence and final source/binary/archive/native/footprint readback, record separate accounting in specs/018-linux-packaging/{verification,measurements}.md and live PR handoff, and stop for owner final review/squash merge (FR-009 through FR-013, SC-004/005).
 
 ## Dependencies and execution strategy
 
