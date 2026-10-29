@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory(prefix='lmg-native-pixels-') as temp:
     geometry = {'bitmap': {'width':1024,'height':800}, 'video': {'rect': {'x':100,'y':120,'width':640,'height':384}}}
     def measure():
         image.save(file)
-        return json.loads(subprocess.check_output([sys.executable,str(script),str(file),json.dumps(geometry)]))
+        return json.loads(subprocess.check_output([sys.executable,str(script),str(file),json.dumps(geometry)],stdin=subprocess.DEVNULL,creationflags=subprocess.CREATE_NO_WINDOW if sys.platform=='win32' else 0))
     first=measure()
     assert first['crop']==[260,216,580,408] and first['colors']>8 and first['coloredPixels']>=320*192/4
     for x in range(1024): image.putpixel((x,790),(255,20,20))
@@ -26,6 +26,6 @@ with tempfile.TemporaryDirectory(prefix='lmg-native-pixels-') as temp:
     assert measure()['hash']!=first['hash']
     geometry['video']['rect']['x']=1000
     image.save(file)
-    bad=subprocess.run([sys.executable,str(script),str(file),json.dumps(geometry)],capture_output=True)
+    bad=subprocess.run([sys.executable,str(script),str(file),json.dumps(geometry)],stdin=subprocess.DEVNULL,capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW if sys.platform=='win32' else 0)
     assert bad.returncode!=0 and b'AssertionError' in bad.stderr
 print('Native package pixel readback rejects clipped geometry and excludes changing control chrome.')

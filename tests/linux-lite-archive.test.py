@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix='lmg-lite-archive-') as temp:
             for i in range(2 if duplicate else 1):
                 member=tarfile.TarInfo(name);member.type=kind;member.mode=mode;member.size=7 if kind==tarfile.REGTYPE else 0;member.linkname='/outside'
                 out.addfile(member,io.BytesIO(content) if member.size else None)
-        return subprocess.run([sys.executable,str(reader),'extract',str(archive),str(base/'extracted'),str(inventory)],capture_output=True)
+        return subprocess.run([sys.executable,str(reader),'extract',str(archive),str(base/'extracted'),str(inventory)],stdin=subprocess.DEVNULL,capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW if sys.platform=='win32' else 0)
     good=run();assert good.returncode==0,good.stderr
     assert (base/'extracted/local-media-gallery').read_bytes()==content
     for arguments in [{'mode':0o777},{'mode':0o4755},{'name':'../outside'},{'kind':tarfile.SYMTYPE},{'kind':tarfile.LNKTYPE},{'duplicate':True}]:
