@@ -6,7 +6,7 @@ import {promisify} from 'node:util';
 import path from 'node:path';
 import {root,python,execute,environment} from './run.mjs';
 import {sourceIdentity} from './provenance.mjs';
-import {collectPayload,hash,validateProof} from './proof.mjs';
+import {thirdPartyPackages,collectPayload,hash,validateProof} from './proof.mjs';
 const call=promisify(execFile);
 async function capture(file,args,options={}){const promise=call(file,args,{cwd:root,env:environment,windowsHide:true,shell:false,timeout:30000,maxBuffer:64*1024*1024,...options});promise.child?.stdin?.end();return promise;}
 const options=new Map();for(let i=2;i<process.argv.length;i+=2){assert.ok(['--full','--lite','--output'].includes(process.argv[i]));assert.ok(process.argv[i+1]);assert.ok(!options.has(process.argv[i]));options.set(process.argv[i],process.argv[i+1]);}
@@ -23,7 +23,7 @@ async function licenses(destination){
   catalog.push({ecosystem,name,version,license:license??null,files:copied});
  }
  const meta=JSON.parse((await capture('cargo',['metadata','--offline','--locked','--format-version','1','--filter-platform',target])).stdout);
- for(const pkg of meta.packages.filter(p=>p.source))await add(pkg.name,pkg.version,pkg.license,path.dirname(pkg.manifest_path),'rust');
+ for(const pkg of thirdPartyPackages(meta))await add(pkg.name,pkg.version,pkg.license,path.dirname(pkg.manifest_path),'rust');
  const lock=JSON.parse(await readFile(path.join(root,'package-lock.json'),'utf8'));
  for(const [location,pkg] of Object.entries(lock.packages).filter(([location,pkg])=>location.includes('node_modules/')&&!pkg.link)){try{const file=path.join(root,location,'package.json');const p=JSON.parse(await readFile(file,'utf8'));await add(p.name??location,p.version??pkg.version,p.license,path.dirname(file),'npm');}catch(error){if(error.code!=='ENOENT')throw error;}}
  await writeFile(path.join(destination,'inventory.json'),JSON.stringify({basis:'Available upstream license/notice texts and dependency metadata; includes maintainer dependencies, not a runtime payload inventory',packages:catalog},null,2)+'\n');return catalog.length;

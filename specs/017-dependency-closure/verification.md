@@ -66,3 +66,9 @@ All review threads are resolved. No further review request is authorized by this
 The final assessment covers ten functional requirements, five success criteria, ten acceptance scenarios, five primary plan decisions plus two operational decisions, and five constitutional principles. No missing, partial, contradictory or unrequested implementation remains; no convergence tasks were appended. All 21 implementation and review-correction tasks are complete.
 
 Owner final review and squash merge remain the publication boundary. Default-branch advisory closure requires post-merge scanner readback; a truthful GLib backport may remain a version-only finding. No advisory dismissal, product release or signing promotion is claimed. Physical speakers, additional platform baselines and historical baseline GUI measurements were not newly qualified by this slice.
+
+## Recipient inventory follow-through
+
+Artifact convergence found that the existing license selector treated every null Cargo source as owned code, omitting the newly vendored GLib catalog entry. The selector now uses actual workspace membership, with a regression for registered, vendored and owned packages. This correction preserves recipient LICENSE/COPYRIGHT inventory entries; it does not alter the governed kit or patched crate bytes. Final qualification and artifact readback bind this correction to its own source revision. The review cap remains two rounds; no additional review was requested.
+
+On the receipt closeout head ff4b939, the Windows package preparation failed a 30-second rustc --version probe after release compilation. Its failed artifact12903501718 and log are retained, and one targeted same-head retry was requested. No packaging qualification ran in the failed attempt, and no assertion was changed.

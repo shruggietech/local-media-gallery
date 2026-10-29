@@ -57,3 +57,7 @@ Research may run independently for the three issue domains. Headless iterator/pr
 ## Phase 7: Initial review corrections
 
 - [x] T021 [US1] Preserve historical uninstrumented baseline measurement ownership through the persistent Windows TCP listener observer in `scripts/measure-processes.ps1` and `scripts/measure-native.mjs`; regress legacy protocol, unrelated owners and deadlines in `tests/native-driver-lifecycle.test.mjs` (FR-001/002, initial review).
+
+## Phase 8: Artifact inventory convergence
+
+- [ ] T022 [US3] Include provenance-bound third-party path packages in the bundled license catalog in `scripts/proof.mjs` and `scripts/build-proof.mjs`, excluding only owned workspace members; regress the vendored GLib classification in `tests/proof.test.mjs` and verify actual recipient inventories (FR-007/FR-009).

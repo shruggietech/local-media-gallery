@@ -4,6 +4,12 @@ import {lstat,readdir,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 export const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+// Cargo path patches are third-party dependencies even though source is null.
+export function thirdPartyPackages(metadata){
+ assert.ok(Array.isArray(metadata.packages)&&Array.isArray(metadata.workspace_members),'Cargo package/workspace identities required');
+ const owned=new Set(metadata.workspace_members);
+ return metadata.packages.filter(pkg=>pkg.source||!owned.has(pkg.id));
+}
 export function payloadPath(value){
  assert.equal(typeof value,'string');assert.ok(value.length>0&&!value.includes('\\')&&!/[\x00-\x1f:]/.test(value));
  assert.ok(!path.posix.isAbsolute(value)&&value.split('/').every(p=>p!==''&&p!=='.'&&p!=='..'),'Unsafe proof payload path');return value;
