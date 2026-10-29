@@ -1,41 +1,68 @@
 # S017 verification
 
-## Scope and source
+## Delivered scope
 
-Branch `codex/s017-dependency-closure`, issues #64/#57/#58. The final PR/source/artifact identities and terminal hosted outcomes will be recorded after qualification. No release publication or owner merge is performed by this slice.
+Spec Kit feature `017-dependency-closure`, branch `codex/s017-dependency-closure`, [PR #66](https://github.com/shruggietech/local-media-gallery/pull/66), issues #64, #57 and #58.
 
-## Local headless checks (2026-10-29)
+- Owned driver readiness now verifies a child-only nonce/PID/port, rejects unrelated listeners and retains bounded stdout/stderr, lifetime, listener and trial/source/edition diagnostics. Historical uninstrumented measurement baselines use the actual Windows TCP listener owner through the existing persistent observer, under the same deadline.
+- Linux native qualification observes finite actual application-output PCM through the isolated PulseAudio monitor without modifying the media-element graph. Trusted input, advancing clocks, changing decoded/seek frames and tone/silent thresholds remain mandatory. Failure observations are retained before subsequent checks can fail.
+- Formal BrandBuilder 3.1.1 and its separately published canonical Windows proof inventory support patched Pillow 13.0.0. The exact recovered verifier, kit bytes, manifests and pixel comparisons are preserved.
+- The GTK3 GLib 0.18.5 family uses only the exact upstream mutable-output-pointer correction, with complete offline source provenance and a mandatory optimized Linux iterator regression.
 
-- `npm run check`: passed authored UTF-8/LF/mojibake, local links, version alignment, exact brand/canonical inventories and121-file GLib provenance.
-- `npm test`:105tests passed, including actual child readiness/collision/exit/deadline, finite PCM/corruption/ancestry, exact canonical-proof tampering and vendor changed/missing/extra-byte rejection.
-- `npm run check:app`: Rust format, core/package units, workspace Clippy, TypeScript/ESLint/stylelint and exact recovered brand/glyph verification passed.
-- Recovered BrandBuilder3.1.1 with Pillow13:36verifier checks,0problems,0skips;15glyph checks,0failures. The128comparison images are recomputed and checked for exact mode/dimensions/pixels; installed governed bytes remain unchanged.
-- `npm run check:docs`:15baseline documents,71requirement definitions,192local links/fragments and4top-down diagram blocks passed.
-- `npm run build:site`/`check:site`/`test:site`:42HTMLpages,2887local links/fragments,31exact raw sources,300artifact hashes and10rendered groups passed. Headless Chromium is website evidence, separate from system-WebView acceptance.
-- A further focused29-test run after receipt strengthening rejects stalled clocks/unchanged frames and distinguishes a no-audio fixture's valid captured silence from missing tone output. All29focused tests passed. Native-test feature Clippy also passed, including the changed test-only identity command.
+## Local headless checks
 
-Local source validation ran on Windows with Node24.11.0 through verified hidden noninteractive launchers. No local native GUI, focus, keyboard or screen-reader acceptance was run. The headless run timestamps (12:57:27Z through12:59:52Z) are source-check observations, not a complete native release-qualification campaign.
+Node 24.11.0, Python 3.12 and Rust 1.96 on Windows, using hidden noninteractive launchers. No local native GUI, focus, keyboard or screen-reader acceptance was run.
 
-## Governed dependency provenance
+`npm run check`, `npm test`, `check:docs`, `check:app`, native-test-feature Clippy and full site build/link/rendered checks passed. The final local suite contains 109 passing Node tests, including real early exit, listener collision/unavailability, legacy baseline compatibility, actual Windows listener-PID attribution, PCM corruption/absence/ownership, canonical proof tampering, vendor changed/missing/extra bytes, stopped clocks, unchanged frames and contradictory success receipts.
 
-Formal kit `localmedia-gallery-brand-1.0.0-bb3.1.1.zip`, SHA2568dccfe8af1ccada6d683af5d3208bdcc4423e8efc0539f86d0233bfe21531095, source65af667461798738b0cf381b7c8bc4487afd853a. Exact delivered recovery SHA2564bf6d5a1b02a59c08c37ba6b2fc8967b1f30b23d49cf049f505219f56800fde4.
+The exact recovered verifier with Pillow 13 passed 36 checks with zero problems and zero skipped inputs; the glyph validator passed all 15 checks. Every one of the 128 comparison images is recomputed and checked for exact mode, dimensions and pixels while retaining its pinned encoding. Site checks passed 42 HTML pages, 2,887 local links/fragments, 31 exact raw sources and ten rendered groups. The UTF-8/LF, mojibake, local-link and version checks passed.
 
-Canonical upstream [run40775877208](https://github.com/shruggietech/shruggie-brand/actions/runs/40775877208), job123124909345, artifact12855331534, archive SHA256bbd3b90493b311c1ed5b5a6357fe03f371505cc7d307800961f255e6b10085e9. The importer retained only33source-matched report/proof files (133675bytes), outside the immutable kit. The existing consumer previously copied a Linux-generated kit as its own canonical root; the separately published canonical Windows artifact satisfies the exact upstream portable contract.
+Local headless source checks are distinct from complete hosted native qualification and its accounting.
 
-GLib0.18.5 crate archive SHA256233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5, exact upstream fixb5a4071e439bef2b5eea76c3aa25e5ae84839e34 and patched iterator SHA256a0f5ee8acb8faa089bcdfbc9a57372609fce7654026ccef7d9a224d05a654ccc. All other archive bytes and licenses are preserved. Its truthful version remains0.18.5; the later0.21family remains independent.
+## Hosted campaigns
 
-## Hosted acceptance and reviews
+### Initial campaign
 
-Pending final source-bound repository, website, Windows/Linux/macOS product and Windows/macOS package scopes. Preserve900-second hard qualification limits,660-second advisory targets,15-second finalization reserve and separate preparation/qualification/combined accounting. Failed attempts remain diagnostic evidence.
+Head `7159178fd75a7f37511f331c7dd844c0298042f7`, tested merge `dad67470f64f2977c1f7c8cdab3168376fbf007f`, source `58ba0bb6416c0132979108ef06ce488f4a21d8e314658e28a39e07d0bbe928c6` (1,271 files), [run 40878652038](https://github.com/shruggietech/local-media-gallery/actions/runs/40878652038).
 
-At most two external source review waves are authorized. No review requested before publication. The final handoff must include exact SHA, all applicable terminal check conclusions and resolution of every thread.
+Six mandatory scopes passed. Native macOS failed final receipt validation because the new validator required numeric hashes while the existing VP9 snapshot uses SHA-256. Actual advancing video and tone/silent PCM observations remain in artifact 12899259141. The correction accepts only the actual numeric-canvas or exact native-snapshot hash forms and still rejects unchanged frames and stopped clocks. Every terminal exception now sets a fail result; contradictory pass/failure receipts are rejected.
 
-## Advisory and publication boundary
+The original failed receipt and campaign are retained. Diagnostic structural revalidation of those observations is separate from the successful native rerun below. The pending baseline-correction run 40880272970 was superseded before execution by the corrected source.
 
-The patched manifest and implementation can be qualified on this PR. GitHub default-branch alert closure requires the owner's squash merge and subsequent scanner readback. A backported GLib source may remain a version-only alert; scanner recognition is not proof of the implementation's bytes. No advisory dismissal or production package release is performed here.
+### Qualified implementation
 
-## Initial review and hosted failure
+Head `e52cf5d1de4886643e200e73b92db1b7ea248248`, tested merge `2f8a728753017e8e128c698d11b8c5450e631d98`, source `5e03ec9659f6b56240437ac4c6e59ff5d3f5afe888dbb61aeaa8f5afc0fa1060` (1,269 files), [run 40882201840](https://github.com/shruggietech/local-media-gallery/actions/runs/40882201840).
 
-At head `7159178fd75a7f37511f331c7dd844c0298042f7`, [run40878652038](https://github.com/shruggietech/local-media-gallery/actions/runs/40878652038) tested merge `dad67470f64f2977c1f7c8cdab3168376fbf007f`, source `58ba0bb6416c0132979108ef06ce488f4a21d8e314658e28a39e07d0bbe928c6` (1271files). Repository, website and both package scopes passed. Native macOS failed final receipt validation because the new validator required numeric hashes despite the existing VP9 snapshot SHA256 representation. Actual clock/frame and PCM observations are retained in artifact12899259141. Its preparation/qualification/combined seconds are810.858/153.110/963.968; the qualification itself is below both targets. The corrected validator accepts only the actual numeric-canvas or exact native-snapshot hash forms, still rejects unchanged frames/stopped clocks and prevents a terminal exception from retaining a pass result. Original failed evidence is retained, never promoted as a successful rerun.
+All seven mandatory scopes passed: repository, website, product-windows, native-proof product-linux, native-proof product-macos, windows-packages and macos-packages. PR deployment was skipped as intended. The Linux scope passed the real optimized GLib iterator regression. Windows passed the hosted baseline-listener regression, three measurement trials and all existing native browsing/preparation/launch/ordinary-build gates.
 
-Initial code review completed2026-10-29T13:06:43Z with one finding: preserve unchanged historical baseline measurement support. Fixed in `2a66bc6`, replied and thread resolved. Seven driver tests include the actual Windows TCP-table observation; all108Node tests and source/docs checks passed. Initial security review completed2026-10-29T13:11:58Z with no additional comments posted. The second/final review wave remains unused pending native corrections.
+Independent readback verified all seven source-bound receipts, six native Full/Lite binary hashes, actual frame/clock/PCM observations and screenshot hashes. Linux captured 16,384 samples per fixture, audible RMS approximately 0.0882 at 439.45 Hz, and measured zero for silent controls. Package archive digests and complete Windows Full/Lite and macOS Lite ZIP CRC/inventory/mode checks passed, including both MSI archive identities. Hosted package campaigns passed 26 Windows and eight macOS cases. Local DMG verification covers its archive digest; native mount/interior/signature/frame readback remains the separately identified hosted observation.
+
+See [measurements](measurements.md) for chronological terminal timestamps and separate preparation/qualification/combined accounting. Maximum qualification was 379.488 seconds, below the 660-second target and 900-second hard limit. The existing 15-second provisional finalization reserve remains enforced.
+
+A final receipt-only commit records completion. The explicit established exclusions cover this feature's tasks, verification and measurements; specification, plan, research, code, manifests and governed inventories remain included. Source identity is checked unchanged across closeout. The actual final PR commit still receives its own terminal CI, with the final live check receipt linked from the PR.
+
+## External reviews
+
+No more than two review rounds were requested.
+
+| UTC | Round | Outcome |
+| --- | --- | --- |
+| 2026-10-29 13:06:43 | Initial code | One baseline compatibility finding |
+| 2026-10-29 13:11:58 | Initial security | Completed; no additional comments posted |
+| 2026-10-29 13:15:32 | Initial finding response | Fixed in 2a66bc6, replied with regression evidence, thread resolved |
+| 2026-10-29 13:37:07 | Final code | Completed on e52cf5d with no findings |
+| 2026-10-29 13:49:27 | Final security | Completed on e52cf5d; no additional comments posted |
+
+All review threads are resolved. No further review request is authorized by this slice's cap.
+
+## Dependency provenance
+
+- Formal kit `localmedia-gallery-brand-1.0.0-bb3.1.1.zip`: SHA-256 `8dccfe8af1ccada6d683af5d3208bdcc4423e8efc0539f86d0233bfe21531095`, upstream source `65af667461798738b0cf381b7c8bc4487afd853a`. Exact delivered recovery SHA-256: `4bf6d5a1b02a59c08c37ba6b2fc8967b1f30b23d49cf049f505219f56800fde4`.
+- Canonical [upstream run 40775877208](https://github.com/shruggietech/shruggie-brand/actions/runs/40775877208), job 123124909345, artifact 12855331534: archive SHA-256 `bbd3b90493b311c1ed5b5a6357fe03f371505cc7d307800961f255e6b10085e9`. Only 33 exact source-matched report/proof files, 133,675 bytes, were retained through the importer outside the immutable kit.
+- GLib 0.18.5 crate: archive SHA-256 `233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5`, upstream fix `b5a4071e439bef2b5eea76c3aa25e5ae84839e34`, corrected iterator SHA-256 `a0f5ee8acb8faa089bcdfbc9a57372609fce7654026ccef7d9a224d05a654ccc`. All other archive bytes and licenses are preserved; the truthful version remains 0.18.5.
+
+## Convergence and handoff
+
+The final assessment covers ten functional requirements, five success criteria, ten acceptance scenarios, five primary plan decisions plus two operational decisions, and five constitutional principles. No missing, partial, contradictory or unrequested implementation remains; no convergence tasks were appended. All 21 implementation and review-correction tasks are complete.
+
+Owner final review and squash merge remain the publication boundary. Default-branch advisory closure requires post-merge scanner readback; a truthful GLib backport may remain a version-only finding. No advisory dismissal, product release or signing promotion is claimed. Physical speakers, additional platform baselines and historical baseline GUI measurements were not newly qualified by this slice.
