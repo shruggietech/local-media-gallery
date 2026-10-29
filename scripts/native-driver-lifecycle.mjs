@@ -8,8 +8,8 @@ export function observeChild(child){
 }
 // HTTP status is only listener availability. The secret is supplied exclusively
 // through the owned child's environment, never in a request to an unknown server.
-export async function readyDriver(child,origin,observation,timeout=15000,{nonce,context={}}={}){
- if(typeof nonce!=='string'||nonce.length<16)throw new Error('Owned driver nonce required');
+export async function readyDriver(child,origin,observation,timeout=15000,{nonce,context={},listenerOwner}={}){
+ if(typeof listenerOwner!=='function'&&(typeof nonce!=='string'||nonce.length<16))throw new Error('Owned driver nonce required');
  const end=Date.now()+timeout;let last=null,listener=null,session;
  const failure=message=>new Error(message+': '+JSON.stringify({context,origin,listener,...observation(),last}));
  const alive=()=>{const s=observation();if(s.error||child.exitCode!==null||child.signalCode!==null)throw failure('Native driver exited before readiness');};
@@ -22,17 +22,22 @@ export async function readyDriver(child,origin,observation,timeout=15000,{nonce,
   try{for(;;){const next=await reader.read();if(next.done)break;bytes+=next.value.length;if(bytes>65536)throw new Error('Driver readiness response budget');chunks.push(Buffer.from(next.value));}}finally{await reader.cancel().catch(()=>{});}
   const result=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(result.value?.error)throw new Error(String(result.value.message??result.value.error).slice(0,1024));return result.value;
  }
+ async function owner(){
+  let timer;try{return await Promise.race([listenerOwner({port:Number(new URL(origin).port),deadline:end}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(failure('Native driver listener ownership deadline')),Math.max(1,end-Date.now()));})]);}finally{clearTimeout(timer);}
+ }
+ const matches=identity=>identity?.pid===child.pid&&identity?.port===Number(new URL(origin).port)&&(listenerOwner||identity?.nonce===nonce);
  while(Date.now()<end){
   alive();let identity;
   try{
    await request('/status');
+   if(listenerOwner){const observed=await owner();listener={...listener,ownership:observed};if(!matches(observed))throw failure('Native driver ownership mismatch');}
    if(!session){session=(await request('/session',{capabilities:{alwaysMatch:{'wdio:tauriServiceOptions':{windowLabel:'main'}}}}))?.sessionId;if(typeof session!=='string'||!/^[a-zA-Z0-9-]{1,128}$/.test(session))throw new Error('Invalid driver session identity');}
-   identity=await request('/session/'+session+'/execute/sync',{script:'return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",{action:"identity"});',args:[]});
-  }catch(e){last=String(e.message).slice(0,2048);}
+   identity=listenerOwner?await owner():await request('/session/'+session+'/execute/sync',{script:'return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",{action:"identity"});',args:[]});
+  }catch(e){if(e.message.startsWith('Native driver ownership mismatch'))throw e;last=String(e.message).slice(0,2048);}
   alive();
   if(identity!==undefined){
-   listener={...listener,pid:identity?.pid??null,port:identity?.port??null,nonceMatched:identity?.nonce===nonce};
-   if(identity?.pid!==child.pid||identity?.nonce!==nonce||identity?.port!==Number(new URL(origin).port))throw failure('Native driver ownership mismatch');
+   listener={...listener,pid:identity?.pid??null,port:identity?.port??null,nonceMatched:listenerOwner?null:identity?.nonce===nonce,method:listenerOwner?'OS listener PID':'child-only nonce/PID'};
+   if(!matches(identity))throw failure('Native driver ownership mismatch');
    if(Date.now()>=end)break;
    return session;
   }

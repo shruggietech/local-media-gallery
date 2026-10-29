@@ -41,7 +41,7 @@ const replies = []; lines.on('line', line => { const next = replies.shift(); if 
 observer.on('error', error => { for (const pending of replies.splice(0)) { clearTimeout(pending.timer); pending.reject(error); } });
 observer.on('exit', () => { for (const pending of replies.splice(0)) { clearTimeout(pending.timer); pending.reject(new Error('Process observer exited: ' + observerError)); } });
 observer.stdin.on('error', error => { for (const pending of replies.splice(0)) { clearTimeout(pending.timer); pending.reject(error); } });
-const observe = request => new Promise((resolve, reject) => { if (observer.killed || observer.exitCode !== null) { reject(new Error('Process observer is unavailable')); return; } const pending = { resolve, reject, timer: setTimeout(() => { const index = replies.indexOf(pending); if (index >= 0) replies.splice(index, 1); observer.kill(); reject(new Error('Process observer timed out during ' + request.action + ': ' + observerError)); }, 20000) }; replies.push(pending); observer.stdin.write(JSON.stringify(request) + '\n'); });
+const observe = request => new Promise((resolve, reject) => { if (observer.killed || observer.exitCode !== null) { reject(new Error('Process observer is unavailable')); return; } const pending = { resolve, reject, timer: setTimeout(() => { const index = replies.indexOf(pending); if (index >= 0) replies.splice(index, 1); observer.kill(); reject(new Error('Process observer timed out during ' + request.action + ': ' + observerError)); }, request.timeoutMilliseconds ?? 20000) }; replies.push(pending); observer.stdin.write(JSON.stringify(request) + '\n'); });
 const samples = Object.fromEntries(operations.map(name => [name, []]));
 const frames = []; const memory = []; const runs = []; const profiles = [];
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -90,7 +90,7 @@ try {
     const measure = async (name, action) => { const start = performance.now(); const result = await action(); samples[name].push(performance.now() - start); return result; };
     const resource = async () => label === 'baseline' ? { status: 'unavailable', basis: 'unchanged baseline has no native resource counter action' } : js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"s011_resource_snapshot",config:null})');
     try {
-      session = await readyDriver(child,origin,observation,15000,{nonce,context:{operation:'native-measurement',label,trial:trial+1,edition:'full',source}});
+      session = await readyDriver(child,origin,observation,15000,{nonce,context:{operation:'native-measurement',label,trial:trial+1,edition:'full',source},...(label==='baseline'?{listenerOwner:async({port,deadline})=>{const owner=await observe({action:'listener',port,timeoutMilliseconds:Math.max(1,deadline-Date.now())});if(owner.error)throw new Error(owner.error);return {...owner,pid:owner.owners?.length===1?Number(owner.owners[0]):null};}}:{})});
       await until(() => js('return document.querySelectorAll(".media-card").length===12 && [...document.querySelectorAll(".media-card img")].some(i=>i.naturalWidth>0)'), 'First usable rendered cards');
       samples.startup.push(performance.now() - began);
       console.log(label + ' trial ' + (trial + 1) + ': first usable native cards');

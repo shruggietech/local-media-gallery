@@ -53,3 +53,7 @@ T001-T003 precede implementation. US1 proceeds tests->implementation->native val
 ## Parallel opportunities
 
 Research may run independently for the three issue domains. Headless iterator/provenance work and brand proof work touch separate files after their tests exist. Actual edits to shared CI and final receipts remain sequential. Native campaigns run in the existing isolated platform CI matrix.
+
+## Phase 7: Initial review corrections
+
+- [x] T021 [US1] Preserve historical uninstrumented baseline measurement ownership through the persistent Windows TCP listener observer in `scripts/measure-processes.ps1` and `scripts/measure-native.mjs`; regress legacy protocol, unrelated owners and deadlines in `tests/native-driver-lifecycle.test.mjs` (FR-001/002, initial review).

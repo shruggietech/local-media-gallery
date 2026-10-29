@@ -16,6 +16,11 @@ while ($null -ne ($line = [Console]::ReadLine())) {
             $filesystem = 'unknown'
             try { $filesystem = ([IO.DriveInfo]::new([IO.Path]::GetPathRoot($PSScriptRoot))).DriveFormat } catch { }
             $result = @{os=[Runtime.InteropServices.RuntimeInformation]::OSDescription;build=[Environment]::OSVersion.Version.Build;architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();storage=@{filesystem=$filesystem;medium='unknown';basis='local fixture volume; physical storage medium not established'};power='unknown'}
+        } elseif ($request.action -eq 'listener') {
+            $port = [int]$request.port
+            if ($port -lt 1 -or $port -gt 65535) { throw 'Invalid listener port' }
+            $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue | Where-Object { $_.LocalAddress -in @('127.0.0.1','0.0.0.0','::') })
+            $result = @{port=$port;owners=@($listeners | Select-Object -ExpandProperty OwningProcess -Unique);addresses=@($listeners | Select-Object -ExpandProperty LocalAddress -Unique);method='Windows TCP listener table'}
         } elseif ($request.action -eq 'memory') {
             $rootId = [int]$request.rootPid
             $all = @(Get-CimInstance Win32_Process -OperationTimeoutSec 5)
