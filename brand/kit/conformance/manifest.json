@@ -4,7 +4,7 @@
   "brand": "localmedia-gallery",
   "brand_title": "Local Media Gallery",
   "brand_version": "1.0.0",
-  "source_revision": "2589678e971ae654579e9dbb9575661775c4a6ec",
+  "source_revision": "65af667461798738b0cf381b7c8bc4487afd853a",
   "versions": {
     "canon_version": "2.1.0",
     "interface_canon_version": "1.0.1",
@@ -12,7 +12,7 @@
     "web_react_adapter_version": "1.1.0",
     "egui_adapter_version": "1.0.2",
     "wordpress_adapter_version": "1.0.0",
-    "compiler_version": "3.1.0",
+    "compiler_version": "3.1.1",
     "brand_version": "1.0.0",
     "conformance_contract_version": "1.0.0"
   },

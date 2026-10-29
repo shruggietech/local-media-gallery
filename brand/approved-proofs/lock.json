@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "https://github.com/shruggietech/shruggie-brand",
+  "sourceRevision": "65af667461798738b0cf381b7c8bc4487afd853a",
+  "releaseTag": "v3.1.1",
+  "runId": 40775877208,
+  "jobId": 123124909345,
+  "artifactId": 12855331534,
+  "artifactName": "approved-identity-proofs-65af667461798738b0cf381b7c8bc4487afd853a",
+  "archiveSha256": "bbd3b90493b311c1ed5b5a6357fe03f371505cc7d307800961f255e6b10085e9",
+  "artifactUrl": "https://github.com/shruggietech/shruggie-brand/actions/runs/40775877208/artifacts/12855331534",
+  "files": [
+    {
+      "path": "localmedia-gallery/identity-continuity-report.json",
+      "bytes": 44551,
+      "sha256": "d3fce16266c6440459b2a655616afd8cbde47c8b243505b2c8d7c8208595f6ca"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-16-black.png",
+      "bytes": 519,
+      "sha256": "f8fba2e628db28151cd38cde23f6686d3a86e418e896c5f02b711627e06b5c05"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-16-dark.png",
+      "bytes": 609,
+      "sha256": "78ec92dec9cd18dee60e2af4601bf2546f99a3a1e2f3e601b119b3060a84f6e6"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-16-light.png",
+      "bytes": 629,
+      "sha256": "0b96c8b26ff5a0d4f63e371a6ae7dd09ad8fe3ac953ef8bb09219dc812c1f163"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-16-white.png",
+      "bytes": 527,
+      "sha256": "cc139eb06d5c61121d544905ebfa3b6799c5216289a6fea466a4e371a4a331fa"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-32-black.png",
+      "bytes": 945,
+      "sha256": "4881455daca3b8eed2952d7b0b80e138782e81021ad2499f8c1d7683b5c1ba66"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-32-dark.png",
+      "bytes": 1220,
+      "sha256": "3f892b7e139fbba068522d0cab48e1ccbd7a825fb0f6995547e78755097efe75"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-32-light.png",
+      "bytes": 1179,
+      "sha256": "9e86ce63fca993e887701e0168707f28fb9ac05763308c5722c9a1171e127b8c"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-32-white.png",
+      "bytes": 943,
+      "sha256": "2d3c67229b5c32ef305b6cb331efdd160964f7b49164faf466fdef8ca5bd182f"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-64-black.png",
+      "bytes": 1819,
+      "sha256": "13c9fc5d518b51ecadd76375a3023e9f17e31fadb68a3b2d5c6f580bd3363b03"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-64-dark.png",
+      "bytes": 2436,
+      "sha256": "1c5f51cba4d52089b675c0b08212a8178ef853e99ac16659c7791f731585f022"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-64-light.png",
+      "bytes": 2344,
+      "sha256": "a1afb41c4668cc75953f18629b08395a2bea0eca2844a9f406b5117b8fa427a4"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-64-white.png",
+      "bytes": 1832,
+      "sha256": "815933d38744809a957873a6e132492a7aa191dad6cfcb3b0629e28fa5be82ef"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-256-black.png",
+      "bytes": 6846,
+      "sha256": "453e3da065aa4d6829813973c28cf2e285665427f83dfcfebedeea1935a2762c"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-256-dark.png",
+      "bytes": 8965,
+      "sha256": "954fc7d477ddd7732cea1547820036c93de02ad8aeb853ec7fee9ed3190cd38d"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-256-light.png",
+      "bytes": 8821,
+      "sha256": "3797f35b5267695cf044f8f4938dfd1e91e3514ff34870a520359e9bcddcb5ef"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/full-256-white.png",
+      "bytes": 6863,
+      "sha256": "dafaef1377f7dff927b8724785c7f22197ab812ab979eabf1f5409f45b4a0e29"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-16-black.png",
+      "bytes": 502,
+      "sha256": "d0bde4bb9debf84be6494d0679d31f807064942febf750ceea7507f135bf79fe"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-16-dark.png",
+      "bytes": 622,
+      "sha256": "1b702f5967162e67365ca4e2c49c4c04b46c1f4e7440f0e381c54b19aeb3b9c8"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-16-light.png",
+      "bytes": 635,
+      "sha256": "a3ba3de3e490523963a1cf8ee0a2332193285ecf7f2b852ef3c7e18a9532f69d"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-16-white.png",
+      "bytes": 510,
+      "sha256": "fa1a2e07e2a8bbbea3ef61db51c1cd6d2ee1f7847c26e3c2d29baa702a708b93"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-32-black.png",
+      "bytes": 890,
+      "sha256": "d0b703d5898353e9c33e8aad32cde40732d311e2e3bf616c39b04471abf5074a"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-32-dark.png",
+      "bytes": 1161,
+      "sha256": "5df6e0e646b9232882312570ed74ad18e2bab132e8cc4e8e3ae0ee32807a03f5"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-32-light.png",
+      "bytes": 1127,
+      "sha256": "f57a5963a26265cf1dee7bb5aee932e59887c099ea154ed5ee9c92fa509cc06c"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-32-white.png",
+      "bytes": 883,
+      "sha256": "4e609f3e77824b1456458dec320e58465989b409557e0f14816d44f700db7fa7"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-64-black.png",
+      "bytes": 1695,
+      "sha256": "a843469a4f8377c303d3ee7176d2fea52f5b153b13e36e732c15ffba507b5913"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-64-dark.png",
+      "bytes": 2243,
+      "sha256": "8503d8e402b114d8a13bb8183feb0319c00e03683d5e1133623384f0318f3a5c"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-64-light.png",
+      "bytes": 2161,
+      "sha256": "f0886f9ec70460aa1e422fa3919b21b986d7527d7dd49049c7b63b83068de939"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-64-white.png",
+      "bytes": 1706,
+      "sha256": "092e8c5356b832133c41cefca907de311068befd0135bcc93281a51977e1ff4a"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-256-black.png",
+      "bytes": 6214,
+      "sha256": "a5804cfaa105fb106ffc47326b98acbe7392f0b156113080f0cbc07d42b45f70"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-256-dark.png",
+      "bytes": 8122,
+      "sha256": "b37732fae66fcb7c794502c4f5a2e4ec5fc1a1a2fad9e7ff95b62fdc6f2984ad"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-256-light.png",
+      "bytes": 7926,
+      "sha256": "cd911a5833ba8bac418ea644a987d88faad5455ac0b193c6b78fd51d6b753e8e"
+    },
+    {
+      "path": "localmedia-gallery/qc/identity-continuity-proofs/reduced-256-white.png",
+      "bytes": 6230,
+      "sha256": "3ee6eadc12bb4256c25b101eeb4d3995263e2750b28fb074bbd867a3da937c7c"
+    }
+  ]
+}

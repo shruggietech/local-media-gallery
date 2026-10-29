@@ -1,15 +1,15 @@
 {
   "tier": "full",
-  "python": "3.12.9",
+  "python": "3.12.15",
   "cli": {
     "rsvg-convert": false,
     "resvg": false,
     "inkscape": false,
     "magick": true,
-    "convert": false,
+    "convert": true,
     "oxipng": false,
     "pdftoppm": true,
-    "pdffonts": false,
+    "pdffonts": true,
     "node": true,
     "npx": true
   },

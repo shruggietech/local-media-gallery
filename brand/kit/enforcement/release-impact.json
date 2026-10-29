@@ -1,12 +1,12 @@
 {
   "$schema": "release-impact.schema.json",
   "schema_version": 1,
-  "brandbuilder_version": "3.1.0",
+  "brandbuilder_version": "3.1.1",
   "identity_redesign": false,
   "surfaces": {
     "identity": {
       "classification": "unaffected",
-      "summary": "Existing approved masters and proof bytes remain unchanged. Local Media Gallery 1.0.0 is a new, separately approved Jade identity with photo and video cutouts."
+      "summary": "Approved logo geometry and source masters remain unchanged. Seven edited brands receive patch package versions for messaging; identity remains governed by their existing continuity records."
     },
     "palette": {
       "classification": "unaffected",
@@ -18,7 +18,7 @@
     },
     "platform_assets": {
       "classification": "optional",
-      "summary": "Regenerate to adopt optional source-owned horizontal wordmark rows, centered-group slogan-only social images, and corrected long-name/compound type specimens. Existing default logo layouts and approved social images remain unchanged."
+      "summary": "Regenerate and repin to adopt exact approved messaging in generated packages. Approved logo geometry, platform icon layouts and social-image compositions remain unchanged."
     },
     "web_react": {
       "classification": "unaffected",
@@ -29,16 +29,16 @@
       "summary": "The egui adapter API and output semantics remain unchanged."
     },
     "wordpress": {
-      "classification": "unaffected",
-      "summary": "WordPress adapter 1.0.0 retains its public contract and supports the compatible Brand Canon 2.1.0 tuple."
+      "classification": "optional",
+      "summary": "Regenerate WordPress starters to adopt exact approved site descriptions and omit the hero description when the canonical site-metadata role is absent or unresolved. WordPress adapter 1.0.0 retains its public API."
     },
     "documentation": {
       "classification": "required",
-      "summary": "Publish Local Media Gallery guidelines, approved exact messages, registries and downloads through standard generated routes. Brand Canon 2.1.0 adds optional lockup layout and social composition fields; earlier conforming inputs remain supported."
+      "summary": "Publish seven brands' exact approved message decisions, corrected portfolio heading and complete card-title layout, and all 68 labeled References entries. Brand Canon 2.1.0 and existing adapter APIs remain unchanged."
     },
     "recovery": {
       "classification": "required",
-      "summary": "Repinning BrandBuilder 3.1.0 requires its exact new package IDs and checksums. The verified site hosts thirteen brands; ten owned archives join the skill and portable distribution, while three client kits remain hosted candidates. Previously published packages remain immutable recovery inputs."
+      "summary": "Repinning BrandBuilder 3.1.1 requires exact new package IDs and checksums. The site hosts thirteen verified brands; ten owned archives join the skill and portable distribution, while three client kits remain hosted candidates. Previously published packages remain immutable recovery inputs."
     }
   }
 }

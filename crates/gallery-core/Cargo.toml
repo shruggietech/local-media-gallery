@@ -27,3 +27,6 @@ base64 = "=0.23.1"
 [dev-dependencies]
 tempfile = "=3.27.0"
 tower = { version = "0.5", features = ["util"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+glib_compat = { package = "glib", version = "=0.18.5" }

@@ -16,11 +16,11 @@
   "bundle": {
     "schema_version": 1,
     "package": {
-      "id": "localmedia-gallery-brand-1.0.0-bb3.1.0",
-      "filename": "localmedia-gallery-brand-1.0.0-bb3.1.0.zip",
+      "id": "localmedia-gallery-brand-1.0.0-bb3.1.1",
+      "filename": "localmedia-gallery-brand-1.0.0-bb3.1.1.zip",
       "brand_slug": "localmedia-gallery",
       "brand_version": "1.0.0",
-      "brandbuilder_version": "3.1.0"
+      "brandbuilder_version": "3.1.1"
     },
     "versions": {
       "canon_version": "2.1.0",
@@ -29,19 +29,19 @@
       "web_react_adapter_version": "1.1.0",
       "egui_adapter_version": "1.0.2",
       "wordpress_adapter_version": "1.0.0",
-      "compiler_version": "3.1.0",
+      "compiler_version": "3.1.1",
       "brand_version": "1.0.0"
     },
-    "source_revision": "2589678e971ae654579e9dbb9575661775c4a6ec",
+    "source_revision": "65af667461798738b0cf381b7c8bc4487afd853a",
     "publication": {
-      "status": "candidate",
-      "version": "3.1.0",
-      "tag": "v3.1.0"
+      "status": "release",
+      "version": "3.1.1",
+      "tag": "v3.1.1"
     },
     "checksum_authority": {
       "algorithm": "sha256",
       "manifest": "manifest.json",
-      "release_checksums": null
+      "release_checksums": "SHA256SUMS"
     }
   },
   "versions": {
@@ -51,7 +51,7 @@
     "web_react_adapter_version": "1.1.0",
     "egui_adapter_version": "1.0.2",
     "wordpress_adapter_version": "1.0.0",
-    "compiler_version": "3.1.0",
+    "compiler_version": "3.1.1",
     "brand_version": "1.0.0"
   },
   "version_semantics": {
@@ -70,7 +70,7 @@
     "validated_versions": {
       "brand": "1.0.0",
       "brand_canon": "2.1.0",
-      "compiler": "3.1.0",
+      "compiler": "3.1.1",
       "component_recipes": "1.1.0",
       "egui_adapter": "1.0.2",
       "interface_canon": "1.0.1",
@@ -98,7 +98,7 @@
       "web-react": "1.1.0",
       "egui": "1.0.2",
       "wordpress": "1.0.0",
-      "nextjs-compatibility": "3.1.0"
+      "nextjs-compatibility": "3.1.1"
     }
   },
   "authority": {
@@ -143,19 +143,19 @@
     "success": "zero verifier problems and zero glyph failures"
   },
   "recovery": {
-    "distribution": "shruggie-brandbuilder-3.1.0.skill",
-    "path": "enforcement/distributions/shruggie-brandbuilder-3.1.0.skill",
-    "sha256": "893a4db143379f68a6b66bed13bc0d648b9931ef11a176570367ebab21b867ed",
+    "distribution": "shruggie-brandbuilder-3.1.1.skill",
+    "path": "enforcement/distributions/shruggie-brandbuilder-3.1.1.skill",
+    "sha256": "4bf6d5a1b02a59c08c37ba6b2fc8967b1f30b23d49cf049f505219f56800fde4",
     "extract_to": "enforcement/brandbuilder",
     "sources": [
       {
         "kind": "delivered-bundle",
-        "path": "enforcement/distributions/shruggie-brandbuilder-3.1.0.skill",
+        "path": "enforcement/distributions/shruggie-brandbuilder-3.1.1.skill",
         "network_required": false
       },
       {
         "kind": "authoritative-release",
-        "version": "3.1.0",
+        "version": "3.1.1",
         "network_requires_authorization": true
       }
     ],
@@ -174,27 +174,27 @@
     {
       "path": "enforcement/AGENTS.md",
       "bytes": 1221,
-      "sha256": "69276c2c016e378b71477e8564b2fc5cf710517f1d3e6772d6f4982e73c03da1"
+      "sha256": "c1b5dc8ae262efae406175887882e3d1c88e871ec8372ae8d86308531dbfc7da"
     },
     {
       "path": "enforcement/IMPLEMENTATION.md",
-      "bytes": 9326,
-      "sha256": "e65c45510de42afbd685e40969d3ec57aa734e653a143d33fb3c7193bdfb8d49"
+      "bytes": 9367,
+      "sha256": "20e3217254e4a7e2a64a7ede7b0ff50d1ba44b95b3af116a6fc61726e937d809"
     },
     {
       "path": "enforcement/MIGRATION.md",
-      "bytes": 1914,
-      "sha256": "2f6aa43bf7a5772dd3594c8566d92286d0c983c0bb8749450cbb725d15d35d00"
+      "bytes": 1955,
+      "sha256": "aff01566a8a28d624899441de6343e202aea092a437267095f38c697ce0f496d"
     },
     {
       "path": "enforcement/bundle.json",
-      "bytes": 862,
-      "sha256": "8ca00ce36cf3130942689f8a0e702b7a6412d5c8d114fe789dc0c06e46bf9c17"
+      "bytes": 868,
+      "sha256": "883df809f944a5fef5636a09e6f71b62cf5828aea5c6cdbdf39b5adb7e1e149e"
     },
     {
       "path": "enforcement/release-impact.json",
-      "bytes": 2203,
-      "sha256": "17f8f9b12076e616504f3a086281a77228753f2224f405d7c6cbaa8d5b696563"
+      "bytes": 2244,
+      "sha256": "cca95ab76746e9d9393b50d828f23edcc2618508e801b5de390b8583bdffd344"
     },
     {
       "path": "enforcement/release-impact.schema.json",
@@ -243,8 +243,8 @@
     },
     {
       "path": "enforcement/documentation-facts.json",
-      "bytes": 6730,
-      "sha256": "5bdb9e557ca6b5d6ae61e054d3839e7ee665ddfa865f49c684d878ddc5c456b3"
+      "bytes": 6777,
+      "sha256": "efc5c348293df0976e472c8604be102731f3538afe004537b18db73709540b88"
     },
     {
       "path": "web/adapter.json",
@@ -264,7 +264,7 @@
     {
       "path": "native/egui/adapter.json",
       "bytes": 2026,
-      "sha256": "0e319cfc576b21501f44b7a52b7f7f5ead0e38cdc6f272e712f7850411a82af7"
+      "sha256": "7c5aa866cf6057873ceb9bfdf6cda16cea6e229e4629ca754ab2ba8571799c66"
     },
     {
       "path": "native/egui/support-matrix.json",
@@ -274,7 +274,7 @@
     {
       "path": "wordpress/adapter.json",
       "bytes": 3257,
-      "sha256": "85930e14def6c6154b153b38d35c8e355a36639f0ea5cdbc0fd4f7b85993cce9"
+      "sha256": "ff9776080fe6dfe5daf7f47d901fa67db4d84660cde4c1e29c54c31f3995c0da"
     },
     {
       "path": "wordpress/support-matrix.json",
@@ -283,13 +283,13 @@
     },
     {
       "path": "wordpress/localmedia-gallery-stbb-theme.zip",
-      "bytes": 293766,
-      "sha256": "85cc64c10efd3b857f6113c7b4ea4734897e978c2307ae95cdfb3acdb6ca9e0c"
+      "bytes": 294249,
+      "sha256": "5e303dabfa64cec1654d05d55e83feed25bd27e2b2189731865de83b2d05a1bd"
     },
     {
       "path": "wordpress/theme-inventory.json",
       "bytes": 4614,
-      "sha256": "e9f89585de072dd66909055be121f627cebe1da393b3d164af32b47797854d36"
+      "sha256": "3b4bc5184513c4ed6fa2a6b6d68bb050932cb8a14bfec95c7a5b7e9e98056c4d"
     },
     {
       "path": "enforcement/capability-gap.example.json",
@@ -297,9 +297,9 @@
       "sha256": "46004405e3ac21be51b246856f9c69edfad5b243f4ca3620c4c67e87e75f7d98"
     },
     {
-      "path": "enforcement/distributions/shruggie-brandbuilder-3.1.0.skill",
-      "bytes": 552452,
-      "sha256": "893a4db143379f68a6b66bed13bc0d648b9931ef11a176570367ebab21b867ed"
+      "path": "enforcement/distributions/shruggie-brandbuilder-3.1.1.skill",
+      "bytes": 553578,
+      "sha256": "4bf6d5a1b02a59c08c37ba6b2fc8967b1f30b23d49cf049f505219f56800fde4"
     }
   ]
 }

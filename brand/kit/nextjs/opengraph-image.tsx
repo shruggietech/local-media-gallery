@@ -4,7 +4,7 @@ export function OpenGraphImage({ className }: { className?: string }) {
     <img
       className={className}
       src="/localmedia-gallery-social-preview-1280.png"
-      alt="Local Media Gallery, A lightweight, interactive gallery for browsing local images and videos"
+      alt={"Local Media Gallery, A lightweight, interactive gallery for browsing local images and videos."}
     />
   )
 }

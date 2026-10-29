@@ -15,7 +15,7 @@ The installed integration lock records the current locally consumed archive and 
 | Domain | Delivered version |
 | --- | --- |
 | Brand | 1.0.0 |
-| BrandBuilder | 3.1.0 |
+| BrandBuilder | 3.1.1 |
 | Brand Canon | 2.1.0 |
 | Interface Canon | 1.0.1 |
 | Component recipes | 1.1.0 |
@@ -23,7 +23,7 @@ The installed integration lock records the current locally consumed archive and 
 | egui adapter | 1.0.2 |
 | WordPress adapter | 1.0.0 |
 
-The included egui and WordPress bindings do not change the selected Rust/Tauri and Next.js product architecture. The local archive is recorded as supplied-archive origin with candidate publication status. This describes its actual provenance; it is not evidence of a formal hosted download or a product release candidate.
+The included egui and WordPress bindings do not change the selected Rust/Tauri and Next.js product architecture. The installed kit is recorded as a formal upstream GitHub release. Its publication identity is independent of product release availability.
 
 ## Applying the interface binding
 
@@ -48,6 +48,8 @@ npm run brand:update
 ```
 
 Verification checks installed bytes offline. Checking is read-only and inspects stable upstream releases containing this project's kit. Updating verifies the release source, archive digest and manifest inventory, stages a replacement and restores the prior kit if replacement fails. Ordinary application startup must not be made dependent on a maintainer brand-update operation.
+
+Canonical proof images and their report may be delivered separately by upstream CI. The importer retains only the exact source-matched canonical report and its complete proof-image inventory outside the immutable kit, with repository, source revision, workflow/job/artifact identity, archive digest and per-file hashes. Import with `node scripts/sync-brand-kit.mjs --import-proofs PATH_TO_ARTIFACT_ZIP PATH_TO_PROVENANCE_JSON`. Qualification verifies this offline inventory before supplying it to the exact recovered verifier. A kit cannot serve as its own canonical attestation when its renderer differs from the canonical renderer.
 
 A supplied archive can be imported explicitly with `node scripts/sync-brand-kit.mjs --import PATH_TO_ZIP`. Manifest integrity is checked, while the lock retains supplied origin and the archive's actual publication status. A formal release may replace a supplied candidate of the same version. An already formalized version must not silently change bytes. If no matching stable release exists, checking reports awaiting-release and updating preserves the installed copy while reporting the missing release.
 

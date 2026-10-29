@@ -46,6 +46,7 @@ const record = await qualification({
       await node(path.join(root,'scripts/create-fixture.mjs'));
       await exportInterface();
       await cargo(['test', '--locked', '--workspace', '--no-run']);
+      if(process.platform==='linux')await cargo(['test','--release','--locked','-p','gallery-core','--test','glib_variant_iter','--no-run']);
       binaries=await buildEditions();
       await node(path.join(root,'scripts/build-proof.mjs'),['--full',binaries.full,'--lite',binaries.lite]);
       await cargo(['test','--locked','-p','local-media-gallery','--features','lite','--no-run']);
@@ -69,12 +70,14 @@ const record = await qualification({
       ? ['check:site', 'test:site']
       : ['check:app']
   ).map((name) => ({ name: `npm run ${name}`, run: command(name) })),
+  ...(scope==='product-linux'?[{name:'Optimized corrected GLib string iterator',run:()=>cargo(['test','--release','--locked','-p','gallery-core','--test','glib_variant_iter'])}]:[]),
   ...(isProduct ? [{
     name: 'native shell and persistent-state unit tests',
     run: () => cargo(['test', '--locked', '-p', 'local-media-gallery']),
   }, {name:'Lite shell and state unit tests',run:()=>cargo(['test','--locked','-p','local-media-gallery','--features','lite'])}, {name:'Preparation native authority/cancellation regressions',run:()=>cargo(['test','--locked','-p','gallery-core','--features','discovery-tests','--test','preparation'])}, {name:'Normal Full/Lite extracted native proof',run:()=>node(path.join(root,'scripts/test-proof.mjs'))},
   {name:'Isolated Full/Lite native media and accessibility',run:()=>node(path.join(root,'scripts/test-runtime-platform.mjs'))},
   ...(scope==='product-windows'?[
+   {name:'Owned driver and unchanged baseline listener regressions',run:()=>execute(process.execPath,['--test','tests/native-driver-lifecycle.test.mjs'])},
    {name:'Existing Windows rendered browsing acceptance',run:()=>node(path.join(root,'scripts/test-native.mjs'),[],{env:{...environment,GALLERY_TEST_BINARY:nativeBinaries.full}})},
    {name:'Existing Windows preparation and diagnostic export',run:()=>node(path.join(root,'scripts/test-preparation.mjs'),[],{env:{...environment,GALLERY_TEST_BINARY:nativeBinaries.full}})},
    {name:'Existing Windows Full/Lite launch contracts',run:()=>node(path.join(root,'scripts/test-launch.mjs'),['--full',nativeBinaries.full,'--lite',nativeBinaries.lite])},

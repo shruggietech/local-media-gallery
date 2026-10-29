@@ -91,7 +91,7 @@
       },
       "design_id": "asset-brand-identity-mark-none-monochrome-clear-light-black-identity-none-full",
       "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-monochrome-clear-black-for-light-1024.png",
-      "sha256": "9a38ae5f50f974b8e743d80de036a7c18cd3d37274ebcc7b37da379f15d2afb5",
+      "sha256": "481f0d5ec349de7a5bd44d6624977bb7dfeef1811ff6f055a3415508b9db9a74",
       "source_path": "logos/png/localmedia-gallery-mark-black-1024.png",
       "title": "Full brand mark, monochrome black ink, for light backgrounds"
     },
@@ -110,7 +110,7 @@
       },
       "design_id": "asset-brand-identity-mark-none-full-color-clear-dark-none-identity-none-full",
       "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-full-color-clear-for-dark-1024.png",
-      "sha256": "04ffeb00112eb0b196c63e9fc323e16144315354965c81d664586d969f95c973",
+      "sha256": "38dec292bf165c437ccd2c0081ce7f25b7892feca3af4536e181f6aac5fa21d9",
       "source_path": "logos/png/localmedia-gallery-mark-color-1024.png",
       "title": "Full brand mark, full color, for dark backgrounds"
     },
@@ -129,7 +129,7 @@
       },
       "design_id": "asset-brand-identity-mark-none-full-color-clear-light-none-identity-none-full",
       "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-full-color-clear-for-light-1024.png",
-      "sha256": "3ba3802cac7104e5f2f77b1ea3eaa37d1d781b48e2c80b43e8b21d11d0a3c62d",
+      "sha256": "ee3e63f9b68d4e77faebc2ad98836fef924bfed688f520f81107fd1ac1072abc",
       "source_path": "logos/png/localmedia-gallery-mark-light-1024.png",
       "title": "Full brand mark, full color, for light backgrounds"
     },
@@ -148,7 +148,7 @@
       },
       "design_id": "asset-brand-identity-mark-none-monochrome-clear-light-black-identity-none-reduced",
       "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-monochrome-clear-black-for-light-1024.png",
-      "sha256": "c48bfb60412acf9d3d40a93cf6239ec8777093c648859623bc49c27750b29eb2",
+      "sha256": "0b45a4243d9833f681578848f674391d69574316e0199ba960a0e1945163562f",
       "source_path": "logos/png/localmedia-gallery-mark-reduced-black-1024.png",
       "title": "Reduced brand mark, monochrome black ink, for light backgrounds"
     },
@@ -167,7 +167,7 @@
       },
       "design_id": "asset-brand-identity-mark-none-full-color-clear-dark-none-identity-none-reduced",
       "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-dark-1024.png",
-      "sha256": "1a1c328b31b7b11b731c66524bd4c56d4fcbf3c03b5e0cc1b2f4be6fe8701a24",
+      "sha256": "0d8ac2eba367a759272610b04ba7a0fadad27fb482e44144b6f604efe6ec1748",
       "source_path": "logos/png/localmedia-gallery-mark-reduced-color-1024.png",
       "title": "Reduced brand mark, full color, for dark backgrounds"
     },
@@ -186,7 +186,7 @@
       },
       "design_id": "asset-brand-identity-mark-none-full-color-clear-light-none-identity-none-reduced",
       "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-full-color-clear-for-light-1024.png",
-      "sha256": "26775dd87a3669c04f71905af0f705a4ae11e323be7adac0ce0ac85f182dc5f4",
+      "sha256": "36414388ff2cab5ddccb74e86500327bd1574c285f23e95ab2c72555147aa56f",
       "source_path": "logos/png/localmedia-gallery-mark-reduced-light-1024.png",
       "title": "Reduced brand mark, full color, for light backgrounds"
     },
@@ -205,7 +205,7 @@
       },
       "design_id": "asset-brand-identity-mark-none-monochrome-clear-dark-white-identity-none-reduced",
       "preferred_path": "logos/named/localmedia-gallery-brand-mark-reduced-detail-monochrome-clear-white-for-dark-1024.png",
-      "sha256": "4bc5bb4f4a64a49b293082ea920de2f725b7d429f7db83bb3693a2198be50a49",
+      "sha256": "7079e302773c139c761f46551e489e58b518014f35fd01bd17c5ccaf551b60d6",
       "source_path": "logos/png/localmedia-gallery-mark-reduced-white-1024.png",
       "title": "Reduced brand mark, monochrome white ink, for dark backgrounds"
     },
@@ -224,7 +224,7 @@
       },
       "design_id": "asset-brand-identity-mark-none-monochrome-clear-dark-white-identity-none-full",
       "preferred_path": "logos/named/localmedia-gallery-brand-mark-full-detail-monochrome-clear-white-for-dark-1024.png",
-      "sha256": "8fcd066a2774a7d64554e12faa24e13ba6ecb73f31c83a22eff4e9480bf584b5",
+      "sha256": "fa4c5f4fc785a3506d8d9cfe84fd77f6190c82e1502070ce15b613739d2db829",
       "source_path": "logos/png/localmedia-gallery-mark-white-1024.png",
       "title": "Full brand mark, monochrome white ink, for dark backgrounds"
     },

@@ -5,3 +5,5 @@ brand/kit/** -text
 .specify/scripts/** -text
 .specify/templates/** -text
 .agents/skills/** -text
+vendor/glib-0.18.5/** -text -whitespace
+brand/approved-proofs/** -text

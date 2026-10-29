@@ -295,11 +295,49 @@ export async function readLocalKit(archivePath) {
   return { files, lock };
 }
 
+
+// Canonical CI proofs are a separate upstream publication, never edits to kit bytes.
+export function verifyApprovedProofFiles(files,lock,kitFiles,kitLock){
+ if(lock.schemaVersion!==1||lock.sourceRepository!==`https://github.com/${upstream}`||lock.sourceRevision!==kitLock.sourceRevision||lock.artifactName!=='approved-identity-proofs-'+lock.sourceRevision||!Number.isSafeInteger(lock.runId)||!Number.isSafeInteger(lock.jobId)||!Number.isSafeInteger(lock.artifactId)||!/^[a-f0-9]{64}$/.test(lock.archiveSha256)||!Array.isArray(lock.files)||lock.files.length!==33)throw new Error('Canonical proof provenance disagreement');
+ const expected=new Set();for(const entry of lock.files){safePath(entry.path);if(expected.has(entry.path)||!Number.isSafeInteger(entry.bytes)||entry.bytes<0||!/^[a-f0-9]{64}$/.test(entry.sha256))throw new Error('Canonical proof inventory invalid');expected.add(entry.path);const bytes=files.get(entry.path);if(!bytes||bytes.length!==entry.bytes||sha256(bytes)!==entry.sha256)throw new Error('Canonical proof inventory drift: '+entry.path);}
+ if(files.size!==expected.size)throw new Error('Canonical proof inventory has extra files');
+ const report=parseJson(files.get('localmedia-gallery/identity-continuity-report.json'),'canonical report');
+ if(report.brand!=='localmedia-gallery'||!Array.isArray(report.proof_validation?.proofs)||report.proof_validation.proofs.length!==32)throw new Error('Canonical proof report identity disagreement');
+ safePath(report.record_path);if(sha256(kitFiles.get(report.record_path)??Buffer.alloc(0))!==report.record_file_sha256)throw new Error('Canonical continuity record differs from release kit');
+ const proofPaths=new Set();for(const proof of report.proof_validation.proofs){safePath(proof.path);if(!/^qc\/identity-continuity-proofs\/[^/]+\.png$/.test(proof.path)||proofPaths.has(proof.path)||proof.comparison?.same_renderer!==true||proof.comparison?.passes!==true||sha256(files.get('localmedia-gallery/'+proof.path)??Buffer.alloc(0))!==proof.sha256)throw new Error('Canonical proof report drift');proofPaths.add(proof.path);}
+ if([...expected].some(p=>p!=='localmedia-gallery/identity-continuity-report.json'&&!proofPaths.has(p.slice('localmedia-gallery/'.length))))throw new Error('Canonical proof inventory not selected by report');
+ return lock;
+}
+export async function verifyApprovedProofs(brandRoot){
+ const kitLock=await verifyInstalled(brandRoot);if(!kitLock)throw new Error('No kit for canonical proofs');
+ const directory=join(brandRoot,'approved-proofs');const files=await collectFiles(directory);const lock=parseJson(files.get('lock.json'),'canonical proof lock');files.delete('lock.json');
+ return verifyApprovedProofFiles(files,lock,await collectFiles(join(brandRoot,'kit')),kitLock);
+}
+export async function importApprovedProofs(brandRoot,archivePath,metadataPath){
+ const archiveStat=await lstat(archivePath),metadataStat=await lstat(metadataPath);if(!archiveStat.isFile()||archiveStat.isSymbolicLink()||archiveStat.size>limits.archive||!metadataStat.isFile()||metadataStat.isSymbolicLink()||metadataStat.size>65536)throw new Error('Canonical artifact/provenance must be bounded regular files');
+ const metadata=parseJson(await readFile(metadataPath),'canonical artifact provenance');const archive=await readFile(archivePath);
+ if(sha256(archive)!==metadata.archiveSha256)throw new Error('Canonical artifact archive digest disagreement');
+ const all=readZip(archive);const reportPath='localmedia-gallery/identity-continuity-report.json';const report=parseJson(all.get(reportPath),'canonical report');
+ const selected=[reportPath,...(report.proof_validation?.proofs??[]).map(p=>'localmedia-gallery/'+safePath(p.path))];const files=new Map(selected.map(p=>{if(!all.has(p))throw new Error('Canonical artifact missing '+p);return [p,all.get(p)];}));
+ const lock={schemaVersion:1,...metadata,files:[...files].map(([path,bytes])=>({path,bytes:bytes.length,sha256:sha256(bytes)}))};
+ verifyApprovedProofFiles(files,lock,await collectFiles(join(brandRoot,'kit')),await verifyInstalled(brandRoot));
+ const brandStat=await lstat(brandRoot);if(!brandStat.isDirectory()||brandStat.isSymbolicLink())throw new Error('Brand destination must be a real directory');
+ const guard=join(brandRoot,'.update-lock');await mkdir(guard);const staging=join(brandRoot,'.proof-staging-'+randomUUID());const target=join(brandRoot,'approved-proofs');const backup=join(brandRoot,'.proof-backup-'+randomUUID());let moved=false,placed=false,preserve=false;
+ try{
+  await mkdir(staging);for(const [p,bytes]of files){const destination=join(staging,p);await mkdir(dirname(destination),{recursive:true});await writeFile(destination,bytes);}await writeFile(join(staging,'lock.json'),jsonBytes(lock));
+  try{await lstat(target);await rename(target,backup);moved=true;}catch(e){if(e.code!=='ENOENT')throw e;}
+  await rename(staging,target);placed=true;await verifyApprovedProofs(brandRoot);
+ }catch(e){try{if(placed)await rm(target,{recursive:true,force:true});if(moved)await rename(backup,target);}catch(rollback){preserve=true;throw new AggregateError([e,rollback],'Canonical proof rollback failed; preserve '+backup);}throw e;}
+ finally{if(!preserve){await rm(staging,{recursive:true,force:true});await rm(backup,{recursive:true,force:true});}await rm(guard,{recursive:true,force:true});}
+ return lock;
+}
+
 export async function main(argv = process.argv.slice(2)) {
   if (argv.length === 0 || (argv.length === 1 && argv[0] === '--help')) {
-    console.log('Usage: node scripts/sync-brand-kit.mjs --check|--update|--verify|--import ARCHIVE [--json]');
+    console.log('Usage: node scripts/sync-brand-kit.mjs --check|--update|--verify|--import ARCHIVE [--json]; --import-proofs ARCHIVE PROVENANCE_JSON');
     return;
   }
+  if(argv[0]==='--import-proofs'){if(argv.length!==3)throw new Error('Use --import-proofs ARCHIVE PROVENANCE_JSON');const lock=await importApprovedProofs(join(repositoryRoot,'brand'),resolve(argv[1]),resolve(argv[2]));console.log('Imported '+lock.files.length+' exact canonical proof files from upstream artifact '+lock.artifactId);return;}
   const args = argv.filter((arg) => arg !== '--json');
   const mode = args[0];
   if (!['--check', '--update', '--verify', '--import'].includes(mode) || args.length !== (mode === '--import' ? 2 : 1) || (mode === '--import' && args[1].startsWith('--'))) throw new Error('Use one mode, an archive path for --import, and optional --json');
