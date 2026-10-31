@@ -77,16 +77,12 @@ fn run() -> Result<serde_json::Value, String> {
                         .into(),
                 );
             }
-            let mut op = Transaction::open(&base)?;
-            if operation == "status" {
-                op.status()?
-            } else {
-                if operation == "rollback" {
-                    op.apply_verified(true)?
-                } else {
-                    op.recover_verified()?
-                }
-            }
+            let command = match operation.as_str() {
+                "status" => gallery_update::RecoveryCommand::Status,
+                "rollback" => gallery_update::RecoveryCommand::Rollback,
+                _ => gallery_update::RecoveryCommand::Recover,
+            };
+            Transaction::resume(&base, command)?
         }
         _ => return Err("Use update, recover, rollback or status".into()),
     };

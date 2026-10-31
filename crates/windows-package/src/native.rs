@@ -415,6 +415,17 @@ pub fn verify_install_payload(
     let p: Payload = serde_json::from_str(payload).map_err(|e| e.to_string())?;
     p.validate()?;
     p.verify(directory, false)?;
+    verify_registered_payload(directory, machine, payload, package)
+}
+/// Verify registration/integration after the caller has verified every payload byte.
+pub fn verify_registered_payload(
+    directory: &Path,
+    machine: bool,
+    payload: &str,
+    package: &str,
+) -> Result<(), String> {
+    let p: Payload = serde_json::from_str(payload).map_err(|e| e.to_string())?;
+    p.validate()?;
     check_path(&directory.join("payload.json"))?;
     if fs::read(directory.join("payload.json")).map_err(|e| e.to_string())? != payload.as_bytes() {
         return Err("Installed manifest differs".into());

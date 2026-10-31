@@ -386,14 +386,75 @@ impl Candidate {
         Ok(c)
     }
     pub fn verify(&self, base: &Path) -> Result<()> {
+        self.verify_inventory(
+            base,
+            #[cfg(windows)]
+            None,
+        )
+    }
+    fn verify_inventory(
+        &self,
+        base: &Path,
+        #[cfg(windows)] validator: Option<&gallery_windows_package::private::FileValidator>,
+    ) -> Result<()> {
         self.validate()?;
+        if self.files.len() < 64 {
+            self.verify_members(
+                base,
+                &self.files,
+                #[cfg(windows)]
+                validator,
+            )?;
+        } else {
+            std::thread::scope(|scope| {
+                let workers = self
+                    .files
+                    .chunks(self.files.len().div_ceil(8))
+                    .map(|files| {
+                        scope.spawn(move || {
+                            self.verify_members(
+                                base,
+                                files,
+                                #[cfg(windows)]
+                                validator,
+                            )
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                let mut result = Ok(());
+                for worker in workers {
+                    let next = worker
+                        .join()
+                        .unwrap_or_else(|_| Err("Inventory verification worker failed".into()));
+                    if result.is_ok() {
+                        result = next;
+                    }
+                }
+                result
+            })?;
+        }
+        let metadata = self.metadata_path();
+        if self.files.iter().any(|f| f.path == metadata) {
+            self.verify_metadata(&base.join(metadata))?;
+        }
+        Ok(())
+    }
+    fn verify_members(
+        &self,
+        base: &Path,
+        files: &[FileRecord],
+        #[cfg(windows)] validator: Option<&gallery_windows_package::private::FileValidator>,
+    ) -> Result<()> {
         #[cfg(windows)]
         let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
-        for f in &self.files {
+        for f in files {
             let file = base.join(&f.path);
             #[cfg(windows)]
             {
                 namespace.pin(file.parent().ok_or("Missing inventory parent")?)?;
+                if let Some(validator) = validator {
+                    validator.validate(&file)?;
+                }
                 verify_physical_leaf(&file, f)?;
             }
             #[cfg(not(windows))]
@@ -401,15 +462,11 @@ impl Candidate {
             #[cfg(target_os = "linux")]
             if matches!(self.native, Native::LinuxDeb { .. }) {
                 use std::os::unix::fs::MetadataExt;
-                let m = io(fs::metadata(base.join(&f.path)))?;
+                let m = io(fs::metadata(&file))?;
                 if m.uid() != 0 || m.gid() != 0 {
                     return Err("Foreign native package file ownership".into());
                 }
             }
-        }
-        let metadata = self.metadata_path();
-        if self.files.iter().any(|f| f.path == metadata) {
-            self.verify_metadata(&base.join(metadata))?;
         }
         Ok(())
     }
@@ -580,7 +637,24 @@ fn verify_physical_leaf(p: &Path, r: &FileRecord) -> Result<()> {
             return Err(format!("Changed file mode: {}", p.display()));
         }
     }
-    if hash(&read_bounded(p, 1024 * 1024 * 1024)?) != r.sha256 {
+    use sha2::{Digest, Sha256};
+    let mut file = io(File::open(p))?;
+    let mut digest = Sha256::new();
+    let mut buffer = [0u8; 65536];
+    let expected = size(&r.bytes)?;
+    let mut total = 0u64;
+    loop {
+        let count = io(file.read(&mut buffer))?;
+        if count == 0 {
+            break;
+        }
+        total += count as u64;
+        if total > expected {
+            return Err("Owned input grew during verification".into());
+        }
+        digest.update(&buffer[..count]);
+    }
+    if total != expected || hex::encode(digest.finalize()) != r.sha256 {
         return Err(format!("Changed owned bytes: {}", p.display()));
     }
     Ok(())
@@ -709,6 +783,13 @@ pub struct Outcome {
     pub transaction: PathBuf,
     pub native_process: Option<serde_json::Value>,
 }
+#[derive(Clone, Copy)]
+pub enum RecoveryCommand {
+    Status,
+    Recover,
+    Rollback,
+}
+
 pub struct Transaction {
     #[cfg(windows)]
     _namespace: Vec<File>,
@@ -1012,7 +1093,30 @@ impl Transaction {
         Ok(op)
     }
     pub fn open(base: &Path) -> Result<Self> {
+        let op = Self::load(base)?;
+        op.verify_retained()?;
+        Ok(op)
+    }
+    /// Load and execute one command with one complete pre-effect integrity pass.
+    pub fn resume(base: &Path, command: RecoveryCommand) -> Result<Outcome> {
+        let mut op = Self::load(base)?;
+        match command {
+            RecoveryCommand::Status => op.status(),
+            RecoveryCommand::Recover => op.recover_verified(),
+            RecoveryCommand::Rollback => op.apply_verified(true),
+        }
+    }
+    fn load(base: &Path) -> Result<Self> {
         let locked = lock(base)?;
+        #[cfg(windows)]
+        {
+            let validator = gallery_windows_package::private::FileValidator::new(
+                gallery_windows_package::private::context(base)?,
+            )?;
+            for name in ["identity.json", "journal.json"] {
+                validator.validate(&base.join(name))?;
+            }
+        }
         physical(&base.join("journal.json"))?;
         physical(&base.join("identity.json"))?;
         let journal: Journal =
@@ -1083,7 +1187,6 @@ impl Transaction {
             _namespace: namespace,
             verify_native: false,
         };
-        op.verify_retained()?;
         Ok(op)
     }
     fn identity(&self) -> serde_json::Value {
@@ -1110,16 +1213,17 @@ impl Transaction {
                 validator.validate(&self.base.join(name))?;
             }
             for (side, c) in [("prior", &self.journal.prior), ("next", &self.journal.next)] {
-                for f in &c.files {
-                    validator.validate(&self.base.join(side).join(&f.path))?;
-                }
+                c.verify_inventory(&self.base.join(side), Some(&validator))?;
                 if c.artifact().is_some() {
                     validator.validate(&self.base.join(format!("{side}-package.msi")))?;
                 }
             }
         }
-        self.journal.prior.verify(&self.base.join("prior"))?;
-        self.journal.next.verify(&self.base.join("next"))?;
+        #[cfg(not(windows))]
+        {
+            self.journal.prior.verify(&self.base.join("prior"))?;
+            self.journal.next.verify(&self.base.join("next"))?;
+        }
         for (name, c) in [("prior", &self.journal.prior), ("next", &self.journal.next)] {
             native::verify_retained(c, &self.base, name)?;
         }

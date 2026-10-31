@@ -267,7 +267,7 @@ pub(super) fn verified(c: &Candidate, directory: &Path) -> Result<()> {
             #[cfg(windows)]
             {
                 let payload = io(fs::read_to_string(directory.join("payload.json")))?;
-                gallery_windows_package::native::verify_install_payload(
+                gallery_windows_package::native::verify_registered_payload(
                     directory,
                     scope == "machine",
                     &payload,

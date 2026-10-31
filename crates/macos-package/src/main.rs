@@ -86,12 +86,12 @@ fn run() -> gallery_macos_package::Result<()> {
             .map(PathBuf::from)
             .ok_or("Supply --transaction")?;
         let transaction = destination(&transaction)?;
-        let mut op = gallery_update::Transaction::open(&transaction)?;
-        let result = match operation {
-            "status" => op.status()?,
-            "rollback" => op.apply_verified(true)?,
-            _ => op.recover_verified()?,
+        let action = match operation {
+            "status" => gallery_update::RecoveryCommand::Status,
+            "rollback" => gallery_update::RecoveryCommand::Rollback,
+            _ => gallery_update::RecoveryCommand::Recover,
         };
+        let result = gallery_update::Transaction::resume(&transaction, action)?;
         println!("{}", serde_json::to_string(&result)?);
         return Ok(());
     }

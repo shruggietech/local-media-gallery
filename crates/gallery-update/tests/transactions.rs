@@ -343,3 +343,28 @@ fn wide_nested_inventory_checks_every_file_and_retains_changed_bytes() {
     assert!(c.verify(&base).is_err());
     assert_eq!(fs::read(&last).unwrap(), b"change");
 }
+
+#[test]
+fn resumed_commands_verify_tampered_retained_bytes_before_effects() {
+    let t = fixture();
+    let live = t.path().join("live");
+    let next = t.path().join("next");
+    let a = candidate(&live, "a", b"old");
+    let b = candidate(&next, "b", b"new");
+    let tx = t.path().join("transaction");
+    drop(Transaction::prepare(&tx, &live, &a, &b, &next, &[]).unwrap());
+    assert!(Transaction::resume(&tx, RecoveryCommand::Status).is_ok());
+    fs::write(tx.join("prior").join(&a.binary), b"tampered").unwrap();
+    for command in [
+        RecoveryCommand::Status,
+        RecoveryCommand::Recover,
+        RecoveryCommand::Rollback,
+    ] {
+        assert!(Transaction::resume(&tx, command).is_err());
+        assert_eq!(fs::read(live.join(&a.binary)).unwrap(), b"old");
+        assert_eq!(
+            fs::read(tx.join("prior").join(&a.binary)).unwrap(),
+            b"tampered"
+        );
+    }
+}

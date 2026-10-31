@@ -54,16 +54,17 @@ fn read_job(path: &Path) -> Result<(Job, Journal)> {
         }
         validator.validate(path)?;
         for (side, c) in [("prior", &journal.prior), ("next", &journal.next)] {
-            for f in &c.files {
-                validator.validate(&base.join(side).join(&f.path))?;
-            }
+            c.verify_inventory(&base.join(side), Some(&validator))?;
             validator.validate(&base.join(format!("{side}-package.msi")))?;
         }
     }
     journal.prior.validate()?;
     journal.next.validate()?;
-    journal.prior.verify(&base.join("prior"))?;
-    journal.next.verify(&base.join("next"))?;
+    #[cfg(not(windows))]
+    {
+        journal.prior.verify(&base.join("prior"))?;
+        journal.next.verify(&base.join("next"))?;
+    }
     Ok((job, journal))
 }
 fn private_directory(base: &Path) -> Result<()> {
