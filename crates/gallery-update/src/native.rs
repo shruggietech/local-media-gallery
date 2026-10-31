@@ -132,8 +132,15 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
                     .find(|p| c.verify(p).is_ok())
                     .ok_or("Extracted MSI does not match complete expected payload")?;
                 exact_msi_image(c, &extract, &src)?;
+                let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
                 for f in &c.files {
-                    copy_owned(&src.join(&f.path), &destination.join(&f.path), f, true)?;
+                    copy_owned_in(
+                        &src.join(&f.path),
+                        &destination.join(&f.path),
+                        f,
+                        true,
+                        &mut namespace,
+                    )?;
                 }
             }
             #[cfg(not(windows))]

@@ -310,3 +310,36 @@ fn linked_live_parent_is_not_recovery_authority() {
     assert!(Transaction::open(&tx).is_err());
     assert_eq!(fs::read(foreign.join(&a.binary)).unwrap(), b"keep");
 }
+
+#[test]
+fn wide_nested_inventory_checks_every_file_and_retains_changed_bytes() {
+    let t = fixture();
+    let base = t.path().join("wide");
+    let mut c = candidate(&base, "a", b"ordinary fixture");
+    for n in 0..1200 {
+        let name = format!("licenses/dependencies/group-{n}/NOTICE");
+        let file = base.join(&name);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, b"notice").unwrap();
+        c.files.push(FileRecord {
+            path: name,
+            bytes: "6".into(),
+            sha256: hash(b"notice"),
+            mode: 644,
+        });
+    }
+    let started = std::time::Instant::now();
+    c.verify(&base).unwrap();
+    println!("wide inventory verification: {:?}", started.elapsed());
+    let mut next = c.clone();
+    next.generation = "b".into();
+    let started = std::time::Instant::now();
+    let op =
+        Transaction::prepare(&t.path().join("transaction"), &base, &c, &next, &base, &[]).unwrap();
+    println!("wide inventory retention: {:?}", started.elapsed());
+    drop(op);
+    let last = base.join(&c.files.last().unwrap().path);
+    fs::write(&last, b"change").unwrap();
+    assert!(c.verify(&base).is_err());
+    assert_eq!(fs::read(&last).unwrap(), b"change");
+}

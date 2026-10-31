@@ -243,6 +243,15 @@ fn open(path: &Path, directory: bool) -> Result<File> {
 }
 fn security(file: &File, machine: bool, strict: bool, directory: bool) -> Result<()> {
     let (expected, allowed) = principals(machine)?;
+    security_for(file, &expected, &allowed, strict, directory)
+}
+fn security_for(
+    file: &File,
+    expected: &str,
+    allowed: &BTreeSet<String>,
+    strict: bool,
+    directory: bool,
+) -> Result<()> {
     let mut owner = ptr::null_mut();
     let mut acl = ptr::null_mut();
     let mut sd = ptr::null_mut();
@@ -319,7 +328,7 @@ fn security(file: &File, machine: bool, strict: bool, directory: bool) -> Result
             ));
         }
     }
-    if strict && found != allowed {
+    if strict && &found != allowed {
         return Err("Updater authority ACL principals changed".into());
     }
     Ok(())
@@ -425,9 +434,23 @@ pub fn create_file(path: &Path) -> Result<File> {
     security(&file, machine, true, false)?;
     Ok(file)
 }
+/// Resolve the effective owner once per pass; inspect every file ACL afresh.
+pub struct FileValidator {
+    owner: String,
+    allowed: BTreeSet<String>,
+}
+impl FileValidator {
+    pub fn new(machine: bool) -> Result<Self> {
+        let (owner, allowed) = principals(machine)?;
+        Ok(Self { owner, allowed })
+    }
+    pub fn validate(&self, path: &Path) -> Result<()> {
+        let file = open(path, false)?;
+        security_for(&file, &self.owner, &self.allowed, true, false)
+    }
+}
 pub fn validate_file(path: &Path, machine: bool) -> Result<()> {
-    let file = open(path, false)?;
-    security(&file, machine, true, false)
+    FileValidator::new(machine)?.validate(path)
 }
 pub fn storage_root(machine: bool) -> Result<PathBuf> {
     let base = crate::native::known_folder(if machine {
@@ -508,44 +531,58 @@ pub fn lock_file(path: &Path, machine: bool) -> Result<File> {
     security(&file, machine, true, false)?;
     Ok(file)
 }
-/// Pin physical directory names without imposing an ACL policy on gallery content.
+/// Pin each physical directory once for an inventory validation pass.
+/// Handles deny deletion until the pass ends, so cached ancestors cannot be replaced.
+#[derive(Default)]
+pub struct PhysicalNamespace {
+    names: BTreeSet<PathBuf>,
+    handles: Vec<File>,
+}
+impl PhysicalNamespace {
+    pub fn pin(&mut self, path: &Path) -> Result<()> {
+        if !path.is_absolute() {
+            return Err("Use an absolute physical directory".into());
+        }
+        let mut at = PathBuf::new();
+        for component in path.components() {
+            if matches!(component, Component::ParentDir | Component::CurDir) {
+                return Err("Dot paths are unsupported".into());
+            }
+            at.push(component);
+            if matches!(component, Component::Prefix(_)) || self.names.contains(&at) {
+                continue;
+            }
+            let h = unsafe {
+                CreateFileW(
+                    wide(&at).as_ptr(),
+                    0x80,
+                    3,
+                    ptr::null(),
+                    3,
+                    0x02200000,
+                    ptr::null_mut(),
+                )
+            };
+            if h as isize == -1 {
+                return Err(error());
+            }
+            let file = unsafe { File::from_raw_handle(h) };
+            use std::os::windows::fs::MetadataExt;
+            let info = file.metadata().map_err(|e| e.to_string())?;
+            if !info.is_dir() || info.file_attributes() & 0x400 != 0 {
+                return Err("Redirected physical directory".into());
+            }
+            self.names.insert(at.clone());
+            self.handles.push(file);
+        }
+        Ok(())
+    }
+}
+/// Pin physical names without imposing an ACL policy on gallery content.
 pub fn pin_physical(path: &Path) -> Result<Vec<File>> {
-    if !path.is_absolute() {
-        return Err("Use an absolute physical directory".into());
-    }
-    let mut at = PathBuf::new();
-    let mut pins = vec![];
-    for component in path.components() {
-        if matches!(component, Component::ParentDir | Component::CurDir) {
-            return Err("Dot paths are unsupported".into());
-        }
-        at.push(component);
-        if matches!(component, Component::Prefix(_)) {
-            continue;
-        }
-        let h = unsafe {
-            CreateFileW(
-                wide(&at).as_ptr(),
-                0x80,
-                3,
-                ptr::null(),
-                3,
-                0x02200000,
-                ptr::null_mut(),
-            )
-        };
-        if h as isize == -1 {
-            return Err(error());
-        }
-        let file = unsafe { File::from_raw_handle(h) };
-        use std::os::windows::fs::MetadataExt;
-        let info = file.metadata().map_err(|e| e.to_string())?;
-        if !info.is_dir() || info.file_attributes() & 0x400 != 0 {
-            return Err("Redirected physical directory".into());
-        }
-        pins.push(file);
-    }
-    Ok(pins)
+    let mut namespace = PhysicalNamespace::default();
+    namespace.pin(path)?;
+    Ok(namespace.handles)
 }
 pub fn ensure_storage_root(machine: bool) -> Result<PathBuf> {
     storage_root(machine)
@@ -554,6 +591,25 @@ pub fn ensure_storage_root(machine: bool) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn inventory_namespace_prevents_shared_parent_replacement_until_released() {
+        let root = storage_root(false).unwrap();
+        let temp = tempfile::Builder::new().tempdir_in(root).unwrap();
+        let parent = temp.path().join("shared");
+        let one = parent.join("one");
+        let two = parent.join("two");
+        std::fs::create_dir_all(&one).unwrap();
+        std::fs::create_dir(&two).unwrap();
+        let mut namespace = PhysicalNamespace::default();
+        namespace.pin(&one).unwrap();
+        namespace.pin(&two).unwrap();
+        let retired = temp.path().join("retired");
+        assert!(std::fs::rename(&parent, &retired).is_err());
+        assert!(one.is_dir() && two.is_dir());
+        drop(namespace);
+        std::fs::rename(&parent, &retired).unwrap();
+        assert!(retired.join("one").is_dir() && retired.join("two").is_dir());
+    }
     #[test]
     fn changed_recovery_acl_is_refused_without_repairing_or_changing_bytes() {
         #[link(name = "advapi32")]
@@ -575,7 +631,8 @@ mod tests {
             file.write_all(b"retained authority bytes").unwrap();
             file.sync_all().unwrap();
         }
-        validate_file(&path, false).unwrap();
+        let validator = FileValidator::new(false).unwrap();
+        validator.validate(&path).unwrap();
         let mut raw = ptr::null_mut();
         assert_ne!(
             unsafe {
@@ -593,7 +650,7 @@ mod tests {
             unsafe { SetFileSecurityW(wide(&path).as_ptr(), 0x80000004, changed.0) },
             0
         );
-        assert!(validate_file(&path, false).is_err());
+        assert!(validator.validate(&path).is_err());
         assert_eq!(std::fs::read(&path).unwrap(), b"retained authority bytes");
         assert!(validate_file(&path, false).is_err());
     }

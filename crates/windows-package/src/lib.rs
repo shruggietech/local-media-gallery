@@ -27,6 +27,10 @@ pub fn runtime_for_scope<T>(
 /// Keep the verified input open without Windows write/delete sharing through use.
 pub fn open_verified_input(path: &Path, record: &FileRecord) -> Result<fs::File, String> {
     check_path(path)?;
+    open_verified_leaf(path, record)
+}
+// Call only with verified, pinned physical parents, or after check_path.
+fn open_verified_leaf(path: &Path, record: &FileRecord) -> Result<fs::File, String> {
     let expected: u64 = record.bytes.parse().map_err(|_| "Invalid input size")?;
     if expected > 1073741824 || record.bytes != expected.to_string() || !hex(&record.sha256, 64) {
         return Err("Invalid input identity".into());
@@ -166,15 +170,23 @@ impl Payload {
     pub fn verify(&self, root: &Path, allow_missing: bool) -> Result<(), String> {
         self.validate()?;
         check_path(root)?;
+        #[cfg(windows)]
+        let mut namespace = private::PhysicalNamespace::default();
         for f in &self.files {
             let file = root.join(&f.path);
-            check_path(&file)?;
             match fs::symlink_metadata(&file) {
                 Ok(_) => {}
-                Err(e) if allow_missing && e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(e) if allow_missing && e.kind() == std::io::ErrorKind::NotFound => {
+                    check_path(&file)?;
+                    continue;
+                }
                 Err(e) => return Err(format!("Cannot read {}: {e}", file.display())),
             };
-            let _held = open_verified_input(&file, f).map_err(|e| {
+            #[cfg(windows)]
+            namespace.pin(file.parent().ok_or("Missing payload parent")?)?;
+            #[cfg(not(windows))]
+            check_path(&file)?;
+            let _held = open_verified_leaf(&file, f).map_err(|e| {
                 format!("Owned file differs; preserve and recover before retrying: {e}")
             })?;
         }

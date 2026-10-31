@@ -47,22 +47,17 @@ fn read_job(path: &Path) -> Result<(Job, Journal)> {
     #[cfg(windows)]
     {
         let machine = machine_scope(&journal.prior);
+        let validator = gallery_windows_package::private::FileValidator::new(machine)?;
         let _pins = gallery_windows_package::private::validate_directory(base, machine)?;
         for name in ["identity.json", "journal.json"] {
-            gallery_windows_package::private::validate_file(&base.join(name), machine)?;
+            validator.validate(&base.join(name))?;
         }
-        gallery_windows_package::private::validate_file(path, machine)?;
+        validator.validate(path)?;
         for (side, c) in [("prior", &journal.prior), ("next", &journal.next)] {
             for f in &c.files {
-                gallery_windows_package::private::validate_file(
-                    &base.join(side).join(&f.path),
-                    machine,
-                )?;
+                validator.validate(&base.join(side).join(&f.path))?;
             }
-            gallery_windows_package::private::validate_file(
-                &base.join(format!("{side}-package.msi")),
-                machine,
-            )?;
+            validator.validate(&base.join(format!("{side}-package.msi")))?;
         }
     }
     journal.prior.validate()?;

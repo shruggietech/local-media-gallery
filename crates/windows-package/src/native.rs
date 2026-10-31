@@ -650,8 +650,9 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
         .parent()
         .ok_or("Missing private transaction parent")?;
     let _pins = crate::private::validate_directory(base, machine)?;
-    crate::private::validate_file(journal, machine)?;
-    crate::private::validate_file(&base.join("identity.json"), machine)?;
+    let validator = crate::private::FileValidator::new(machine)?;
+    validator.validate(journal)?;
+    validator.validate(&base.join("identity.json"))?;
     let f = fs::File::open(journal).map_err(|e| e.to_string())?;
     if f.metadata().map_err(|e| e.to_string())?.len() > 8 * 1024 * 1024 {
         return Err("Oversized recovery journal".into());
@@ -713,7 +714,7 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
         let root = base.join(side);
         let manifest = root.join("payload.json");
         check_path(&manifest)?;
-        crate::private::validate_file(&manifest, machine)?;
+        validator.validate(&manifest)?;
         let text = fs::read_to_string(&manifest).map_err(|e| e.to_string())?;
         let payload: Payload = serde_json::from_str(&text).map_err(|e| e.to_string())?;
         payload.validate()?;
@@ -727,7 +728,7 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
         packages.push(package);
         matching |= text == PAYLOAD && side == target;
         for f in &payload.files {
-            crate::private::validate_file(&root.join(&f.path), machine)?;
+            validator.validate(&root.join(&f.path))?;
         }
         let mut records = payload.files;
         records.push(crate::FileRecord {
@@ -747,12 +748,15 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
     {
         return Err("Foreign registered package".into());
     }
+    let mut namespace = crate::private::PhysicalNamespace::default();
     for (path, records) in allowed {
         let file = directory.join(&path);
-        check_path(&file)?;
-        match fs::metadata(&file) {
+        match fs::symlink_metadata(&file) {
             Ok(m) => {
-                if !m.is_file()
+                namespace.pin(file.parent().ok_or("Missing installed parent")?)?;
+                use std::os::windows::fs::MetadataExt;
+                if m.file_attributes() & 0x400 != 0
+                    || !m.is_file()
                     || !records.iter().any(|(bytes, digest)| {
                         m.len().to_string() == *bytes
                             && fs::read(&file).is_ok_and(|b| hash(&b) == *digest)
@@ -761,7 +765,9 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
                     return Err(format!("External recovery bytes: {path}"));
                 }
             }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                check_path(&file)?;
+            }
             Err(e) => return Err(e.to_string()),
         }
     }

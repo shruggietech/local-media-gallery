@@ -387,8 +387,17 @@ impl Candidate {
     }
     pub fn verify(&self, base: &Path) -> Result<()> {
         self.validate()?;
+        #[cfg(windows)]
+        let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
         for f in &self.files {
-            verify_file(&base.join(&f.path), f)?;
+            let file = base.join(&f.path);
+            #[cfg(windows)]
+            {
+                namespace.pin(file.parent().ok_or("Missing inventory parent")?)?;
+                verify_physical_leaf(&file, f)?;
+            }
+            #[cfg(not(windows))]
+            verify_file(&file, f)?;
             #[cfg(target_os = "linux")]
             if matches!(self.native, Native::LinuxDeb { .. }) {
                 use std::os::unix::fs::MetadataExt;
@@ -547,7 +556,17 @@ fn read_bounded(p: &Path, max: u64) -> Result<Vec<u8>> {
 }
 fn verify_file(p: &Path, r: &FileRecord) -> Result<()> {
     physical(p)?;
-    let m = io(fs::metadata(p))?;
+    verify_physical_leaf(p, r)
+}
+fn verify_physical_leaf(p: &Path, r: &FileRecord) -> Result<()> {
+    let m = io(fs::symlink_metadata(p))?;
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        if m.file_attributes() & 0x400 != 0 {
+            return Err("Reparse path".into());
+        }
+    }
     if !m.is_file() || m.len() != size(&r.bytes)? {
         return Err(format!("Missing/changed owned file: {}", p.display()));
     }
@@ -590,12 +609,36 @@ fn make_directories(parent: &Path, private: bool) -> Result<()> {
     io(fs::create_dir_all(parent))
 }
 fn copy_owned(from: &Path, to: &Path, r: &FileRecord, private: bool) -> Result<()> {
+    #[cfg(windows)]
+    let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
+    copy_owned_in(
+        from,
+        to,
+        r,
+        private,
+        #[cfg(windows)]
+        &mut namespace,
+    )
+}
+fn copy_owned_in(
+    from: &Path,
+    to: &Path,
+    r: &FileRecord,
+    private: bool,
+    #[cfg(windows)] namespace: &mut gallery_windows_package::private::PhysicalNamespace,
+) -> Result<()> {
+    #[cfg(windows)]
+    {
+        namespace.pin(from.parent().ok_or("No source parent")?)?;
+        verify_physical_leaf(from, r)?;
+    }
+    #[cfg(not(windows))]
     verify_file(from, r)?;
-    physical(to)?;
     let parent = to.parent().ok_or("No parent")?;
+    physical(to)?;
     make_directories(parent, private)?;
     #[cfg(windows)]
-    let _pins = gallery_windows_package::private::pin_physical(parent)?;
+    namespace.pin(parent)?;
     let mut tmp = temporary(parent, private)?;
     io(std::io::copy(&mut io(File::open(from))?, &mut tmp))?;
     #[cfg(unix)]
@@ -610,6 +653,9 @@ fn copy_owned(from: &Path, to: &Path, r: &FileRecord, private: bool) -> Result<(
             })))?
     }
     io(tmp.as_file().sync_all())?;
+    #[cfg(windows)]
+    verify_physical_leaf(tmp.path(), r)?;
+    #[cfg(not(windows))]
     verify_file(tmp.path(), r)?;
     tmp.persist_noclobber(to).map_err(|e| e.to_string())?;
     sync_directory(parent)?;
@@ -931,8 +977,17 @@ impl Transaction {
                 native::retain(c, base, name, &dst)
                     .map_err(|e| format!("Retain {name} native candidate: {e}"))?;
             } else {
+                #[cfg(windows)]
+                let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
                 for f in &c.files {
-                    copy_owned(&src.join(&f.path), &dst.join(&f.path), f, true)?;
+                    copy_owned_in(
+                        &src.join(&f.path),
+                        &dst.join(&f.path),
+                        f,
+                        true,
+                        #[cfg(windows)]
+                        &mut namespace,
+                    )?;
                 }
             }
             c.verify(&dst)?;
@@ -1049,22 +1104,17 @@ impl Transaction {
         #[cfg(windows)]
         {
             let mode = machine_scope(&self.journal.prior);
+            let validator = gallery_windows_package::private::FileValidator::new(mode)?;
             let _pins = gallery_windows_package::private::validate_directory(&self.base, mode)?;
             for name in ["identity.json", "journal.json"] {
-                gallery_windows_package::private::validate_file(&self.base.join(name), mode)?;
+                validator.validate(&self.base.join(name))?;
             }
             for (side, c) in [("prior", &self.journal.prior), ("next", &self.journal.next)] {
                 for f in &c.files {
-                    gallery_windows_package::private::validate_file(
-                        &self.base.join(side).join(&f.path),
-                        mode,
-                    )?;
+                    validator.validate(&self.base.join(side).join(&f.path))?;
                 }
                 if c.artifact().is_some() {
-                    gallery_windows_package::private::validate_file(
-                        &self.base.join(format!("{side}-package.msi")),
-                        mode,
-                    )?;
+                    validator.validate(&self.base.join(format!("{side}-package.msi")))?;
                 }
             }
         }
