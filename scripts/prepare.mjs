@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import {prepareCargoDependencies} from './cargo-readiness.mjs';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -33,6 +34,6 @@ if (process.platform === 'win32' && process.arch === 'x64') {
 } else if (!process.env.GALLERY_PROOF_NODE) {
   throw new Error('Set GALLERY_PROOF_NODE to a native Node 24.11.0 executable for brand proof verification on this host. Rendered acceptance remains separately elected.');
 }
-await readFile(path.join(root, 'Cargo.lock'));
+await prepareCargoDependencies();
 await prepareMediaTool({download:true});
 console.log('Preparation complete. Run builds and qualification separately.');

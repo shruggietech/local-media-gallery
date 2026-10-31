@@ -32,8 +32,8 @@
       "proof": "windows-2025 native CLI archives and isolated WebView2 rendered/media/UIA/NVDA election",
       "full": "Per-user installer by default; machine scope explicitly elected; shared WebView provisioning; MSI permitted",
       "lite": "Extracted executable ZIP with declared host runtime",
-      "signing": "Proof unsigned; Authenticode disposition recorded by final packaging",
-      "qualification": "Exact host/artifact receipts required; other client versions unqualified"
+      "signing": "Project signing not performed by policy; actual host assessments reported separately",
+      "qualification": "Exact host/artifact receipts required; other client versions not yet tested"
     },
     {
       "id": "linux-x86_64",
@@ -41,12 +41,12 @@
       "arch": "x86_64",
       "baseline": "Ubuntu 24.04 GNU ABI (glibc 2.39 build baseline)",
       "runtime": "GTK3, WebKitGTK 4.1, libsoup3; distribution media plugins",
-      "display": "Isolated X11/Xvfb desktop elected; Wayland remains unqualified",
+      "display": "Isolated X11/Xvfb desktop elected; Wayland has not been tested",
       "proof": "ubuntu-24.04 native CLI archives, isolated WebKitGTK media/AT-SPI and ordinary Full .deb/Lite tar.gz recipient campaigns",
       "full": "Candidate system Debian package with derived shared-library/media dependencies, exact ownership guards and selective package-manager removal",
       "lite": "Candidate executable tar.gz with external preflight/adjacent ordinary ELF and declared host libraries; AppImage requires separate qualification",
-      "signing": "Candidates unsigned and unpublished; package/repository trust requires separate release disposition",
-      "qualification": "Exact per-edition CLI/runtime receipts required; Wayland, physical touch, Orca speech and older GNU ABI unqualified"
+      "signing": "Project signing not performed by policy; actual host assessments reported separately",
+      "qualification": "Exact per-edition CLI/runtime receipts required; Wayland, physical touch, Orca speech and older GNU ABI not yet tested"
     },
     {
       "id": "macos-aarch64",
@@ -58,8 +58,8 @@
       "proof": "macos-15 arm64 native CLI app-bundle archives and isolated WKWebView rendered/media/native AX election",
       "full": "Candidate Full DMG with native user/system Applications installer and elected command integration; exact ownership and selective removal",
       "lite": "Native app ZIP adjacent to gallery, preserving bundle/modes; explicit root for recognized translocation",
-      "signing": "Candidates ad-hoc signed, unnotarized/unpublished; Developer ID, notarization and stapling require separate credentials and receipts",
-      "qualification": "Exact source-bound ordinary package and native runtime receipts required; VoiceOver speech, WebM media-element audio output, actual translocation and older OS remain separate"
+      "signing": "Project signing/notarization/stapling not performed by policy; ordinary compiler/linker loader metadata preserved",
+      "qualification": "Exact source-bound ordinary package and native runtime receipts required; VoiceOver speech, WebM media-element audio output, actual translocation and older OS require separate evidence"
     },
     {
       "id": "windows-aarch64",
@@ -71,8 +71,8 @@
       "proof": "not-elected",
       "full": "Native ARM64 installer with separate integration/provisioning proof",
       "lite": "Native ARM64 archive with declared host runtime",
-      "signing": "Not qualified",
-      "qualification": "Unbuilt/unqualified; x64 emulation is not native ARM64 evidence"
+      "signing": "Project signing not performed by policy; actual host assessments reported separately",
+      "qualification": "Not yet built or tested; x64 emulation is not native ARM64 evidence"
     },
     {
       "id": "linux-aarch64",
@@ -84,8 +84,8 @@
       "proof": "not-elected",
       "full": "Native distribution package",
       "lite": "Native archive; portable packaging requires proof",
-      "signing": "Not qualified",
-      "qualification": "Unbuilt/unqualified"
+      "signing": "Project signing not performed by policy; actual host assessments reported separately",
+      "qualification": "Not yet built or tested"
     },
     {
       "id": "macos-x86_64",
@@ -97,8 +97,8 @@
       "proof": "not-elected",
       "full": "Native Intel app bundle/DMG",
       "lite": "Native Intel app bundle archive",
-      "signing": "Not qualified",
-      "qualification": "Unbuilt/unqualified; arm64 or Rosetta results do not qualify native Intel"
+      "signing": "Project signing/notarization/stapling not performed by policy; ordinary compiler/linker loader metadata preserved",
+      "qualification": "Not yet built or tested; arm64 or Rosetta results do not qualify native Intel"
     }
   ],
   "limits": [

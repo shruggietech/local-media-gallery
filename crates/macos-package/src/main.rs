@@ -122,15 +122,6 @@ fn run() -> gallery_macos_package::Result<()> {
         .join(&payload.bundle);
     let result = if operation == "install" {
         gallery_macos_package::verify(&source, &payload, true)?;
-        output(
-            "/usr/bin/codesign",
-            &[
-                "--verify".as_ref(),
-                "--deep".as_ref(),
-                "--strict".as_ref(),
-                source.as_os_str(),
-            ],
-        )?;
         let binary = source.join(&payload.binary);
         let identity: serde_json::Value = serde_json::from_str(&output(
             binary.to_str().ok_or("Invalid binary path")?,

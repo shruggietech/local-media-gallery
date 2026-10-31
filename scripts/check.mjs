@@ -4,6 +4,7 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyInstalled,verifyApprovedProofs } from './sync-brand-kit.mjs';
+import {checkDependencyDeclarations} from './package-lock-consistency.mjs';
 import {checkGlibVendor} from './check-vendor.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,6 +42,7 @@ async function inspect(relative = '') {
   }
 }
 
+await checkDependencyDeclarations(root);
 await checkGlibVendor();
 await inspect();
 const version = (await readFile(join(root, 'VERSION'), 'utf8')).trim();
