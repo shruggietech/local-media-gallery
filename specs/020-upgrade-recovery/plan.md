@@ -95,3 +95,5 @@ Installed-writer state compatibility is checked before retaining candidate bytes
 Read-only independent campaign leaf observation uses at most eight workers, retains descriptor order in its receipt and waits for every worker before reporting a result. Every original size/hash/type/mode/UID/GID assertion remains elected.
 
 Windows physical validation reuses one pinned ancestor namespace per staging/archive/reconciliation pass while inspecting every leaf for links/reparse attributes. Missing installed directories remain valid observations for recovery through the original physical walk. Pins end before native mutation. No ancestor cache persists across commands or permits directory replacement while a pass is active.
+
+Operation, destination and independent-native leases explicitly unlock when their owning guard ends. A surviving duplicated or inherited descriptor cannot extend an already-ended owner lease. Contenders still acquire the actual native lock before proceeding, and a live native worker retains its independent guard until its real client completes.

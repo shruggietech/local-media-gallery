@@ -890,11 +890,19 @@ pub struct Transaction {
     _namespace: Vec<File>,
     base: PathBuf,
     journal: Journal,
-    _lock: File,
-    _destination_lock: File,
+    _lock: Lease,
+    _destination_lock: Lease,
     verify_native: bool,
 }
-fn lock(base: &Path) -> Result<File> {
+struct Lease(File);
+impl Drop for Lease {
+    fn drop(&mut self) {
+        // The owning operation ends here, even if a transient child inherited a descriptor.
+        let _ = self.0.unlock();
+    }
+}
+
+fn lock(base: &Path) -> Result<Lease> {
     physical(base)?;
     #[cfg(windows)]
     gallery_windows_package::private::context(base)?;
@@ -928,7 +936,7 @@ fn lock(base: &Path) -> Result<File> {
         .open(p))?;
     f.try_lock()
         .map_err(|e| format!("Another update owns the transaction lock: {e}"))?;
-    Ok(f)
+    Ok(Lease(f))
 }
 
 fn canonical_identity(path: &Path) -> Result<PathBuf> {
@@ -951,7 +959,7 @@ fn canonical_identity(path: &Path) -> Result<PathBuf> {
     Ok(result)
 }
 #[cfg(any(windows, target_os = "linux"))]
-fn native_lease(directory: &Path, machine: bool) -> Result<File> {
+fn native_lease(directory: &Path, machine: bool) -> Result<Lease> {
     let canonical = canonical_identity(directory)?;
     let key = hash(canonical.to_string_lossy().to_lowercase().as_bytes());
     #[cfg(windows)]
@@ -993,9 +1001,9 @@ fn native_lease(directory: &Path, machine: bool) -> Result<File> {
     };
     file.try_lock()
         .map_err(|e| format!("incomplete: A native supervisor still owns this destination: {e}"))?;
-    Ok(file)
+    Ok(Lease(file))
 }
-fn destination_lock(directory: &Path, machine: bool) -> Result<File> {
+fn destination_lock(directory: &Path, machine: bool) -> Result<Lease> {
     let canonical = canonical_identity(directory)?;
     let key = hash(canonical.to_string_lossy().to_lowercase().as_bytes());
     #[cfg(windows)]
@@ -1040,7 +1048,7 @@ fn destination_lock(directory: &Path, machine: bool) -> Result<File> {
     };
     f.try_lock()
         .map_err(|e| format!("Another operation owns this destination: {e}"))?;
-    Ok(f)
+    Ok(Lease(f))
 }
 
 impl Transaction {
@@ -1756,4 +1764,23 @@ fn active_binary(binary: &Path) -> Result<()> {
             })?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod lease_tests {
+    use super::*;
+    #[test]
+    fn ended_lease_releases_even_when_a_duplicate_descriptor_survives() {
+        let temp = tempfile::NamedTempFile::new().unwrap();
+        let file = temp.reopen().unwrap();
+        file.try_lock().unwrap();
+        let duplicate = file.try_clone().unwrap();
+        let lease = Lease(file);
+        let contender = temp.reopen().unwrap();
+        assert!(contender.try_lock().is_err());
+        drop(lease);
+        contender.try_lock().unwrap();
+        contender.unlock().unwrap();
+        drop(duplicate);
+    }
 }
