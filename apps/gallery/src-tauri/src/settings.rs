@@ -457,6 +457,18 @@ fn save_error(error: std::io::Error) -> GalleryError {
     )
 }
 
+/// Read-only format/choice validation without defaults, repair or lock creation.
+pub fn compatibility(path: &Path) -> Result<(), GalleryError> {
+    let bytes = read_document(path)
+        .map_err(|e| GalleryError::new("settings_unavailable", e.to_string()))?;
+    if let Some(bytes) = bytes {
+        let value = serde_json::from_slice(&bytes)
+            .map_err(|_| GalleryError::new("settings_invalid", "Invalid settings JSON"))?;
+        Settings::parse(value, false)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -154,6 +154,9 @@ jobs:
             .local/windows-package-build.json
             .local/windows-package-results.json
             .local/windows-package-failure.json
+            .local/windows-packages-*/**/*.json
+            .local/windows-package-test-*/update-evidence-*/**
+            .local/windows-package-test-*/failed-update-*/**
             .local/windows-packages-*/*-candidate.zip
             .local/windows-package-test-*/*.png
             .local/windows-package-test-*/*.log
@@ -218,9 +221,15 @@ jobs:
             .local/macos-package-build.json
             .local/macos-package-results.json
             .local/macos-package-failure.json
+            .local/macos-packages-*/**/*.json
+            .local/macos-package-test-*/update-evidence-*/**
+            .local/macos-package-test-*/failed-update-*/**
+            .local/macos-packages-*/replacement-*.dmg
+            .local/macos-packages-*/replacement-*.zip
             .local/macos-packages-*/*-candidate.dmg
             .local/macos-packages-*/*-candidate.zip
             .local/macos-package-test-*/*.png
+            .local/macos-package-test-*/*.log
           include-hidden-files: true
           if-no-files-found: error
       - name: Save Cargo cache after terminal evidence
@@ -293,6 +302,9 @@ jobs:
             .local/cargo-readiness-results.json
             .local/linux-package-results.json
             .local/linux-package-failure.json
+            .local/linux-packages-*/**/*.json
+            .local/linux-package-test-*/update-evidence-*/**
+            .local/linux-package-test-*/failed-update-*/**
             .local/linux-packages-*/*-candidate.deb
             .local/linux-packages-*/*-candidate.tar.gz
             .local/linux-packages-*/*-fixture.deb

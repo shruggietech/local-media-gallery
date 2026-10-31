@@ -6,6 +6,8 @@
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="REBOOT" Value="ReallySuppress" />
     <Property Id="INSTALLDIR" Secure="yes" />
+    <Property Id="LMG_RECOVERY" Secure="yes" />
+    <Property Id="LMG_RECOVERY_PROTOCOL" Value="1" />
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="@BASE@">
         @PROGRAMS@

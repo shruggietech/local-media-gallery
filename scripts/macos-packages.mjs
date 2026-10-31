@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import {validateUpdateEvidence} from './update-packages.mjs';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
@@ -11,7 +12,7 @@ export function validateMacPayload(p){
  for(const f of [p.binary,'Contents/Info.plist'])assert.ok(p.files.some(e=>e.path===f));assert.equal(p.files.find(e=>e.path===p.binary).mode,'755');return p;
 }
 export async function validateMacEvidence(build,result,root){
- assert.deepEqual(result.source,build.source);assert.equal(result.revision,build.revision);assert.equal(result.result,'pass');assert.deepEqual(result.host.os,'darwin');assert.equal(result.host.arch,'arm64');
+ await validateUpdateEvidence(build,result.updates,root);assert.deepEqual(result.source,build.source);assert.equal(result.revision,build.revision);assert.equal(result.result,'pass');assert.deepEqual(result.host.os,'darwin');assert.equal(result.host.arch,'arm64');
  const names=['containers','user lifecycle','system lifecycle','collisions and retention','Lite in place','Lite explicit','Lite relocation Refresh','quarantine disposition'];for(const name of names)assert.ok(result.checks.some(c=>c.name===name&&c.result==='pass'),'Missing native case '+name);
  for(const r of build.records){validateMacPayload(r.payload);const b=await readFile(path.join(root,r.archive.path));assert.equal(hash(b),r.archive.sha256);assert.equal(String(b.length),r.archive.bytes);assert.equal(r.footprints.download.bytes,r.archive.bytes);assert.equal(r.footprints.runtime.bytes,null);assert.ok(r.footprints.runtime.basis.length>0);assert.equal(BigInt(r.footprints.application.bytes),r.payload.files.reduce((s,e)=>s+BigInt(e.bytes),0n));}
  assert.ok(result.native.length>=4);for(const n of result.native){const p=build.records.find(r=>r.edition===n.edition).payload;assert.equal(n.binarySha256,p.files.find(f=>f.path===p.binary).sha256);assert.ok(n.pid>0);assert.ok(n.records.some(v=>v.name==='Open red.png'));assert.ok(n.frames.length>0);for(const f of n.frames){const b=await readFile(path.join(root,f.path));assert.equal(hash(b),f.sha256);assert.equal(String(b.length),f.bytes);assert.ok(f.pixels[f.color]>1500);}}

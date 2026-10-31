@@ -38,3 +38,8 @@ test('Windows persistent observer verifies the actual legacy listener PID',{skip
  const query=()=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending=null;reject(Error('Listener observer deadline '+stderr));},10000);pending=line=>{clearTimeout(timer);pending=null;try{resolve(JSON.parse(line));}catch(e){reject(e);}};observer.stdin.write(JSON.stringify({action:'listener',port})+'\n');});
  try{assert.equal(await readyDriver(child,'http://127.0.0.1:'+port,observeChild(child),12000,{listenerOwner:async()=>{const result=await query();assert.equal(result.method,'Windows TCP listener table');assert.deepEqual(result.owners,[child.pid]);return {...result,pid:Number(result.owners[0])};}}),'legacy');}finally{observer.stdin.end();await stopOwnedChild(child);await stopOwnedChild(observer);lines.close();}
 });
+
+test('Slow session creation uses the original deadline without duplicate creation',async()=>{
+ const port=await availableLoopbackPort(),nonce=randomUUID();const script="let sessions=0;require('node:http').createServer((q,r)=>{const send=value=>{r.setHeader('content-type','application/json');r.end(JSON.stringify({value}));};if(q.url==='/status')send({ready:true});else if(q.url==='/session'){sessions++;console.log('session-create');setTimeout(()=>send({sessionId:'owned'}),2400);}else send({pid:process.pid,nonce:process.env.GALLERY_TEST_DRIVER_NONCE,port:"+port+"});}).listen("+port+",'127.0.0.1')";const child=launch(script,nonce),observation=observeChild(child),started=Date.now();
+ try{assert.equal(await readyDriver(child,'http://127.0.0.1:'+port,observation,5000,{nonce}),'owned');assert.equal(observation().stdout.split('session-create').length-1,1);assert.ok(Date.now()-started<5000);}finally{await stopOwnedChild(child);}
+});

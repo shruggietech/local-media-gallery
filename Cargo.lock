@@ -1157,6 +1157,19 @@ dependencies = [
 name = "gallery-macos-package"
 version = "0.0.0"
 dependencies = [
+ "gallery-update",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+]
+
+[[package]]
+name = "gallery-update"
+version = "0.0.0"
+dependencies = [
+ "gallery-windows-package",
  "hex",
  "serde",
  "serde_json",

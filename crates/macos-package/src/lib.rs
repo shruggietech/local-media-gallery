@@ -242,7 +242,9 @@ mod lifecycle {
         if fs::symlink_metadata(&file)?.file_type().is_symlink() {
             return Err("Redirected receipt".into());
         }
-        let r: Receipt = serde_json::from_slice(&fs::read(file)?)?;
+        let r: Receipt = serde_json::from_slice(
+            &gallery_update::read_receipt(&file).map_err(std::io::Error::other)?,
+        )?;
         if r.scope != scope || r.directory != app || r.command != command || r.payload != *payload {
             return Err("Installation identity differs; use matching candidate".into());
         }
@@ -255,6 +257,111 @@ mod lifecycle {
             return Err("Command ownership differs".into());
         }
         Ok(())
+    }
+
+    fn update_candidate(
+        p: &Payload,
+        integration: Option<gallery_update::Integration>,
+    ) -> Result<gallery_update::Candidate> {
+        p.validate()?;
+        Ok(gallery_update::Candidate {
+            format_version: 1,
+            product: p.product.clone(),
+            version: p.version.clone(),
+            edition: p.edition.clone(),
+            os: p.os.clone(),
+            arch: p.arch.clone(),
+            generation: p.generation.clone(),
+            source: gallery_update::Source {
+                sha256: p.source["sha256"]
+                    .as_str()
+                    .ok_or("Missing source digest")?
+                    .into(),
+                files: p.source["files"].as_u64().ok_or("Missing source count")?,
+            },
+            binary: p.binary.clone(),
+            files: p
+                .files
+                .iter()
+                .map(|f| {
+                    Ok(gallery_update::FileRecord {
+                        path: f.path.clone(),
+                        bytes: f.bytes.clone(),
+                        sha256: f.sha256.clone(),
+                        mode: f.mode.parse()?,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?,
+            native: gallery_update::Native::Direct,
+            integration,
+        })
+    }
+    pub struct UpdateOptions<'a> {
+        pub prior_lite: Option<&'a Payload>,
+        pub transaction: &'a Path,
+        pub state: &'a [gallery_update::StateOperand],
+        pub activate: bool,
+    }
+    pub fn update(
+        source: &Path,
+        app: &Path,
+        command: &Path,
+        scope: &str,
+        payload: &Payload,
+        options: UpdateOptions<'_>,
+    ) -> Result<serde_json::Value> {
+        let UpdateOptions {
+            prior_lite,
+            transaction,
+            state,
+            activate,
+        } = options;
+        verify(source, payload, true)?;
+        let (prior, old_integration, new_integration) = if payload.edition == "full" {
+            let file = receipt_path(app)?;
+            let bytes = gallery_update::read_receipt(&file).map_err(std::io::Error::other)?;
+            let old: Receipt = serde_json::from_slice(&bytes)?;
+            if old.scope != scope || old.directory != app || old.command != command {
+                return Err("Installed receipt scope/destination differs".into());
+            }
+            old.payload.validate()?;
+            verify(app, &old.payload, false)?;
+            link(command, app, &old.payload)?;
+            let next = Receipt {
+                scope: scope.into(),
+                directory: app.into(),
+                command: command.into(),
+                payload: payload.clone(),
+            };
+            (
+                old.payload,
+                Some(gallery_update::Integration {
+                    command: command.into(),
+                    receipt: file.clone(),
+                    receipt_bytes: String::from_utf8(bytes)?,
+                }),
+                Some(gallery_update::Integration {
+                    command: command.into(),
+                    receipt: file,
+                    receipt_bytes: serde_json::to_string_pretty(&next)?,
+                }),
+            )
+        } else {
+            let old = prior_lite.ok_or("Lite update requires the retained prior candidate.json")?;
+            if old.edition != "lite" {
+                return Err("Lite predecessor edition differs".into());
+            }
+            (old.clone(), None, None)
+        };
+        let old = update_candidate(&prior, old_integration)?;
+        let next = update_candidate(payload, new_integration)?;
+        let mut operation =
+            gallery_update::Transaction::prepare(transaction, app, &old, &next, source, state)?;
+        Ok(serde_json::to_value(if activate {
+            operation.apply_verified(false)?
+        } else {
+            operation.status()?
+        })?)
     }
     pub fn install(
         source: &Path,
@@ -405,7 +512,7 @@ mod lifecycle {
     }
 }
 #[cfg(unix)]
-pub use lifecycle::{install, receipt_path, remove};
+pub use lifecycle::{UpdateOptions, install, receipt_path, remove, update};
 
 #[cfg(test)]
 mod tests {
@@ -459,7 +566,8 @@ mod tests {
     fn actual_install_repeat_collisions_and_selective_removal() {
         use std::os::unix::fs::PermissionsExt;
         let temp = tempfile::tempdir().unwrap();
-        let source = temp.path().join("source.app");
+        let physical = fs::canonicalize(temp.path()).unwrap();
+        let source = physical.join("source.app");
         fs::create_dir(&source).unwrap();
         let p = payload();
         for f in &p.files {
@@ -472,8 +580,8 @@ mod tests {
             )
             .unwrap()
         }
-        let app = temp.path().join("Application 雪.app");
-        let command = temp.path().join("bin/local-media-gallery");
+        let app = physical.join("Application 雪.app");
+        let command = physical.join("bin/local-media-gallery");
         install(
             &source,
             &app,

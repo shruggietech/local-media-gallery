@@ -15,3 +15,4 @@ serde_json = "1.0"
 sha2 = "=0.11.1"
 hex = "=0.4.3"
 tempfile = "=3.27.0"
+gallery-update = { path = "../gallery-update" }

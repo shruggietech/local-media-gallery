@@ -88,6 +88,11 @@
           "topic": "linux-packages",
           "title": "Linux package payload schema",
           "source": "schemas/v0.0.0/linux-packages.schema.json"
+        },
+        {
+          "topic": "recipient-update-schema",
+          "title": "Recipient update candidate and result schema",
+          "source": "schemas/v0.0.0/recipient-update.schema.json"
         }
       ],
       "examples": [

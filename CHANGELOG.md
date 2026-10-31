@@ -4,9 +4,12 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-Native qualification and platform package candidates updated on 2026-10-29; product packages remain unpublished.
+Native qualification and platform package candidates updated on 2026-10-31; product packages remain unpublished.
 
 ### Added
+
+- Recipient updates (2026-10-31): add explicit verified candidate replacement, durable process-interruption recovery and compatible rollback across elected Full/Lite packages. Preserve recipient media/settings/history, foreign content and shared runtimes; refuse incompatible state and changed ownership before destructive replacement.
+- Update decisions (2026-10-31): use one small native transaction coordinator with MSI/dpkg retaining package ownership, receipt-aware macOS switching, private retained inputs and actual installed-state verification. Prepare distinct controlled ordinary package generations without inventing a public release or format migration. Expose finite read-only state compatibility and durable phase observations, preserving isolated hosted qualification and bounded review delivery.
 
 - Dependency closure (2026-10-29): adopt formal BrandBuilder 3.1.1 with patched Pillow 13 and its separately published, exact canonical proof inventory. Preserve recovered verifier bytes, every pixel comparison and full manifest checks. Apply the exact upstream GLib iterator correction to the compatible GTK3 family with offline source provenance and an optimized Linux regression. Include maintained third-party path dependencies in recipient license inventories while keeping owned workspace crates separate.
 - Qualification decisions (2026-10-29): require child-only nonce/PID proof for current native driver readiness, preserve unchanged historical measurement baselines through OS listener-PID verification, preserve bounded startup/measurement diagnostics and existing deadlines, and observe Linux application output through a finite, process-attributed PulseAudio monitor capture. Preserve trusted input, frame/clock progression, tone/silent PCM assertions and isolated hosted desktops. Keep advisory recognition distinct from corrected implementation and owner-merged manifest state.
