@@ -26,7 +26,7 @@
 - [x] T008 [US1] Integrate macOS receipt-aware Full and portable Lite replacement and package helper in crates/macos-package/src/ and scripts/build-macos-packages.mjs.
 - [x] T009 [US1] Correct Linux old/new transition guard semantics and native dpkg adapter in scripts/linux-package-guard.sh, scripts/linux-package-scripts.mjs and crates/gallery-update/src/.
 - [x] T010 [US1] Prepare paired ordinary candidates and record distinct metadata/unchanged app binary identities in scripts/build-windows-packages.mjs, build-linux-packages.mjs and build-macos-packages.mjs.
-- [ ] T011 [US1] Exercise A-to-B, repeat, wrong identity/architecture/edition and foreign collision outcomes in scripts/test-windows-packages.mjs, test-linux-packages.mjs and test-macos-packages.mjs.
+- [x] T011 [US1] Exercise A-to-B, repeat, wrong identity/architecture/edition and foreign collision outcomes in scripts/test-windows-packages.mjs, test-linux-packages.mjs and test-macos-packages.mjs.
 
 ## Phase 4: US2 Recover interruption (P1)
 
@@ -37,7 +37,7 @@
 - [x] T012 [US2] Write mutation-before-journal, staging/write failure, tampered journal/backup, active-use and concurrency regressions in crates/gallery-update/tests/transactions.rs.
 - [x] T013 [US2] Implement journal reconciliation, recover/rollback and terminal classification in crates/gallery-update/src/; data-model constraint: Never trust a phase without physical reconciliation.
 - [x] T014 [US2] Add native MSI/dpkg partial-state recovery authorization without raw native-owned file writes in crates/windows-package/src/ and scripts/linux-package-guard.sh.
-- [ ] T015 [US2] Exercise Prepared, prior-retention/native-Unpacked, activation and finalization interruption plus repeated recovery across all native scopes in scripts/test-*-packages.mjs.
+- [x] T015 [US2] Exercise Prepared, prior-retention/native-Unpacked, activation and finalization interruption plus repeated recovery across all native scopes in scripts/test-*-packages.mjs.
 
 ## Phase 5: US3 Preserve state and reject incompatible writers (P1)
 
@@ -47,7 +47,7 @@
 
 - [x] T016 [US3] Add state probe tests for absent/current/future/corrupt/foreign inputs using existing validators in apps/gallery/src-tauri/src/settings.rs, portable.rs and history.rs.
 - [x] T017 [US3] Expose finite read-only compatibility probe in apps/gallery/src-tauri/src/launch.rs and main.rs and require explicit recipient operands in crates/gallery-update/src/.
-- [ ] T018 [US3] Add A-to-B-to-A preserved media/sidecar/settings/history/foreign snapshots and incompatible downgrade/refused cleanup campaigns in scripts/test-*-packages.mjs.
+- [x] T018 [US3] Add A-to-B-to-A preserved media/sidecar/settings/history/foreign snapshots and incompatible downgrade/refused cleanup campaigns in scripts/test-*-packages.mjs.
 
 ## Phase 6: Qualification and delivery
 
@@ -55,8 +55,8 @@
 - [x] T020 Update authoritative update/state contracts and concise history in docs/v0.0.0/installation-and-distribution.md, configuration-and-state.md and CHANGELOG.md.
 - [x] T021 Run npm run check, npm test and affected Rust/app/site checks; verify UTF8/LF/no mojibake and record results in specs/020-upgrade-recovery/verification.md.
 - [x] T022 Push official PR linked to #25, attach it and advance GitHub Project8; record at most two review rounds in specs/020-upgrade-recovery/verification.md.
-- [ ] T023 Complete all eight hosted timed scopes, exact-source/artifact/native independent readback and every review response/fix in specs/020-upgrade-recovery/verification.md and measurements.md.
-- [ ] T024 Run Spec Kit convergence, verify clean pushed final head and terminal green checks, then request owner final review/merge in specs/020-upgrade-recovery/verification.md.
+- [x] T023 Complete all eight hosted timed scopes, exact-source/artifact/native independent readback and every review response/fix in specs/020-upgrade-recovery/verification.md and measurements.md.
+- [x] T024 Run Spec Kit convergence, verify clean pushed final head and terminal green checks, then request owner final review/merge in specs/020-upgrade-recovery/verification.md.
 
 ## Dependencies and execution order
 
