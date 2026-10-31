@@ -86,3 +86,5 @@ US1 supplies the identified-byte MVP, but acceptance requires all three P1 stori
 ## Phase 8: Qualification follow-up
 
 - [x] T035 Separate measured CI evidence expansion from the existing build-tool archive cap, share strict raw ZIP path/member/physical-root validation, and verify actual retained Windows evidence plus traversal/alias/link/bound regressions per FR-002, FR-015 and US1/AC1.
+
+- [x] T036 Verify actual read-only GitHub REST artifact transport and provenance rejection, including Actions ZIP media negotiation and cross-origin credential stripping, per FR-011, FR-012 and T021/T025.
