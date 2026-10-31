@@ -269,3 +269,44 @@ fn active_executable_refuses_before_staging() {
     assert!(!t.path().join("active").exists());
     assert_eq!(fs::read(live.join(&a.binary)).unwrap(), bytes);
 }
+
+#[test]
+fn replaced_live_parent_preserves_foreign_and_original_bytes() {
+    let t = fixture();
+    let live = t.path().join("live");
+    let source = t.path().join("next");
+    let a = candidate(&live, "a", b"old");
+    let b = candidate(&source, "b", b"new");
+    let tx = t.path().join("transaction");
+    {
+        let _op = Transaction::prepare(&tx, &live, &a, &b, &source, &[]).unwrap();
+    }
+    let retired = t.path().join("retired");
+    fs::rename(&live, &retired).unwrap();
+    fs::create_dir(&live).unwrap();
+    fs::write(live.join(&a.binary), b"foreign parent").unwrap();
+    let mut op = Transaction::open(&tx).unwrap();
+    assert!(op.apply(false).is_err());
+    assert_eq!(fs::read(live.join(&a.binary)).unwrap(), b"foreign parent");
+    assert_eq!(fs::read(retired.join(&a.binary)).unwrap(), b"old");
+}
+#[cfg(unix)]
+#[test]
+fn linked_live_parent_is_not_recovery_authority() {
+    use std::os::unix::fs::symlink;
+    let t = fixture();
+    let live = t.path().join("live");
+    let source = t.path().join("next");
+    let foreign = t.path().join("foreign");
+    let a = candidate(&live, "a", b"old");
+    let b = candidate(&source, "b", b"new");
+    candidate(&foreign, "foreign", b"keep");
+    let tx = t.path().join("transaction");
+    {
+        let _op = Transaction::prepare(&tx, &live, &a, &b, &source, &[]).unwrap();
+    }
+    fs::rename(&live, t.path().join("retired")).unwrap();
+    symlink(&foreign, &live).unwrap();
+    assert!(Transaction::open(&tx).is_err());
+    assert_eq!(fs::read(foreign.join(&a.binary)).unwrap(), b"keep");
+}

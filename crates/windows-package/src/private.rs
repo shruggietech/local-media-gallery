@@ -550,3 +550,51 @@ pub fn pin_physical(path: &Path) -> Result<Vec<File>> {
 pub fn ensure_storage_root(machine: bool) -> Result<PathBuf> {
     storage_root(machine)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn changed_recovery_acl_is_refused_without_repairing_or_changing_bytes() {
+        #[link(name = "advapi32")]
+        unsafe extern "system" {
+            fn SetFileSecurityW(
+                file: *const u16,
+                information: u32,
+                descriptor: *const c_void,
+            ) -> i32;
+        }
+        let root = storage_root(false).unwrap();
+        let temp = tempfile::Builder::new().tempdir_in(root).unwrap();
+        let base = temp.path().join("private");
+        let _pins = create_directory(&base, false).unwrap();
+        let path = base.join("authority.json");
+        {
+            use std::io::Write;
+            let mut file = create_file(&path).unwrap();
+            file.write_all(b"retained authority bytes").unwrap();
+            file.sync_all().unwrap();
+        }
+        validate_file(&path, false).unwrap();
+        let mut raw = ptr::null_mut();
+        assert_ne!(
+            unsafe {
+                ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                    wide(OsStr::new("D:P(A;;FA;;;WD)")).as_ptr(),
+                    1,
+                    &mut raw,
+                    ptr::null_mut(),
+                )
+            },
+            0
+        );
+        let changed = Memory(raw);
+        assert_ne!(
+            unsafe { SetFileSecurityW(wide(&path).as_ptr(), 0x80000004, changed.0) },
+            0
+        );
+        assert!(validate_file(&path, false).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"retained authority bytes");
+        assert!(validate_file(&path, false).is_err());
+    }
+}

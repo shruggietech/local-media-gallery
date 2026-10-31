@@ -73,3 +73,7 @@ MVP is US1 only after foundation, but delivery requires all three P1 stories and
 ## Phase 7: Convergence
 
 - [x] T025 Add preserved staging-collision, active executable and wrong-target/edition regression tests in crates/gallery-update/tests/transactions.rs per FR-006/010 and US2/AC1/3 (partial).
+
+## Phase 8: Convergence
+
+- [x] T026 Add explicit replaced-parent and altered Windows recovery ACL byte-preservation regressions in crates/gallery-update/tests/transactions.rs and crates/windows-package/src/private.rs per FR-006/010, T003 and T012 (partial).

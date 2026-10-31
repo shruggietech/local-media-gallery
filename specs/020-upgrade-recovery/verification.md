@@ -43,3 +43,9 @@ Final Codex review receipt6541101439 completed on b3008b8 with no major issues a
 ## Windows event classification correction, 2026-10-31
 
 Run41185020293 passed repository, website, all three product scopes and the complete macOS package campaign. macOS qualification333.306s after487.371s preparation, combined820.677s. Windows passed actual installed Full browsing and reached recovery, where the observer incorrectly required clientPid on an MSI administrative-extraction event. Extraction now emits native-preparation-client; native-client remains reserved for the independently recorded active replacement client. Asynchronous malformed-event assertions now fail through the retained diagnostic path. Local Clippy and builder/campaign syntax pass. This is not Windows package acceptance. No review round beyond the completed2/2 is triggered.
+
+## Final regression and readiness correction, 2026-10-31
+
+Convergence added T026 for two previously implicit rejection cases. Replaced live-parent directories preserve both original and foreign bytes; Unix linked-parent recovery refuses; a Windows recovery-file DACL altered to grant Everyone is rejected twice without repair or content change. Local Windows transaction12/12 and ownership8/8 pass with warnings denied; Unix adds the linked-parent case under hosted verification.
+
+Current Windows product readiness failed with a live child and answering /status listener while session creation was repeatedly aborted after2s. A real child-server regression with2.4s session creation reproduced the failure under the old code. Session creation now consumes only the remaining original absolute readiness deadline, preventing duplicate session creation after a premature client abort. The regression and existing nonce/PID/absolute-deadline tests pass; the15s readiness limit and identity requirements are unchanged. No new review trigger is issued after the completed2/2 rounds.
