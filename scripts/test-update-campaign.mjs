@@ -9,6 +9,10 @@ import {randomBytes} from 'node:crypto';
 import {hash,verifyPayload} from './proof.mjs';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 function json(stdout){const lines=stdout.trim().split(/\r?\n/).filter(Boolean);for(const line of lines.toReversed()){try{return JSON.parse(line)}catch{}}throw Error('No terminal update JSON: '+stdout.slice(-2000));}
+export function interruptBoundaryReady(phase,nativeKind,event,lastPhase){
+ const needsClient=nativeKind!=='direct'&&['applying','unpacked'].includes(phase);
+ return (event.event==='phase'&&event.phase===phase&&!needsClient)||(event.event==='native-client'&&Number.isSafeInteger(event.clientPid)&&event.clientPid>0&&lastPhase?.phase===phase);
+}
 export async function runUpdateCampaign({root,build,pair,scope,directory,commandDirectory,work,capture,env,retain:retainRecipient,state,observe,registration}){
  requireIsolatedDesktop();assert.ok(state.length>0,'Explicit selected recipient state is required in the campaign');
  const elevated=scope==='full-system'&&process.platform!=='win32';const mac=process.platform==='darwin';let helper=path.join(root,mac?pair.helper:build.upgrades.helper);const from=path.join(root,pair.from.path),to=path.join(root,pair.to.path),source=path.join(root,pair.source);
@@ -50,8 +54,8 @@ export async function runUpdateCampaign({root,build,pair,scope,directory,command
   const tx=transaction(phase);transactions.push(tx);const args=[...argumentsFor(tx),'--events','1'];const child=spawn(elevated?'/usr/bin/sudo':helper,elevated?['-n',helper,...args]:args,{cwd:root,env,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});let stdout='',stderr='',buffer='',observed=null,lastPhase=null,nativePid=null,killTask=null;let finish;const ended=new Promise(resolve=>finish=resolve);child.once('error',e=>finish({error:e}));child.once('close',(code,signal)=>finish({code,signal}));child.stderr.on('data',b=>stderr+=b.toString());
   const kill=async(pid)=>{if(elevated)await capture('/usr/bin/sudo',['-n','/bin/kill','-KILL',String(pid)]);else process.kill(pid,'SIGKILL');};
   child.stdout.on('data',chunk=>{const text=chunk.toString();stdout+=text;buffer+=text;let newline;while((newline=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,newline);buffer=buffer.slice(newline+1);let event;try{event=JSON.parse(line)}catch{continue}if(event.event==='phase')lastPhase=event;if(event.event==='native-client'){if(!Number.isSafeInteger(event.clientPid)||event.clientPid<=0){finish({error:Error('Native replacement event lacks an actual client PID')});killTask=kill(lastPhase?.coordinatorPid??child.pid);killTask.catch(()=>{});continue;}nativePid=event.pid;}
-   // During native applying, terminate only after the actual client PID has been retained.
-   if(!observed&&((event.event==='phase'&&event.phase===phase&&!(phase==='applying'&&a.native.kind!=='direct'))||(event.event==='native-client'&&lastPhase?.phase===phase))){observed={phase: lastPhase.phase,coordinatorPid:lastPhase.coordinatorPid,nativePid,clientPid:event.clientPid??null};killTask=kill(observed.coordinatorPid);killTask.catch(()=>{});}
+   // Applying and unpacked can launch a native client. Wait for its retained PID before terminating the coordinator.
+   if(!observed&&interruptBoundaryReady(phase,a.native.kind,event,lastPhase)){observed={phase: lastPhase.phase,coordinatorPid:lastPhase.coordinatorPid,nativePid,clientPid:event.clientPid??null};killTask=kill(observed.coordinatorPid);killTask.catch(()=>{});}
   }});
   const deadline=Date.now()+180000;let terminal;while(Date.now()<deadline){terminal=await Promise.race([ended,pause(50).then(()=>null)]);if(terminal)break;}assert.ok(terminal,'Updater did not terminate within elected interruption deadline');await killTask;if(terminal.error)throw terminal.error;assert.ok(observed,'Did not observe elected '+phase+' boundary: '+stdout+' '+stderr);assert.ok(terminal.signal||terminal.code!==0,'Terminated updater must not claim success');
   console.log(JSON.stringify({event:'update-interruption-timing',scope,phase,elapsedMilliseconds:Math.round(performance.now()-boundaryStarted)}));
