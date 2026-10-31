@@ -7,3 +7,6 @@ brand/kit/** -text
 .agents/skills/** -text
 vendor/glib-0.18.5/** -text -whitespace
 brand/approved-proofs/** -text
+
+# Linux recipient/maintainer shell templates require exact LF text.
+*.sh text eol=lf

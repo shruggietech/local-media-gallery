@@ -83,6 +83,11 @@
           "source": "schemas/v0.0.0/macos-packages.schema.json",
           "topic": "macos-packages-schema",
           "title": "macOS candidate payload schema"
+        },
+        {
+          "topic": "linux-packages",
+          "title": "Linux package payload schema",
+          "source": "schemas/v0.0.0/linux-packages.schema.json"
         }
       ],
       "examples": [

@@ -8,7 +8,7 @@ import {checkGlibVendor} from './check-vendor.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const skip = new Set(['.git', '.agents', '.local', 'node_modules', 'brand/kit', 'brand/approved-proofs', '.specify/scripts', '.specify/templates', '.specify/LICENSE', 'vendor/glib-0.18.5']);
-const textExtensions = new Set(['.md', '.json', '.mjs', '.cjs', '.ts', '.tsx', '.css', '.toml', '.rs', '.yml', '.yaml', '.ps1', '.py', '.wxs', '.swift']);
+const textExtensions = new Set(['.md', '.json', '.mjs', '.cjs', '.ts', '.tsx', '.css', '.toml', '.rs', '.yml', '.yaml', '.ps1', '.py', '.wxs', '.swift', '.sh']);
 const rootText = new Set(['AGENTS.md', 'LICENSE', 'NOTICE', 'VERSION', '.gitignore', '.gitattributes', '.editorconfig']);
 const decoder = new TextDecoder('utf-8', { fatal: true });
 let count = 0;

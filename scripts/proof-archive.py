@@ -59,8 +59,8 @@ elif mode == "extract":
             if len(members) != len(expected) or {m.name for m in members} != set(expected):
                 raise ValueError("Archive inventory mismatch")
             for member in members:
-                if not member.isfile() or member.size != int(expected[member.name]["bytes"]):
-                    raise ValueError("Archive member type or size mismatch")
+                if not member.isfile() or member.size != int(expected[member.name]["bytes"]) or (expected[member.name]["mode"] is not None and member.mode != int(expected[member.name]["mode"], 8)):
+                    raise ValueError("Archive member type, size or raw mode mismatch")
             source.extractall(directory, filter="data")
 else:
     raise ValueError("Unknown archive operation")

@@ -535,7 +535,9 @@ pub fn gui_prerequisite() -> Result<(), GalleryError> {
         )
     })?;
     #[cfg(target_os = "linux")]
-    if std::env::var_os("DISPLAY").is_none() && std::env::var_os("WAYLAND_DISPLAY").is_none() {
+    if std::env::var_os("DISPLAY").is_none_or(|v| v.is_empty())
+        && std::env::var_os("WAYLAND_DISPLAY").is_none_or(|v| v.is_empty())
+    {
         return Err(GalleryError::new("display_unavailable", runtime_guidance()));
     }
     Ok(())

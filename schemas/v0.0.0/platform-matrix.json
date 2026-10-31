@@ -42,10 +42,10 @@
       "baseline": "Ubuntu 24.04 GNU ABI (glibc 2.39 build baseline)",
       "runtime": "GTK3, WebKitGTK 4.1, libsoup3; distribution media plugins",
       "display": "Isolated X11/Xvfb desktop elected; Wayland remains unqualified",
-      "proof": "ubuntu-24.04 native CLI archives and isolated WebKitGTK rendered/media/AT-SPI election",
-      "full": "Debian package, declared package-manager dependencies; alternate distributions require separate artifacts",
-      "lite": "Executable tar.gz using declared host libraries; AppImage remains separate package qualification",
-      "signing": "Proof archive unsigned; package/repository signing disposition recorded by final packaging",
+      "proof": "ubuntu-24.04 native CLI archives, isolated WebKitGTK media/AT-SPI and ordinary Full .deb/Lite tar.gz recipient campaigns",
+      "full": "Candidate system Debian package with derived shared-library/media dependencies, exact ownership guards and selective package-manager removal",
+      "lite": "Candidate executable tar.gz with external preflight/adjacent ordinary ELF and declared host libraries; AppImage requires separate qualification",
+      "signing": "Candidates unsigned and unpublished; package/repository trust requires separate release disposition",
       "qualification": "Exact per-edition CLI/runtime receipts required; Wayland, physical touch, Orca speech and older GNU ABI unqualified"
     },
     {
