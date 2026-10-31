@@ -326,15 +326,24 @@ pub(super) fn execute(
             return Err(format!("Native worker could not start: {error}"));
         }
     };
-    if std::env::var("LMG_UPDATE_EVENTS").as_deref() == Ok("1") {
-        println!(
-            "{}",
-            serde_json::json!({"event":"native-client","pid":child.id(),"meaning":"Independent supervisor waits for actual native client termination"})
-        );
-        io(std::io::stdout().flush())?;
-    }
     let started = Instant::now();
+    let mut announced = false;
     let status = loop {
+        if !announced
+            && std::env::var("LMG_UPDATE_EVENTS").as_deref() == Ok("1")
+            && let Ok(bytes) = read_bounded(&op.base.join("native-process.json"), 16384)
+            && let Ok(record) = serde_json::from_slice::<serde_json::Value>(&bytes)
+            && record["job"] == serde_json::json!(path)
+            && record["terminal"] == false
+            && record["clientPid"].as_u64().is_some()
+        {
+            println!(
+                "{}",
+                serde_json::json!({"event":"native-client","pid":child.id(),"clientPid":record["clientPid"],"meaning":"Independent supervisor has retained an active actual native client"})
+            );
+            io(std::io::stdout().flush())?;
+            announced = true;
+        }
         if let Some(status) = io(child.try_wait())? {
             break status;
         }
@@ -344,7 +353,7 @@ pub(super) fn execute(
                 child.id()
             ));
         }
-        std::thread::sleep(Duration::from_millis(100));
+        std::thread::sleep(Duration::from_millis(20));
     };
     let result: serde_json::Value =
         serde_json::from_slice(&read_bounded(&op.base.join("native-process.json"), 16384)?)
