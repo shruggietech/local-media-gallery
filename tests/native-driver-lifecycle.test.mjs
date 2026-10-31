@@ -5,7 +5,7 @@ import {spawn} from 'node:child_process';
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {createInterface} from 'node:readline';
-import {availableLoopbackPort,observeChild,readyDriver,stopOwnedChild} from '../scripts/native-driver-lifecycle.mjs';
+import {availableLoopbackPort,observeChild,readyDriver,stopOwnedChild,settingsControlsReady} from '../scripts/native-driver-lifecycle.mjs';
 const launch=(script,nonce)=>spawn(process.execPath,['-e',script],{windowsHide:true,shell:false,stdio:['ignore','pipe','pipe'],env:{...process.env,GALLERY_TEST_DRIVER_NONCE:nonce}});
 const fixture=port=>`require('node:http').createServer((q,r)=>{r.setHeader('content-type','application/json');r.end(JSON.stringify({value:q.url==='/status'?{ready:true}:q.url==='/session'?{sessionId:'owned'}:{pid:process.pid,nonce:process.env.GALLERY_TEST_DRIVER_NONCE,port:${port}}}));}).listen(${port},'127.0.0.1')`;
 test('Owned driver readiness proves nonce and PID through actual listener',async()=>{
@@ -42,4 +42,16 @@ test('Windows persistent observer verifies the actual legacy listener PID',{skip
 test('Slow session creation uses the original deadline without duplicate creation',async()=>{
  const port=await availableLoopbackPort(),nonce=randomUUID();const script="let sessions=0;require('node:http').createServer((q,r)=>{const send=value=>{r.setHeader('content-type','application/json');r.end(JSON.stringify({value}));};if(q.url==='/status')send({ready:true});else if(q.url==='/session'){sessions++;console.log('session-create');setTimeout(()=>send({sessionId:'owned'}),2400);}else send({pid:process.pid,nonce:process.env.GALLERY_TEST_DRIVER_NONCE,port:"+port+"});}).listen("+port+",'127.0.0.1')";const child=launch(script,nonce),observation=observeChild(child),started=Date.now();
  try{assert.equal(await readyDriver(child,'http://127.0.0.1:'+port,observation,5000,{nonce}),'owned');assert.equal(observation().stdout.split('session-create').length-1,1);assert.ok(Date.now()-started<5000);}finally{await stopOwnedChild(child);}
+});
+
+test('Ordinary settings readiness rejects disabled or hidden controls without waiting for a preferred value',()=>{
+ for(const visibility of [{showing:true},{offscreen:false},{}]){
+  const disabled={name:'Show controls',enabled:false,...visibility};assert.equal(settingsControlsReady([disabled]),false);
+  assert.equal(settingsControlsReady([{...disabled,name:'Hide controls'}]),false);
+  assert.equal(settingsControlsReady([{...disabled,enabled:true}]),true);
+  assert.equal(settingsControlsReady([{...disabled,name:'Hide controls',enabled:true}]),true);
+ }
+ assert.equal(settingsControlsReady([{name:'Hide controls'}]),false);
+ assert.equal(settingsControlsReady([{name:'Hide controls',enabled:true,showing:false}]),false);
+ assert.equal(settingsControlsReady([{name:'Hide controls',enabled:true,offscreen:true}]),false);
 });

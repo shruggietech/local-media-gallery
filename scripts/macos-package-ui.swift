@@ -32,7 +32,7 @@ let wanted=args.count>2 ? args[2]:"";var visited=Set<CFHashCode>();let deadline=
 while !queue.isEmpty && records.count<2500 && Date()<deadline {
     let (element,depth)=queue.removeFirst();let key=CFHash(element);if visited.contains(key){continue};visited.insert(key);AXUIElementSetMessagingTimeout(element,0.1)
     let title=attribute(element,"AXTitle") as? String ?? "",desc=attribute(element,"AXDescription") as? String ?? "",value=attribute(element,"AXValue") as? String ?? "",role=attribute(element,"AXRole") as? String ?? ""
-    let name=title.isEmpty ? desc:title;records.append(["name":name,"title":title,"description":desc,"value":value,"role":role,"depth":depth])
+    let name=title.isEmpty ? desc:title;records.append(["name":name,"title":title,"description":desc,"value":value,"role":role,"depth":depth,"enabled":attribute(element,"AXEnabled") as? Bool ?? false])
     if !wanted.isEmpty && (name==wanted || desc==wanted || title==wanted){found=element}
     if depth<35,let children=attribute(element,"AXChildren") as? [AXUIElement]{queue.append(contentsOf:children.map{($0,depth+1)})}
 }

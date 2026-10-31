@@ -14,7 +14,7 @@ import {root,environment,execute,python} from './run.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {digest,verifyPayload,productCodes} from './windows-packages.mjs';
 import {collectPayload,verifyPayload as verifyInventory} from './proof.mjs';
-import {stopOwnedChild} from './native-driver-lifecycle.mjs';
+import {stopOwnedChild,settingsControlsReady} from './native-driver-lifecycle.mjs';
 const call=promisify(execFile);const started=new Date().toISOString();const source=await sourceIdentity();
 const build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));assert.deepEqual(build.source,source);
 const work=await mkdtemp(path.join(root,'.local/windows-package-test-'));const outside=path.join(work,'unrelated caller');await mkdir(outside);const updates=[];const checks=[];const installations=[];const native=[];const live=new Set();
@@ -28,9 +28,9 @@ async function extract(edition,destination){const record=build.records.find(r=>r
 const ui=async(pid,name='',screenshot='')=>JSON.parse((await capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/windows-package-ui.ps1'),'-AppProcessId',String(pid),...(name?['-Name',name]:[]),...(screenshot?['-Screenshot',screenshot]:[])],{timeout:20000})).stdout);
 async function browse(binary,args,{edition,label,mutate}={}){
  const bytes=await readFile(binary);for(const s of ['TAURI_WEBDRIVER_PORT','GALLERY_TEST_SETTINGS_DIR','test_native_qualification','test_discovery_control'])assert.equal(bytes.includes(Buffer.from(s)),false,'Private hook in candidate '+s);
- const child=spawn(binary,args,{cwd:outside,env:environment,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});live.add(child);let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.once('error',e=>output+=e.message);
+ const child=spawn(binary,args,{cwd:outside,env:environment,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});live.add(child);let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.once('error',e=>output+=e.message);let lastTree=null;
  try{
-  let tree=await until(async()=>{if(child.exitCode!==null)throw Error('Candidate exited '+child.exitCode+': '+output);const r=await ui(child.pid);return r.records.some(n=>n.name==='Open red.png')?r:false;},'Actual candidate discovers red.png',25000);assert.ok(tree.records.some(n=>n.name==='Hide controls'),'Actual portable presentation applied');assert.equal(path.normalize(tree.executable).toLowerCase(),path.normalize(binary).toLowerCase());
+  let tree=await until(async()=>{if(child.exitCode!==null)throw Error('Candidate exited '+child.exitCode+': '+output);const r=await ui(child.pid);lastTree=r;return r.records.some(n=>n.name==='Open red.png')&&settingsControlsReady(r.records)?r:false;},'Actual candidate discovers red.png and finishes settings resolution',25000);assert.ok(tree.records.some(n=>n.name==='Hide controls'&&n.enabled&&!n.offscreen),'Actual portable presentation applied');assert.equal(path.normalize(tree.executable).toLowerCase(),path.normalize(binary).toLowerCase());
   await ui(child.pid,'Open red.png');let image=await until(async()=>{const file=path.join(work,label+'-red.png');const r=await ui(child.pid,'',file);return r.records.some(n=>n.name==='Close viewer')&&r.pixels.red>1500?r:false;},'Actual ordinary viewer renders fixture pixels',20000);
   await ui(child.pid,'Close viewer');
   let refreshed=null;
@@ -38,7 +38,7 @@ async function browse(binary,args,{edition,label,mutate}={}){
   const screen=await readFile(path.join(work,label+'-red.png'));const green=refreshed?await readFile(path.join(work,label+'-green.png')):null;
   native.push({screenshotBytes:String(screen.length),screenshotSha256:digest(screen),refreshedPixels:refreshed?.pixels??null,refreshScreenshot:green?{path:path.relative(root,path.join(work,label+'-green.png')).replaceAll('\\','/'),bytes:String(green.length),sha256:digest(green)}:null,edition,label,pid:child.pid,binarySha256:digest(bytes),windowHandle:tree.windowHandle,accessibility:tree.records,pixels:image.pixels,screenshot:path.relative(root,path.join(work,label+'-red.png')).replaceAll('\\','/'),children:image.children});
   await ui(child.pid,'__close_window__');await until(()=>child.exitCode!==null,'Ordinary candidate closes normally',10000);assert.equal(child.exitCode,0,output);
- }catch(error){await writeFile(path.join(work,label+'-launch-failure.log'),JSON.stringify({pid:child.pid,exitCode:child.exitCode,signalCode:child.signalCode,output,error:error.stack,observerStdout:error.stdout??null,observerStderr:error.stderr??null},null,2)+'\n');throw error;}finally{await stopOwnedChild(child);live.delete(child);}
+ }catch(error){await writeFile(path.join(work,label+'-launch-failure.log'),JSON.stringify({pid:child.pid,exitCode:child.exitCode,signalCode:child.signalCode,output,observer:lastTree,error:error.stack,observerStdout:error.stdout??null,observerStderr:error.stderr??null},null,2)+'\n');throw error;}finally{await stopOwnedChild(child);live.delete(child);}
 }
 function color(value){return new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450"><rect width="600" height="450" fill="${value}"/></svg>`).render().asPng();}
 const gallery=path.join(work,'Full gallery 雪');await mkdir(gallery);await writeFile(path.join(gallery,'red.png'),color('#dc1414'));await writeFile(path.join(gallery,'red.png.json'),' {"source":"recipient fixture","retain":true}\n');await writeFile(path.join(gallery,'settings.json'),JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{controlsExpanded:true},futureChoice:'retain'})+'\n');const originalGallery=await collectPayload(gallery);
