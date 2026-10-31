@@ -82,3 +82,7 @@ US1 supplies the identified-byte MVP, but acceptance requires all three P1 stori
 
 - [x] T033 Retain both exact private fixture exports, their complete source snapshots and canonical fixture record in release-validation CI artifacts so final independent gate/output readback can recompute accepted identities per FR-007, FR-015, SC-002 and plan decision9 (partial, HIGH).
 - [x] T034 Return nonmutating usage/help when the release CLI has no command or an explicit help flag, matching the pipeline command contract per plan delivery tooling and T025 (partial, LOW).
+
+## Phase 8: Qualification follow-up
+
+- [x] T035 Separate measured CI evidence expansion from the existing build-tool archive cap, share strict raw ZIP path/member/physical-root validation, and verify actual retained Windows evidence plus traversal/alias/link/bound regressions per FR-002, FR-015 and US1/AC1.
