@@ -126,7 +126,8 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
                     );
                 }
                 let mut roots = vec![];
-                find_binary(&extract, &c.binary, &mut roots)?;
+                let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
+                find_binary(&extract, &c.binary, &mut roots, &mut namespace)?;
                 let src = roots
                     .into_iter()
                     .find(|p| c.verify(p).is_ok())
@@ -143,15 +144,20 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
     exact_files(c, destination)
 }
 #[cfg(windows)]
-fn find_binary(base: &Path, binary: &str, found: &mut Vec<PathBuf>) -> Result<()> {
-    physical(base)?;
+fn find_binary(
+    base: &Path,
+    binary: &str,
+    found: &mut Vec<PathBuf>,
+    namespace: &mut gallery_windows_package::private::PhysicalNamespace,
+) -> Result<()> {
+    namespace.pin(base)?;
     if base.join(binary).is_file() {
         found.push(base.to_path_buf())
     }
     for e in io(fs::read_dir(base))? {
         let e = io(e)?;
         if io(e.file_type())?.is_dir() {
-            find_binary(&e.path(), binary, found)?
+            find_binary(&e.path(), binary, found, namespace)?
         }
     }
     Ok(())
@@ -660,13 +666,27 @@ pub(super) fn apply(_op: &mut Transaction, _prior: bool) -> Result<Outcome> {
 }
 
 fn exact_files(c: &Candidate, base: &Path) -> Result<()> {
-    fn walk(base: &Path, directory: &Path, names: &mut BTreeSet<String>) -> Result<()> {
+    fn walk(
+        base: &Path,
+        directory: &Path,
+        names: &mut BTreeSet<String>,
+        #[cfg(windows)] namespace: &mut gallery_windows_package::private::PhysicalNamespace,
+    ) -> Result<()> {
         for entry in io(fs::read_dir(directory))? {
             let entry = io(entry)?;
+            #[cfg(windows)]
+            physical_in(&entry.path(), namespace)?;
+            #[cfg(not(windows))]
             physical(&entry.path())?;
             let kind = io(entry.file_type())?;
             if kind.is_dir() {
-                walk(base, &entry.path(), names)?
+                walk(
+                    base,
+                    &entry.path(),
+                    names,
+                    #[cfg(windows)]
+                    namespace,
+                )?
             } else if kind.is_file() {
                 names.insert(
                     entry
@@ -684,7 +704,15 @@ fn exact_files(c: &Candidate, base: &Path) -> Result<()> {
         Ok(())
     }
     let mut actual = BTreeSet::new();
-    walk(base, base, &mut actual)?;
+    #[cfg(windows)]
+    let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
+    walk(
+        base,
+        base,
+        &mut actual,
+        #[cfg(windows)]
+        &mut namespace,
+    )?;
     let expected = c
         .files
         .iter()
@@ -704,13 +732,14 @@ fn exact_msi_image(c: &Candidate, base: &Path, payload: &Path) -> Result<()> {
         dir: &Path,
         files: &BTreeSet<String>,
         packages: &mut usize,
+        namespace: &mut gallery_windows_package::private::PhysicalNamespace,
     ) -> Result<()> {
         for e in io(fs::read_dir(dir))? {
             let e = io(e)?;
-            physical(&e.path())?;
+            physical_in(&e.path(), namespace)?;
             let kind = io(e.file_type())?;
             if kind.is_dir() {
-                walk(base, payload, &e.path(), files, packages)?
+                walk(base, payload, &e.path(), files, packages, namespace)?
             } else if kind.is_file() {
                 if let Ok(relative) = e.path().strip_prefix(payload) {
                     let name = relative
@@ -739,7 +768,8 @@ fn exact_msi_image(c: &Candidate, base: &Path, payload: &Path) -> Result<()> {
     }
     let files = c.files.iter().map(|f| f.path.clone()).collect();
     let mut packages = 0;
-    walk(base, payload, base, &files, &mut packages)?;
+    let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
+    walk(base, payload, base, &files, &mut packages, &mut namespace)?;
     if packages != 1 {
         return Err("Expected one native administrative MSI record".into());
     }
@@ -839,4 +869,71 @@ pub(super) fn validate_predecessor(c: &Candidate, directory: &Path) -> Result<()
     }
     let _ = (c, directory);
     Ok(())
+}
+
+#[cfg(all(test, windows))]
+mod traversal_tests {
+    use super::*;
+    #[test]
+    fn wide_administrative_image_rejects_extra_paths() {
+        let temp = tempfile::Builder::new()
+            .tempdir_in(gallery_windows_package::private::storage_root(false).unwrap())
+            .unwrap();
+        let image = temp.path().join("image");
+        let payload = image.join("Programs/Local Media Gallery");
+        fs::create_dir_all(&payload).unwrap();
+        fs::write(
+            image.join("retained.msi"),
+            b"administrative-name fixture, not an installer",
+        )
+        .unwrap();
+        let mut files = vec![];
+        for n in 0..1200 {
+            let name = format!("licenses/dependencies/group-{n}/NOTICE");
+            let file = payload.join(&name);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, b"notice").unwrap();
+            files.push(FileRecord {
+                path: name,
+                bytes: "6".into(),
+                sha256: hash(b"notice"),
+                mode: 644,
+            });
+        }
+        let c = Candidate {
+            format_version: 1,
+            product: "local-media-gallery".into(),
+            version: "0.0.0".into(),
+            edition: "lite".into(),
+            os: "windows".into(),
+            arch: "x86_64".into(),
+            generation: "fixture".into(),
+            source: Source {
+                sha256: "a".repeat(64),
+                files: 1,
+            },
+            binary: files[0].path.clone(),
+            files,
+            native: Native::Direct,
+            integration: None,
+        };
+        let started = std::time::Instant::now();
+        exact_files(&c, &payload).unwrap();
+        exact_msi_image(&c, &image, &payload).unwrap();
+        println!("wide native image walks: {:?}", started.elapsed());
+        fs::write(image.join("outside.txt"), b"retain outside").unwrap();
+        assert!(exact_msi_image(&c, &image, &payload).is_err());
+        assert_eq!(
+            fs::read(image.join("outside.txt")).unwrap(),
+            b"retain outside"
+        );
+        fs::remove_file(image.join("outside.txt")).unwrap();
+        fs::write(payload.join("extra.txt"), b"retain extra").unwrap();
+        assert!(exact_files(&c, &payload).is_err());
+        assert!(exact_msi_image(&c, &image, &payload).is_err());
+        assert_eq!(
+            fs::read(payload.join("extra.txt")).unwrap(),
+            b"retain extra"
+        );
+    }
 }

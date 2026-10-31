@@ -599,6 +599,36 @@ pub fn physical(path: &Path) -> Result<()> {
     }
     Ok(())
 }
+#[cfg(windows)]
+fn physical_in(
+    path: &Path,
+    namespace: &mut gallery_windows_package::private::PhysicalNamespace,
+) -> Result<()> {
+    if !path.is_absolute()
+        || path
+            .components()
+            .any(|part| matches!(part, Component::ParentDir | Component::CurDir))
+    {
+        return Err("Use an absolute physical path without dot components".into());
+    }
+    let parent = path.parent().ok_or("Missing physical parent")?;
+    // Native recovery legitimately observes a completely missing installed directory.
+    if !parent.try_exists().map_err(|e| e.to_string())? {
+        return physical(path);
+    }
+    namespace.pin(parent)?;
+    match fs::symlink_metadata(path) {
+        Ok(info) => {
+            use std::os::windows::fs::MetadataExt;
+            if info.file_type().is_symlink() || info.file_attributes() & 0x400 != 0 {
+                return Err("Reparse inventory leaf".into());
+            }
+            Ok(())
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.to_string()),
+    }
+}
 fn read_bounded(p: &Path, max: u64) -> Result<Vec<u8>> {
     let f = io(File::open(p))?;
     if io(f.metadata())?.len() > max {
@@ -709,6 +739,9 @@ fn copy_owned_in(
     #[cfg(not(windows))]
     verify_file(from, r)?;
     let parent = to.parent().ok_or("No parent")?;
+    #[cfg(windows)]
+    physical_in(to, namespace)?;
+    #[cfg(not(windows))]
     physical(to)?;
     make_directories(parent, private)?;
     #[cfg(windows)]
@@ -1468,8 +1501,13 @@ impl Transaction {
         ))
     }
     fn validate_union(&self) -> Result<()> {
+        #[cfg(windows)]
+        let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
         for (name, (a, b)) in self.union() {
             let displaced = self.displaced(&self.journal.directory.join(&name));
+            #[cfg(windows)]
+            physical_in(&displaced, &mut namespace)?;
+            #[cfg(not(windows))]
             physical(&displaced)?;
             if displaced.exists()
                 && a.as_ref()
@@ -1480,6 +1518,9 @@ impl Transaction {
                 return Err("Unknown displaced bytes prevent recovery; retain them".into());
             }
             let p = self.journal.directory.join(name);
+            #[cfg(windows)]
+            physical_in(&p, &mut namespace)?;
+            #[cfg(not(windows))]
             physical(&p)?;
             if p.try_exists().map_err(|e| e.to_string())?
                 && a.as_ref().is_none_or(|r| verify_file(&p, r).is_err())
