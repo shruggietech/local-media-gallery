@@ -11,3 +11,7 @@ Pending official PR and all eight isolated scopes. No S019 review round has yet 
 ## Retained cold-witness correction
 
 Initial hosted campaign41161531537 retained artifact13027053648 after fresh/partial dependency acquisition and actual production notices succeeded, but its empty-target assertion rejected Cargo’s .rustc_info.json toolchain probe. This is metadata, not compilation output. A failing regression now distinguishes the one physical JSON probe file from any compiler output directory/file or invalid/linked probe. The corrected witness records the probe filenames and keeps empty initial target, exact missing-source reproduction, notices equality and unchanged lock/source checks.
+
+## Retained Windows native-input attempt
+
+Campaign41161853135 produced failed Windows artifact13027782269. Preparation, app checks, native units, extracted Full/Lite archive checks and runtime images passed; the ordinary isolated scan-keys Space helper failed before video playback, retaining paused/ready media and focus observation. This attempt is not accepted. The complete hosted log remains available and its terminal excerpt is retained locally. A clean source-identical hosted campaign will repeat all required checks without weakening input or media assertions.
