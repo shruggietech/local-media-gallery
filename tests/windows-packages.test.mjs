@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {validatePayload,verifyPayload,packageGuid,validateNativeAudit} from '../scripts/windows-packages.mjs';
+import {validatePayload,verifyPayload,packageGuid,validateNativeAudit,authorInstaller,digest} from '../scripts/windows-packages.mjs';
 import Ajv from 'ajv/dist/2020.js';
 import {readFile} from 'node:fs/promises';
 const hash='a'.repeat(64);
@@ -26,3 +26,16 @@ test('Package identities distinguish scope and inputs deterministically',()=>{
 });
 test('Published payload schema accepts the same typed candidate identity',async()=>{const schema=JSON.parse(await readFile(new URL('../schemas/v0.0.0/windows-packages.schema.json',import.meta.url)));const ajv=new Ajv({strict:true}).addKeyword('x-release-version');const valid=ajv.compile(schema);assert.ok(valid(payload()),JSON.stringify(valid.errors));const p=payload();p.buildProfile='debug';assert.equal(valid(p),false);});
 test('Recipient dependency closure checks both ordinary and delay imports',()=>{const audit={machine:0x8664,imports:['kernel32.dll','bcryptprimitives.dll'],delayImports:[],signature:{status:'NotSigned'}};assert.ok(validateNativeAudit(audit));assert.throws(()=>validateNativeAudit({...audit,delayImports:['VCRUNTIME140.dll']}));assert.throws(()=>validateNativeAudit({...audit,machine:0x14c}));});
+
+test('Native reinstall groups separate application bytes from unchanged notices',async()=>{
+ const template=await readFile(new URL('../packaging/windows/installer.wxs',import.meta.url),'utf8');const files=['local-media-gallery.exe','payload.json','licenses/dependencies/Rust/NOTICE'].map(path=>({path}));
+ const {wxs}=authorInstaller({scope:'user',files,payloadDirectory:'fixture',helper:'owned-helper.dll',payloadSha:hash,template});
+ const feature=name=>wxs.match(new RegExp('<Feature Id="'+name+'"[^>]*>[\\s\\S]*?<\\/Feature>'))?.[0];
+ const integration=feature('Application'),application=feature('Payload'),notices=feature('Notices');assert.ok(integration&&application&&notices,'Three independent native features are required');
+ assert.ok(integration.includes('<ComponentRef Id="Integration"'));for(const f of files){const id='C'+digest('component:'+f.path).slice(0,32);assert.ok((f.path.startsWith('licenses/')?notices:application).includes('<ComponentRef Id="'+id+'"'));assert.ok(!integration.includes(id));}
+ assert.ok(!application.includes('C'+digest('component:'+files[2].path).slice(0,32)));assert.ok(!notices.includes('C'+digest('component:'+files[0].path).slice(0,32)));
+});
+
+test('Wide payload verification checks late changed files while missing-file recovery remains explicit',async()=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'lmg-wide-payload-'));try{const p=payload();p.files=[];for(let i=0;i<37;i++){const name=i===0?p.binary:'item-'+i,bytes=Buffer.from('candidate-'+i);await writeFile(path.join(dir,name),bytes);p.files.push({path:name,bytes:String(bytes.length),sha256:digest(bytes)});}await writeFile(path.join(dir,'foreign'),'retain');assert.equal(await verifyPayload(dir,p),true);await rm(path.join(dir,'item-10'));await assert.rejects(verifyPayload(dir,p),{code:'ENOENT'});assert.equal(await verifyPayload(dir,p,{allowMissing:true}),true);await writeFile(path.join(dir,'item-36'),'changed');await assert.rejects(verifyPayload(dir,p,{allowMissing:true}),/item-36/);assert.equal(await readFile(path.join(dir,'foreign'),'utf8'),'retain');}finally{await rm(dir,{recursive:true,force:true});}
+});

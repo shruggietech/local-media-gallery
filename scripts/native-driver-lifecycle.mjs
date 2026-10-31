@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import {createServer} from 'node:net';
+export function settingsControlsReady(records){
+ return records.some(r=>['Hide controls','Show controls'].includes(r.name)&&r.enabled===true&&r.showing!==false&&r.offscreen!==true);
+}
 export async function availableLoopbackPort(){const s=createServer();await new Promise((resolve,reject)=>{s.once('error',reject);s.listen(0,'127.0.0.1',resolve);});const port=s.address().port;await new Promise((resolve,reject)=>s.close(e=>e?reject(e):resolve()));return port;}
 export function observeChild(child){
  let stdout='',stderr='',failure=null;
@@ -15,7 +18,7 @@ export async function readyDriver(child,origin,observation,timeout=15000,{nonce,
  const alive=()=>{const s=observation();if(s.error||child.exitCode!==null||child.signalCode!==null)throw failure('Native driver exited before readiness');};
  async function request(route,body){
   const remaining=end-Date.now();if(remaining<=0)throw failure('Native driver readiness deadline');
-  const response=await fetch(origin+route,{method:body===undefined?'GET':'POST',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(Math.max(1,Math.min(2000,remaining)))});
+  const response=await fetch(origin+route,{method:body===undefined?'GET':'POST',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(Math.max(1,route==='/session'?remaining:Math.min(2000,remaining)))});
   listener={status:response.status,route};if(!response.ok)throw new Error('Driver HTTP '+response.status);
   // Keep untrusted listener responses bounded, including a peer that streams forever.
   const reader=response.body.getReader();let bytes=0;const chunks=[];

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import Ajv from 'ajv/dist/2020.js';
-import {validateLinuxPayload,guardFiles,validateLinuxMedia,validateLinuxFootprints} from '../scripts/linux-packages.mjs';
+import {validateLinuxPayload,guardFiles,validateLinuxMedia,validateLinuxFootprints,linuxGalleryReady} from '../scripts/linux-packages.mjs';
 export function payload(edition='full'){
  const base=edition==='full'?'usr/lib/local-media-gallery/':'';const paths=[base+'local-media-gallery.bin',edition==='full'?'usr/bin/local-media-gallery':'local-media-gallery',base+'LICENSE',base+'NOTICE',base+'licenses/dependencies/inventory.json'];
  if(edition==='full')paths.push('usr/share/applications/tech.shruggie.local-media-gallery.desktop','usr/share/doc/local-media-gallery/copyright',...['48','256','512'].map(s=>'usr/share/icons/hicolor/'+s+'x'+s+'/apps/tech.shruggie.local-media-gallery.png'));
@@ -18,3 +18,15 @@ test('Actual native package PNG readback excludes control chrome and rejects cli
 test('Actual Debian archive reader rejects unsafe payload before extraction',async()=>{const {execFile}=await import('node:child_process');const {promisify}=await import('node:util');const {python,root}=await import('../scripts/run.mjs');await promisify(execFile)(python,['tests/linux-deb-audit.test.py'],{cwd:root,windowsHide:true,shell:false,timeout:15000});});
 
 test('Actual Lite TAR reader rejects unsafe members and raw executable mode drift',async()=>{const {execFile}=await import('node:child_process');const {promisify}=await import('node:util');const {python,root}=await import('../scripts/run.mjs');await promisify(execFile)(python,['tests/linux-lite-archive.test.py'],{cwd:root,windowsHide:true,shell:false,timeout:15000});});
+
+test('Native Linux readiness waits for enabled settings before portable precedence is asserted',()=>{
+ const red={name:'Open red.png',showing:true,enabled:true};
+ const controls=(name,enabled,showing=true)=>({name,showing,enabled});
+ assert.equal(linuxGalleryReady([red,controls('Show controls',false)]),false);
+ assert.equal(linuxGalleryReady([red,controls('Hide controls',false)]),false);
+ assert.equal(linuxGalleryReady([red,controls('Hide controls',true,false)]),false);
+ assert.equal(linuxGalleryReady([controls('Hide controls',true)]),false);
+ assert.equal(linuxGalleryReady([red,controls('Hide controls',true)]),true);
+ // An enabled wrong value is ready for the unchanged precedence assertion to reject.
+ assert.equal(linuxGalleryReady([red,controls('Show controls',true)]),true);
+});
