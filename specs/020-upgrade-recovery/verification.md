@@ -15,3 +15,9 @@ PASS: npm run check; npm test (132 tests,131 pass,1 expected POSIX-only Windows 
 Convergence inspected13FRs,5buildableSCs,9acceptance scenarios,8implementation decisions and5constitution principles. One partial high-priority regression coverage gap became T025; staging-collision, wrong-target/edition and actual held/running executable cases were added and the Windows transaction suite passes11/11. No additional implementation gap was identified in that bounded inspection. Native hosted execution and delivery tasks remain pending; this is not final convergence or native acceptance.
 
 Native supervisor/private Windows ACL and same-filesystem exclusive displacement refinements are recorded in plan/research/data-model/contracts. No release/tag or merge is performed. External review rounds used:0/2.
+
+## Initial publication and review, 2026-10-31
+
+Official PR72 opened automatically at df72ac85dd0371940cdfc47e1893b3aebed453a7; #25 Project status is PR review, SliceS020. Initial hosted run41182586278 passed repository and website scopes. Linux package preparation identified five SC2015 guard expressions; replaced them with explicit if branches. Cross-platform Clippy identified the macOS update argument list; grouped optional transaction settings in UpdateOptions and Linux/macOS all-target Clippy then passed. Artifact upload now retains descriptors and complete copied transaction evidence for independent post-run readback.
+
+Review round1 completed on df72ac8 with one P1 finding (comment4431023410): a native supervisor incorrectly required an executable after native uninstall. Both prior/next checks now call the shared existence-aware Transaction::active helper. The missing-live recovery and active-executable regressions pass in the transaction11/11 suite. Actual MSI/dpkg qualification remains required. No second review has been requested yet. External review rounds used:1/2.

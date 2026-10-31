@@ -213,10 +213,12 @@ fn run() -> gallery_macos_package::Result<()> {
             &command,
             scope,
             &payload,
-            prior.as_ref(),
-            &transaction,
-            &state,
-            operation == "update",
+            gallery_macos_package::UpdateOptions {
+                prior_lite: prior.as_ref(),
+                transaction: &transaction,
+                state: &state,
+                activate: operation == "update",
+            },
         )?
     } else if operation == "install" {
         gallery_macos_package::verify(&source, &payload, true)?;

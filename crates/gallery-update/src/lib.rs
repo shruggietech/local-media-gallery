@@ -822,6 +822,12 @@ impl Transaction {
         {
             return Err("Candidate target/edition/native strategy mismatch".into());
         }
+        if let (Native::WindowsMsi { scope: a, .. }, Native::WindowsMsi { scope: b, .. }) =
+            (&prior.native, &next.native)
+            && a != b
+        {
+            return Err("Candidate installation scopes differ".into());
+        }
         physical(base)?;
         physical(directory)?;
         physical(source)?;
@@ -848,7 +854,6 @@ impl Transaction {
         Self::verify_integration(prior, directory)?;
         Self::active(directory, prior)?;
 
-        matches!(next.native, Native::Direct);
         let old: BTreeSet<_> = prior.files.iter().map(|f| f.path.as_str()).collect();
         for f in &next.files {
             if !old.contains(f.path.as_str())
@@ -958,6 +963,12 @@ impl Transaction {
         }
         journal.prior.validate()?;
         journal.next.validate()?;
+        if let (Native::WindowsMsi { scope: a, .. }, Native::WindowsMsi { scope: b, .. }) =
+            (&journal.prior.native, &journal.next.native)
+            && a != b
+        {
+            return Err("Recovery installation scopes differ".into());
+        }
         physical(&journal.directory)?;
         if (matches!(journal.prior.native, Native::Direct) && base.starts_with(&journal.directory))
             || journal.directory.starts_with(base)

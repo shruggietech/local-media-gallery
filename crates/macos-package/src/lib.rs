@@ -296,17 +296,26 @@ mod lifecycle {
             integration,
         })
     }
+    pub struct UpdateOptions<'a> {
+        pub prior_lite: Option<&'a Payload>,
+        pub transaction: &'a Path,
+        pub state: &'a [gallery_update::StateOperand],
+        pub activate: bool,
+    }
     pub fn update(
         source: &Path,
         app: &Path,
         command: &Path,
         scope: &str,
         payload: &Payload,
-        prior_lite: Option<&Payload>,
-        transaction: &Path,
-        state: &[gallery_update::StateOperand],
-        activate: bool,
+        options: UpdateOptions<'_>,
     ) -> Result<serde_json::Value> {
+        let UpdateOptions {
+            prior_lite,
+            transaction,
+            state,
+            activate,
+        } = options;
         verify(source, payload, true)?;
         let (prior, old_integration, new_integration) = if payload.edition == "full" {
             let file = receipt_path(app)?;
@@ -503,7 +512,7 @@ mod lifecycle {
     }
 }
 #[cfg(unix)]
-pub use lifecycle::{install, receipt_path, remove, update};
+pub use lifecycle::{UpdateOptions, install, receipt_path, remove, update};
 
 #[cfg(test)]
 mod tests {

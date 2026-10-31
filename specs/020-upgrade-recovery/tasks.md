@@ -54,7 +54,7 @@
 - [x] T019 Extend independent update/native/source/evidence validation in scripts/*-package-evidence.mjs, tests/*-packages.test.mjs and scripts/ci-*-packages.mjs.
 - [x] T020 Update authoritative update/state contracts and concise history in docs/v0.0.0/installation-and-distribution.md, configuration-and-state.md and CHANGELOG.md.
 - [x] T021 Run npm run check, npm test and affected Rust/app/site checks; verify UTF8/LF/no mojibake and record results in specs/020-upgrade-recovery/verification.md.
-- [ ] T022 Push official PR linked to #25, attach it and advance GitHub Project8; record at most two review rounds in specs/020-upgrade-recovery/verification.md.
+- [x] T022 Push official PR linked to #25, attach it and advance GitHub Project8; record at most two review rounds in specs/020-upgrade-recovery/verification.md.
 - [ ] T023 Complete all eight hosted timed scopes, exact-source/artifact/native independent readback and every review response/fix in specs/020-upgrade-recovery/verification.md and measurements.md.
 - [ ] T024 Run Spec Kit convergence, verify clean pushed final head and terminal green checks, then request owner final review/merge in specs/020-upgrade-recovery/verification.md.
 

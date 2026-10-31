@@ -125,8 +125,8 @@ pub fn entry(path: &Path) -> Result<i32> {
         &base.join(if job.target_prior { "next" } else { "prior" }),
         &journal.state,
     )?;
-    active_binary(&job.directory.join(&journal.prior.binary))?;
-    active_binary(&job.directory.join(&journal.next.binary))?;
+    Transaction::active(&job.directory, &journal.prior)?;
+    Transaction::active(&job.directory, &journal.next)?;
     let source = if job.side == "prior" {
         &journal.prior
     } else {

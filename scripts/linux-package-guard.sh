@@ -163,7 +163,7 @@ LMG_OWNER_REPORT
         while IFS='|' read -r expected_hash expected_mode expected_size file; do
             check_parent "$file"
             if [ -e "$file" ] || [ -L "$file" ]; then
-                [ -f "$file" ] && [ ! -L "$file" ] || fail "Linked/nonregular incoming destination: $file."
+                if [ ! -f "$file" ] || [ -L "$file" ]; then fail "Linked/nonregular incoming destination: $file."; fi
                 incoming_owner=$(/usr/bin/dpkg-query -S -- "$file" 2>/dev/null) || fail "Unregistered incoming destination: $file."
                 while IFS= read -r owner_line; do
                     case "$owner_line" in
@@ -181,7 +181,7 @@ LMG_INCOMING_FILES
 
     recovery_owned() {
         authority=/run/local-media-gallery-update/authority
-        [ -f "$authority" ] && [ ! -L "$authority" ] || fail 'No physical coordinator recovery authority.'
+        if [ ! -f "$authority" ] || [ -L "$authority" ]; then fail 'No physical coordinator recovery authority.'; fi
         check_parent "$authority"
         [ "$(/usr/bin/stat -c '%u:%g:%a' -- /run/local-media-gallery-update)" = 0:0:700 ] || fail 'Foreign recovery directory.'
         [ "$(/usr/bin/stat -c '%u:%g:%a' -- "$authority")" = 0:0:600 ] || fail 'Foreign recovery record.'
@@ -189,13 +189,13 @@ LMG_INCOMING_FILES
         IFS='|' read -r protocol old_hash new_hash coordinator old_count new_count < "$authority"
         [ "$protocol" = LMG1 ] || fail 'Unknown recovery protocol.'
         case "$coordinator:$old_count:$new_count" in *[!0-9:]*|:*|*::*) fail 'Invalid recovery counters.' ;; esac
-        [ "$old_count" -gt 0 ] && [ "$old_count" -le 8192 ] && [ "$new_count" -gt 0 ] && [ "$new_count" -le 8192 ] || fail 'Recovery inventory count.'
+        if [ "$old_count" -le 0 ] || [ "$old_count" -gt 8192 ] || [ "$new_count" -le 0 ] || [ "$new_count" -gt 8192 ]; then fail 'Recovery inventory count.'; fi
         kill -0 "$coordinator" 2>/dev/null || fail 'Recovery coordinator is no longer active; run lmg-update recover.'
         [ "$(/usr/bin/wc -l < "$authority")" -eq "$((1 + old_count + new_count))" ] || fail 'Recovery inventory length.'
         old_end=$((old_count + 1))
         observed_old=$(/usr/bin/head -n "$old_end" -- "$authority" | /usr/bin/tail -n "$old_count" | /usr/bin/sha256sum)
         observed_new=$(/usr/bin/tail -n "$new_count" -- "$authority" | /usr/bin/sha256sum)
-        [ "${observed_old%% *}" = "$old_hash" ] && [ "${observed_new%% *}" = "$new_hash" ] || fail 'Recovery inventory hashes changed.'
+        if [ "${observed_old%% *}" != "$old_hash" ] || [ "${observed_new%% *}" != "$new_hash" ]; then fail 'Recovery inventory hashes changed.'; fi
         [ '@EXPECTED_HASH@' = "$old_hash" ] || [ '@EXPECTED_HASH@' = "$new_hash" ] || fail 'This package is outside the recovery operation.'
         registered_state
         case "$package_state" in installed|half-installed|unpacked|half-configured|triggers-awaited|triggers-pending) ;; *) fail 'Recovery package state differs.' ;; esac
@@ -205,7 +205,7 @@ LMG_INCOMING_FILES
             case "$file" in *'..'*|*'//'*) fail 'Noncanonical recovery path.' ;; esac
             check_parent "$file"
             if [ -e "$file" ] || [ -L "$file" ]; then
-                [ -f "$file" ] && [ ! -L "$file" ] || fail "Linked recovery path: $file."
+                if [ ! -f "$file" ] || [ -L "$file" ]; then fail "Linked recovery path: $file."; fi
                 observed_stat=$(/usr/bin/stat -c '%a:%s:%u:%g' -- "$file") || fail 'Recovery stat failed.'
                 case "$observed_stat" in *:0:0) ;; *) fail 'Foreign recovery file owner.' ;; esac
                 actual_mode=${observed_stat%%:*}
