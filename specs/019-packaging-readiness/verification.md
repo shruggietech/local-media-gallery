@@ -15,3 +15,7 @@ Initial hosted campaign41161531537 retained artifact13027053648 after fresh/part
 ## Retained Windows native-input attempt
 
 Campaign41161853135 produced failed Windows artifact13027782269. Preparation, app checks, native units, extracted Full/Lite archive checks and runtime images passed; the ordinary isolated scan-keys Space helper failed before video playback, retaining paused/ready media and focus observation. This attempt is not accepted. The complete hosted log remains available and its terminal excerpt is retained locally. A clean source-identical hosted campaign will repeat all required checks without weakening input or media assertions.
+
+## Final contract wording review
+
+A final manual contract read corrected an ambiguous macOS matrix phrase: the existing VoiceOver/WebM-audio/translocation/older-OS limits require separate evidence, rather than implying that those conditions were tested. Wayland is plainly not yet tested. These are wording corrections to current scope, with no support reduction or added gate. Both authorized Codex rounds reported no findings; no additional round will be requested. The changed contract bytes must pass the complete final hosted matrix and artifact readback.
