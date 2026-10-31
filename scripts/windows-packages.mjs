@@ -22,10 +22,14 @@ export function validatePayload(p){
  portablePath(p.binary);assert.ok(p.files.some(f=>f.path===p.binary));return p;
 }
 export async function verifyPayload(directory,p,{allowMissing=false}={}){
- validatePayload(p);
- for(const f of p.files){const file=path.join(directory,...f.path.split('/'));for(let at=path.resolve(file);;at=path.dirname(at)){try{const s=await lstat(at);assert.ok(!s.isSymbolicLink(),'Redirected owned path');}catch(e){if(e.code!=='ENOENT')throw e;}if(at===path.parse(at).root)break;}
+ validatePayload(p);let cursor=0;
+ const results=await Promise.allSettled(Array.from({length:Math.min(8,p.files.length)},async()=>{
+  while(cursor<p.files.length){const f=p.files[cursor++];const file=path.join(directory,...f.path.split('/'));for(let at=path.resolve(file);;at=path.dirname(at)){try{const s=await lstat(at);assert.ok(!s.isSymbolicLink(),'Redirected owned path');}catch(e){if(e.code!=='ENOENT')throw e;}if(at===path.parse(at).root)break;}
   let bytes;try{bytes=await readFile(file);}catch(e){if(allowMissing&&e.code==='ENOENT')continue;throw e;}assert.equal(String(bytes.length),f.bytes,f.path);assert.equal(digest(bytes),f.sha256,f.path);
- }return true;
+
+  }
+ }));
+ for(const result of results)if(result.status==='rejected')throw result.reason;return true;
 }
 export function xml(value){return String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&apos;');}
 export function validateNativeAudit(audit){assert.equal(audit.machine,0x8664);for(const name of [...audit.imports,...audit.delayImports])assert.match(name,/^(?:(?:api-ms-win-|ext-ms-win-)[a-z0-9-]+\.dll|(?:advapi32|bcrypt|bcryptprimitives|combase|comctl32|comdlg32|crypt32|d3d11|dcomp|dwmapi|dxgi|gdi32|gdiplus|imm32|iphlpapi|kernel32|msi|msvcrt|ntdll|ole32|oleacc|oleaut32|powrprof|propsys|psapi|rpcrt4|secur32|setupapi|shell32|shlwapi|user32|userenv|uxtheme|version|winhttp|wininet|winmm|wintrust|ws2_32)\.dll|winspool\.drv)$/i,'Undeclared non-system PE import');assert.equal(audit.signature.status,'NotSigned','Candidate signing disposition changed');return true;}

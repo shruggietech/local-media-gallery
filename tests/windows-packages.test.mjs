@@ -35,3 +35,7 @@ test('Native reinstall groups separate application bytes from unchanged notices'
  assert.ok(integration.includes('<ComponentRef Id="Integration"'));for(const f of files){const id='C'+digest('component:'+f.path).slice(0,32);assert.ok((f.path.startsWith('licenses/')?notices:application).includes('<ComponentRef Id="'+id+'"'));assert.ok(!integration.includes(id));}
  assert.ok(!application.includes('C'+digest('component:'+files[2].path).slice(0,32)));assert.ok(!notices.includes('C'+digest('component:'+files[0].path).slice(0,32)));
 });
+
+test('Wide payload verification checks late changed files while missing-file recovery remains explicit',async()=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'lmg-wide-payload-'));try{const p=payload();p.files=[];for(let i=0;i<37;i++){const name=i===0?p.binary:'item-'+i,bytes=Buffer.from('candidate-'+i);await writeFile(path.join(dir,name),bytes);p.files.push({path:name,bytes:String(bytes.length),sha256:digest(bytes)});}await writeFile(path.join(dir,'foreign'),'retain');assert.equal(await verifyPayload(dir,p),true);await rm(path.join(dir,'item-10'));await assert.rejects(verifyPayload(dir,p),{code:'ENOENT'});assert.equal(await verifyPayload(dir,p,{allowMissing:true}),true);await writeFile(path.join(dir,'item-36'),'changed');await assert.rejects(verifyPayload(dir,p,{allowMissing:true}),/item-36/);assert.equal(await readFile(path.join(dir,'foreign'),'utf8'),'retain');}finally{await rm(dir,{recursive:true,force:true});}
+});
