@@ -23,3 +23,5 @@ operationId, old/selected candidate identities, destination/scope, status comple
 ## Durable native supervision and displacement
 
 Immutable identity.json binds destination, both complete candidates and selected state; its digest binds journal.json. Native intent/job/process records bind the same transaction and selected native action. The native-process terminal fact is independent of coordinator liveness and phase. Deterministic same-parent displacement names include the identity binding and live-path digest, and only old/new owned bytes are eligible for cleanup. Complete prior/new files and native archives remain in private transaction storage after success or recovery.
+
+Native MSI recaching retains per-job source directories and source receipts. A receipt binds the immutable transaction header, prior/next side, installed source filename, relative private path and complete archive bytes/hash. The source filename is an actual native PackageName leaf, not a caller-selected directory. Unknown staging contents or changed copies refuse before native client launch; copies remain retained after completion.

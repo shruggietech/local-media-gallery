@@ -98,6 +98,43 @@ fn receipt(
         &serde_json::json!({"pid":std::process::id(),"job":job,"terminal":terminal,"code":code,"clientPid":client}),
     )
 }
+#[cfg(windows)]
+fn reinstall_source(
+    path: &Path,
+    job: &Job,
+    source: &Candidate,
+    package: &Path,
+    record: &FileRecord,
+) -> Result<(PathBuf, Vec<File>)> {
+    if !job.reinstall {
+        return Ok((package.to_path_buf(), vec![]));
+    }
+    let machine = machine_scope(source);
+    let name = gallery_windows_package::native::source_package_name(machine)?;
+    let directory = path.with_extension("source");
+    if !directory.exists() {
+        gallery_windows_package::private::child_directory(&directory)?;
+    }
+    let pins = gallery_windows_package::private::validate_directory(&directory, machine)?;
+    let alias = directory.join(&name);
+    for entry in io(fs::read_dir(&directory))? {
+        if io(entry)?.path() != alias {
+            return Err("Foreign native source staging content".into());
+        }
+    }
+    if alias.exists() {
+        gallery_windows_package::private::validate_file(&alias, machine)?;
+        verify_file(&alias, record)?;
+    } else {
+        copy_owned(package, &alias, record, true)?;
+    }
+    durable_json(
+        &path.with_extension("source.json"),
+        &serde_json::json!({"binding":job.binding,"side":job.side,"sourceName":name,"path":alias.strip_prefix(&job.transaction).map_err(|e|e.to_string())?,"bytes":record.bytes,"sha256":record.sha256}),
+    )?;
+    Ok((alias, pins))
+}
+
 pub fn entry(path: &Path) -> Result<i32> {
     let (job, journal) = read_job(path)?;
     let base = &job.transaction;
@@ -145,6 +182,8 @@ pub fn entry(path: &Path) -> Result<i32> {
     let mut command;
     #[cfg(windows)]
     let _input;
+    #[cfg(windows)]
+    let _source_pins;
     match &source.native {
         Native::WindowsMsi {
             scope,
@@ -153,6 +192,8 @@ pub fn entry(path: &Path) -> Result<i32> {
         } => {
             #[cfg(windows)]
             {
+                let (package, pins) = reinstall_source(path, &job, source, &package, &record)?;
+                _source_pins = pins;
                 _input = gallery_windows_package::open_verified_input(
                     &package,
                     &gallery_windows_package::FileRecord {

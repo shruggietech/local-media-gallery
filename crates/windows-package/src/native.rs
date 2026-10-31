@@ -1059,3 +1059,75 @@ mod update_layout_tests {
         }
     }
 }
+
+fn source_leaf(name: &str) -> Result<String, String> {
+    if name.is_empty()
+        || name.encode_utf16().count() > 255
+        || name
+            .chars()
+            .any(|c| c < ' ' || matches!(c, '/' | '\\' | ':' | '"'))
+        || name.ends_with(['.', ' '])
+        || !Path::new(name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("msi"))
+    {
+        return Err("Invalid registered MSI source filename".into());
+    }
+    Ok(name.into())
+}
+/// Read the source filename recorded by Windows Installer without changing its source list.
+pub fn source_package_name(machine: bool) -> Result<String, String> {
+    #[link(name = "msi")]
+    unsafe extern "system" {
+        fn MsiSourceListGetInfoW(
+            product: *const u16,
+            sid: *const u16,
+            context: u32,
+            options: u32,
+            property: *const u16,
+            value: *mut u16,
+            length: *mut u32,
+        ) -> u32;
+    }
+    let mut buffer = vec![0u16; 256];
+    let mut length = buffer.len() as u32;
+    let code = unsafe {
+        MsiSourceListGetInfoW(
+            wide(product(machine)).as_ptr(),
+            ptr::null(),
+            if machine { 4 } else { 2 },
+            0,
+            wide("PackageName").as_ptr(),
+            buffer.as_mut_ptr(),
+            &mut length,
+        )
+    };
+    if code != 0 || length >= buffer.len() as u32 {
+        return Err(format!(
+            "Cannot read registered MSI source filename: {code}"
+        ));
+    }
+    source_leaf(&String::from_utf16(&buffer[..length as usize]).map_err(|e| e.to_string())?)
+}
+#[cfg(test)]
+#[test]
+fn registered_source_filename_stays_inside_owned_storage() {
+    assert_eq!(
+        source_leaf("local-media-gallery-user.msi").unwrap(),
+        "local-media-gallery-user.msi"
+    );
+    assert!(source_leaf("Gallery 雪.MSI").is_ok());
+    for bad in [
+        "",
+        "..",
+        "../a.msi",
+        "x/a.msi",
+        "x\\a.msi",
+        "a.msi:stream",
+        "a.msi ",
+        "a.exe",
+        "a\n.msi",
+    ] {
+        assert!(source_leaf(bad).is_err(), "{bad}");
+    }
+}
