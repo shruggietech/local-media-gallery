@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
-import {readFile,lstat} from 'node:fs/promises';
+import {readFile,lstat,readdir} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createHash} from 'node:crypto';
@@ -15,3 +15,4 @@ export function cargoGraphIdentity(meta){return sha(JSON.stringify({packages:met
 export async function prepareCargoDependencies({cwd=root,env=environment,target=nativeCargoTarget(),cacheBasis='ordinary',run}={}){assert.ok(['ordinary','fresh-owned'].includes(cacheBasis));const started=new Date();const lock=await readFile(path.join(cwd,'Cargo.lock'));const invoke=run??(args=>runCargo(args,{cwd,env,timeout:args[0]==='fetch'?300000:60000}));
  // No --target: metadata/notices can require workspace inputs beyond release compilation.
  await invoke(['fetch','--locked']);assert.equal(sha(await readFile(path.join(cwd,'Cargo.lock'))),sha(lock),'Cargo lock changed during locked preparation');const metadata=await offlineCargoMetadata({cwd,env,target,run:invoke});assert.equal(sha(await readFile(path.join(cwd,'Cargo.lock'))),sha(lock),'Cargo lock changed during offline metadata');const terminal=new Date();return{formatVersion:1,target,cacheBasis,lockSha256:sha(lock),graphSha256:cargoGraphIdentity(metadata),packageCount:metadata.packages.length,started:started.toISOString(),terminal:terminal.toISOString(),elapsedSeconds:(terminal-started)/1000,metadata};}
+export async function assertNoCargoBuildOutputs(directory){const entries=await readdir(directory,{withFileTypes:true});for(const entry of entries){assert.ok(entry.name==='.rustc_info.json'&&entry.isFile()&&!entry.isSymbolicLink(),'Unexpected compiler output in cold readiness witness: '+entry.name);const probe=JSON.parse(await readFile(path.join(directory,entry.name),'utf8'));assert.ok(probe&&typeof probe==='object'&&!Array.isArray(probe),'Invalid Cargo toolchain probe metadata');}return entries.map(e=>e.name).sort();}
