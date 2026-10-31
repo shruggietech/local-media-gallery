@@ -30,9 +30,10 @@
       </Component>
     </DirectoryRef>
     <Feature Id="Application" Title="Local Media Gallery" Level="1">
-      @COMPONENT_REFS@
       <ComponentRef Id="Integration" />
     </Feature>
+    <Feature Id="Payload" Title="Application files" Level="1">@COMPONENT_REFS@</Feature>
+    @NOTICE_FEATURE@
     <Binary Id="Ownership" SourceFile="@HELPER@" />
     <CustomAction Id="Preflight" BinaryKey="Ownership" DllEntry="Preflight" Execute="immediate" Return="check" />
     <CustomAction Id="SetInstallLocation" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />

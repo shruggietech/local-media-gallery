@@ -962,6 +962,7 @@ pub fn reinstall_layout(file: &Path) -> Result<Vec<Vec<String>>, String> {
         ),
     ];
     let mut rows = vec![];
+    let mut buffer = vec![0u16; 32768];
     for (table, query, columns) in queries {
         let mut raw = 0;
         let code = unsafe { MsiDatabaseOpenViewW(db.0, wide(query).as_ptr(), &mut raw) };
@@ -990,7 +991,6 @@ pub fn reinstall_layout(file: &Path) -> Result<Vec<Vec<String>>, String> {
             }
             let mut row = vec![table.to_string()];
             for field in 1..=columns {
-                let mut buffer = vec![0u16; 32768];
                 let mut size = buffer.len() as u32;
                 let code =
                     unsafe { MsiRecordGetStringW(record.0, field, buffer.as_mut_ptr(), &mut size) };
@@ -1140,5 +1140,67 @@ fn registered_source_filename_stays_inside_owned_storage() {
         "a\n.msi",
     ] {
         assert!(source_leaf(bad).is_err(), "{bad}");
+    }
+}
+
+#[cfg(test)]
+mod grouped_feature_tests {
+    use super::*;
+    use std::collections::BTreeSet;
+    #[test]
+    #[ignore = "Requires actual current prepared MSI pairs; elected in isolated package CI"]
+    fn actual_native_grouped_features_cover_every_file_once() {
+        let pairs: Vec<[PathBuf; 2]> = serde_json::from_str(
+            &std::env::var("GALLERY_MSI_LAYOUT_PAIRS").expect("Explicit actual MSI pairs required"),
+        )
+        .unwrap();
+        assert!(!pairs.is_empty());
+        for pair in pairs {
+            for file in pair {
+                let rows = reinstall_layout(&file).unwrap();
+                let features = rows
+                    .iter()
+                    .filter(|r| r[0] == "Feature")
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    features
+                        .iter()
+                        .map(|r| r[1].as_str())
+                        .collect::<BTreeSet<_>>(),
+                    BTreeSet::from(["Application", "Payload", "Notices"])
+                );
+                assert!(features.iter().all(|r| r[2].is_empty() && r[6] == "1"));
+                let members = rows
+                    .iter()
+                    .filter(|r| r[0] == "FeatureComponents")
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    members
+                        .iter()
+                        .filter(|r| r[1] == "Application")
+                        .map(|r| r[2].as_str())
+                        .collect::<Vec<_>>(),
+                    vec!["Integration"]
+                );
+                for feature in ["Payload", "Notices"] {
+                    assert!(members.iter().any(|r| r[1] == feature));
+                }
+                let file_components = rows
+                    .iter()
+                    .filter(|r| r[0] == "File")
+                    .map(|r| r[2].as_str())
+                    .collect::<BTreeSet<_>>();
+                let assigned = members
+                    .iter()
+                    .filter(|r| r[1] != "Application")
+                    .map(|r| r[2].as_str())
+                    .collect::<Vec<_>>();
+                assert_eq!(assigned.len(), file_components.len());
+                assert_eq!(
+                    assigned.into_iter().collect::<BTreeSet<_>>(),
+                    file_components
+                );
+            }
+        }
     }
 }

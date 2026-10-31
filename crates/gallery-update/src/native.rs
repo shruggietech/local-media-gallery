@@ -440,14 +440,8 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                     let name = if which.0 == 0 { "prior" } else { "next" };
                     let same = which.1 == selected;
                     let selected_name = if prior { "prior" } else { "next" };
-                    let reinstall = !same
-                        && compatible_reinstall(
-                            &op.base,
-                            name,
-                            selected_name,
-                            &which.1,
-                            &selected,
-                        )?;
+                    let reinstall =
+                        compatible_reinstall(&op.base, name, selected_name, &which.1, &selected)?;
                     if !same {
                         verified(&which.1, &op.journal.directory)?;
                     }
@@ -934,6 +928,219 @@ mod traversal_tests {
         assert_eq!(
             fs::read(payload.join("extra.txt")).unwrap(),
             b"retain extra"
+        );
+    }
+}
+
+#[cfg(windows)]
+fn grouped_reinstall_value(
+    candidate: &Candidate,
+    rows: &[Vec<String>],
+    directory: &Path,
+) -> Result<String> {
+    let group = |name: &str| {
+        if name.starts_with("licenses/") {
+            "Notices"
+        } else {
+            "Payload"
+        }
+    };
+    let mut expected_features = BTreeSet::from(["Application".to_owned()]);
+    let mut expected_members = BTreeSet::from([vec![
+        "FeatureComponents".to_owned(),
+        "Application".to_owned(),
+        "Integration".to_owned(),
+    ]]);
+    let mut expected_files = BTreeSet::new();
+    for file in &candidate.files {
+        let feature = group(&file.path).to_owned();
+        let component = format!(
+            "C{}",
+            &hash(format!("component:{}", file.path).as_bytes())[..32]
+        );
+        let id = format!("F{}", &hash(format!("file:{}", file.path).as_bytes())[..32]);
+        expected_features.insert(feature.clone());
+        expected_members.insert(vec![
+            "FeatureComponents".to_owned(),
+            feature,
+            component.clone(),
+        ]);
+        expected_files.insert((id, component));
+    }
+    let features = rows
+        .iter()
+        .filter(|r| r.first().is_some_and(|t| t == "Feature"))
+        .collect::<Vec<_>>();
+    let members = rows
+        .iter()
+        .filter(|r| r.first().is_some_and(|t| t == "FeatureComponents"))
+        .collect::<Vec<_>>();
+    let files = rows
+        .iter()
+        .filter(|r| r.first().is_some_and(|t| t == "File"))
+        .collect::<Vec<_>>();
+    if features
+        .iter()
+        .any(|r| r.len() != 9 || !r[2].is_empty() || r[6] != "1")
+        || features.len() != expected_features.len()
+        || features
+            .iter()
+            .map(|r| r[1].clone())
+            .collect::<BTreeSet<_>>()
+            != expected_features
+        || members.iter().any(|r| r.len() != 3)
+        || members.len() != expected_members.len()
+        || members
+            .iter()
+            .map(|r| (*r).clone())
+            .collect::<BTreeSet<_>>()
+            != expected_members
+        || files.iter().any(|r| r.len() != 6)
+        || files.len() != expected_files.len()
+        || files
+            .iter()
+            .map(|r| (r[1].clone(), r[2].clone()))
+            .collect::<BTreeSet<_>>()
+            != expected_files
+    {
+        return Ok("ALL".into());
+    }
+    let mut selected = BTreeSet::from(["Application"]);
+    let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
+    for file in &candidate.files {
+        let path = directory.join(&file.path);
+        physical_in(&path, &mut namespace)?;
+        if verify_physical_leaf(&path, file).is_err() {
+            selected.insert(group(&file.path));
+        }
+    }
+    Ok(selected.into_iter().collect::<Vec<_>>().join(","))
+}
+
+#[cfg(windows)]
+pub(super) fn reinstall_features(
+    candidate: &Candidate,
+    package: &Path,
+    directory: &Path,
+) -> Result<String> {
+    let rows = gallery_windows_package::native::reinstall_layout(package)?;
+    grouped_reinstall_value(candidate, &rows, directory)
+}
+
+#[cfg(all(test, windows))]
+mod feature_tests {
+    use super::*;
+    #[test]
+    fn selective_reinstall_repairs_missing_files_and_refuses_unproven_membership() {
+        let root = tempfile::tempdir().unwrap();
+        let mut files = vec![];
+        for name in ["app.exe", "payload.json", "licenses/dependencies/NOTICE"] {
+            let path = root.path().join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"new").unwrap();
+            files.push(FileRecord {
+                path: name.into(),
+                bytes: "3".into(),
+                sha256: hash(b"new"),
+                mode: 644,
+            });
+        }
+        let c = Candidate {
+            format_version: 1,
+            product: "local-media-gallery".into(),
+            version: "0.0.0".into(),
+            edition: "full".into(),
+            os: "windows".into(),
+            arch: "x86_64".into(),
+            generation: "test".into(),
+            source: Source {
+                sha256: "a".repeat(64),
+                files: 1,
+            },
+            binary: "app.exe".into(),
+            files,
+            native: Native::Direct,
+            integration: None,
+        };
+        let mut rows = vec![];
+        for feature in ["Application", "Payload", "Notices"] {
+            rows.push(vec![
+                "Feature".into(),
+                feature.into(),
+                "".into(),
+                "title".into(),
+                "".into(),
+                "2".into(),
+                "1".into(),
+                "".into(),
+                "0".into(),
+            ]);
+        }
+        rows.push(vec![
+            "FeatureComponents".into(),
+            "Application".into(),
+            "Integration".into(),
+        ]);
+        for f in &c.files {
+            let component = format!(
+                "C{}",
+                &hash(format!("component:{}", f.path).as_bytes())[..32]
+            );
+            let file = format!("F{}", &hash(format!("file:{}", f.path).as_bytes())[..32]);
+            rows.push(vec![
+                "FeatureComponents".into(),
+                if f.path.starts_with("licenses/") {
+                    "Notices"
+                } else {
+                    "Payload"
+                }
+                .into(),
+                component.clone(),
+            ]);
+            rows.push(vec![
+                "File".into(),
+                file,
+                component,
+                f.path.clone(),
+                "512".into(),
+                "1".into(),
+            ]);
+        }
+        assert_eq!(
+            grouped_reinstall_value(&c, &rows, root.path()).unwrap(),
+            "Application"
+        );
+        fs::write(root.path().join("payload.json"), b"old").unwrap();
+        assert_eq!(
+            grouped_reinstall_value(&c, &rows, root.path()).unwrap(),
+            "Application,Payload"
+        );
+        fs::remove_file(root.path().join("licenses/dependencies/NOTICE")).unwrap();
+        assert_eq!(
+            grouped_reinstall_value(&c, &rows, root.path()).unwrap(),
+            "Application,Notices,Payload"
+        );
+        let mut wrong = rows.clone();
+        wrong
+            .iter_mut()
+            .find(|r| r[0] == "FeatureComponents" && r[1] == "Notices")
+            .unwrap()[1] = "Payload".into();
+        assert_eq!(
+            grouped_reinstall_value(&c, &wrong, root.path()).unwrap(),
+            "ALL"
+        );
+        let mut nested = rows.clone();
+        nested
+            .iter_mut()
+            .find(|r| r[0] == "Feature" && r[1] == "Notices")
+            .unwrap()[2] = "Payload".into();
+        assert_eq!(
+            grouped_reinstall_value(&c, &nested, root.path()).unwrap(),
+            "ALL"
+        );
+        assert_eq!(
+            grouped_reinstall_value(&c, &[], root.path()).unwrap(),
+            "ALL"
         );
     }
 }

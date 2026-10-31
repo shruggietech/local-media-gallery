@@ -231,7 +231,12 @@ pub fn entry(path: &Path) -> Result<i32> {
                     .raw_arg(format!("INSTALLDIR=\"{directory}\""))
                     .raw_arg(format!("LMG_RECOVERY=\"{journal}\""));
                 if job.reinstall {
-                    command.args(["REINSTALL=ALL", "REINSTALLMODE=vamus"]);
+                    let features = native::reinstall_features(source, &package, &job.directory)?;
+                    command.args([
+                        format!("ADDLOCAL={features}"),
+                        format!("REINSTALL={features}"),
+                        "REINSTALLMODE=vamus".into(),
+                    ]);
                 }
                 command.creation_flags(0x08000000);
             }
