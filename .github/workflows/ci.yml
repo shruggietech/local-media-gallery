@@ -229,6 +229,7 @@ jobs:
             .local/macos-packages-*/*-candidate.dmg
             .local/macos-packages-*/*-candidate.zip
             .local/macos-package-test-*/*.png
+            .local/macos-package-test-*/*.log
           include-hidden-files: true
           if-no-files-found: error
       - name: Save Cargo cache after terminal evidence

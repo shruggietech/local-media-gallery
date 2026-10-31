@@ -78,7 +78,8 @@ mod tests {
     #[test]
     fn absent_future_and_corrupt_are_preserved() {
         let t = tempfile::tempdir().unwrap();
-        let settings = t.path().join("settings.json");
+        let physical = std::fs::canonicalize(t.path()).unwrap();
+        let settings = physical.join("settings.json");
         let args = vec![
             "--json".into(),
             "--settings".into(),
@@ -91,7 +92,7 @@ mod tests {
             assert_eq!(probe(&args).unwrap()["compatible"], false);
             assert_eq!(std::fs::read(&settings).unwrap(), bytes);
         }
-        let history = t.path().join("history.sqlite3");
+        let history = physical.join("history.sqlite3");
         std::fs::write(&history, b"foreign").unwrap();
         assert!(crate::history::compatibility(&history).is_err());
         assert_eq!(std::fs::read(&history).unwrap(), b"foreign");
