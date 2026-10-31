@@ -735,6 +735,68 @@ fn copy_owned_in(
     sync_directory(parent)?;
     Ok(())
 }
+// Independent staged leaves may be copied concurrently, but every worker must finish
+// before any identity/journal is published. Native installation remains sequential.
+fn copy_retained_inventory(c: &Candidate, source: &Path, destination: &Path) -> Result<()> {
+    #[cfg(windows)]
+    if c.files.len() >= 64 {
+        let mut pins = gallery_windows_package::private::PhysicalNamespace::default();
+        let parents = c
+            .files
+            .iter()
+            .map(|r| destination.join(&r.path).parent().unwrap().to_path_buf())
+            .collect::<BTreeSet<_>>();
+        for parent in parents {
+            make_directories(&parent, true)?;
+            pins.pin(&parent)?;
+        }
+        return std::thread::scope(|scope| {
+            let workers = c
+                .files
+                .chunks(c.files.len().div_ceil(8))
+                .map(|files| {
+                    scope.spawn(move || {
+                        let mut namespace =
+                            gallery_windows_package::private::PhysicalNamespace::default();
+                        for r in files {
+                            copy_owned_in(
+                                &source.join(&r.path),
+                                &destination.join(&r.path),
+                                r,
+                                true,
+                                &mut namespace,
+                            )?;
+                        }
+                        Ok(())
+                    })
+                })
+                .collect::<Vec<_>>();
+            let mut result = Ok(());
+            for worker in workers {
+                let next = worker
+                    .join()
+                    .unwrap_or_else(|_| Err("Retained copy worker failed".into()));
+                if result.is_ok() {
+                    result = next;
+                }
+            }
+            result
+        });
+    }
+    #[cfg(windows)]
+    let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
+    for r in &c.files {
+        copy_owned_in(
+            &source.join(&r.path),
+            &destination.join(&r.path),
+            r,
+            true,
+            #[cfg(windows)]
+            &mut namespace,
+        )?;
+    }
+    Ok(())
+}
 fn sync_directory(p: &Path) -> Result<()> {
     #[cfg(unix)]
     {
@@ -997,6 +1059,15 @@ impl Transaction {
         }
         Self::verify_integration(prior, directory)?;
         Self::active(directory, prior)?;
+        // Refuse an incompatible currently installed writer before retaining inputs.
+        // Legacy 0.0.0 writers are still checked with the retained compatible writer below.
+        if let Err(error) = check_state(&directory.join(&prior.binary), state)
+            && !(error == "state_probe_unsupported"
+                && prior.version == "0.0.0"
+                && next.version == "0.0.0")
+        {
+            return Err(error);
+        }
 
         let old: BTreeSet<_> = prior.files.iter().map(|f| f.path.as_str()).collect();
         for f in &next.files {
@@ -1058,27 +1129,17 @@ impl Transaction {
                 native::retain(c, base, name, &dst)
                     .map_err(|e| format!("Retain {name} native candidate: {e}"))?;
             } else {
-                #[cfg(windows)]
-                let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
-                for f in &c.files {
-                    copy_owned_in(
-                        &src.join(&f.path),
-                        &dst.join(&f.path),
-                        f,
-                        true,
-                        #[cfg(windows)]
-                        &mut namespace,
-                    )?;
-                }
+                copy_retained_inventory(c, src, &dst)?;
             }
-            c.verify(&dst)?;
             #[cfg(windows)]
-            for f in &c.files {
-                gallery_windows_package::private::validate_file(
-                    &dst.join(&f.path),
+            c.verify_inventory(
+                &dst,
+                Some(&gallery_windows_package::private::FileValidator::new(
                     machine_scope(prior),
-                )?;
-            }
+                )?),
+            )?;
+            #[cfg(not(windows))]
+            c.verify(&dst)?;
         }
         if !state.is_empty() {
             native::identity(next, &base.join("next"))?;

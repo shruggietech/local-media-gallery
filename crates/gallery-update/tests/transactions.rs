@@ -338,6 +338,7 @@ fn wide_nested_inventory_checks_every_file_and_retains_changed_bytes() {
         Transaction::prepare(&t.path().join("transaction"), &base, &c, &next, &base, &[]).unwrap();
     println!("wide inventory retention: {:?}", started.elapsed());
     drop(op);
+    assert!(Transaction::resume(&t.path().join("transaction"), RecoveryCommand::Status).is_ok());
     let last = base.join(&c.files.last().unwrap().path);
     fs::write(&last, b"change").unwrap();
     assert!(c.verify(&base).is_err());
@@ -367,4 +368,25 @@ fn resumed_commands_verify_tampered_retained_bytes_before_effects() {
             b"tampered"
         );
     }
+}
+
+#[test]
+fn invalid_selected_state_refuses_before_retaining_candidates() {
+    let t = fixture();
+    let live = t.path().join("live");
+    let next = t.path().join("next");
+    let a = candidate(&live, "a", b"old");
+    let b = candidate(&next, "b", b"new");
+    let tx = t.path().join("transaction");
+    let state = [gallery_update::StateOperand {
+        kind: "foreign".into(),
+        path: t.path().join("state.json"),
+    }];
+    assert!(Transaction::prepare(&tx, &live, &a, &b, &next, &state).is_err());
+    assert!(
+        !tx.exists(),
+        "Invalid state must not incur candidate retention"
+    );
+    assert_eq!(fs::read(live.join(&a.binary)).unwrap(), b"old");
+    assert_eq!(fs::read(next.join(&b.binary)).unwrap(), b"new");
 }
