@@ -176,9 +176,7 @@ pub fn entry(path: &Path) -> Result<i32> {
                 {
                     return Err("Installed MSI changed before native removal".into());
                 }
-                let system =
-                    PathBuf::from(std::env::var_os("SystemRoot").ok_or("Missing SystemRoot")?)
-                        .join("System32/msiexec.exe");
+                let system = windows_system_tool("msiexec.exe")?;
                 command = Command::new(system);
                 command
                     .args([if job.action == "remove" { "/x" } else { "/i" }])

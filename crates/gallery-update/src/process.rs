@@ -40,8 +40,7 @@ pub(super) fn active(receipt: &Path) -> Result<()> {
         .ok_or("Invalid native-process id")? as u32;
     #[cfg(windows)]
     {
-        let system = PathBuf::from(std::env::var_os("SystemRoot").ok_or("Missing SystemRoot")?)
-            .join("System32/tasklist.exe");
+        let system = windows_system_tool("tasklist.exe")?;
         let out = command(
             &system,
             &[

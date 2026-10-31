@@ -48,7 +48,13 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
             fs::Permissions::from_mode(0o644),
         ))?;
     }
-    io(io(File::open(artifact_path(base, name)))?.sync_all())?;
+    // FlushFileBuffers requires a writable handle on Windows. These are our
+    // newly retained private bytes, not the supplied installer handle.
+    io(io(OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(artifact_path(base, name)))?
+    .sync_all())?;
     verify_file(&artifact_path(base, name), &r)?;
 
     #[cfg(windows)]
@@ -154,10 +160,7 @@ fn find_binary(base: &Path, binary: &str, found: &mut Vec<PathBuf>) -> Result<()
 }
 #[cfg(windows)]
 fn system_msi() -> Result<PathBuf> {
-    Ok(
-        PathBuf::from(std::env::var_os("SystemRoot").ok_or("Missing SystemRoot")?)
-            .join("System32/msiexec.exe"),
-    )
+    windows_system_tool("msiexec.exe")
 }
 #[cfg(windows)]
 fn msi(

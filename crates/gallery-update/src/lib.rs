@@ -26,6 +26,23 @@ use std::{
     process::{Command, Stdio},
 };
 pub type Result<T> = std::result::Result<T, String>;
+#[cfg(windows)]
+fn windows_system_tool(name: &str) -> Result<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetSystemDirectoryW(buffer: *mut u16, length: u32) -> u32;
+    }
+    if !matches!(name, "msiexec.exe" | "tasklist.exe") {
+        return Err("Unknown native system tool".into());
+    }
+    let mut buffer = vec![0u16; 32768];
+    let length = unsafe { GetSystemDirectoryW(buffer.as_mut_ptr(), buffer.len() as u32) } as usize;
+    if length == 0 || length >= buffer.len() {
+        return Err("Native system directory unavailable".into());
+    }
+    Ok(PathBuf::from(std::ffi::OsString::from_wide(&buffer[..length])).join(name))
+}
 fn io<T>(r: std::io::Result<T>) -> Result<T> {
     r.map_err(|e| e.to_string())
 }
@@ -911,7 +928,8 @@ impl Transaction {
             #[cfg(not(windows))]
             io(fs::create_dir(&dst))?;
             if c.artifact().is_some() {
-                native::retain(c, base, name, &dst)?;
+                native::retain(c, base, name, &dst)
+                    .map_err(|e| format!("Retain {name} native candidate: {e}"))?;
             } else {
                 for f in &c.files {
                     copy_owned(&src.join(&f.path), &dst.join(&f.path), f, true)?;

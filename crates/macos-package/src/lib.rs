@@ -566,7 +566,8 @@ mod tests {
     fn actual_install_repeat_collisions_and_selective_removal() {
         use std::os::unix::fs::PermissionsExt;
         let temp = tempfile::tempdir().unwrap();
-        let source = temp.path().join("source.app");
+        let physical = fs::canonicalize(temp.path()).unwrap();
+        let source = physical.join("source.app");
         fs::create_dir(&source).unwrap();
         let p = payload();
         for f in &p.files {
@@ -579,8 +580,8 @@ mod tests {
             )
             .unwrap()
         }
-        let app = temp.path().join("Application 雪.app");
-        let command = temp.path().join("bin/local-media-gallery");
+        let app = physical.join("Application 雪.app");
+        let command = physical.join("bin/local-media-gallery");
         install(
             &source,
             &app,
