@@ -104,7 +104,7 @@ pub(super) fn capture(c: &mut Command, receipt: Option<&Path>) -> Result<std::pr
     if receipt.is_some() && std::env::var("LMG_UPDATE_EVENTS").as_deref() == Ok("1") {
         println!(
             "{}",
-            serde_json::json!({"event":"native-client","pid":child.id()})
+            serde_json::json!({"event":"native-preparation-client","pid":child.id(),"meaning":"Administrative extraction writes retained preparation only"})
         );
         io(std::io::stdout().flush())?;
     }
