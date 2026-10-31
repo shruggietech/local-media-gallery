@@ -56,8 +56,8 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - name: Identify Cargo cache image
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\n')"
+      - name: Identify Cargo cache image and source
+        run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
         id: cargo-cache
         continue-on-error: true
@@ -67,7 +67,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git/db
             target/
-          key: cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
+          key: cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
           # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
@@ -127,8 +127,8 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - name: Identify Cargo cache image
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\n')"
+      - name: Identify Cargo cache image and source
+        run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
         id: cargo-cache
         continue-on-error: true
@@ -138,7 +138,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git/db
             target/
-          key: cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
+          key: cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
           # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
@@ -191,8 +191,8 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - name: Identify Cargo cache image
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\n')"
+      - name: Identify Cargo cache image and source
+        run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
         id: cargo-cache
         continue-on-error: true
@@ -202,7 +202,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git/db
             target/
-          key: cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
+          key: cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
           # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
@@ -264,8 +264,8 @@ jobs:
           sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev patchelf dpkg-dev desktop-file-utils shellcheck xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 gir1.2-gtk-3.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
-      - name: Identify Cargo cache image
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\n')"
+      - name: Identify Cargo cache image and source
+        run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
         id: cargo-cache
         continue-on-error: true
@@ -275,7 +275,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git/db
             target/
-          key: cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
+          key: cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
           restore-keys: |
             cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
@@ -290,6 +290,7 @@ jobs:
             .local/ci-linux-packages.json
             .local/linux-package-build.json
             .local/linux-package-host-readiness.json
+            .local/cargo-readiness-results.json
             .local/linux-package-results.json
             .local/linux-package-failure.json
             .local/linux-packages-*/*-candidate.deb
@@ -351,8 +352,8 @@ jobs:
           sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev patchelf xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
-      - name: Identify Cargo cache image
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\n')"
+      - name: Identify Cargo cache image and source
+        run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
         id: cargo-cache
         continue-on-error: true
@@ -362,7 +363,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git/db
             target/
-          key: cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.sha }}
+          key: cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
           # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-

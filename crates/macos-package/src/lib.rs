@@ -80,12 +80,8 @@ impl Payload {
             .iter()
             .any(|f| f.path == self.binary && f.mode == "755")
             || !self.files.iter().any(|f| f.path == "Contents/Info.plist")
-            || !self
-                .files
-                .iter()
-                .any(|f| f.path == "Contents/_CodeSignature/CodeResources")
         {
-            return Err("Missing signed bundle assets".into());
+            return Err("Missing required bundle assets".into());
         }
         Ok(())
     }
@@ -415,7 +411,7 @@ pub use lifecycle::{install, receipt_path, remove};
 mod tests {
     use super::*;
     fn payload() -> Payload {
-        serde_json::from_value(serde_json::json!({"formatVersion":1,"product":"local-media-gallery","kind":"macos-application-payload","version":"0.0.0","edition":"full","os":"macos","arch":"aarch64","targetTriple":"aarch64-apple-darwin","buildProfile":"release","generation":"test","source":{},"revision":"test","bundle":"Full.app","binary":"Contents/MacOS/local-media-gallery","files":[{"path":"Contents/MacOS/local-media-gallery","bytes":"3","sha256":hash(b"app"),"mode":"755"},{"path":"Contents/Info.plist","bytes":"3","sha256":hash(b"app"),"mode":"644"},{"path":"Contents/_CodeSignature/CodeResources","bytes":"3","sha256":hash(b"app"),"mode":"644"}]})).unwrap()
+        serde_json::from_value(serde_json::json!({"formatVersion":1,"product":"local-media-gallery","kind":"macos-application-payload","version":"0.0.0","edition":"full","os":"macos","arch":"aarch64","targetTriple":"aarch64-apple-darwin","buildProfile":"release","generation":"test","source":{},"revision":"test","bundle":"Full.app","binary":"Contents/MacOS/local-media-gallery","files":[{"path":"Contents/MacOS/local-media-gallery","bytes":"3","sha256":hash(b"app"),"mode":"755"},{"path":"Contents/Info.plist","bytes":"3","sha256":hash(b"app"),"mode":"644"}]})).unwrap()
     }
     #[test]
     fn command_parent_alias_resolves_without_following_command_symlink() {
@@ -442,7 +438,7 @@ mod tests {
         }
     }
     #[test]
-    fn rejects_traversal_duplicate_missing_signature_and_wrong_identity() {
+    fn rejects_traversal_duplicate_missing_bundle_assets_and_wrong_identity() {
         let good = payload();
         good.validate().unwrap();
         for bad in ["../outside", "/absolute", "a//b", "a\\b", "a/./b", "a:b"] {

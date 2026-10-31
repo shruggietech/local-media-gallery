@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
+import {prepareCargoDependencies} from './cargo-readiness.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';requireIsolatedDesktop();
 import assert from 'node:assert/strict';import {execFile} from 'node:child_process';import {promisify} from 'node:util';import {randomBytes} from 'node:crypto';
 import {mkdir,mkdtemp,readFile,writeFile,copyFile,cp,chmod} from 'node:fs/promises';import path from 'node:path';
 import {root,environment,execute,node,python,exportInterface} from './run.mjs';import {sourceIdentity} from './provenance.mjs';import {collectPayload} from './proof.mjs';
 import {fullBase,desktop,iconPaths,hash,validateLinuxPayload,guardFiles,verifyLinuxPayload} from './linux-packages.mjs';import {renderLauncher,renderMaintainerScripts} from './linux-package-scripts.mjs';
 assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');const call=promisify(execFile);async function capture(file,args,options={}){const p=call(file,args,{cwd:root,env:environment,shell:false,timeout:120000,maxBuffer:32*1024*1024,...options});p.child.stdin.end();return p;}
-const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim(),generation=randomBytes(16).toString('hex');const directory=await mkdtemp(path.join(root,'.local/linux-packages-'));await chmod(directory,0o755);await exportInterface();
+const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim(),generation=randomBytes(16).toString('hex');const directory=await mkdtemp(path.join(root,'.local/linux-packages-'));await chmod(directory,0o755);await prepareCargoDependencies();await exportInterface();
 const binaries={};for(const edition of ['full','lite']){await execute('cargo',['build','--locked','--release','-p','local-media-gallery',...(edition==='lite'?['--features','lite']:[])]);binaries[edition]=path.join(directory,edition+'-compiled');await copyFile(path.join(root,'target/release/local-media-gallery'),binaries[edition]);await chmod(binaries[edition],0o755);}
 await node(path.join(root,'scripts/build-proof.mjs'),['--full',binaries.full,'--lite',binaries.lite,'--output',path.join(directory,'proof-assembly.json')]);const assembly=JSON.parse(await readFile(path.join(directory,'proof-assembly.json')));assert.deepEqual(assembly.source,source);const records=[];
 const packageMaintainer='h8rt3rmin8r <46768484+h8rt3rmin8r@users.noreply.github.com>'; // Existing published repository commit author identity.
