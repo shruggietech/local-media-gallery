@@ -262,6 +262,15 @@ fn size(s: &str) -> Result<u64> {
     }
     Ok(n)
 }
+pub fn valid_product_version(value: &str) -> bool {
+    value.len() <= 64
+        && value.split('.').count() == 3
+        && value.split('.').all(|s| {
+            !s.is_empty()
+                && (s.len() == 1 || !s.starts_with('0'))
+                && s.bytes().all(|b| b.is_ascii_digit())
+        })
+}
 impl Candidate {
     pub fn validate(&self) -> Result<()> {
         if self.format_version != 1
@@ -269,11 +278,7 @@ impl Candidate {
             || !matches!(self.edition.as_str(), "full" | "lite")
             || self.os != std::env::consts::OS
             || self.arch != std::env::consts::ARCH
-            || self.version.split('.').count() != 3
-            || self
-                .version
-                .split('.')
-                .any(|s| s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit()))
+            || !valid_product_version(&self.version)
             || self.generation.is_empty()
             || self.generation.len() > 128
             || !self
@@ -1782,5 +1787,18 @@ mod lease_tests {
         contender.try_lock().unwrap();
         contender.unlock().unwrap();
         drop(duplicate);
+    }
+}
+
+#[cfg(test)]
+mod version_contract_tests {
+    #[test]
+    fn numeric_versions_are_canonical() {
+        for value in ["0.0.0", "1.2.3", "255.255.65535"] {
+            assert!(super::valid_product_version(value));
+        }
+        for value in ["01.2.3", "1.2", "1.2.3-beta", "1..3", "1.2.٣"] {
+            assert!(!super::valid_product_version(value));
+        }
     }
 }

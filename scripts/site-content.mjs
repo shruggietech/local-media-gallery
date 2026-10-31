@@ -1,3 +1,4 @@
+import {publishedView,validateRelease as validateCanonicalRelease} from './release-record.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import { readFile, readdir, realpath } from 'node:fs/promises';
@@ -125,26 +126,8 @@ export function validateManifest(manifest) {
   return manifest;
 }
 
-export function validateRelease(record) {
-  if (record === null) return null;
-  assert.equal(record.status, 'published', 'Only published releases may supply downloads');
-  assert.match(record.version, /^\d+\.\d+\.\d+$/);
-  assert.match(record.sourceRevision, /^[a-f0-9]{40}$/);
-  assert.ok(record.artifacts?.length, 'Published release needs artifacts');
-  for (const artifact of record.artifacts) {
-    assert.ok(['full', 'lite'].includes(artifact.edition));
-    assert.ok(['windows', 'linux', 'macos'].includes(artifact.platform));
-    assert.ok(['x64', 'arm64'].includes(artifact.architecture));
-    assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
-    assert.match(artifact.filename, /^[\w.-]+$/);
-    assert.ok(!['.', '..'].includes(artifact.filename), 'Invalid artifact filename');
-    assert.equal(
-      artifact.url,
-      `https://github.com/shruggietech/local-media-gallery/releases/download/v${record.version}/${artifact.filename}`,
-    );
-    assert.equal(artifact.version, record.version, 'Artifact version mismatch');
-  }
-  return record;
+export function validateRelease(record,options={}) {
+  return record===null?null:publishedView(record,options);
 }
 
 const pointerSegment = (key) => key.replaceAll('~', '~0').replaceAll('/', '~1');
@@ -179,7 +162,7 @@ export async function confinedRead(base, relative) {
   return readFile(resolved);
 }
 
-export async function createModel(base, suppliedManifest) {
+export async function createModel(base, suppliedManifest, {releaseRecord,allowFixture=false,publicationProjection=false}={}) {
   const manifest = validateManifest(
     suppliedManifest ?? JSON.parse(await confinedRead(base, 'site/versions.json')),
   );
@@ -283,7 +266,7 @@ export async function createModel(base, suppliedManifest) {
     for(const entry of snapshot.additionalSchemas??[]){
       assert.match(entry.topic,/^[a-z][a-z0-9-]*$/);assert.ok(entry.source.startsWith('schemas/'+snapshot.version+'/')&&entry.source.endsWith('.schema.json'));
       const route='/docs/'+snapshot.version+'/'+entry.topic+'/';const rawPath='/raw/'+snapshot.version+'/'+path.posix.basename(entry.source);
-      const bytes=await source(entry.source,route,rawPath,snapshot.version);const schema=JSON.parse(bytes);assert.equal(schema['x-release-version'],snapshot.version.slice(1));new Ajv({strict:false}).compile(schema);
+      const bytes=await source(entry.source,route,rawPath,snapshot.version);const schema=JSON.parse(bytes);assert.equal(schema['x-release-version'],snapshot.version.slice(1));new Ajv({strict:false,validateFormats:false}).compile(schema);
       pages.push({route,version:snapshot.version,topic:entry.topic,title:entry.title,html:'<h1>'+escape(entry.title)+'</h1>'+renderSchema(schema),raw:rawPath});
     }
     inventory.set(`${snapshot.version}:CHANGELOG.md`, '/changelog/');
@@ -338,9 +321,11 @@ export async function createModel(base, suppliedManifest) {
     pages.push({ ...rendered, route, raw: rawPath });
   }
   let release = null;
-  if (manifest.releaseRecord) {
-    assert.equal(manifest.releaseRecord, 'site/published-release.json');
-    release = validateRelease(JSON.parse(await confinedRead(base, manifest.releaseRecord)));
+  if (releaseRecord!==undefined || manifest.releaseRecord) {
+    if(releaseRecord===undefined)assert.equal(manifest.releaseRecord,'site/published-release.json');
+    const record=releaseRecord??JSON.parse(await confinedRead(base,manifest.releaseRecord));
+    if(publicationProjection){validateCanonicalRelease(record,{allowFixture});assert.ok(record.publication&&record.gates.before,'Observed publication required for private projection');release={version:record.version,artifacts:record.artifacts.filter(a=>a.role==='package').map(a=>({edition:a.edition,platform:a.platform,architecture:a.architecture,filename:a.name,url:a.url,sha256:a.sha256}))};}
+    else release=validateRelease(record,{allowFixture});
     assert.equal(
       manifest.latest,
       `v${release.version}`,

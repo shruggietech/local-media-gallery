@@ -58,7 +58,7 @@ Glossary terms must have precise definitions, primary learning references and re
 
 The site uses an independent static Next.js workspace. Markdown-it parses Markdown and tables with raw HTML disabled. Shiki highlights code during the build with governed theme tokens. Copy controls preserve exact source whitespace and communicate success or failure; examples remain readable without scripting. Mermaid diagrams are rendered as strict, described light/dark SVG during preparation with local fonts, unique identifiers and local-only references. They remain readable without scripting, with source disclosure and a local overflow region for legible inspection. Invalid diagrams fail the build; neither Mermaid nor Shiki ships as a reader runtime. The landing page does not import documentation search, diagram or highlighting runtimes.
 
-A validated JSON version manifest owns the selected documentation version, ordered retained snapshots/topics and optional matching schema/examples. Snapshot-owned assets and captured external brand references retain byte hashes. A build rejects missing or duplicate topics, mismatched schema versions, unsafe links and unpublished local targets. Only inventoried public documents and references are copied into the output; internal planning is excluded.
+A validated JSON version manifest inventories ordered retained snapshots/topics and matching schema/examples. Observed canonical GitHub Release records elect the public released versions and current selection; a pending source snapshot does not announce publication. Snapshot-owned assets and captured external brand references retain byte hashes. A build rejects missing or duplicate topics, mismatched schema versions, unsafe links and unpublished local targets. Only inventoried public documents and references are copied into the output; internal planning is excluded.
 
 Search indexes are generated locally from each snapshot's parsed source text. The interface identifies the selected version and limits displayed results to twenty matching chapters. Search unavailability leaves chapter navigation usable. Version changes preserve the topic when available; an unavailable topic opens the selected version's index with an explicit explanation.
 
@@ -83,3 +83,25 @@ Live acceptance checks authoritative and independent public DNS, trusted HTTPS, 
 U-12 is resolved by these rendering, search, metadata, alias and correction contracts. No further documentation-framework decision remains open for the current site.
 
 Return to the [index](index.md) or consult the [glossary](glossary.md).
+
+## Release snapshots and documentation gates
+
+Each elected version retains complete authored documentation, navigation, assets, master/additional schemas, examples and captured references. Capture inventories sorted relative paths, byte counts and hashes; an exact repeat is idempotent. The capture receipt identifies its source revision and vocabulary review. The later release gate binds that captured content to the exact qualified product revision and current renderer separately, avoiding a self-referential source commit. Material corrections retain dated reasons and old/new digests with a changelog entry. Ordinary releases require a vocabulary/glossary review; a major release requires the complete term, definition, external primary-reference and local-usage refresh. Review records identify the reviewer, date, notes and exact inspected inventory. Structural checks do not replace editorial judgment.
+
+Every candidate gate recompiles the elected snapshot and every retained version through the current Next.js/Fumadocs/Shiki renderer. It checks rendered prose, routes, links/fragments/assets, raw source hashes, schemas/examples, additional-schema/contract navigation, topic preservation, explicit missing-topic fallback and version-scoped search. Actual headless browser acceptance exercises the exported interface. The receipt binds the immutable release candidate, product source, all snapshot inputs, current renderer, exported output and complete check outcomes. Changed renderer, snapshot, artifact identity or output invalidates authorization. Candidate qualification keeps current aliases/downloads unchanged.
+
+After the service confirms publication and matching artifact bytes, a second private build qualifies the observed published projection. Only this matching receipt permits canonical release-record and latest promotion. The public builder resolves actual canonical releases and rejects fixture, candidate, missing or mismatched identities. It includes verified historical versions and retains the explicitly labelled specification baseline. Selected downloads and latest aliases derive from the same publication identity.
+
+```mermaid
+flowchart TD
+  A[Retained native artifacts and complete snapshots] --> B[Candidate documentation gate]
+  B --> C[Stage and independently verify draft assets]
+  C --> D[Publish with latest unchanged]
+  D --> E[Read back actual tag and artifact bytes]
+  E --> F[Publication documentation gate]
+  F --> G[Upload and verify canonical record]
+  G --> H[Compare previous selection and promote latest]
+  H --> I[Deploy exact qualified static artifact]
+```
+
+Pages deployment verifies the retained static inventory, renderer revision and current canonical publication selection. A queued build whose release selection has become stale refuses deployment, even when its renderer commit still matches main. Publishing credentials deploy the retained output without rebuilding it. Failed candidate runs retain previous public pointers; an observed release whose promotion failed remains distinct from a current download.

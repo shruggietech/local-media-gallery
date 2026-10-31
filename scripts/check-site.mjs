@@ -1,3 +1,4 @@
+import {fileURLToPath} from 'node:url';
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
@@ -7,8 +8,10 @@ import { root } from './run.mjs';
 import { createModel, hash } from './site-content.mjs';
 import { sourceIdentity } from './provenance.mjs';
 
-const output = path.join(root, 'apps/site/out');
-const model = await createModel(root);
+export async function checkSite({base=root,manifest,releaseRecord,allowFixture=false,publicationProjection=false,outputRoot=path.join(root,'apps/site/out')}={}) {
+const output=outputRoot;
+if(manifest===undefined){const selection=JSON.parse(await readFile(path.join(root,'.local/site-publication.json'),'utf8'));manifest=selection.manifest;releaseRecord=selection.releaseRecord;}
+const model = await createModel(base,manifest,{releaseRecord,allowFixture,publicationProjection});
 const inventory = [];
 const html = new Map();
 async function walk(directory) {
@@ -121,8 +124,8 @@ for (const file of staged)
     file.sha256,
     'Governed staged asset drift',
   );
-const manifest = JSON.parse(await readFile(path.join(output, 'site.webmanifest')));
-for (const icon of manifest.icons)
+const webmanifest = JSON.parse(await readFile(path.join(output, 'site.webmanifest')));
+for (const icon of webmanifest.icons)
   assert.ok(
     inventory.some((file) => '/' + file.path === icon.src),
     'Manifest dependency absent: ' + icon.src,
@@ -140,7 +143,7 @@ for (const [name, size] of [
   ['favicon-16x16.png', 16],
   ['favicon-32x32.png', 32],
   ['apple-touch-icon.png', 180],
-  ...manifest.icons.map((icon) => [icon.src.slice(1), Number(icon.sizes.split('x')[0])]),
+  ...webmanifest.icons.map((icon) => [icon.src.slice(1), Number(icon.sizes.split('x')[0])]),
 ]) {
   const bytes = await readFile(path.join(output, name));
   assert.equal(bytes.subarray(1, 4).toString(), 'PNG');
@@ -173,3 +176,7 @@ await writeFile(path.join(root, '.local/site-artifact.json'), JSON.stringify(rec
 console.log(
   `Verified ${html.size} HTML pages, ${links} local links/fragments and ${model.raw.length} exact raw sources; recorded ${inventory.length} artifact hashes.`,
 );
+
+return record;
+}
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))await checkSite();

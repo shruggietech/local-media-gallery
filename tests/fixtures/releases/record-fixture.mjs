@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+import {createCandidate,publicationDigest} from '../../../scripts/release-record.mjs';
+const sha='a'.repeat(64),revision='b'.repeat(40);
+export function candidateFixture(){
+ const repository='shruggietech/local-media-gallery',version='0.1.0';
+ const artifacts=['windows','linux','macos'].flatMap(platform=>['full','lite'].map(edition=>{const format=platform==='windows'?'zip':platform==='linux'?(edition==='full'?'deb':'tar.gz'):(edition==='full'?'dmg':'zip');const name=`gallery-${platform}-${edition}.${format}`;return {name,role:'package',edition,platform,architecture:platform==='macos'?'aarch64':'x86_64',format,bytes:'3',sha256:sha,url:`https://github.com/${repository}/releases/download/v${version}/${name}`,prerequisites:[],optionalTools:[],inventory:{sha256:sha,files:1,bytes:'3'},evidence:{scope:platform+'-packages',sha256:sha}};}));
+ artifacts.push({...structuredClone(artifacts.find(a=>a.platform==='linux'&&a.edition==='full')),name:'gallery-linux-full.deb.update.json',role:'update-descriptor',format:'json',forArtifact:'gallery-linux-full.deb',url:`https://github.com/${repository}/releases/download/v${version}/gallery-linux-full.deb.update.json`});
+ return createCandidate({repository,version,previousVersion:null,source:{revision,sha256:sha,files:1},artifacts,documentation:{version:'v'+version,snapshotSha256:sha,retainedSha256:sha,schemaSha256:sha,reviewSha256:sha},qualification:{mode:'fixture',runId:'123',scopes:['repository','website','product-windows','product-linux','product-macos','windows-packages','linux-packages','macos-packages'].map(scope=>({scope,sha256:sha,result:'pass',preparationSeconds:1,qualificationSeconds:2,combinedSeconds:3}))}},{allowFixture:true});
+}
+export function gateFixture(record,phase='candidate'){
+ return {phase,result:'pass',candidateId:record.candidateId,sourceRevision:record.source.revision,sourceSha256:record.source.sha256,snapshotsSha256:record.documentation.retainedSha256,rendererSha256:sha,projectionSha256:sha,publicationSha256:phase==='publication'?publicationDigest(record.publication):null,checkedAt:'2026-10-31T00:00:00.000Z',checks:['rendering','navigation','links-assets','version-selection','search','schemas-examples','review'].map(name=>({name,result:'pass'}))};
+}
+export function publicationFixture(record){return {repository:record.repository,id:10,tag:'v'+record.version,sourceRevision:record.source.revision,htmlUrl:`https://github.com/${record.repository}/releases/tag/v${record.version}`,publishedAt:'2026-10-31T00:00:00.000Z',assets:record.artifacts.map((a,i)=>({name:a.name,id:i+1,bytes:a.bytes,sha256:a.sha256,url:a.url}))};}
