@@ -153,6 +153,19 @@ LMG_OWNER_REPORT
     }
 
 
+    registered_paths() {
+        [ "$#" -gt 0 ] || return 0
+        owner_report=$(/usr/bin/dpkg-query -S -- "$@" 2>/dev/null) || fail 'Unregistered incoming/recovery destination.'
+        while IFS= read -r owner_line; do
+            case "$owner_line" in
+                'local-media-gallery: /'*|'local-media-gallery:amd64: /'*) : ;;
+                *) fail "Foreign owner/diversion: $owner_line" ;;
+            esac
+        done <<LMG_REGISTERED_PATHS
+$owner_report
+LMG_REGISTERED_PATHS
+    }
+
     incoming_paths() {
         registered_state
         case "$package_state" in
@@ -160,23 +173,17 @@ LMG_OWNER_REPORT
             *) fail "Unowned transition state: $package_state." ;;
         esac
         check_visible_command
+        set --
         while IFS='|' read -r expected_hash expected_mode expected_size file; do
             check_parent "$file"
             if [ -e "$file" ] || [ -L "$file" ]; then
                 if [ ! -f "$file" ] || [ -L "$file" ]; then fail "Linked/nonregular incoming destination: $file."; fi
-                incoming_owner=$(/usr/bin/dpkg-query -S -- "$file" 2>/dev/null) || fail "Unregistered incoming destination: $file."
-                while IFS= read -r owner_line; do
-                    case "$owner_line" in
-                        'local-media-gallery: /'*|'local-media-gallery:amd64: /'*) : ;;
-                        *) fail "Foreign owner/diversion: $owner_line" ;;
-                    esac
-                done <<LMG_INCOMING_OWNER
-$incoming_owner
-LMG_INCOMING_OWNER
+                set -- "$@" "$file"
             fi
         done <<'LMG_INCOMING_FILES'
 @EXPECTED_FILES@
 LMG_INCOMING_FILES
+        registered_paths "$@"
     }
 
     recovery_owned() {
@@ -200,7 +207,9 @@ LMG_INCOMING_FILES
         registered_state
         case "$package_state" in installed|half-installed|unpacked|half-configured|triggers-awaited|triggers-pending) ;; *) fail 'Recovery package state differs.' ;; esac
         check_visible_command
-        /usr/bin/tail -n +2 -- "$authority" | while IFS='|' read -r _entry_hash _entry_mode _entry_size file; do
+        recovery_rows=$(/usr/bin/tail -n +2 -- "$authority") || fail 'Cannot read recovery rows.'
+        set --
+        while IFS='|' read -r _entry_hash _entry_mode _entry_size file; do
             case "$file" in /usr/lib/local-media-gallery/*|/usr/bin/local-media-gallery|/usr/share/applications/tech.shruggie.local-media-gallery.desktop|/usr/share/icons/hicolor/*/apps/tech.shruggie.local-media-gallery.png|/usr/share/doc/local-media-gallery/*) ;; *) fail 'Recovery path outside application contract.' ;; esac
             case "$file" in *'..'*|*'//'*) fail 'Noncanonical recovery path.' ;; esac
             check_parent "$file"
@@ -213,14 +222,12 @@ LMG_INCOMING_FILES
                 actual_size=${actual_size%%:*}
                 observed_hash=$(/usr/bin/sha256sum -- "$file") || fail 'Recovery hashing failed.'
                 /usr/bin/grep -F -x -- "${observed_hash%% *}|$actual_mode|$actual_size|$file" "$authority" >/dev/null || fail "External recovery bytes: $file."
-                recovery_owner=$(/usr/bin/dpkg-query -S -- "$file" 2>/dev/null) || fail 'Unregistered recovery path.'
-                while IFS= read -r owner_line; do
-                    case "$owner_line" in 'local-media-gallery: /'*|'local-media-gallery:amd64: /'*) : ;; *) fail "Foreign recovery registration: $owner_line" ;; esac
-                done <<LMG_RECOVERY_OWNER
-$recovery_owner
-LMG_RECOVERY_OWNER
+                set -- "$@" "$file"
             fi
-        done
+        done <<LMG_RECOVERY_ROWS
+$recovery_rows
+LMG_RECOVERY_ROWS
+        registered_paths "$@"
     }
 
     transition_owned() {
