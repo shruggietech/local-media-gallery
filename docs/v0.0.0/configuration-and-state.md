@@ -101,3 +101,7 @@ Settings writes are bounded to one MiB. User and portable saves coordinate coope
 U-07 retains disposable cache placement and future migration/backup policies. Portable representation, precedence, bundled SQLite adoption, machine-history locations and inactivity semantics are defined above.
 
 See [interfaces and contracts](interfaces-and-contracts.md), [verification and compatibility](verification-and-compatibility.md), the [index](index.md) and the [glossary](glossary.md).
+
+## Read-only update compatibility preflight
+
+The finite command local-media-gallery state-compatibility --json --settings ABSOLUTE_FILE --history ABSOLUTE_DATABASE --portable ABSOLUTE_GALLERY_DIRECTORY uses the same settings, portable-choice and history schema validators as ordinary writers. Supply the selected recipient operands explicitly, especially under system elevation. It opens no window, creates no state/lock/schema and performs no repair or reset. Missing stores are compatible absence; unreadable, foreign, corrupt or unsupported identities return compatible false and exit2 with the original bytes retained. This covers selected operands; other profiles keep their ordinary per-writer checks. Update and rollback invoke the selected ordinary candidate probe before activation. No new format migration is introduced. See [explicit updates and recovery](installation-and-distribution.md#explicit-candidate-updates-and-recovery).

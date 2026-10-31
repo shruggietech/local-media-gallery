@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+mod compatibility;
 mod discovery;
 mod gallery_state;
 mod history;
@@ -531,6 +532,17 @@ fn output(result: &launch::OperationResult, machine: bool) -> i32 {
 fn main() {
     use launch::{Mode, Operation, OperationResult, Status};
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    if args.first().is_some_and(|a| a == "state-compatibility") {
+        let (value, code) = match compatibility::probe(&args[1..]) {
+            Ok(value) => {
+                let code = if value["compatible"] == true { 0 } else { 2 };
+                (value, code)
+            }
+            Err(error) => (serde_json::json!({"compatible":false,"error":error}), 2),
+        };
+        println!("{value}");
+        std::process::exit(code);
+    }
     let machine = launch::requested_json(&args);
     let id = uuid::Uuid::new_v4().simple().to_string();
     let request = match launch::parse(args) {

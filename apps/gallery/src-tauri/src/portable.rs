@@ -178,6 +178,19 @@ impl Portable {
     }
 }
 
+/// The operand is the selected gallery directory, not an initialized settings file.
+pub fn compatibility(path: &std::path::Path) -> Result<(), GalleryError> {
+    if !path.try_exists().map_err(error)? {
+        return Ok(());
+    }
+    let dir = Dir::open_ambient_dir(path, cap_std::ambient_authority()).map_err(error)?;
+    let state = Portable::load(&dir, false);
+    if let Some(warning) = state.warning {
+        return Err(error(warning));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

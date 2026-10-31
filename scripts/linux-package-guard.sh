@@ -27,7 +27,7 @@ export PATH LC_ALL
 # Declare Functions
 
     fail() {
-        printf '%s\n' "package_conflict ($operation): $* Inspect the retained state before retrying. Cross-candidate updates are not implemented." >&2
+        printf '%s\n' "package_conflict ($operation): $* Inspect the retained state before retrying." >&2
         exit 1
     }
 
@@ -150,6 +150,85 @@ LMG_OWNER_REPORT
         esac
         check_visible_command
         walk_files absent
+    }
+
+
+    incoming_paths() {
+        registered_state
+        case "$package_state" in
+            installed|half-installed|unpacked|half-configured|triggers-awaited|triggers-pending) ;;
+            *) fail "Unowned transition state: $package_state." ;;
+        esac
+        check_visible_command
+        while IFS='|' read -r expected_hash expected_mode expected_size file; do
+            check_parent "$file"
+            if [ -e "$file" ] || [ -L "$file" ]; then
+                [ -f "$file" ] && [ ! -L "$file" ] || fail "Linked/nonregular incoming destination: $file."
+                incoming_owner=$(/usr/bin/dpkg-query -S -- "$file" 2>/dev/null) || fail "Unregistered incoming destination: $file."
+                while IFS= read -r owner_line; do
+                    case "$owner_line" in
+                        'local-media-gallery: /'*|'local-media-gallery:amd64: /'*) : ;;
+                        *) fail "Foreign owner/diversion: $owner_line" ;;
+                    esac
+                done <<LMG_INCOMING_OWNER
+$incoming_owner
+LMG_INCOMING_OWNER
+            fi
+        done <<'LMG_INCOMING_FILES'
+@EXPECTED_FILES@
+LMG_INCOMING_FILES
+    }
+
+    recovery_owned() {
+        authority=/run/local-media-gallery-update/authority
+        [ -f "$authority" ] && [ ! -L "$authority" ] || fail 'No physical coordinator recovery authority.'
+        check_parent "$authority"
+        [ "$(/usr/bin/stat -c '%u:%g:%a' -- /run/local-media-gallery-update)" = 0:0:700 ] || fail 'Foreign recovery directory.'
+        [ "$(/usr/bin/stat -c '%u:%g:%a' -- "$authority")" = 0:0:600 ] || fail 'Foreign recovery record.'
+        [ "$(/usr/bin/stat -c '%s' -- "$authority")" -le 8388608 ] || fail 'Oversized recovery record.'
+        IFS='|' read -r protocol old_hash new_hash coordinator old_count new_count < "$authority"
+        [ "$protocol" = LMG1 ] || fail 'Unknown recovery protocol.'
+        case "$coordinator:$old_count:$new_count" in *[!0-9:]*|:*|*::*) fail 'Invalid recovery counters.' ;; esac
+        [ "$old_count" -gt 0 ] && [ "$old_count" -le 8192 ] && [ "$new_count" -gt 0 ] && [ "$new_count" -le 8192 ] || fail 'Recovery inventory count.'
+        kill -0 "$coordinator" 2>/dev/null || fail 'Recovery coordinator is no longer active; run lmg-update recover.'
+        [ "$(/usr/bin/wc -l < "$authority")" -eq "$((1 + old_count + new_count))" ] || fail 'Recovery inventory length.'
+        old_end=$((old_count + 1))
+        observed_old=$(/usr/bin/head -n "$old_end" -- "$authority" | /usr/bin/tail -n "$old_count" | /usr/bin/sha256sum)
+        observed_new=$(/usr/bin/tail -n "$new_count" -- "$authority" | /usr/bin/sha256sum)
+        [ "${observed_old%% *}" = "$old_hash" ] && [ "${observed_new%% *}" = "$new_hash" ] || fail 'Recovery inventory hashes changed.'
+        [ '@EXPECTED_HASH@' = "$old_hash" ] || [ '@EXPECTED_HASH@' = "$new_hash" ] || fail 'This package is outside the recovery operation.'
+        registered_state
+        case "$package_state" in installed|half-installed|unpacked|half-configured|triggers-awaited|triggers-pending) ;; *) fail 'Recovery package state differs.' ;; esac
+        check_visible_command
+        /usr/bin/tail -n +2 -- "$authority" | while IFS='|' read -r _entry_hash _entry_mode _entry_size file; do
+            case "$file" in /usr/lib/local-media-gallery/*|/usr/bin/local-media-gallery|/usr/share/applications/tech.shruggie.local-media-gallery.desktop|/usr/share/icons/hicolor/*/apps/tech.shruggie.local-media-gallery.png|/usr/share/doc/local-media-gallery/*) ;; *) fail 'Recovery path outside application contract.' ;; esac
+            case "$file" in *'..'*|*'//'*) fail 'Noncanonical recovery path.' ;; esac
+            check_parent "$file"
+            if [ -e "$file" ] || [ -L "$file" ]; then
+                [ -f "$file" ] && [ ! -L "$file" ] || fail "Linked recovery path: $file."
+                observed_stat=$(/usr/bin/stat -c '%a:%s:%u:%g' -- "$file") || fail 'Recovery stat failed.'
+                case "$observed_stat" in *:0:0) ;; *) fail 'Foreign recovery file owner.' ;; esac
+                actual_mode=${observed_stat%%:*}
+                actual_size=${observed_stat#*:}
+                actual_size=${actual_size%%:*}
+                observed_hash=$(/usr/bin/sha256sum -- "$file") || fail 'Recovery hashing failed.'
+                /usr/bin/grep -F -x -- "${observed_hash%% *}|$actual_mode|$actual_size|$file" "$authority" >/dev/null || fail "External recovery bytes: $file."
+                recovery_owner=$(/usr/bin/dpkg-query -S -- "$file" 2>/dev/null) || fail 'Unregistered recovery path.'
+                while IFS= read -r owner_line; do
+                    case "$owner_line" in 'local-media-gallery: /'*|'local-media-gallery:amd64: /'*) : ;; *) fail "Foreign recovery registration: $owner_line" ;; esac
+                done <<LMG_RECOVERY_OWNER
+$recovery_owner
+LMG_RECOVERY_OWNER
+            fi
+        done
+    }
+
+    transition_owned() {
+        if [ -e /run/local-media-gallery-update/authority ]; then
+            recovery_owned
+        else
+            verify_owned
+        fi
     }
 
     verify_owned() {

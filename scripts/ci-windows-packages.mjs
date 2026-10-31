@@ -14,9 +14,9 @@ import {validatePackageEvidence} from './windows-package-evidence.mjs';
 await mkdir(path.join(root,'.local'),{recursive:true});let build;
 const record=await qualification({
  identify:async()=>({scope:'windows-packages',source:await sourceIdentity(),revision:(await promisify(execFile)('git',['rev-parse','HEAD'],{cwd:root,windowsHide:true})).stdout.trim()}),
- prepare:async context=>{await prepareCargoDependencies();await cargo(['test','--locked','-p','gallery-windows-package','--no-run']);await node(path.join(root,'scripts/build-windows-packages.mjs'));build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));assert.deepEqual(build.source,context.source);assert.equal(build.revision,context.revision);},
+ prepare:async context=>{await prepareCargoDependencies();await cargo(['test','--locked','-p','gallery-windows-package','-p','gallery-update','--no-run']);await node(path.join(root,'scripts/build-windows-packages.mjs'));build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));assert.deepEqual(build.source,context.source);assert.equal(build.revision,context.revision);},
  steps:[
-  {name:'Windows package native ownership units',run:()=>cargo(['test','--locked','-p','gallery-windows-package'])},
+  {name:'Windows package native ownership units',run:()=>cargo(['test','--locked','-p','gallery-windows-package','-p','gallery-update'])},
   {name:'Actual ordinary Full/Lite install, native use, collision and selective removal',run:()=>node(path.join(root,'scripts/test-windows-packages.mjs'))},
   {name:'Independent exact-source package/native receipt and governed bytes read-back',run:async()=>{const result=JSON.parse(await readFile(path.join(root,'.local/windows-package-results.json')));await validatePackageEvidence(build,result,root);assert.deepEqual(await sourceIdentity(),recordContextSource());await node(path.join(root,'scripts/sync-brand-kit.mjs'),['--verify']);}},
  ]

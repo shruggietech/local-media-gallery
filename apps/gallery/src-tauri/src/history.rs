@@ -428,6 +428,22 @@ impl History {
     }
 }
 
+/// Inspect the selected store without creating schema, migration or lock files.
+pub fn compatibility(path: &Path) -> Result<(), GalleryError> {
+    for suffix in ["-wal", "-shm", "-journal"] {
+        let mut name = path.as_os_str().to_owned();
+        name.push(suffix);
+        if PathBuf::from(name).try_exists().map_err(error)? {
+            return Err(error(
+                "Outstanding history journal material must be finalized by its normal writer before replacement; original files retained",
+            ));
+        }
+    }
+    History::new(Some(path.to_path_buf()), false)
+        .read()
+        .map(|_| ())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

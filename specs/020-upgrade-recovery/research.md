@@ -1,0 +1,27 @@
+# S020 research decisions
+
+2026-10-31: platform research completed before implementation.
+
+## Native owner remains authoritative
+
+Windows same-version distinct PackageCode MSI reinstalls are documented, but component identities must remain stable and removal rules matter. Retain original full MSI, never rely on internal LocalPackage cache. Legacy helpers reject changed PackageCode, so explicit native uninstall/install may be necessary across legacy or changed inventories; record the recoverable gap. Sources: [small updates](https://learn.microsoft.com/en-us/windows/win32/msi/applying-small-updates-by-reinstalling-the-product), [REINSTALLMODE](https://learn.microsoft.com/en-us/windows/win32/msi/reinstallmode), [product codes](https://learn.microsoft.com/en-us/windows/win32/msi/changing-the-product-code), [LocalPackage](https://learn.microsoft.com/en-us/windows/win32/api/msi/nf-msi-msigetproductinfoexa), [rollback](https://learn.microsoft.com/en-us/windows/win32/msi/rollback-installation).
+
+Debian calls old-prerm before new-preinst. Old-prerm can validate old hashes; new-preinst must validate incoming destination authority rather than compare old bytes with new hashes. Retain both .deb inputs and use native unpack/configure for recovery. Partial-state allowances must remain bounded to journal-authorized union(old,new) bytes and cannot report configured success. Source: [Debian maintainer scripts](https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html).
+
+macOS current receipt equality prevents distinct replacement. Separate prior-receipt identity validation, then retain verified prior bytes and stage new bytes with journal reconciliation. Use persistent OS file lock inode; never remove a lock merely because its owner timed out. Sources: [Rust rename](https://doc.rust-lang.org/std/fs/fn.rename.html), [Rust file locks](https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock), [Apple fsync](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fsync.2.html).
+
+## Data compatibility
+
+Reuse actual settings/portable/history validators through read-only finite probe. No new format needed: settings and portable format1/release0.0.0; SQLite applicationId0x4c4d4701/userVersion1 with exact schema. Unsupported bytes remain unchanged. Explicit recipient operands avoid pretending elevated root's profile covers every account.
+
+## Candidate and failure evidence
+
+Prepare two real controlled ordinary candidate generations with distinct owned package metadata/resources. Reuse ordinary compiled app when unchanged; record equal binary hash honestly. Real MSI/dpkg/direct transitions and ordinary native launch establish replacement. Label future-format and deliberate failure fixtures separately. Preparation owns compilation, archive construction and prerequisites; qualification owns actual transactions/readback.
+
+Rejected alternatives: generic raw copying of native-owned Full files, whole Lite gallery replacement, script-runtime dependency on recipients, ephemeral-only backup, invented release/version, signing gates, timeouts treated as terminal process evidence.
+
+## Implementation follow-up research
+
+Apple declares renameatx_np RENAME_EXCL as0x4 and O_NOFOLLOW as0x100. Both leaf names are anchored to an open physical parent for same-filesystem exclusive displacement. Post-rename byte verification remains necessary because exclusive rename does not compare the source inode to an earlier observation. Receipt metadata checks are owner authority rules, not an assertion that POSIX mode excludes every ACL writer. Sources: [Apple stdio declarations](https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/stdio.h), [Apple fcntl declarations](https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/fcntl.h), [XNU VFS implementation](https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/vfs/vfs_syscalls.c).
+
+Windows private records require atomic security attributes, protected non-null DACLs, trusted ancestor deletion authority and machine Administrators ownership. Native MSI inspection binds actual ProductCode, PackageCode and ALLUSERS scope before staging. Sources: [Security descriptors for new objects](https://learn.microsoft.com/en-us/windows/win32/secauthz/security-descriptors-for-new-objects), [GetSecurityInfo](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-getsecurityinfo), [CheckTokenMembership](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-checktokenmembership).

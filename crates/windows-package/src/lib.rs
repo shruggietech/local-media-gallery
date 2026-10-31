@@ -6,6 +6,8 @@ use std::{fs, path::Path};
 
 #[cfg(windows)]
 pub mod native;
+#[cfg(windows)]
+pub mod private;
 pub const PAYLOAD: &str = include_str!(concat!(env!("OUT_DIR"), "/payload.json"));
 pub const SETUP: &str = include_str!(concat!(env!("OUT_DIR"), "/setup.json"));
 pub fn hash(bytes: &[u8]) -> String {
