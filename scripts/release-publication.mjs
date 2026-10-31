@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
-import {readFile,lstat,writeFile} from 'node:fs/promises';
+import {readFile,lstat,writeFile,rename} from 'node:fs/promises';
 import path from 'node:path';
 import {canonical,parseReleaseRecord,validateRelease,validateGate,releaseHash} from './release-record.mjs';
 import {verifyDocumentationGate} from './release-docs.mjs';
@@ -13,15 +13,29 @@ export class ReleasePublisher {
  async locate(record){const matches=(await this.client.releases()).filter(r=>r.tag_name==='v'+record.version);assert.ok(matches.length<=1,'Ambiguous remote releases');if(!matches.length)return null;const release=matches[0];assert.ok(release.body?.includes(marker(record)),'Remote release is not owned by this candidate');assert.equal(release.prerelease,false);assert.equal(release.target_commitish,record.source.revision,'Draft target source differs');const tag=await this.client.resolveTag('v'+record.version);if(tag!==null)assert.equal(tag,record.source.revision,'Remote tag source differs');return release;}
  async bytes(asset,expected){assert.equal(asset.state,'uploaded','Incomplete remote asset');assert.equal(String(asset.size),expected.bytes,'Remote asset bytes differ');assert.equal(asset.browser_download_url,expected.url,'Remote asset URL differs');const actual=await this.client.download(asset.url);assert.equal(actual.bytes,expected.bytes);assert.equal(actual.sha256,expected.sha256,'Remote asset digest differs');return {name:asset.name,id:asset.id,bytes:actual.bytes,sha256:actual.sha256,url:asset.browser_download_url};}
  async verifyAssets(record,release,{canonicalAllowed=false}={}){const assets=await this.client.assets(release.id);assert.equal(new Set(assets.map(a=>a.name)).size,assets.length);assert.ok(assets.every(a=>record.artifacts.some(e=>e.name===a.name)||(canonicalAllowed&&a.name==='release.json')),'Foreign remote asset');const observed=[];for(const expected of record.artifacts){const asset=assets.find(a=>a.name===expected.name);assert.ok(asset,'Missing remote asset '+expected.name);observed.push(await this.bytes(asset,expected));}return observed;}
+ async ensureUploaded(record,release,name,input,{canonicalAsset=false}={}){
+  const journalFile=path.join(this.artifactRoot,'.release-upload-attempts.json');
+  let journal={candidateId:record.candidateId,starters:{}};
+  try{const info=await lstat(journalFile);assert.ok(info.isFile()&&!info.isSymbolicLink());journal=JSON.parse(await readFile(journalFile,'utf8'));assert.equal(journal.candidateId,record.candidateId);assert.ok(journal.starters&&typeof journal.starters==='object');}catch(e){if(e.code!=='ENOENT')throw e;}
+  let assets=await this.client.assets(release.id),existing=assets.find(a=>a.name===name);
+  if(existing?.state==='starter'&&existing.size===0){
+   assert.ok(release.draft||(canonicalAsset&&name==='release.json'),'Published package assets are never replaced');
+   assert.equal(journal.starters[name],existing.id,'Starter is not attributable to a retained upload attempt');
+   await this.client.deleteAsset(existing.id);assets=await this.client.assets(release.id);assert.ok(!assets.some(a=>a.id===existing.id),'Starter cleanup not observed');existing=null;
+  }
+  if(existing){assert.equal(existing.state,'uploaded','Incomplete remote asset');return existing;}
+  let failure;try{await this.client.upload(release,name,input);}catch(e){failure=e;}
+  assets=await this.client.assets(release.id);existing=assets.find(a=>a.name===name);
+  if(existing?.state==='starter'&&existing.size===0){journal.starters[name]=existing.id;await writeFile(journalFile+'.next',canonical(journal)+'\n');await rename(journalFile+'.next',journalFile);}
+  if(!existing||existing.state!=='uploaded')throw failure??Error('Upload completion not observed');
+  return existing;
+ }
  async stage(record,notes){
   await this.gate(record,'candidate');assert.ok(typeof notes==='string'&&notes.trim()&&!notes.includes('<!--'),'Release highlights required');let release=await this.locate(record);
   if(!release){const body={tag_name:'v'+record.version,target_commitish:record.source.revision,name:'Local Media Gallery '+record.version,draft:true,prerelease:false,make_latest:'false',body:notes.trim()+'\n\n'+marker(record)+'\n\n[Full changelog](https://github.com/'+record.repository+'/blob/main/CHANGELOG.md)'};let failure;try{await this.client.createDraft(body);}catch(e){failure=e;}release=await this.locate(record);if(!release)throw failure??Error('Draft creation not observed');}
   if(!release.draft){await this.verifyAssets(record,release,{canonicalAllowed:true});return {...structuredClone(record),state:'staged'};}
-  const journalFile=path.join(this.artifactRoot,'.release-upload-attempts.json');let journal={candidateId:record.candidateId,starters:{}};try{journal=JSON.parse(await readFile(journalFile,'utf8'));assert.equal(journal.candidateId,record.candidateId);}catch(e){if(e.code!=='ENOENT')throw e;}
-  let assets=await this.client.assets(release.id);assert.ok(assets.every(a=>record.artifacts.some(e=>e.name===a.name)),'Foreign draft asset');
-  for(const expected of record.artifacts){const input=await this.input(expected);let existing=assets.find(a=>a.name===expected.name);if(existing?.state==='starter'&&existing.size===0){assert.equal(journal.starters[expected.name],existing.id,'Starter is not attributable to a retained upload attempt');await this.client.deleteAsset(existing.id);assets=await this.client.assets(release.id);assert.ok(!assets.some(a=>a.id===existing.id),'Starter cleanup not observed');existing=null;}if(existing){await this.bytes(existing,expected);continue;}
-   let failure;try{await this.client.upload(release,expected.name,input);}catch(e){failure=e;}assets=await this.client.assets(release.id);existing=assets.find(a=>a.name===expected.name);if(existing?.state==='starter'&&existing.size===0){journal.starters[expected.name]=existing.id;await writeFile(journalFile,canonical(journal)+'\n');}if(!existing||existing.state!=='uploaded')throw failure??Error('Upload completion not observed');await this.bytes(existing,expected);
-  }
+  const assets=await this.client.assets(release.id);assert.ok(assets.every(a=>record.artifacts.some(e=>e.name===a.name)),'Foreign draft asset');
+  for(const expected of record.artifacts){const input=await this.input(expected),asset=await this.ensureUploaded(record,release,expected.name,input);await this.bytes(asset,expected);}
   await this.verifyAssets(record,release);return {...structuredClone(record),state:'staged'};
  }
  async publish(record){
@@ -32,7 +46,7 @@ export class ReleasePublisher {
  async promote(record){
   await this.gate(record,'publication');const release=await this.locate(record);assert.ok(release&&!release.draft&&release.published_at,'Actual publication required');const actual=await this.publish({...record,state:'staged'});assert.deepEqual(actual.publication,record.publication,'Publication changed before promotion');
   const latest=await this.client.latest(),selected=latest?.tag_name??null,target='v'+record.version,prior=record.previousVersion===null?null:'v'+record.previousVersion;assert.ok(selected===prior||selected===target,'Previous public selection changed');
-  const published=validateRelease({...structuredClone(record),state:'published'},{...this.options,requirePublished:true});const bytes=Buffer.from(canonical(published)+'\n');let assets=await this.client.assets(release.id),asset=assets.find(a=>a.name==='release.json');if(!asset){let failure;try{await this.client.upload(release,'release.json',bytes);}catch(e){failure=e;}assets=await this.client.assets(release.id);asset=assets.find(a=>a.name==='release.json');if(!asset)throw failure??Error('Canonical upload not observed');}
+  const published=validateRelease({...structuredClone(record),state:'published'},{...this.options,requirePublished:true});const bytes=Buffer.from(canonical(published)+'\n');const asset=await this.ensureUploaded(record,release,'release.json',bytes,{canonicalAsset:true});
   assert.equal(asset.state,'uploaded');const remote=await this.client.download(asset.url,{collect:true,maxBytes:32*1024*1024});const retained=parseReleaseRecord(remote.data,{...this.options,requirePublished:true});assert.equal(retained.candidateId,published.candidateId,'Canonical immutable candidate differs');assert.deepEqual(retained.publication,published.publication,'Canonical publication differs');
   // Observe once more immediately before the serialized latest mutation. The
   // service has no compare-and-swap; a detected concurrent edit is never hidden.

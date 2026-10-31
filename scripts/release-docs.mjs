@@ -33,8 +33,27 @@ export async function retainSnapshot({fromRoot,toRoot,snapshot,sourceRevision,re
 }
 export async function correctSnapshot(args){
  const {fromRoot,toRoot,snapshot,date,reason,oldSha256}=args;assert.match(date,/^\d{4}-\d\d-\d\d$/);assert.ok(Number.isFinite(Date.parse(date))&&reason?.trim());const before=await snapshotInventory(toRoot,snapshot);assert.equal(before.sha256,oldSha256);const after=await snapshotInventory(fromRoot,snapshot);assert.notEqual(after.sha256,oldSha256);assert.deepEqual(before.files.map(f=>f.path),after.files.map(f=>f.path),'Corrections preserve the complete retained path set');validateVocabularyReview(args.review,after);const changelog=await readFile(path.join(toRoot,'CHANGELOG.md'),'utf8');
- const correction={date,version:snapshot.version,reason,oldSha256,newSha256:after.sha256};await writeExact(path.join(toRoot,'site/corrections',snapshot.version+'-'+date+'-'+after.sha256+'.json'),canonical(correction)+'\n');
+ const correction={date,version:snapshot.version,reason,oldSha256,newSha256:after.sha256,oldSchemaSha256:releaseHash(await readFile(path.join(toRoot,snapshot.schema))),newSchemaSha256:releaseHash(await readFile(path.join(fromRoot,snapshot.schema)))};await writeExact(path.join(toRoot,'site/corrections',snapshot.version+'-'+date+'-'+after.sha256+'.json'),canonical(correction)+'\n');
  for(const file of after.files)await copyFile(path.join(fromRoot,file.path),path.join(toRoot,file.path));const receipt={formatVersion:1,sourceRevision:args.sourceRevision,inventory:after,review:args.review};await writeFile(path.join(toRoot,'site/retained',snapshot.version+'.json'),canonical(receipt)+'\n');await writeFile(path.join(toRoot,'CHANGELOG.md'),changelog+`\nDocumentation correction ${date}, ${snapshot.version}: ${reason}. Previous digest ${oldSha256}; corrected digest ${after.sha256}.\n`);return receipt;
+}
+export async function verifySnapshotHistory(base,snapshot,published){
+ const current=await snapshotInventory(base,snapshot),schemaSha256=releaseHash(await readFile(path.join(base,snapshot.schema)));
+ const directory=path.join(await realpath(base),'site/corrections');let names=[];
+ try{const info=await lstat(directory);assert.ok(info.isDirectory()&&!info.isSymbolicLink(),'Redirected correction directory');assert.equal(await realpath(directory),path.resolve(directory));names=await readdir(directory);}catch(e){if(e.code!=='ENOENT')throw e;}
+ const records=[];
+ for(const name of names.filter(n=>n.startsWith(snapshot.version+'-'))){
+  portablePath(name);const file=path.join(directory,name),info=await lstat(file);assert.ok(info.isFile()&&!info.isSymbolicLink());assert.ok(info.size<=65536,'Oversized correction');
+  const correction=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(await readFile(file)));
+  assert.deepEqual(Object.keys(correction).sort(),['date','version','reason','oldSha256','newSha256','oldSchemaSha256','newSchemaSha256'].sort(),'Unknown correction fields');assert.equal(correction.version,snapshot.version);assert.match(correction.date,/^\d{4}-\d\d-\d\d$/);assert.equal(new Date(correction.date+'T00:00:00Z').toISOString().slice(0,10),correction.date);assert.ok(correction.reason?.trim());
+  for(const key of ['oldSha256','newSha256','oldSchemaSha256','newSchemaSha256'])assert.match(correction[key],/^[a-f0-9]{64}$/);
+  assert.notEqual(correction.oldSha256,correction.newSha256);assert.equal(name,snapshot.version+'-'+correction.date+'-'+correction.newSha256+'.json');records.push(correction);
+ }
+ assert.ok(records.length<=1000,'Correction chain bound exceeded');
+ let digest=published.snapshotSha256,schema=published.schemaSha256,lastDate='';const consumed=new Set(),visited=new Set([digest]);
+ while(digest!==current.sha256){
+  const next=records.filter(r=>r.oldSha256===digest);assert.equal(next.length,1,'Missing or ambiguous correction chain');const correction=next[0];assert.ok(!consumed.has(correction)&&!visited.has(correction.newSha256),'Cyclic correction chain');assert.ok(correction.date>=lastDate,'Correction chronology differs');assert.equal(correction.oldSchemaSha256,schema,'Correction schema predecessor differs');consumed.add(correction);visited.add(correction.newSha256);digest=correction.newSha256;schema=correction.newSchemaSha256;lastDate=correction.date;
+ }
+ assert.equal(consumed.size,records.length,'Unrelated or forked correction chain');assert.equal(schema,schemaSha256,'Corrected schema digest differs');return current;
 }
 export async function documentationIdentity(base,manifest,version,revision,{previousVersion=null}={}){
  const inventories=[];for(const snapshot of manifest.snapshots)inventories.push(await snapshotInventory(base,snapshot));const selected=inventories.find(i=>i.version==='v'+version);assert.ok(selected,'Missing elected documentation snapshot');const receipt=JSON.parse(await readFile(path.join(base,'site/retained','v'+version+'.json'),'utf8'));assert.match(receipt.sourceRevision,/^[a-f0-9]{40}$/);assert.deepEqual(receipt.inventory,selected);validateVocabularyReview(receipt.review,selected);

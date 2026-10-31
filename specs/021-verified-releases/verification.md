@@ -27,3 +27,11 @@ All elected local checks passed: npm run check, npm test, npm run check:docs, np
 Final API cleanup makes buildSite itself honor an explicit private output root; qualification consumes that exact export. A targeted current-renderer campaign verifies the same two gate paths after this cleanup.
 
 An additional historical adapter regression independently assembled all six original native package archives plus the Linux Full descriptor from retained successful native evidence. This validates the cross-platform retained-path adapters and established native evidence validators; it is explicitly historical input testing, not current-source native acceptance. Accepted retained inputs were copied, never modified.
+
+PR qualification initially checks the GitHub temporary merge commit6a228f7, with the same branch content tree as42a1e14. Add manual Qualification dispatch so final acceptance can also run the exact pushed branch head. Production publication continues to require a successful push-to-main run; PR/manual branch runs cannot authorize release writes.
+
+## First review corrections, 2026-10-31
+
+Initial Codex review on42a1e14 returned three P2 findings. Acknowledge all three promptly, then implement regressions before fixes: (1) public historical snapshot validation now follows complete dated old/new snapshot and schema correction chains; (2) package and canonical uploads share attributable starter reconciliation with atomic journal persistence, including a new publisher resuming a failed canonical upload; (3) CI elects the actual canonical predecessor, records it in native assembly, classifies ordinary/major vocabulary reviews against it and requires manual execution to retain it. Focused correction/publisher/record/public-selection regressions pass, and the complete repository/test gates pass.
+
+Qualification checkout explicitly selects the PR head (or the workflow SHA outside PRs), and the existing retired-revision deployment guard compares that same identity. Manual Qualification dispatch remains available for exact-head repeats. Initial42a1e14 and temporary merge6a228f7 have identical Git tree5011c2ca067b1807540c13c36f0623b7175bda04; later hosted receipts identify their actual branch head directly.

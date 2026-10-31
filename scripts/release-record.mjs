@@ -10,6 +10,9 @@ export const canonical=value=>JSON.stringify(order(value));
 function order(value){if(Array.isArray(value))return value.map(order);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(key=>[key,order(value[key])]));return value;}
 export const releaseHash=value=>createHash('sha256').update(typeof value==='string'||Buffer.isBuffer(value)?value:canonical(value)).digest('hex');
 export const publicationDigest=publication=>releaseHash(publication);
+export function releasePredecessor(version,published){
+ validateProductVersion(version);if(published===null)return null;validateProductVersion(published.version);const previous=published.version===version?published.previousVersion:published.version;if(previous!==null)validateProductVersion(previous);assert.notEqual(previous,version,'Release cannot be its own predecessor');return previous;
+}
 export function releaseDigest(record){const {state,candidateId,gates,publication,...immutable}=record;return releaseHash(immutable);}
 export const artifactUrl=(repository,version,name)=>`https://github.com/${repository}/releases/download/v${version}/${name}`;
 const ajv=new Ajv({allErrors:true,strict:true,ownProperties:true}).addKeyword('x-release-version');ajv.addFormat('date-time',value=>typeof value==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value)&&Number.isFinite(Date.parse(value)));

@@ -21,3 +21,5 @@ test('Gate changes preserve immutable candidate while changed source/snapshot re
 });
 
 test('Release JSON rejects duplicate members, invalid UTF8 and BOM bytes',()=>{const record=candidateFixture(),text=canonical(record)+'\n';assert.equal(parseReleaseRecord(text,{allowFixture:true}).candidateId,record.candidateId);assert.throws(()=>parseReleaseRecord(text.replace('{','{\"extra\":1,'),{allowFixture:true}));assert.throws(()=>parseReleaseRecord(Buffer.concat([Buffer.from([0xef,0xbb,0xbf]),Buffer.from(text)]),{allowFixture:true}));assert.throws(()=>parseReleaseRecord(Buffer.from([0xff]),{allowFixture:true}));});
+
+test('CI and execution elect the same predecessor for ordinary and repeat releases',async()=>{const {releasePredecessor}=await import('../scripts/release-record.mjs');assert.equal(releasePredecessor('1.0.1',{version:'1.0.0',previousVersion:'0.9.0'}),'1.0.0');assert.equal(releasePredecessor('1.0.1',{version:'1.0.1',previousVersion:'1.0.0'}),'1.0.0');assert.equal(releasePredecessor('1.0.0',null),null);});
