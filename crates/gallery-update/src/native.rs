@@ -328,6 +328,69 @@ pub(super) fn identity(c: &Candidate, directory: &Path) -> Result<()> {
     }
     Ok(())
 }
+#[cfg(windows)]
+fn compatible_reinstall(
+    base: &Path,
+    current_name: &str,
+    selected_name: &str,
+    current: &Candidate,
+    selected: &Candidate,
+) -> Result<bool> {
+    let (
+        Native::WindowsMsi {
+            product_code: old_product,
+            scope: old_scope,
+            ..
+        },
+        Native::WindowsMsi {
+            product_code: new_product,
+            scope: new_scope,
+            ..
+        },
+    ) = (&current.native, &selected.native)
+    else {
+        return Ok(false);
+    };
+    if current.version != selected.version
+        || !old_product.eq_ignore_ascii_case(new_product)
+        || old_scope != new_scope
+    {
+        return Ok(false);
+    }
+    let old_path = artifact_path(base, current_name);
+    let new_path = artifact_path(base, selected_name);
+    let lock = |file: &Path, c: &Candidate| {
+        let a = c.artifact().ok_or("Missing native reinstall artifact")?;
+        gallery_windows_package::open_verified_input(
+            file,
+            &gallery_windows_package::FileRecord {
+                path: "reinstall.msi".into(),
+                bytes: a.bytes.clone(),
+                sha256: a.sha256.clone(),
+            },
+        )
+    };
+    let _old = lock(&old_path, current)?;
+    let _new = lock(&new_path, selected)?;
+    if !gallery_windows_package::native::inspect_package(&old_path)?.2
+        || !gallery_windows_package::native::inspect_package(&new_path)?.2
+    {
+        return Ok(false);
+    }
+    match (
+        gallery_windows_package::native::reinstall_layout(&old_path),
+        gallery_windows_package::native::reinstall_layout(&new_path),
+    ) {
+        (Ok(old), Ok(new)) => Ok(old == new),
+        _ => {
+            eprintln!(
+                "MSI layout cannot be proven unchanged; retaining native remove/install replacement"
+            );
+            Ok(false)
+        }
+    }
+}
+
 #[cfg(any(windows, target_os = "linux"))]
 pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
     let selected = if prior {
@@ -379,8 +442,19 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                     let which=match [&op.journal.prior,&op.journal.next].into_iter().enumerate().find(|(_,c)|matches!(&c.native,Native::WindowsMsi{package_code,..}if package_code==&current)){Some((i,c))=>(i,c.clone()),None=>return Err("Foreign scoped MSI registration".into())};
                     let name = if which.0 == 0 { "prior" } else { "next" };
                     let same = which.1 == selected;
+                    let selected_name = if prior { "prior" } else { "next" };
+                    let reinstall = !same
+                        && compatible_reinstall(
+                            &op.base,
+                            name,
+                            selected_name,
+                            &which.1,
+                            &selected,
+                        )?;
                     if !same {
                         verified(&which.1, &op.journal.directory)?;
+                    }
+                    if !same && !reinstall {
                         let out = worker::execute(
                             op,
                             name,

@@ -891,3 +891,171 @@ pub fn inspect_package(file: &Path) -> Result<(String, String, bool, String), St
     };
     Ok((product, package, protocol, scope.into()))
 }
+
+/// Conservative native layout identity for same-version MSI reinstalls.
+/// Content sizes/versions and cabinet bytes may change; component ownership may not.
+pub fn reinstall_layout(file: &Path) -> Result<Vec<Vec<String>>, String> {
+    #[link(name = "msi")]
+    unsafe extern "system" {
+        fn MsiOpenDatabaseW(path: *const u16, persist: *const u16, database: *mut u32) -> u32;
+        fn MsiDatabaseOpenViewW(database: u32, query: *const u16, view: *mut u32) -> u32;
+        fn MsiViewExecute(view: u32, record: u32) -> u32;
+        fn MsiViewFetch(view: u32, record: *mut u32) -> u32;
+        fn MsiRecordGetStringW(record: u32, field: u32, value: *mut u16, length: *mut u32) -> u32;
+    }
+    struct Handle(u32);
+    impl Drop for Handle {
+        fn drop(&mut self) {
+            unsafe {
+                MsiCloseHandle(self.0);
+            }
+        }
+    }
+    check_path(file)?;
+    let mut raw = 0;
+    let code = unsafe { MsiOpenDatabaseW(wide(file).as_ptr(), ptr::null(), &mut raw) };
+    if code != 0 {
+        return Err(format!("Cannot read MSI layout: {code}"));
+    }
+    let db = Handle(raw);
+    let queries = [
+        (
+            "Component",
+            "SELECT `Component`,`ComponentId`,`Directory_`,`Attributes`,`Condition`,`KeyPath` FROM `Component`",
+            6,
+        ),
+        (
+            "File",
+            "SELECT `File`,`Component_`,`FileName`,`Attributes`,`Sequence` FROM `File`",
+            5,
+        ),
+        (
+            "Feature",
+            "SELECT `Feature`,`Feature_Parent`,`Title`,`Description`,`Display`,`Level`,`Directory_`,`Attributes` FROM `Feature`",
+            8,
+        ),
+        (
+            "FeatureComponents",
+            "SELECT `Feature_`,`Component_` FROM `FeatureComponents`",
+            2,
+        ),
+        (
+            "Directory",
+            "SELECT `Directory`,`Directory_Parent`,`DefaultDir` FROM `Directory`",
+            3,
+        ),
+        (
+            "ProductVersion",
+            "SELECT `Value` FROM `Property` WHERE `Property`='ProductVersion'",
+            1,
+        ),
+    ];
+    let mut rows = vec![];
+    for (table, query, columns) in queries {
+        let mut raw = 0;
+        let code = unsafe { MsiDatabaseOpenViewW(db.0, wide(query).as_ptr(), &mut raw) };
+        if code != 0 {
+            return Err(format!("Cannot inspect MSI {table} layout: {code}"));
+        }
+        let view = Handle(raw);
+        let code = unsafe { MsiViewExecute(view.0, 0) };
+        if code != 0 {
+            return Err(format!("Cannot execute MSI layout view: {code}"));
+        }
+        let mut count = 0;
+        loop {
+            let mut raw = 0;
+            let code = unsafe { MsiViewFetch(view.0, &mut raw) };
+            if code == 259 {
+                break;
+            }
+            if code != 0 {
+                return Err(format!("Cannot fetch MSI layout: {code}"));
+            }
+            let record = Handle(raw);
+            count += 1;
+            if count > 8192 {
+                return Err("Oversized MSI layout".into());
+            }
+            let mut row = vec![table.to_string()];
+            for field in 1..=columns {
+                let mut buffer = vec![0u16; 32768];
+                let mut size = buffer.len() as u32;
+                let code =
+                    unsafe { MsiRecordGetStringW(record.0, field, buffer.as_mut_ptr(), &mut size) };
+                if code != 0 || size >= buffer.len() as u32 {
+                    return Err(format!("Cannot read bounded MSI layout value: {code}"));
+                }
+                row.push(String::from_utf16(&buffer[..size as usize]).map_err(|e| e.to_string())?);
+            }
+            rows.push(row);
+        }
+        if count == 0 {
+            return Err(format!("Missing MSI {table} layout"));
+        }
+    }
+    rows.sort();
+    Ok(rows)
+}
+
+#[cfg(test)]
+mod update_layout_tests {
+    use super::*;
+    #[test]
+    #[ignore = "Requires explicitly supplied actual prepared MSI pairs; CI runs this separately"]
+    fn actual_native_layout_detects_changed_component_ownership() {
+        #[link(name = "msi")]
+        unsafe extern "system" {
+            fn MsiOpenDatabaseW(path: *const u16, persist: *const u16, database: *mut u32) -> u32;
+            fn MsiDatabaseOpenViewW(database: u32, query: *const u16, view: *mut u32) -> u32;
+            fn MsiViewExecute(view: u32, record: u32) -> u32;
+            fn MsiDatabaseCommit(database: u32) -> u32;
+        }
+        let pairs: Vec<[PathBuf; 2]> = serde_json::from_str(
+            &std::env::var("GALLERY_MSI_LAYOUT_PAIRS").expect("Explicit actual MSI pairs required"),
+        )
+        .unwrap();
+        assert!(!pairs.is_empty());
+        for [prior, next] in pairs {
+            let old_bytes = fs::read(&prior).unwrap();
+            let new_bytes = fs::read(&next).unwrap();
+            let record = |bytes: &[u8]| crate::FileRecord {
+                path: "layout.msi".into(),
+                bytes: bytes.len().to_string(),
+                sha256: hash(bytes),
+            };
+            let _old = crate::open_verified_input(&prior, &record(&old_bytes)).unwrap();
+            let _new = crate::open_verified_input(&next, &record(&new_bytes)).unwrap();
+            let a = reinstall_layout(&prior).unwrap();
+            let b = reinstall_layout(&next).unwrap();
+            assert_eq!(a, b);
+            assert_ne!(old_bytes, new_bytes);
+            let component = a.iter().find(|r| r[0] == "Component").unwrap();
+            let temp = tempfile::tempdir().unwrap();
+            let changed = temp.path().join("changed.msi");
+            fs::copy(&prior, &changed).unwrap();
+            let mut db = 0;
+            assert_eq!(
+                unsafe {
+                    MsiOpenDatabaseW(wide(&changed).as_ptr(), ptr::without_provenance(1), &mut db)
+                },
+                0
+            );
+            let query = format!(
+                "UPDATE `Component` SET `ComponentId`='{{00000000-0000-0000-0000-000000000001}}' WHERE `Component`='{}'",
+                component[1].replace(char::from(39), "''")
+            );
+            let mut view = 0;
+            assert_eq!(
+                unsafe { MsiDatabaseOpenViewW(db, wide(query).as_ptr(), &mut view) },
+                0
+            );
+            assert_eq!(unsafe { MsiViewExecute(view, 0) }, 0);
+            assert_eq!(unsafe { MsiCloseHandle(view) }, 0);
+            assert_eq!(unsafe { MsiDatabaseCommit(db) }, 0);
+            assert_eq!(unsafe { MsiCloseHandle(db) }, 0);
+            assert_ne!(reinstall_layout(&changed).unwrap(), a);
+            assert_eq!(reinstall_layout(&prior).unwrap(), a);
+        }
+    }
+}
