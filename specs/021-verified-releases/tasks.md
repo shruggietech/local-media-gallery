@@ -63,7 +63,7 @@
 - [x] T028 Run npm run check, npm test, affected Rust/app/site and headless fixture checks; verify UTF8/LF/mojibake and record concrete outcomes in specs/021-verified-releases/verification.md.
 - [ ] T029 Push the official S021 PR closing #26/#31, attach tracking and handle every finding within at most two review rounds; retain exact review heads/results in specs/021-verified-releases/verification.md.
 - [ ] T030 Complete terminal green existing/native/release-validation scopes and independent exact-source/archive/snapshot/gate/fixture readback; record separated accounting in specs/021-verified-releases/measurements.md.
-- [ ] T031 Run installed Spec Kit convergence against present spec/plan/tasks; append only real remaining build work and complete it in specs/021-verified-releases/tasks.md.
+- [x] T031 Run installed Spec Kit convergence against present spec/plan/tasks; append only real remaining build work and complete it in specs/021-verified-releases/tasks.md.
 - [ ] T032 Verify clean pushed final head, all terminal checks, source/evidence/tracking and review state, then request owner final review/merge; no actual product release/tag during S021 delivery.
 
 ## Dependencies and execution order
@@ -77,3 +77,8 @@ Read-only release/API and documentation integration research use separate agents
 ## Implementation strategy
 
 US1 supplies the identified-byte MVP, but acceptance requires all three P1 stories. Test failure paths before mutation logic. Preserve source/runtime/proof/publication distinctions, current unreleased baseline and existing native/viewing behavior. Reviewer-owned checklist markers are not implementation task status.
+
+## Phase 7: Convergence
+
+- [x] T033 Retain both exact private fixture exports, their complete source snapshots and canonical fixture record in release-validation CI artifacts so final independent gate/output readback can recompute accepted identities per FR-007, FR-015, SC-002 and plan decision9 (partial, HIGH).
+- [x] T034 Return nonmutating usage/help when the release CLI has no command or an explicit help flag, matching the pipeline command contract per plan delivery tooling and T025 (partial, LOW).

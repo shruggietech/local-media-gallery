@@ -508,6 +508,10 @@ jobs:
             .local/ci-release-validation.json
             .local/release-assembly.json
             .local/release-campaign.json
+            .local/release-campaign-*/fixture-release.json
+            .local/release-campaign-*/sources/**
+            .local/release-campaign-*/candidate-site/**
+            .local/release-campaign-*/published-site/**
           include-hidden-files: true
           if-no-files-found: error
   deploy-pages:
