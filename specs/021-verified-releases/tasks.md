@@ -61,10 +61,10 @@
 - [x] T026 Add scripts/ci-release.mjs, release fixture campaign and dependent .github/workflows/ci.yml job consuming source-bound native/site artifacts; retain eight existing scopes and release-validation evidence, qualification660/900/15 and separated clocks.
 - [x] T027 Update authoritative docs/v0.0.0/installation-and-distribution.md, website-and-documentation.md, verification-and-compatibility.md and schema reference in site/versions.json; record short feature/dated pipeline decisions in CHANGELOG.md.
 - [x] T028 Run npm run check, npm test, affected Rust/app/site and headless fixture checks; verify UTF8/LF/mojibake and record concrete outcomes in specs/021-verified-releases/verification.md.
-- [ ] T029 Push the official S021 PR closing #26/#31, attach tracking and handle every finding within at most two review rounds; retain exact review heads/results in specs/021-verified-releases/verification.md.
-- [ ] T030 Complete terminal green existing/native/release-validation scopes and independent exact-source/archive/snapshot/gate/fixture readback; record separated accounting in specs/021-verified-releases/measurements.md.
+- [x] T029 Push the official S021 PR closing #26/#31, attach tracking and handle every finding within at most two review rounds; retain exact review heads/results in specs/021-verified-releases/verification.md.
+- [x] T030 Complete terminal green existing/native/release-validation scopes and independent exact-source/archive/snapshot/gate/fixture readback; record separated accounting in specs/021-verified-releases/measurements.md.
 - [x] T031 Run installed Spec Kit convergence against present spec/plan/tasks; append only real remaining build work and complete it in specs/021-verified-releases/tasks.md.
-- [ ] T032 Verify clean pushed final head, all terminal checks, source/evidence/tracking and review state, then request owner final review/merge; no actual product release/tag during S021 delivery.
+- [x] T032 Verify clean pushed final head, all terminal checks, source/evidence/tracking and review state, then request owner final review/merge; no actual product release/tag during S021 delivery.
 
 ## Dependencies and execution order
 
@@ -88,3 +88,5 @@ US1 supplies the identified-byte MVP, but acceptance requires all three P1 stori
 - [x] T035 Separate measured CI evidence expansion from the existing build-tool archive cap, share strict raw ZIP path/member/physical-root validation, and verify actual retained Windows evidence plus traversal/alias/link/bound regressions per FR-002, FR-015 and US1/AC1.
 
 - [x] T036 Verify actual read-only GitHub REST artifact transport and provenance rejection, including Actions ZIP media negotiation and cross-origin credential stripping, per FR-011, FR-012 and T021/T025.
+
+- [x] T037 Bind normal native proof machine acceptance and matching schema selection to the elected product/proof version, reject mixed identities, preserve the historical baseline and cover a nonzero-version regression per FR-001/FR-003 and review round2.
