@@ -40,10 +40,10 @@ Tests are required by SC-001 through SC-004. Execute sequentially; no implementa
 ## Phase 5: Integration, verification and delivery
 
 - [X] T014 Align docs/v0.0.0/{installation-and-distribution,verification-and-compatibility}.md, schemas/v0.0.0/platform-matrix.json, .github/RELEASE_NOTES_TEMPLATE.md, CONTRIBUTING.md and CHANGELOG.md with permanent no-signing policy and plain test-status wording; preserve historical receipts (FR-007, FR-009).
-- [ ] T015 Run npm run check, npm test and affected app/docs/site checks locally headlessly, then all eight isolated hosted scopes and independent exact-source artifact/native readback; retain separate preparation/qualification/combined timing and 660/900/15s rules in specs/019-packaging-readiness/{verification,measurements}.md (FR-006, FR-009, FR-010; SC-001 through SC-004).
-- [ ] T016 Automatically push codex/s019-packaging-readiness and create/attach an official PR; handle every code/security finding within at most two rounds, resolving threads and keeping final exact-head checks green (FR-012; SC-005).
-- [ ] T017 Update #69/#70 and Project tracking; close #68 as consolidated only after its compatible changes are included in the official PR; leave issue completion/owner merge accurate (FR-008, FR-012).
-- [ ] T018 Run speckit-converge, finalize specs/019-packaging-readiness records, independently verify final head/checks/reviews/artifacts and clean pushed tree, and ping owner for final review/squash merge without product publication (FR-010, FR-012; SC-005).
+- [X] T015 Run npm run check, npm test and affected app/docs/site checks locally headlessly, then all eight isolated hosted scopes and independent exact-source artifact/native readback; retain separate preparation/qualification/combined timing and 660/900/15s rules in specs/019-packaging-readiness/{verification,measurements}.md (FR-006, FR-009, FR-010; SC-001 through SC-004).
+- [X] T016 Automatically push codex/s019-packaging-readiness and create/attach an official PR; handle every code/security finding within at most two rounds, resolving threads and keeping final exact-head checks green (FR-012; SC-005).
+- [X] T017 Update #69/#70 and Project tracking; close #68 as consolidated only after its compatible changes are included in the official PR; leave issue completion/owner merge accurate (FR-008, FR-012).
+- [X] T018 Run speckit-converge, finalize specs/019-packaging-readiness records, independently verify final head/checks/reviews/artifacts and clean pushed tree, and ping owner for final review/squash merge without product publication (FR-010, FR-012; SC-005).
 
 ## Dependencies and delivery strategy
 
