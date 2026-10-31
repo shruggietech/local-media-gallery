@@ -5,6 +5,9 @@ import path from 'node:path';
 import {updateDescriptor,validateUpdateEvidence} from './update-packages.mjs';
 import {hash,payloadPath,verifyPayload} from './proof.mjs';
 export {hash};
+export function linuxGalleryReady(records){
+ return records.some(r=>r.name==='Open red.png'&&r.showing&&r.enabled)&&records.some(r=>['Hide controls','Show controls'].includes(r.name)&&r.showing&&r.enabled);
+}
 export const packageName='local-media-gallery';
 export const fullBase='usr/lib/local-media-gallery/';
 export const desktop='usr/share/applications/tech.shruggie.local-media-gallery.desktop';
