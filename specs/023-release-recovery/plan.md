@@ -42,3 +42,7 @@ Pre-design and post-design: PASS. Owner scope is #76. Immutable v0.1.0 remains s
 ## Complexity Tracking
 
 No constitutional exceptions. One shared observation primitive and one evidence module keep concerns reusable and bounded.
+
+## Hosted verification refinement
+
+2026-11-01: Two hosted release-validation attempts exposed a pre-existing same-version navigation race (#78). Include the minimal test synchronization repair required for reliable acceptance, with a delayed real-browser document-identity regression. Preserve all route/topic assertions and qualification limits. No third review is requested after the two completed rounds.

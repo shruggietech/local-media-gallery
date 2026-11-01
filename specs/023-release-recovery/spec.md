@@ -108,3 +108,4 @@ A reviewer downloads retained execution evidence and recomputes both gates from 
 - Autopilot decision: use separate draft authenticated-content checks and post-publication final URL checks; do not rewrite expected public URLs.
 - Autopilot decision: retry explicitly pending reads after one write, retaining all conflict checks; do not retry arbitrary exceptions or replay mutations.
 - Autopilot decision: retain candidate evidence immediately after its gate, with an always-upload workflow path, and verify it through a reusable maintainer command.
+- Hosted verification refinement: same-version selections must await their new document before later navigation; the delayed document-identity regression addresses the repeated #78 failure without dropping assertions.

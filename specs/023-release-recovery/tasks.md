@@ -37,10 +37,10 @@ Independent test: re-extract and recompute both exact projections; reject change
 
 ## Phase 6: Integration and handoff
 
-- [x] T012 Exercise realistic delayed mutations and both independent evidence projections in scripts/test-release-campaign.mjs (FR-009).
+- [x] T012 Exercise realistic delayed mutations and both independent evidence projections in scripts/test-release-campaign.mjs; synchronize same-version document navigation in scripts/test-release-site.mjs with scripts/test-release-navigation.mjs regressions (#78, FR-009).
 - [x] T013 Document maintainer recovery/readback usage in README.md and dated process decisions in CHANGELOG.md.
 - [x] T014 Run npm run check, npm test and affected release/site campaign; record terminal clocks/results in specs/023-release-recovery/verification.md and measurements.md.
-- [ ] T015 Commit, push and open official S023 PR referencing #76.
+- [x] T015 Commit, push and open official S023 PR referencing #76.
 - [ ] T016 Verify final-head CI, address every review finding within at most two rounds, record evidence in specs/023-release-recovery/verification.md.
 - [ ] T017 Verify clean local state and GitHub tracking, then ping owner for final review/merge.
 

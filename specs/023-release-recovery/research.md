@@ -17,3 +17,7 @@ The existing workflow uploads publication files but omits candidate-site. Retain
 ## Alternatives
 
 Unbounded retries, reissuing writes, swallowing every error, relaxing final URLs, or editing released snapshots were rejected. No unknown architecture decisions remain.
+
+## Hosted navigation evidence
+
+Two unchanged-head runs failed on overlapping controlled navigation. A delayed same-URL page reproduces premature URL-only completion deterministically (old wait returns the original document identity). Registering the main-frame navigation event before selecting, then waiting for that new document to load, passes same-version and cross-version replacement and immediate following navigation. This narrow acceptance fix is included as #78.

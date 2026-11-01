@@ -509,6 +509,7 @@ jobs:
             .local/ci-release-validation.json
             .local/release-assembly.json
             .local/release-campaign.json
+            .local/release-navigation.json
             .local/release-candidate-docs.json
             .local/release-candidate-site/**
             .local/release-campaign-*/fixture-release.json
