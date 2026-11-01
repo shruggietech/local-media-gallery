@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="@PRODUCT@" Name="Local Media Gallery Full" Language="1033" Version="0.0.0" Manufacturer="ShruggieTech" UpgradeCode="@UPGRADE@">
+  <Product Id="@PRODUCT@" Name="Local Media Gallery Full" Language="1033" Version="@VERSION@" Manufacturer="ShruggieTech" UpgradeCode="@UPGRADE@">
     <Package Id="@PACKAGE@" InstallerVersion="500" Compressed="yes" InstallScope="@INSTALL_SCOPE@" Platform="x64" Description="Local Media Gallery Full candidate" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <Property Id="ARPNOMODIFY" Value="1" />

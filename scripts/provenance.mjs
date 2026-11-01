@@ -7,6 +7,9 @@ import path from 'node:path';
 import { root } from './run.mjs';
 
 export const evidenceExclusions = [
+  'specs/021-verified-releases/tasks.md',
+  'specs/021-verified-releases/verification.md',
+  'specs/021-verified-releases/measurements.md',
   'specs/020-upgrade-recovery/tasks.md',
   'specs/020-upgrade-recovery/verification.md',
   'specs/020-upgrade-recovery/measurements.md',
@@ -48,11 +51,11 @@ export const evidenceExclusions = [
   'specs/006-website-deployment/verification.md',
   'specs/006-website-deployment/tasks.md',
 ];
-export async function sourceIdentity() {
+export async function sourceIdentity(base=root) {
   const { stdout } = await promisify(execFile)(
     'git',
     ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
-    { cwd: root, windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
+    { cwd: base, windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
   );
   const files = [...new Set(stdout.split('\0').filter(Boolean))]
     .filter((file) => !evidenceExclusions.includes(file))
@@ -63,7 +66,7 @@ export async function sourceIdentity() {
     digest.update('\0');
     digest.update(
       createHash('sha256')
-        .update(await readFile(path.join(root, file)))
+        .update(await readFile(path.join(base, file)))
         .digest(),
     );
   }

@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: Apache-2.0
+import assert from 'node:assert/strict';
+import {readFile,lstat,writeFile,rename} from 'node:fs/promises';
+import path from 'node:path';
+import {canonical,parseReleaseRecord,validateRelease,validateGate,releaseHash} from './release-record.mjs';
+import {verifyDocumentationGate} from './release-docs.mjs';
+const marker=record=>'<!-- local-media-gallery candidate '+record.candidateId+' -->';
+export class ReleasePublisher {
+ constructor({client,artifactRoot,documentation,fixtureGateVerifier}={}){assert.ok(client);if(fixtureGateVerifier)assert.equal(client.fixture,true,'Injected gates are fixture-only');this.client=client;this.artifactRoot=artifactRoot;this.documentation=documentation;this.fixtureGateVerifier=fixtureGateVerifier;}
+ get options(){return {allowFixture:this.client.fixture};}
+ async gate(record,phase){validateRelease(record,this.options);assert.equal(record.repository,this.client.repository);assert.equal(record.qualification.mode,this.client.fixture?'fixture':'native');assert.notEqual(record.version,'0.0.0','Specification baseline is not publishable');validateGate(record,record.gates[phase==='candidate'?'before':'after'],phase);if(this.fixtureGateVerifier)await this.fixtureGateVerifier(record,phase);else await verifyDocumentationGate({record,phase,...this.documentation[phase],allowFixture:false});if(!this.client.fixture)await this.client.verifyQualification(record);}
+ async input(asset){const file=path.join(this.artifactRoot,asset.name),info=await lstat(file);assert.ok(info.isFile()&&!info.isSymbolicLink());const bytes=await readFile(file);assert.equal(String(bytes.length),asset.bytes,'Local asset bytes changed');assert.equal(releaseHash(bytes),asset.sha256,'Local asset digest changed');return bytes;}
+ async locate(record){const matches=(await this.client.releases()).filter(r=>r.tag_name==='v'+record.version);assert.ok(matches.length<=1,'Ambiguous remote releases');if(!matches.length)return null;const release=matches[0];assert.ok(release.body?.includes(marker(record)),'Remote release is not owned by this candidate');assert.equal(release.prerelease,false);assert.equal(release.target_commitish,record.source.revision,'Draft target source differs');const tag=await this.client.resolveTag('v'+record.version);if(tag!==null)assert.equal(tag,record.source.revision,'Remote tag source differs');return release;}
+ async bytes(asset,expected){assert.equal(asset.state,'uploaded','Incomplete remote asset');assert.equal(String(asset.size),expected.bytes,'Remote asset bytes differ');assert.equal(asset.browser_download_url,expected.url,'Remote asset URL differs');const actual=await this.client.download(asset.url);assert.equal(actual.bytes,expected.bytes);assert.equal(actual.sha256,expected.sha256,'Remote asset digest differs');return {name:asset.name,id:asset.id,bytes:actual.bytes,sha256:actual.sha256,url:asset.browser_download_url};}
+ async verifyAssets(record,release,{canonicalAllowed=false}={}){const assets=await this.client.assets(release.id);assert.equal(new Set(assets.map(a=>a.name)).size,assets.length);assert.ok(assets.every(a=>record.artifacts.some(e=>e.name===a.name)||(canonicalAllowed&&a.name==='release.json')),'Foreign remote asset');const observed=[];for(const expected of record.artifacts){const asset=assets.find(a=>a.name===expected.name);assert.ok(asset,'Missing remote asset '+expected.name);observed.push(await this.bytes(asset,expected));}return observed;}
+ async ensureUploaded(record,release,name,input,{canonicalAsset=false}={}){
+  const journalFile=path.join(this.artifactRoot,'.release-upload-attempts.json');
+  let journal={candidateId:record.candidateId,starters:{}};
+  try{const info=await lstat(journalFile);assert.ok(info.isFile()&&!info.isSymbolicLink());journal=JSON.parse(await readFile(journalFile,'utf8'));assert.equal(journal.candidateId,record.candidateId);assert.ok(journal.starters&&typeof journal.starters==='object');}catch(e){if(e.code!=='ENOENT')throw e;}
+  let assets=await this.client.assets(release.id),existing=assets.find(a=>a.name===name);
+  if(existing?.state==='starter'&&existing.size===0){
+   assert.ok(release.draft||(canonicalAsset&&name==='release.json'),'Published package assets are never replaced');
+   assert.equal(journal.starters[name],existing.id,'Starter is not attributable to a retained upload attempt');
+   await this.client.deleteAsset(existing.id);assets=await this.client.assets(release.id);assert.ok(!assets.some(a=>a.id===existing.id),'Starter cleanup not observed');existing=null;
+  }
+  if(existing){assert.equal(existing.state,'uploaded','Incomplete remote asset');return existing;}
+  let failure;try{await this.client.upload(release,name,input);}catch(e){failure=e;}
+  assets=await this.client.assets(release.id);existing=assets.find(a=>a.name===name);
+  if(existing?.state==='starter'&&existing.size===0){journal.starters[name]=existing.id;await writeFile(journalFile+'.next',canonical(journal)+'\n');await rename(journalFile+'.next',journalFile);}
+  if(!existing||existing.state!=='uploaded')throw failure??Error('Upload completion not observed');
+  return existing;
+ }
+ async stage(record,notes){
+  await this.gate(record,'candidate');assert.ok(typeof notes==='string'&&notes.trim()&&!notes.includes('<!--'),'Release highlights required');let release=await this.locate(record);
+  if(!release){const body={tag_name:'v'+record.version,target_commitish:record.source.revision,name:'Local Media Gallery '+record.version,draft:true,prerelease:false,make_latest:'false',body:notes.trim()+'\n\n'+marker(record)+'\n\n[Full changelog](https://github.com/'+record.repository+'/blob/main/CHANGELOG.md)'};let failure;try{await this.client.createDraft(body);}catch(e){failure=e;}release=await this.locate(record);if(!release)throw failure??Error('Draft creation not observed');}
+  if(!release.draft){await this.verifyAssets(record,release,{canonicalAllowed:true});return {...structuredClone(record),state:'staged'};}
+  const assets=await this.client.assets(release.id);assert.ok(assets.every(a=>record.artifacts.some(e=>e.name===a.name)),'Foreign draft asset');
+  for(const expected of record.artifacts){const input=await this.input(expected),asset=await this.ensureUploaded(record,release,expected.name,input);await this.bytes(asset,expected);}
+  await this.verifyAssets(record,release);return {...structuredClone(record),state:'staged'};
+ }
+ async publish(record){
+  await this.gate(record,'candidate');assert.equal(record.state,'staged');let release=await this.locate(record);assert.ok(release,'Staged release absent');await this.verifyAssets(record,release,{canonicalAllowed:!release.draft});
+  if(release.draft){let failure;try{await this.client.editRelease(release.id,{draft:false,make_latest:'false'});}catch(e){failure=e;}release=await this.locate(record);if(!release||release.draft||!release.published_at)throw failure??Error('Publication not observed');}
+  assert.equal(await this.client.resolveTag('v'+record.version),record.source.revision,'Published tag source differs');const assets=await this.verifyAssets(record,release,{canonicalAllowed:true});const observed={...structuredClone(record),publication:{repository:record.repository,id:release.id,tag:release.tag_name,sourceRevision:record.source.revision,htmlUrl:release.html_url,publishedAt:release.published_at,assets:assets.sort((a,b)=>a.name.localeCompare(b.name,'en'))}};return validateRelease(observed,this.options);
+ }
+ async promote(record){
+  await this.gate(record,'publication');const release=await this.locate(record);assert.ok(release&&!release.draft&&release.published_at,'Actual publication required');const actual=await this.publish({...record,state:'staged'});assert.deepEqual(actual.publication,record.publication,'Publication changed before promotion');
+  const latest=await this.client.latest(),selected=latest?.tag_name??null,target='v'+record.version,prior=record.previousVersion===null?null:'v'+record.previousVersion;assert.ok(selected===prior||selected===target,'Previous public selection changed');
+  const published=validateRelease({...structuredClone(record),state:'published'},{...this.options,requirePublished:true});const bytes=Buffer.from(canonical(published)+'\n');const asset=await this.ensureUploaded(record,release,'release.json',bytes,{canonicalAsset:true});
+  assert.equal(asset.state,'uploaded');const remote=await this.client.download(asset.url,{collect:true,maxBytes:32*1024*1024});const retained=parseReleaseRecord(remote.data,{...this.options,requirePublished:true});assert.equal(retained.candidateId,published.candidateId,'Canonical immutable candidate differs');assert.deepEqual(retained.publication,published.publication,'Canonical publication differs');
+  // Observe once more immediately before the serialized latest mutation. The
+  // service has no compare-and-swap; a detected concurrent edit is never hidden.
+  const current=await this.client.latest();assert.equal(current?.tag_name??null,selected,'Public selection changed during promotion');if(selected!==target){let failure;try{await this.client.editRelease(release.id,{make_latest:'true'});}catch(e){failure=e;}const observed=await this.client.latest();if(observed?.id!==release.id)throw failure??Error('Latest promotion not observed');}return retained;
+ }
+}
+export async function resolvePublishedRelease(client){const latest=await client.latest();if(!latest)return null;assert.ok(!latest.draft&&!latest.prerelease&&latest.published_at);const asset=(await client.assets(latest.id)).filter(a=>a.name==='release.json');assert.equal(asset.length,1,'Latest release lacks canonical verified metadata');const bytes=await client.download(asset[0].url,{collect:true,maxBytes:32*1024*1024}),record=parseReleaseRecord(bytes.data,{requirePublished:true});assert.equal(record.repository,client.repository);assert.equal(record.publication.id,latest.id);assert.equal(record.publication.tag,latest.tag_name);assert.equal(await client.resolveTag(latest.tag_name),record.source.revision);const publisher=new ReleasePublisher({client,artifactRoot:''});assert.deepEqual((await publisher.verifyAssets(record,latest,{canonicalAllowed:true})).sort((a,b)=>a.name.localeCompare(b.name,'en')),record.publication.assets);return record;}

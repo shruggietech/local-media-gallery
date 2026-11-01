@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+/** @param {{topics: string[],schema?: string,contracts?: {topic: string}[],additionalSchemas?: {topic: string}[]}} snapshot */
+export function snapshotTopics(snapshot) {
+ const topics=[...snapshot.topics,...(snapshot.schema?['schema']:[]),...(snapshot.contracts??[]).map(x=>x.topic),...(snapshot.additionalSchemas??[]).map(x=>x.topic)];
+ if(new Set(topics).size!==topics.length)throw new Error('Duplicate snapshot topic');
+ return topics;
+}
 /** @param {string} version @param {string} topic */
 export const topicRoute = (version, topic) => `/docs/${version}/${topic === 'index' ? '' : `${topic}/`}`;
 
@@ -9,7 +15,7 @@ export function aliasRoutes(manifest) {
   return [
     '/docs/',
     '/docs/latest/',
-    ...selected.topics.filter((topic) => topic !== 'index').map((topic) => `/docs/latest/${topic}/`),
+    ...snapshotTopics(selected).filter((topic) => topic !== 'index').map((topic) => `/docs/latest/${topic}/`),
   ];
 }
 
@@ -29,7 +35,7 @@ export function landingDocs(manifest) {
 export function switchTopic(versions, version, topic) {
   const snapshot = versions.find((entry) => entry.version === version);
   if (!snapshot) throw new Error('Unknown version');
-  const missing = !snapshot.topics.includes(topic);
+  const missing = !snapshotTopics(snapshot).includes(topic);
   return {
     href:
       topicRoute(version, missing ? 'index' : topic) +

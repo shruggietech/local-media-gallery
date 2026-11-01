@@ -1,3 +1,4 @@
+import {validateProductVersion,productVersion} from './product-version.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import {lstat,readdir,readFile} from 'node:fs/promises';
@@ -31,7 +32,7 @@ export async function verifyPayload(directory,entries){
 function digest(v){assert.match(v,/^[a-f0-9]{64}$/);}
 function size(v){assert.equal(typeof v,'string');assert.match(v,/^(0|[1-9][0-9]*)$/);return BigInt(v);}
 export function validateProof(record){
- assert.equal(record.formatVersion,1);assert.equal(record.version,'0.0.0');assert.ok(['full','lite'].includes(record.edition));digest(record.source.sha256);assert.ok(Number.isInteger(record.source.files)&&record.source.files>0);assert.match(record.revision,/^[a-f0-9]{40}$/);
+ assert.equal(record.formatVersion,1);validateProductVersion(record.version);assert.ok(['full','lite'].includes(record.edition));digest(record.source.sha256);assert.ok(Number.isInteger(record.source.files)&&record.source.files>0);assert.match(record.revision,/^[a-f0-9]{40}$/);
  digest(record.binary.sha256);size(record.binary.bytes);digest(record.archive.sha256);size(record.archive.bytes);assert.ok(record.payload.length>0);
  let total=0n;for(const file of record.payload){payloadPath(file.path);digest(file.sha256);total+=size(file.bytes);assert.ok(file.mode===null||/^[0-7]{3}$/.test(file.mode));}
  assert.equal(new Set(record.payload.map(e=>e.path)).size,record.payload.length);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import generated from '../generated/model.json';
 
-type Snapshot = { version: string; status: string; source: string; topics: string[]; schema?: string };
+type Snapshot = { version: string; status: string; source: string; topics: string[]; schema?: string; contracts?: {topic: string}[]; additionalSchemas?: {topic: string}[] };
 type Page = {
   route: string;
   title: string;

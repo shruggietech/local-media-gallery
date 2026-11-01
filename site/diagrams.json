@@ -14,5 +14,9 @@
   "9b81e0d684cb77fdc80946f151df926217bdc665ff9582f3064bdf3f090cf961": {
     "title": "Optional thumbnail generation",
     "description": "Optional thumbnail generation inspects existing artifacts and plans bounded work. Each output is validated before commit. Cancellation, stale inputs and failed validation discard unfinished outputs while preserving original media."
+  },
+  "0dc1b028269d3b2321cc9e265be38686627841836989b507b347520a3e27d4f8": {
+    "title": "Verified release and documentation promotion",
+    "description": "Exact native artifacts and complete documentation pass the candidate gate before publication. Actual tag and download readback precede the second documentation gate, canonical record verification and compared latest selection. Pages deploys the retained qualified static output."
   }
 }

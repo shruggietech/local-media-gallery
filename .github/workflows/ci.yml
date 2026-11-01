@@ -1,10 +1,13 @@
 name: Qualification
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]
 permissions:
   contents: read
+env:
+  QUALIFIED_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
 concurrency:
   group: qualification-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -16,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - name: Start preparation accounting
         run: echo "CI_PREPARATION_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
@@ -45,6 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - name: Start preparation accounting
         shell: pwsh
@@ -116,6 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - name: Start preparation accounting
         shell: pwsh
@@ -184,6 +190,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - name: Start preparation accounting
         run: echo "CI_PREPARATION_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
@@ -256,6 +263,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - name: Start preparation accounting
         run: echo "CI_PREPARATION_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
@@ -346,6 +354,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - name: Start preparation accounting
         run: echo "CI_PREPARATION_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
@@ -417,9 +426,11 @@ jobs:
     timeout-minutes: 30
     env:
       PLAYWRIGHT_BROWSERS_PATH: .local/browsers
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - name: Start preparation accounting
         run: echo "CI_PREPARATION_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
@@ -458,9 +469,54 @@ jobs:
           name: github-pages-${{ github.sha }}
           path: apps/site/out/
           include-hidden-files: true
+  release-validation:
+    name: release-validation
+    needs: [repository, product-windows, windows-packages, macos-packages, linux-packages, native-proof, website]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: .local/browsers
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.QUALIFIED_REVISION }}
+          persist-credentials: false
+      - name: Start preparation accounting
+        run: echo "CI_PREPARATION_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.0
+          cache: npm
+      - run: npm ci
+      - name: Use primary Ubuntu archive for browser prerequisites
+        run: sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+      - run: node node_modules/playwright/cli.js install --with-deps chromium --no-shell
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: '*-evidence-${{ github.sha }}'
+          path: .local/release-inputs/.local
+          merge-multiple: true
+      - run: node scripts/ci-release.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: release-validation-evidence-${{ github.sha }}
+          path: |
+            .local/ci-release-validation.json
+            .local/release-assembly.json
+            .local/release-campaign.json
+            .local/release-campaign-*/fixture-release.json
+            .local/release-campaign-*/sources/**
+            .local/release-campaign-*/candidate-site/**
+            .local/release-campaign-*/published-site/**
+          include-hidden-files: true
+          if-no-files-found: error
   deploy-pages:
     name: deploy-pages
-    needs: [repository, product-windows, windows-packages, macos-packages, linux-packages, native-proof, website]
+    needs: [repository, product-windows, windows-packages, macos-packages, linux-packages, native-proof, website, release-validation]
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'pull_request' &&
@@ -483,10 +539,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.11.0
+      - name: Install locked verification dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: website-static-${{ github.sha }}
@@ -496,7 +555,7 @@ jobs:
           name: website-evidence-${{ github.sha }}
           path: .local/website-evidence
       - name: Verify exact qualified artifact
-        run: node scripts/verify-deployment.mjs .local/qualified-site .local/website-evidence/ci-website.json "$GITHUB_SHA"
+        run: node scripts/verify-deployment.mjs .local/qualified-site .local/website-evidence/ci-website.json "$QUALIFIED_REVISION"
       - name: Reject retired publishing revision
         env:
           GH_TOKEN: ${{ github.token }}
@@ -504,11 +563,15 @@ jobs:
           if [[ "$GITHUB_REF" == refs/pull/*/merge ]]; then
             number="${GITHUB_REF#refs/pull/}"
             number="${number%/merge}"
-            current="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$number" --jq 'select(.state == "open") | .merge_commit_sha')"
+            current="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$number" --jq 'select(.state == "open") | .head.sha')"
           else
             current="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
           fi
-          test "$current" = "$GITHUB_SHA"
+          test "$current" = "$QUALIFIED_REVISION"
+      - name: Reject a retired publication selection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/verify-publication-selection.mjs .local/qualified-site
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
         id: deployment

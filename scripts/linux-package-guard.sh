@@ -59,7 +59,22 @@ $current_parent
         done
     }
 
+    valid_version() {
+        case "$1" in ''|*[!0-9.]*|.*|*..*|*.) return 1 ;; esac
+        version_rest=$1
+        version_count=0
+        while :; do
+            version_part=${version_rest%%.*}
+            case "$version_part" in 0|[1-9]|[1-9][0-9]*) ;; *) return 1 ;; esac
+            version_count=$((version_count + 1))
+            [ "$version_rest" != "$version_part" ] || break
+            version_rest=${version_rest#*.}
+        done
+        [ "$version_count" = 3 ]
+    }
+
     registered_state() {
+        expected_version=${1:-@PRODUCT_VERSION@}
         # dpkg-query expands its own literal format fields.
         # shellcheck disable=SC2016
         package_record=$(/usr/bin/dpkg-query -W --showformat='${db:Status-Status}|${Version}|${Architecture}' local-media-gallery 2>/dev/null) || { query_status=$?; [ "$query_status" = 1 ] || fail 'Package registry query failed.'; package_record=; }
@@ -70,7 +85,7 @@ $current_parent
             package_rest=${package_record#*|}
             package_version=${package_rest%%|*}
             package_arch=${package_rest#*|}
-            [ "$package_version" = 0.0.0 ] || fail "Registered version $package_version differs."
+            [ "$package_version" = "$expected_version" ] || fail "Registered version $package_version differs."
             [ "$package_arch" = amd64 ] || fail "Registered architecture $package_arch differs."
         fi
     }
@@ -167,7 +182,7 @@ LMG_REGISTERED_PATHS
     }
 
     incoming_paths() {
-        registered_state
+        registered_state "$1"
         case "$package_state" in
             installed|half-installed|unpacked|half-configured|triggers-awaited|triggers-pending) ;;
             *) fail "Unowned transition state: $package_state." ;;
@@ -204,7 +219,7 @@ LMG_INCOMING_FILES
         observed_new=$(/usr/bin/tail -n "$new_count" -- "$authority" | /usr/bin/sha256sum)
         if [ "${observed_old%% *}" != "$old_hash" ] || [ "${observed_new%% *}" != "$new_hash" ]; then fail 'Recovery inventory hashes changed.'; fi
         [ '@EXPECTED_HASH@' = "$old_hash" ] || [ '@EXPECTED_HASH@' = "$new_hash" ] || fail 'This package is outside the recovery operation.'
-        registered_state
+        registered_state "${1:-@PRODUCT_VERSION@}"
         case "$package_state" in installed|half-installed|unpacked|half-configured|triggers-awaited|triggers-pending) ;; *) fail 'Recovery package state differs.' ;; esac
         check_visible_command
         recovery_rows=$(/usr/bin/tail -n +2 -- "$authority") || fail 'Cannot read recovery rows.'

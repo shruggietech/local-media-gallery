@@ -93,6 +93,11 @@
           "topic": "recipient-update-schema",
           "title": "Recipient update candidate and result schema",
           "source": "schemas/v0.0.0/recipient-update.schema.json"
+        },
+        {
+          "source": "schemas/v0.0.0/release-record.schema.json",
+          "topic": "release-record-schema",
+          "title": "Canonical release and publication schema"
         }
       ],
       "examples": [

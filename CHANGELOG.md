@@ -8,6 +8,9 @@ Native qualification and platform package candidates updated on 2026-10-31; prod
 
 ### Added
 
+- Verified releases (2026-10-31): assemble retained ordinary Full/Lite packages, stage and independently read back GitHub Release assets, retain complete versioned documentation and require both candidate and observed-publication documentation gates before canonical/current selection. Add main-only manual execution, source-bound CI artifact validation, recoverable publication and exact static deployment with stale-selection refusal. Product version0.0.0 remains unpublished.
+- Release decisions (2026-10-31): preserve accepted native bytes and permanent no-signing/no-notarization policy; derive publication from one observed canonical record. Keep capture origin, qualified native source and current renderer identity separate. Test future versions privately through the real renderer/browser and a controlled HTTP service.
+
 - Recipient updates (2026-10-31): add explicit verified candidate replacement, durable process-interruption recovery and compatible rollback across elected Full/Lite packages. Preserve recipient media/settings/history, foreign content and shared runtimes; refuse incompatible state and changed ownership before destructive replacement.
 - Update decisions (2026-10-31): use one small native transaction coordinator with MSI/dpkg retaining package ownership, receipt-aware macOS switching, private retained inputs and actual installed-state verification. Prepare distinct controlled ordinary package generations without inventing a public release or format migration. Expose finite read-only state compatibility and durable phase observations, preserving isolated hosted qualification and bounded review delivery.
 

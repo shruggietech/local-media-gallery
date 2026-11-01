@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { root } from './run.mjs';
@@ -12,6 +12,9 @@ const { chromium } = await import('playwright');
 const server = process.env.GALLERY_SITE_ORIGIN
   ? { url: process.env.GALLERY_SITE_ORIGIN.replace(/\/$/, ''), close: async () => {} }
   : await serve(path.join(root, 'apps/site/out'));
+const selection=JSON.parse(await readFile(path.join(root,'.local/site-publication.json'),'utf8'));
+const publicModel=await createModel(root,selection.manifest,{releaseRecord:selection.releaseRecord});
+const currentVersion=publicModel.manifest.latest;
 const live = Boolean(process.env.GALLERY_SITE_ORIGIN);
 if (live) assert.equal(server.url, 'https://localmedia.gallery', 'Unexpected live acceptance origin');
 const browser = await chromium.launch({
@@ -68,7 +71,7 @@ try {
       await page.setViewportSize({ width, height: 1000 });
       for (const [route, name] of [
         ['/', 'home'],
-        ['/docs/v0.0.0/architecture/', 'architecture'],
+        [`/docs/${currentVersion}/architecture/`, 'architecture'],
       ]) {
         await go(route);
         await page.getByLabel('Reading theme').selectOption(theme);
@@ -85,7 +88,7 @@ try {
           'First heading belongs in the initial reading viewport',
         );
         if (route === '/') {
-          assert.match(await page.locator('body').innerText(), /No installable Full or Lite packages/);
+          if(!publicModel.release)assert.match(await page.locator('body').innerText(), /No installable Full or Lite packages/);else for(const asset of publicModel.release.artifacts)assert.ok(await page.locator('a').filter({hasText:'Download '+asset.edition+' for '+asset.platform}).count());
           assert.ok(await page.getByText('ILLUSTRATIVE GALLERY PREVIEW').isVisible());
         }
       }
@@ -112,7 +115,7 @@ try {
     'Theme preference persisted',
   );
   results.push('Skip-link focus, persisted theme and immediate reduced-motion scroll');
-  await go('/docs/v0.0.0/architecture/');
+  await go(`/docs/${currentVersion}/architecture/`);
   const toc = page.getByRole('navigation', { name: 'Page contents', exact: true });
   const targets = await toc
     .locator('a')
@@ -134,7 +137,7 @@ try {
   await page.evaluate(() => document.querySelector('.bb-app-frame__scroll').scrollTo({ top: 0 }));
   await page.waitForTimeout(80);
   assert.equal(new URL(page.url()).hash, hash, 'Manual scroll must not mutate history');
-  await go('/docs/v0.0.0/architecture/' + targets[2].href);
+  await go(`/docs/${currentVersion}/architecture/` + targets[2].href);
   assert.ok(await page.locator(targets[2].href).isVisible());
   await toc.locator('a').last().click();
   await page.goBack();
@@ -143,7 +146,7 @@ try {
     'All long-page TOC targets, final activation, direct fragments and native history without manual-scroll history spam',
   );
   await page.setViewportSize({ width: 390, height: 844 });
-  await go('/docs/v0.0.0/architecture/');
+  await go(`/docs/${currentVersion}/architecture/`);
   await page.locator('.compact-toc summary').click();
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.compact-toc').getAttribute('open'), null);
@@ -185,17 +188,17 @@ try {
     'Background controls restored',
   );
   await menu.click();
-  await page.getByLabel('Search v0.0.0').fill('sidecar');
-  await page.getByRole('link', { name: 'Metadata and sidecars (v0.0.0)', exact: true }).click();
+  await page.getByLabel(`Search ${currentVersion}`).fill('sidecar');
+  await page.getByRole('link', { name: `Metadata and sidecars (${currentVersion})`, exact: true }).click();
   assert.match(page.url(), /metadata-and-sidecars/);
-  await go('/docs/v0.0.0/?missing=older-topic');
+  await go(`/docs/${currentVersion}/?missing=older-topic`);
   const missingNotice = page.getByRole('status').filter({ hasText: 'older-topic' });
   await missingNotice.waitFor({ timeout: 5000 });
   assert.ok((await missingNotice.boundingBox()).y < 844, 'Missing-topic notice is visible in the article');
   assert.equal(await page.locator('dialog[open]').count(), 0, 'Fallback does not require opening navigation');
   results.push('Compact TOC keyboard dismissal and mobile version-scoped search navigation/fallback');
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await go('/docs/v0.0.0/metadata-and-sidecars/');
+  await go(`/docs/${currentVersion}/metadata-and-sidecars/`);
   for (const theme of ['light', 'dark']) {
     await page.getByLabel('Reading theme').selectOption(theme);
     await scan('syntax-code-' + theme);
@@ -232,7 +235,7 @@ try {
   await example.getByRole('button').click();
   await example.getByRole('status').filter({ hasText: 'Copy failed' }).waitFor();
   results.push('Exact code clipboard source and accessible rejection feedback');
-  const model = await createModel(root);
+  const model = await createModel(root,selection.manifest,{releaseRecord:selection.releaseRecord});
   const diagramPages = model.pages.filter((p) => p.html.includes('data-diagram'));
   for (const entry of diagramPages)
     for (const theme of ['light', 'dark']) {
@@ -311,15 +314,15 @@ try {
     await go(route);
     assert.ok((await page.locator('h1').count()) === 1, 'Retained route ' + route);
   }
-  for (const route of ['/docs/', '/docs/latest/', '/docs/v0.0.0/']) {
+  for (const route of ['/docs/', '/docs/latest/', `/docs/${currentVersion}/`]) {
     await go(route);
     const entry = await page.locator('.source-content').innerText();
     assert.ok(entry.includes('live website at https://localmedia.gallery'));
     assert.ok(entry.includes('installable Full/Lite packages have not been published'));
   }
   await go('/docs/latest/');
-  assert.match(await page.locator('.alias-note').innerText(), /v0.0.0/);
-  await go('/docs/v0.0.0/schema/');
+  assert.ok((await page.locator('.alias-note').innerText()).includes(currentVersion));
+  await go(`/docs/${currentVersion}/schema/`);
   assert.ok((await page.locator('.prose details').count()) > 10);
   await page.locator('.prose a[href^="#schema-"]').first().click();
   await go('/404.html');
@@ -329,7 +332,7 @@ try {
     'Every canonical route, latest alias, generic schema pointers, changelog and noindex error page',
   );
   for (const width of [320, 768])
-    for (const route of ['/', '/docs/v0.0.0/interfaces-and-contracts/', '/changelog/']) {
+    for (const route of ['/', `/docs/${currentVersion}/interfaces-and-contracts/`, '/changelog/']) {
       await page.setViewportSize({ width, height: 900 });
       await go(route);
       await reflow(width + route);
@@ -337,17 +340,17 @@ try {
       await reflow('200 percent ' + width + route);
     }
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await go('/docs/v0.0.0/overview/');
-  await page.evaluate(() => {
+  await go(`/docs/${currentVersion}/overview/`);
+  await page.evaluate((currentVersion) => {
     const p = document.createElement('p');
     p.style.width = '12rem';
     const a = document.createElement('a');
-    a.href = '/docs/v0.0.0/overview/';
+    a.href = `/docs/${currentVersion}/overview/`;
     a.textContent = 'Read the complete versioned gallery navigation and media reference';
     a.dataset.wrappedFixture = 'true';
     p.append(a);
     document.querySelector('.source-content').prepend(p);
-  });
+  }, currentVersion);
   const link = page.locator('[data-wrapped-fixture]');
   assert.ok(await link.evaluate((el) => el.getClientRects().length > 1), 'Real multiline link wrapping');
   await link.scrollIntoViewIfNeeded();
@@ -369,17 +372,17 @@ try {
     viewport: { width: 390, height: 844 },
   });
   const plain = await offline.newPage();
-  await plain.goto(server.url + '/docs/v0.0.0/architecture/');
+  await plain.goto(server.url + `/docs/${currentVersion}/architecture/`);
   assert.equal(await plain.locator('.diagram-output svg:visible').count(), 1);
   assert.ok(await plain.locator('.mermaid-source').count());
-  await plain.goto(server.url + '/docs/v0.0.0/metadata-and-sidecars/');
+  await plain.goto(server.url + `/docs/${currentVersion}/metadata-and-sidecars/`);
   assert.ok(await plain.locator('[data-code-source]').count());
   assert.equal(await plain.locator('[data-copy-code]:visible').count(), 0);
   await plain.goto(server.url);
   assert.match(await plain.locator('body').innerText(), /No installable Full or Lite packages/);
   await offline.close();
   await context.route('**/search/*.json', (route) => route.abort());
-  await go('/docs/v0.0.0/overview/');
+  await go(`/docs/${currentVersion}/overview/`);
   await page.getByRole('status').filter({ hasText: 'Search is unavailable' }).waitFor();
   results.push('No-JavaScript landing/diagrams/code and failed-search chapter fallback');
   assert.deepEqual(failures, [], 'Browser runtime errors');
@@ -389,7 +392,7 @@ try {
     viewport: { width: 1440, height: 1000 },
   });
   const motionPage = await moving.newPage();
-  await motionPage.goto(server.url + '/docs/v0.0.0/architecture/');
+  await motionPage.goto(server.url + `/docs/${currentVersion}/architecture/`);
   assert.equal(
     await motionPage.locator('.bb-app-frame__scroll').evaluate((el) => getComputedStyle(el).scrollBehavior),
     'smooth',

@@ -1,0 +1,137 @@
+name: Verified product release
+on:
+  workflow_dispatch:
+    inputs:
+      qualification_run:
+        description: Successful Qualification push-to-main run ID for the elected source
+        required: true
+        type: string
+      version:
+        description: Elected nonzero numeric triplet, matching VERSION and retained docs/schema
+        required: true
+        type: string
+      previous_version:
+        description: Expected previous published version, empty for first product release
+        required: false
+        type: string
+      resume_execution_run:
+        description: Optional prior manual execution run containing attributable upload recovery evidence
+        required: false
+        type: string
+      highlights:
+        description: Short release highlights, including breaking/migration changes when applicable
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: verified-product-publication
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: write
+      actions: read
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: .local/browsers
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.0
+          cache: npm
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Use primary Ubuntu archive for browser prerequisites
+        run: sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+      - run: node node_modules/playwright/cli.js install --with-deps chromium --no-shell
+      - name: Revalidate source, exact CI artifacts, both docs gates and actual publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ inputs.qualification_run }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_PREVIOUS: ${{ inputs.previous_version }}
+          RELEASE_RESUME: ${{ inputs.resume_execution_run }}
+          RELEASE_HIGHLIGHTS: ${{ inputs.highlights }}
+        run: node scripts/release.mjs execute --run-id "$RELEASE_RUN" --version "$RELEASE_VERSION" --previous-version "$RELEASE_PREVIOUS" --resume-run "$RELEASE_RESUME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: release-execution-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .local/release-execution.json
+            .local/release-execution-*/release-state.json
+            .local/release-execution-*/artifacts/.release-upload-attempts.json
+            .local/release-pages-evidence.json
+          include-hidden-files: true
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-release-static-${{ github.sha }}-${{ github.run_attempt }}
+          path: .local/release-pages/
+          include-hidden-files: true
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-release-site-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: .local/release-pages-evidence.json
+          include-hidden-files: true
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          name: verified-release-pages-${{ github.sha }}-${{ github.run_attempt }}
+          path: .local/release-pages/
+          include-hidden-files: true
+  deploy-pages:
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages-production
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.0
+      - name: Install locked verification dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verified-release-static-${{ github.sha }}-${{ github.run_attempt }}
+          path: .local/qualified-site
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verified-release-site-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: .local/site-evidence
+      - name: Verify retained renderer artifact
+        run: node scripts/verify-deployment.mjs .local/qualified-site .local/site-evidence/release-pages-evidence.json "$GITHUB_SHA"
+      - name: Reject retired renderer revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: test "$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)" = "$GITHUB_SHA"
+      - name: Reject a retired publication selection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/verify-publication-selection.mjs .local/qualified-site
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        id: deployment
+        with:
+          artifact_name: verified-release-pages-${{ github.sha }}-${{ github.run_attempt }}

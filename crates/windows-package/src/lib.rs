@@ -128,13 +128,24 @@ pub fn portable(value: &str) -> bool {
                     && matches!(stem.as_bytes()[3], b'1'..=b'9'))
         })
 }
+/// Canonical MSI numeric triplet shared by payload parsing and update input.
+pub fn valid_product_version(value: &str) -> bool {
+    let parts: Vec<_> = value.split('.').collect();
+    parts.len() == 3
+        && parts.iter().zip([255u32, 255, 65535]).all(|(s, limit)| {
+            !s.is_empty()
+                && (s.len() == 1 || !s.starts_with('0'))
+                && s.bytes().all(|b| b.is_ascii_digit())
+                && s.parse::<u32>().is_ok_and(|n| n <= limit)
+        })
+}
 impl Payload {
     pub fn validate(&self) -> Result<(), String> {
         if !hex(&self.generation, 32)
             || self.product != "local-media-gallery"
             || self.kind != "windows-application-payload"
             || self.format_version != 1
-            || self.version != "0.0.0"
+            || !valid_product_version(&self.version)
             || !["full", "lite"].contains(&self.edition.as_str())
             || self.os != "windows"
             || self.arch != "x86_64"
@@ -377,7 +388,11 @@ mod tests {
             }],
         };
         fs::write(dir.path().join("foreign.txt"), b"retain").unwrap();
+        p.version = "1.2.3".into();
         assert!(p.verify(&physical, false).is_ok());
+        p.version = "256.0.0".into();
+        assert!(p.validate().is_err());
+        p.version = "1.2.3".into();
         fs::write(dir.path().join("app.exe"), b"y").unwrap();
         assert!(p.verify(&physical, true).is_err());
         p.files.push(p.files[0].clone());

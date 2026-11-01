@@ -2,7 +2,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { model } from '../../lib/model';
-import { aliasRoutes } from '../../lib/navigation.mjs';
+import { aliasRoutes, snapshotTopics } from '../../lib/navigation.mjs';
 import { routeMetadata } from '../../lib/metadata';
 import { DocsControls, MissingTopicNotice } from '../../components/docs-controls';
 import { ReadingShell } from '../../components/reading-shell';
@@ -61,7 +61,7 @@ export default async function Reference({ params }: { params: Promise<{ route: s
         <CodeTools />
       </article>
     );
-  const topics = [...snapshot.topics, ...(snapshot.schema ? ['schema'] : [])];
+  const topics = snapshotTopics(snapshot);
   const tree: Root = {
     name: 'Documentation',
     children: topics.map((topic) => {
@@ -82,8 +82,9 @@ export default async function Reference({ params }: { params: Promise<{ route: s
         version={snapshot.version}
         topic={page.topic!}
         snapshots={model.manifest.snapshots.map((entry) => ({
-          ...entry,
-          topics: [...entry.topics, ...(entry.schema ? ['schema'] : [])],
+          version: entry.version,
+          status: entry.status,
+          topics: snapshotTopics(entry),
         }))}
       />
     </>

@@ -42,7 +42,7 @@ impl Payload {
         if self.format_version != 1
             || self.product != "local-media-gallery"
             || self.kind != "macos-application-payload"
-            || self.version != env!("CARGO_PKG_VERSION")
+            || !gallery_update::valid_product_version(&self.version)
             || !["full", "lite"].contains(&self.edition.as_str())
             || self.os != "macos"
             || self.arch != "aarch64"
@@ -548,6 +548,11 @@ mod tests {
     fn rejects_traversal_duplicate_missing_bundle_assets_and_wrong_identity() {
         let good = payload();
         good.validate().unwrap();
+        let mut future = payload();
+        future.version = "1.2.3".into();
+        future.validate().unwrap();
+        future.version = "01.2.3".into();
+        assert!(future.validate().is_err());
         for bad in ["../outside", "/absolute", "a//b", "a\\b", "a/./b", "a:b"] {
             assert!(relative(bad).is_err())
         }

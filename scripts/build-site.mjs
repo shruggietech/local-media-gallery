@@ -1,6 +1,8 @@
+import {publicSiteInputs} from './site-publication.mjs';
+import {fileURLToPath} from 'node:url';
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
-import { mkdir, copyFile, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdir, copyFile, writeFile, readFile, rm, cp } from 'node:fs/promises';
 import path from 'node:path';
 import { root, node, environment } from './run.mjs';
 import { createModel } from './site-content.mjs';
@@ -9,7 +11,9 @@ import { sourceIdentity } from './provenance.mjs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-const model = await createModel(root);
+export async function buildSite({base=root,manifest,releaseRecord,allowFixture=false,publicationProjection=false,outputRoot=path.join(root,'apps/site/out')}={}) {
+if(manifest===undefined){const selection=await publicSiteInputs(base);manifest=selection.manifest;releaseRecord=selection.releaseRecord;await mkdir(path.join(root,'.local'),{recursive:true});await writeFile(path.join(root,'.local/site-publication.json'),JSON.stringify(selection)+'\n');}
+const model = await createModel(base,manifest,{releaseRecord,allowFixture,publicationProjection});
 const site = path.join(root, 'apps/site');
 const publicRoot = path.resolve(site, 'public');
 assert.equal(publicRoot, path.resolve(root, 'apps/site/public'));
@@ -19,7 +23,7 @@ await mkdir(path.join(site, 'public/search'), { recursive: true });
 for (const file of model.raw) {
   const destination = path.join(site, 'public', file.path);
   await mkdir(path.dirname(destination), { recursive: true });
-  await copyFile(path.join(root, file.source), destination);
+  await copyFile(path.join(base, file.source), destination);
 }
 for (const snapshot of model.manifest.snapshots) {
   await writeFile(
@@ -56,6 +60,7 @@ await writeFile(
   JSON.stringify(
     {
       version: 1,
+      publication: releaseRecord?{candidateId:releaseRecord.candidateId,releaseId:releaseRecord.publication.id,version:releaseRecord.version}:null,
       revision,
       source: await sourceIdentity(),
       versions: model.manifest.snapshots.map((snapshot) => snapshot.version),
@@ -67,3 +72,8 @@ await writeFile(
 console.log(
   `Exported ${model.pages.length} reference pages and independent landing with ${model.raw.length} exact raw sources.`,
 );
+
+if(path.resolve(outputRoot)!==path.resolve(site,'out'))await cp(path.join(site,'out'),outputRoot,{recursive:true,errorOnExist:true,force:false});
+return model;
+}
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))await buildSite();
