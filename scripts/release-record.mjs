@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import Ajv from 'ajv/dist/2020.js';
-import {validateProductVersion} from './product-version.mjs';
+import {validateProductVersion,productVersion} from './product-version.mjs';
 export const releaseScopes=['repository','website','product-windows','product-linux','product-macos','windows-packages','linux-packages','macos-packages'];
 export const documentationChecks=['rendering','navigation','links-assets','version-selection','search','schemas-examples','review'];
 export const canonical=value=>JSON.stringify(order(value));
@@ -16,7 +16,7 @@ export function releasePredecessor(version,published){
 export function releaseDigest(record){const {state,candidateId,gates,publication,...immutable}=record;return releaseHash(immutable);}
 export const artifactUrl=(repository,version,name)=>`https://github.com/${repository}/releases/download/v${version}/${name}`;
 const ajv=new Ajv({allErrors:true,strict:true,ownProperties:true}).addKeyword('x-release-version');ajv.addFormat('date-time',value=>typeof value==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value)&&Number.isFinite(Date.parse(value)));
-const validate=ajv.compile(JSON.parse(await readFile(new URL('../schemas/v0.0.0/release-record.schema.json',import.meta.url),'utf8')));
+const validate=ajv.compile(JSON.parse(await readFile(new URL('../schemas/v'+productVersion+'/release-record.schema.json',import.meta.url),'utf8')));
 const unique=(items,message)=>assert.equal(new Set(items).size,items.length,message);
 export function createCandidate(immutable,options={}){
  const record={formatVersion:1,product:'local-media-gallery',...structuredClone(immutable),state:'candidate',candidateId:'0'.repeat(64),gates:{before:null,after:null},publication:null};

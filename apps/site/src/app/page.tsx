@@ -132,18 +132,18 @@ export default function Home() {
             <br />
             you browse.
           </h2>
-          <p>Being built for Windows, Linux and macOS.</p>
+          <p>{model.release ? 'Available for the qualified Windows, Linux and macOS targets below.' : 'Being built for Windows, Linux and macOS.'}</p>
         </div>
         <div className="edition-list">
           <div>
             <span className="edition-label">FULL</span>
             <h3>Make it part of your desktop.</h3>
-            <p>Intended for frequent use, system integration and persistent user settings.</p>
+            <p>{model.release ? 'For frequent use, system integration and persistent user settings.' : 'Intended for frequent use, system integration and persistent user settings.'}</p>
           </div>
           <div>
             <span className="edition-label">LITE</span>
             <h3>Open a gallery in place.</h3>
-            <p>Intended for a portable gallery on a supported host, with an optional sharing workflow.</p>
+            <p>{model.release ? 'Open a portable gallery on a supported host, with your own presentation choices.' : 'Intended for a portable gallery on a supported host, with an optional sharing workflow.'}</p>
           </div>
           {model.release ? (
             <ul>

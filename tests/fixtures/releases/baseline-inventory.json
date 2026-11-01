@@ -1,0 +1,165 @@
+{
+  "sourceRevision": "4e7060286af6449e97646d10a2814bded3791166",
+  "files": [
+    {
+      "path": "docs/v0.0.0/architecture.md",
+      "bytes": "8320",
+      "sha256": "eec7f9c63f59fe76ccb8c0c8acc17381371decf7ff6b67970446c121b45584d3"
+    },
+    {
+      "path": "docs/v0.0.0/brand.md",
+      "bytes": "6582",
+      "sha256": "9779c783a37643ed182cbcb980489227da743f875ad2b6c381e212700c7f04a9"
+    },
+    {
+      "path": "docs/v0.0.0/browsing-and-playback.md",
+      "bytes": "10798",
+      "sha256": "82e64929601ba34c35ac5d0b8b3794a5a3f4a7cc3c5cc39da917ac6d5c506b10"
+    },
+    {
+      "path": "docs/v0.0.0/configuration-and-state.md",
+      "bytes": "13243",
+      "sha256": "d6484130a382ea28315d2eeb2793bd5b991250b05245f17b874250ad25b404dd"
+    },
+    {
+      "path": "docs/v0.0.0/gallery-lifecycle.md",
+      "bytes": "12324",
+      "sha256": "02d799bb66550783d55ad1ff0fb59b332ba7a83dbf1d3e0a1c6fabc57721454c"
+    },
+    {
+      "path": "docs/v0.0.0/glossary.md",
+      "bytes": "14538",
+      "sha256": "2aa67ed3e4556ffcd0d55ae2332b605ad214cc5cbca2511e291215ea35ffddc7"
+    },
+    {
+      "path": "docs/v0.0.0/index.md",
+      "bytes": "6876",
+      "sha256": "cea54b81a965cba71d00e734d0f6098aab90c278b90986a1ef818eba90b760fa"
+    },
+    {
+      "path": "docs/v0.0.0/installation-and-distribution.md",
+      "bytes": "35817",
+      "sha256": "c15ead7f382a85eb00ca26203155e8f66e486d937a362f4c33bd05a9b6a1478f"
+    },
+    {
+      "path": "docs/v0.0.0/interfaces-and-contracts.md",
+      "bytes": "20695",
+      "sha256": "9c6da83a3969736aa28cdf9ef9814d695f9e1482070883702e9f6ae52e9d5f3c"
+    },
+    {
+      "path": "docs/v0.0.0/metadata-and-sidecars.md",
+      "bytes": "10123",
+      "sha256": "deeb5a339ac8c1f9df2de69b533c6b9755f958cbcc57a1af3d7b04ec289481f7"
+    },
+    {
+      "path": "docs/v0.0.0/overview.md",
+      "bytes": "7350",
+      "sha256": "15a393d2d2266fbe6778342dad504a7caa56ba05cf36e9154a9fe3e4e66005ff"
+    },
+    {
+      "path": "docs/v0.0.0/security-and-reliability.md",
+      "bytes": "9304",
+      "sha256": "51cecd5fcc0eaba67df2f045992d82e65cd271dff510d6f9758800aa9f3f6b0e"
+    },
+    {
+      "path": "docs/v0.0.0/thumbnails-and-performance.md",
+      "bytes": "15727",
+      "sha256": "529c36a5afa7e07fcb7f43ae77b7cd7a188c85d68c58db3caaf6afe3bdccfd80"
+    },
+    {
+      "path": "docs/v0.0.0/verification-and-compatibility.md",
+      "bytes": "31830",
+      "sha256": "4b90d5767101218b495154fdfec6c57e81a23cff875a46a5a9da173277cd04f9"
+    },
+    {
+      "path": "docs/v0.0.0/website-and-documentation.md",
+      "bytes": "15103",
+      "sha256": "ab51a6724f7ccd12ae8da5841d3d300eda4a4e2f57f86086893f4daca3e931bc"
+    },
+    {
+      "path": "schemas/v0.0.0/examples/portable-settings.json",
+      "bytes": "241",
+      "sha256": "44bca5b1b5b32bac4344dfe83dcc2469eb3e282ae22fbd8fee342dfd580e9036"
+    },
+    {
+      "path": "schemas/v0.0.0/examples/selection.json",
+      "bytes": "225",
+      "sha256": "1124616dba524e50a416fb47d0bccdbcb75659b443b8eb9f6688d6a7bc25d71a"
+    },
+    {
+      "path": "schemas/v0.0.0/linux-packages.schema.json",
+      "bytes": "3272",
+      "sha256": "8d16f502090ac4dfa9f475b38003baf4c8b06ea97a0c36e47a053c766e19d0c2"
+    },
+    {
+      "path": "schemas/v0.0.0/local-media-gallery.schema.json",
+      "bytes": "47997",
+      "sha256": "a650ecc0abdc4744a98a5c27d3b47c358e114da23359ee186bfaf5e780166152"
+    },
+    {
+      "path": "schemas/v0.0.0/macos-packages.schema.json",
+      "bytes": "2994",
+      "sha256": "bf6b0ea81f6acf38e2d4c5b312062d34b5b007d8c4ca389f11f74ef42e7bf841"
+    },
+    {
+      "path": "schemas/v0.0.0/platform-matrix.json",
+      "bytes": "5693",
+      "sha256": "5d5d5c77075a6e13104b543c727e4a062af8e0c611520186bc8dd36b1aab3088"
+    },
+    {
+      "path": "schemas/v0.0.0/recipient-update.schema.json",
+      "bytes": "10210",
+      "sha256": "6a0c9b77c6942be3d15cd32b2dbea742a72da8af8b530f28338a65ffc59e30a3"
+    },
+    {
+      "path": "schemas/v0.0.0/release-record.schema.json",
+      "bytes": "15279",
+      "sha256": "6010140f97c2ad2d2e4792bd93480fea8d749fa6603e559872fa831aacd67957"
+    },
+    {
+      "path": "schemas/v0.0.0/windows-packages.schema.json",
+      "bytes": "2294",
+      "sha256": "a5d56d2d1d9fc7fe7bc1ea439034abfbf4a6ad05c4f2b7bf438c331c0de9652b"
+    },
+    {
+      "path": "site/snapshots/v0.0.0/references/enforcement_component-recipes.json.source",
+      "bytes": "23406",
+      "sha256": "c56f8eeac54670f4ca53d1bd06c8a02acfd59f94f8f0aed92bdfdc4947ccd241"
+    },
+    {
+      "path": "site/snapshots/v0.0.0/references/enforcement_consumer-contract.json.source",
+      "bytes": "10406",
+      "sha256": "7314e9756c427b8f7403eea9d9f7bb79ca5e449822e7f3c9478d388cdf015369"
+    },
+    {
+      "path": "site/snapshots/v0.0.0/references/enforcement_IMPLEMENTATION.md.source",
+      "bytes": "9326",
+      "sha256": "e65c45510de42afbd685e40969d3ec57aa734e653a143d33fb3c7193bdfb8d49"
+    },
+    {
+      "path": "site/snapshots/v0.0.0/references/LICENSE-BRAND.md.source",
+      "bytes": "2339",
+      "sha256": "bd1107a804108bbe02955ca64000945322a6fc2456b45b795dac11a253c0023a"
+    },
+    {
+      "path": "site/snapshots/v0.0.0/references/LICENSE.source",
+      "bytes": "11358",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "site/snapshots/v0.0.0/references/NOTICE.source",
+      "bytes": "1064",
+      "sha256": "d919688fd2c931500447418b628dfd0acf4d82c88d7eb392692bb629f7d0193f"
+    },
+    {
+      "path": "site/snapshots/v0.0.0/references/tokens_interface.css.source",
+      "bytes": "3080",
+      "sha256": "617bfd731ad5422c8694ea5d3d5619fe8e950e021cda9c864d7972326fb471a4"
+    },
+    {
+      "path": "site/snapshots/v0.0.0/references/web_adapter.json.source",
+      "bytes": "1860",
+      "sha256": "ed791d31774e84aa1ca8292ff9afaf5c44dfaa156d978cf5dbf664209fcad778"
+    }
+  ]
+}

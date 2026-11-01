@@ -479,6 +479,7 @@ jobs:
       actions: read
     env:
       PLAYWRIGHT_BROWSERS_PATH: .local/browsers
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -508,6 +509,8 @@ jobs:
             .local/ci-release-validation.json
             .local/release-assembly.json
             .local/release-campaign.json
+            .local/release-candidate-docs.json
+            .local/release-candidate-site/**
             .local/release-campaign-*/fixture-release.json
             .local/release-campaign-*/sources/**
             .local/release-campaign-*/candidate-site/**

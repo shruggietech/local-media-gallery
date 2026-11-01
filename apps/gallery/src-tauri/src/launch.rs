@@ -584,7 +584,7 @@ pub fn finite(request: &Request, id: String, root: Option<&Path>) -> OperationRe
         }
         Operation::Capabilities => {
             r.data = Some(
-                json!({"targetTriple":target_triple(),"bundleIdentifier":identifier(edition()),"platforms":serde_json::from_str::<Value>(include_str!("../../../../schemas/v0.0.0/platform-matrix.json")).expect("validated compiled platform policy"),"runtime":runtime_observation()}),
+                json!({"targetTriple":target_triple(),"bundleIdentifier":identifier(edition()),"platforms":serde_json::from_str::<Value>(include_str!(concat!(env!("OUT_DIR"), "/platform-matrix.json"))).expect("validated compiled platform policy"),"runtime":runtime_observation()}),
             )
         }
         Operation::Resolve => {
@@ -991,6 +991,14 @@ mod tests {
     use std::{ffi::OsString, path::PathBuf};
     fn args(v: &[&str]) -> Vec<OsString> {
         v.iter().map(OsString::from).collect()
+    }
+    #[test]
+    fn capabilities_matrix_identifies_the_compiled_product_version() {
+        let request = parse(args(&["capabilities"])).unwrap();
+        let result = finite(&request, "matrix-version".into(), None);
+        let data = result.data.unwrap();
+        assert_eq!(data["platforms"]["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(data["platforms"]["product"], "local-media-gallery");
     }
     #[test]
     fn edition_bundle_identity_is_distinct_but_state_remains_product_local() {

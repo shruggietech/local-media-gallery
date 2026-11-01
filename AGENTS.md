@@ -8,7 +8,7 @@ Finish authorized work autonomously. Report changed behavior, performed checks, 
 
 ## Project authority
 
-Read `.specify/memory/constitution.md` and the current documentation under `docs/`. v0.0.0 is a specification baseline; do not claim product commands or installable packages exist. Use Spec Kit for iterative slices and GitHub Issues, milestones and Projects as the primary tracking system once published.
+Read `.specify/memory/constitution.md` and the current documentation under `docs/`. v0.0.0 remains a specification baseline. Current product command and package availability claims must match implemented behavior and actual verified canonical release records; pending candidates are not shipped products. Use Spec Kit for iterative slices and GitHub Issues, milestones and Projects as the primary tracking system once published.
 
 Keep public documentation and planning self-contained. Do not cite private external design material or carry source-specific names, corpora, paths, prompts or eligibility rules into the product. Upstream owns the brand; read `brand/kit/enforcement/consumer-contract.json`, `brand/kit/enforcement/IMPLEMENTATION.md` and relevant upstream guidance before applying it. Update governed kit bytes only through `scripts/sync-brand-kit.mjs`.
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import Ajv from 'ajv/dist/2020.js';
+import {readProductSchema} from './product-version.mjs';
 import {mkdir,cp,readFile,writeFile,readdir,rename} from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -8,8 +9,11 @@ import {root,execute,python} from './run.mjs';
 import {inventory} from './create-fixture.mjs';
 import {prepareMediaTool} from './prepare-media-tool.mjs';
 const hash=b=>createHash('sha256').update(b).digest('hex');
+export async function preparationValidators(options){
+ const owned=await readProductSchema(options);const ajv=new Ajv({strict:true}).addKeyword('x-release-version').addSchema(owned);const contract=name=>ajv.compile({$ref:owned.$id+'#/$defs/'+name});return {validJob:contract('preparationJob'),validEntry:contract('thumbnailEntry'),validReport:contract('diagnosticReport')};
+}
 export async function preparationAcceptance({workspace,machine,pass}){
- const owned=JSON.parse(await readFile(path.join(root,'schemas/v0.0.0/local-media-gallery.schema.json'),'utf8'));const ajv=new Ajv({strict:true}).addKeyword('x-release-version').addSchema(owned);const contract=name=>ajv.compile({$ref:owned.$id+'#/$defs/'+name});const validJob=contract('preparationJob'),validEntry=contract('thumbnailEntry'),validReport=contract('diagnosticReport');
+ const {validJob,validEntry,validReport}=await preparationValidators();
  const fixture=JSON.parse(await readFile(path.join(root,'.local/native-fixture.json'),'utf8'));const tool=await prepareMediaTool();const gallery=path.join(workspace,'prepared gallery PRIVATE_PATH 雪');await cp(fixture.directory,gallery,{recursive:true});const before=await inventory(gallery);const profileBefore=await inventory(workspace);const cache=path.join(gallery,'.local-media-gallery-thumbnails-v1');
  const preview=await machine(['prepare',gallery,'--cache','portable']);assert.ok(validJob(preview.data.preparation),JSON.stringify(validJob.errors));assert.equal(preview.data.preparation.phase,'ready');assert.equal(preview.data.preparation.candidates,'12');assert.equal(preview.data.preparation.skipped,'2');assert.deepEqual(await inventory(workspace),profileBefore);pass('Write-free mixed preparation preview, missing optional video helper and originals intact');
  const args=['prepare',gallery,'--thumbnails','--cache','portable','--ffmpeg',tool.binary,'--ffmpeg-sha256',tool.sha256,'--diagnostics'];const generated=await machine(args,3);const job=generated.data.preparation;assert.ok(validJob(job),JSON.stringify(validJob.errors));assert.ok(validReport(generated.data.diagnostics),JSON.stringify(validReport.errors));assert.equal(job.phase,'partial');assert.equal(job.completed,'11');assert.equal(job.failed,'1');assert.equal(job.remaining,'0');assert.equal(job.helper.sha256,tool.sha256);assert.equal(job.helperLifetime,'exited');const diagnostics=JSON.stringify(generated.data.diagnostics);for(const privateValue of ['PRIVATE_PATH',gallery,tool.binary,'Optional source document','custom'])assert.equal(diagnostics.includes(privateValue),false);assert.ok(generated.data.diagnostics.records.some(r=>r.category==='unsupported_media'));assert.ok(generated.data.diagnostics.records.some(r=>r.category==='preparation_partial'));
