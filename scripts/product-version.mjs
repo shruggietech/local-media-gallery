@@ -21,3 +21,12 @@ export function packageProvenanceText(version){
  return version==='0.0.0'?'This package is an unreleased specification baseline. No product publication is asserted.':'This package retains its original build identity. Confirm actual publication, prerequisites and artifact hashes through the verified release record.';
 }
 export const productVersion=await readProductVersion();
+
+export async function readProductSchema({base=repository,version=productVersion}={}){
+ validateProductVersion(version);
+ const schema=JSON.parse(await readFile(path.join(base,'schemas','v'+version,'local-media-gallery.schema.json'),'utf8'));
+ assert.equal(schema['x-release-version'],version,'Product schema release version differs from elected version');
+ assert.equal(schema.$id,'urn:local-media-gallery:'+version,'Product schema identity differs from elected version');
+ assert.equal(schema.properties?.version?.const,version,'Product snapshot schema version differs from elected version');
+ return schema;
+}

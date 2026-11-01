@@ -27,3 +27,8 @@ test('Package prose keeps baseline truthful without embedding later publication 
  assert.match(packageProvenanceText('0.0.0'),/unreleased specification baseline/);
  const future=packageProvenanceText('1.2.3');assert.match(future,/verified release record/);assert.doesNotMatch(future,/is published|not a GitHub release|unpublished candidate/);
 });
+
+import {readProductSchema} from '../scripts/product-version.mjs';
+test('Current native consumers select the elected schema without falling back to the baseline',async t=>{
+ const base=await mkdtemp(path.join(os.tmpdir(),'lmg-schema-version-'));t.after(()=>rm(base,{recursive:true,force:true}));const directory=path.join(base,'schemas/v1.2.3');await mkdir(directory,{recursive:true});const file=path.join(directory,'local-media-gallery.schema.json');const schema={$id:'urn:local-media-gallery:1.2.3','x-release-version':'1.2.3',properties:{version:{const:'1.2.3'}}};await writeFile(file,JSON.stringify(schema));assert.deepEqual(await readProductSchema({base,version:'1.2.3'}),schema);await assert.rejects(readProductSchema({base,version:'1.2.4'}),/ENOENT/);schema.$id='urn:local-media-gallery:0.0.0';await writeFile(file,JSON.stringify(schema));await assert.rejects(readProductSchema({base,version:'1.2.3'}),/schema identity/i);
+});

@@ -90,3 +90,5 @@ US1 supplies the identified-byte MVP, but acceptance requires all three P1 stori
 - [x] T036 Verify actual read-only GitHub REST artifact transport and provenance rejection, including Actions ZIP media negotiation and cross-origin credential stripping, per FR-011, FR-012 and T021/T025.
 
 - [x] T037 Bind normal native proof machine acceptance and matching schema selection to the elected product/proof version, reject mixed identities, preserve the historical baseline and cover a nonzero-version regression per FR-001/FR-003 and review round2.
+
+- [x] T038 Use the same elected-version schema loader in mandatory Windows launch and rendered native acceptance, preserving intentionally historical portable-settings fixtures, per FR-001/FR-003 and the linked round2 native-consumer audit.

@@ -7,12 +7,13 @@ import {promisify} from 'node:util';
 import {mkdtemp,mkdir,readFile,writeFile,copyFile,rename} from 'node:fs/promises';
 import path from 'node:path';
 import Ajv from 'ajv/dist/2020.js';
+import {readProductSchema} from './product-version.mjs';
 import {root,environment} from './run.mjs';
 import {collectPayload,verifyPayload,hash} from './proof.mjs';
 assert.equal(process.platform,'win32','This elected rendered launch suite is Windows-specific');
 const options=new Map();for(let i=2;i<process.argv.length;i+=2){assert.ok(['--full','--lite'].includes(process.argv[i]));options.set(process.argv[i],process.argv[i+1]);}assert.ok(options.has('--full')&&options.has('--lite'));
 const full=path.resolve(options.get('--full')),lite=path.resolve(options.get('--lite'));const fixture=JSON.parse(await readFile(path.join(root,'.local/native-fixture.json'),'utf8'));const started=new Date();const call=promisify(execFile);
-const schema=JSON.parse(await readFile(path.join(root,'schemas/v0.0.0/local-media-gallery.schema.json'),'utf8'));const ajv=new Ajv({strict:true}).addKeyword('x-release-version').addSchema(schema);const valid=ajv.compile({$ref:'urn:local-media-gallery:0.0.0#/$defs/operationResult'});
+const schema=await readProductSchema();const ajv=new Ajv({strict:true}).addKeyword('x-release-version').addSchema(schema);const valid=ajv.compile({$ref:schema.$id+'#/$defs/operationResult'});
 const base=await mkdtemp(path.join(root,'.local/launch-contract-'));const outside=path.join(base,'unrelated caller');await mkdir(outside);const galleries=[];const passed=[];const live=new Set();
 function nativePath(value){return value===null?null:Buffer.from(value.bytes).toString(value.encoding==='windows-utf16le'?'utf16le':'utf8');}
 const normalized=value=>path.normalize(value.replace(/^\\\\\?\\/,'')).toLowerCase();
