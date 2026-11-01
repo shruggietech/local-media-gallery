@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
+import {AsyncLocalStorage} from 'node:async_hooks';
+const observationDeadline=new AsyncLocalStorage();
 import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdtemp,rm} from 'node:fs/promises';
 import path from 'node:path';
@@ -13,15 +15,30 @@ export function validateQualificationRun({run,workflow,jobs,comparison},record,r
  for(const scope of [...releaseScopes,'release-validation']){const matches=jobs.filter(j=>j.name===scope||j.name==='native-proof ('+scope+')');assert.equal(matches.length,1,'Required qualification job '+scope);assert.equal(matches[0].conclusion,'success');}return run;
 }
 export class GitHubReleaseClient {
- constructor({repository,token,apiOrigin='https://api.github.com',fixture=false,deadline=Date.now()+840000,maxJsonBytes=4*1024*1024,timeoutMs=30000}={}){
-  assert.match(repository,/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/);const url=new URL(apiOrigin);assert.ok(fixture?loopback(url):url.href==='https://api.github.com/','Unexpected API origin');this.repository=repository;this.token=token??(fixture?undefined:process.env.GH_TOKEN??process.env.GITHUB_TOKEN);this.origin=url.origin;this.fixture=fixture;this.deadline=deadline;this.maxJsonBytes=maxJsonBytes;this.timeoutMs=timeoutMs;this.prefix='/repos/'+repository;
+ constructor({repository,token,apiOrigin='https://api.github.com',fixture=false,deadline=Date.now()+840000,maxJsonBytes=4*1024*1024,timeoutMs=30000,observation}={}){
+  assert.match(repository,/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/);const url=new URL(apiOrigin);assert.ok(fixture?loopback(url):url.href==='https://api.github.com/','Unexpected API origin');this.repository=repository;this.token=token??(fixture?undefined:process.env.GH_TOKEN??process.env.GITHUB_TOKEN);this.origin=url.origin;this.fixture=fixture;this.deadline=deadline;this.maxJsonBytes=maxJsonBytes;this.timeoutMs=timeoutMs;assert.ok(!observation||fixture,'Observation overrides are fixture-only');this.observation=observation??{attempts:8,intervalMs:1000,timeoutMs:30000};for(const key of ['attempts','intervalMs','timeoutMs'])assert.ok(Number.isSafeInteger(this.observation[key])&&this.observation[key]>=(key==='intervalMs'?0:1));this.prefix='/repos/'+repository;
  }
- signal(){const remaining=this.deadline-Date.now();assert.ok(remaining>0,'GitHub operation deadline reached');return AbortSignal.timeout(Math.max(1,Math.min(this.timeoutMs,remaining)));}
+ signal(){const remaining=Math.min(this.deadline,observationDeadline.getStore()??Infinity)-Date.now();assert.ok(remaining>0,'GitHub operation deadline reached');return AbortSignal.timeout(Math.max(1,Math.min(this.timeoutMs,remaining)));}
+ async observe(read,label,failure){
+  const {attempts,intervalMs,timeoutMs}=this.observation,deadline=Math.min(this.deadline,Date.now()+timeoutMs);
+  return observationDeadline.run(deadline,async()=>{
+   for(let attempt=0;attempt<attempts&&Date.now()<deadline;attempt++){
+    let result;
+    try{result=await read();}catch(error){
+     if(Date.now()>=deadline&&(['AbortError','TimeoutError'].includes(error.name)||error.message==='GitHub operation deadline reached'))break;
+     throw error;
+    }
+    if(result!==undefined)return result;
+    if(attempt+1<attempts&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,Math.min(intervalMs,Math.max(0,deadline-Date.now()))));
+   }
+   throw failure??Error(label+' (observation bound/deadline reached)');
+  });
+ }
  async request(method,route,{body,bytes,allow404=false,upload=false}={}){
   const url=new URL(route,this.origin);assert.ok(upload?(this.fixture?url.origin===this.origin:url.origin==='https://uploads.github.com'):url.origin===this.origin,'Unexpected credential destination');assert.ok(!url.username&&!url.password&&!url.hash);
-  const headers={accept:'application/vnd.github+json','x-github-api-version':'2022-11-28','user-agent':'local-media-gallery-release',...(this.token?{authorization:'Bearer '+this.token}:{})};if(body!==undefined)headers['content-type']='application/json';if(bytes!==undefined)headers['content-type']='application/octet-stream';
+  const headers={'cache-control':'no-cache',accept:'application/vnd.github+json','x-github-api-version':'2022-11-28','user-agent':'local-media-gallery-release',...(this.token?{authorization:'Bearer '+this.token}:{})};if(body!==undefined)headers['content-type']='application/json';if(bytes!==undefined)headers['content-type']='application/octet-stream';
   const response=await fetch(url,{method,headers,body:bytes??(body===undefined?undefined:JSON.stringify(body)),redirect:'manual',signal:this.signal()});if(allow404&&response.status===404){await response.body?.cancel();return {data:null,headers:response.headers,status:404};}
-  if(!response.ok){await response.body?.cancel();throw Error(`GitHub ${method} ${url.pathname}: ${response.status}`);}
+  if(!response.ok){await response.body?.cancel();const error=Error(`GitHub ${method} ${url.pathname}: ${response.status}`);error.status=response.status;throw error;}
   const chunks=[];let size=0;for await(const chunk of response.body??[]){size+=chunk.length;assert.ok(size<=this.maxJsonBytes,'GitHub JSON response bound exceeded');chunks.push(chunk);}const data=size?JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks))):null;return {data,headers:response.headers,status:response.status};
  }
  async json(method,route,options){return (await this.request(method,route,options)).data;}

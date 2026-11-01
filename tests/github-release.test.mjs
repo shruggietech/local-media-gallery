@@ -9,3 +9,12 @@ test('Publication qualification rejects PR, foreign, incomplete, wrong source an
 
 test('Actions jobs pagination reads the jobs collection rather than treating the envelope as an array',async t=>{const service=await (async()=>{const server=createServer((req,res)=>res.end(JSON.stringify({total_count:1,jobs:[{name:'repository',conclusion:'success'}]})));await new Promise(r=>server.listen(0,'127.0.0.1',r));return {url:'http://127.0.0.1:'+server.address().port,close:()=>new Promise(r=>server.close(r))};})();t.after(service.close);const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:service.url,fixture:true});assert.deepEqual(await client.list('/jobs','jobs'),[{name:'repository',conclusion:'success'}]);});
 test('Actions ZIP endpoints negotiate the REST media type before following the binary redirect',async t=>{let leaked;const blob=await service((req,res)=>{leaked=req.headers.authorization;res.end('zip-bytes');});t.after(blob.close);const api=await service((req,res)=>{if(req.headers.accept!=='application/vnd.github+json'){res.writeHead(415);res.end();return;}assert.equal(req.headers['x-github-api-version'],'2022-11-28');res.writeHead(302,{location:blob.url+'/artifact.zip'});res.end();});t.after(api.close);const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:api.url,token:'fixture-secret',fixture:true});const result=await client.download('/repos/o/r/actions/artifacts/1/zip',{collect:true});assert.equal(result.data.toString(),'zip-bytes');assert.equal(leaked,undefined);});
+
+test('Observation timeout aborts slow requests and preserves the original mutation failure',async t=>{
+ const local=await service((req,res)=>setTimeout(()=>res.end('{}'),200));t.after(local.close);
+ const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true,observation:{attempts:3,intervalMs:0,timeoutMs:30}});
+ const failure=Error('lost mutation response');
+ await assert.rejects(client.observe(()=>client.json('GET','/slow'),'pending',failure),error=>error===failure);
+ let calls=0;await assert.rejects(client.observe(async()=>{calls++;throw Object.assign(Error('API forbidden'),{status:403});},'pending'),/forbidden/);
+ assert.equal(calls,1);
+});

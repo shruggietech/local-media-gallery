@@ -4,7 +4,14 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-No changes beyond the initial 0.1.0 release preparation are recorded.
+### Fixed
+
+- Release staging verifies temporary draft assets through authenticated API identities and exact content hashes, then requires final public URLs after publication. Bounded read-after-write observation reconciles delayed or lost acknowledgements without blindly replaying mutations.
+- Retain the exact candidate and publication static exports, inventories and matching gated records for independent readback, including candidate evidence when later publication fails.
+
+### Process decisions
+
+- 2026-11-01: Separate authenticated draft identity from final published URLs, retry only explicitly pending observations after one mutation within the existing qualification deadline, and preserve ownership, source, payload, canonical promotion and final URL checks. Retain both exact gated exports in always-uploaded workflow evidence; keep shipped product/versioned contracts and accepted native bytes unchanged.
 
 ## [0.1.0]
 

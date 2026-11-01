@@ -51,6 +51,19 @@ Use `npm run build:site`, `npm run check:site` and `npm run test:site` for the i
 
 The upstream [brand repository](https://github.com/shruggietech/shruggie-brand) supplies the pinned kit. `npm run brand:verify` checks installed bytes, `brand:check` is read-only and `brand:update` imports the newest stable matching kit. Supplied candidates keep their provenance until a formal release replaces them. See [brand integration](docs/v0.1.0/brand.md).
 
+## Release execution evidence
+
+The manual release workflow issues each mutation once and observes explicitly pending state with bounded reads. Draft assets are checked through their exact authenticated API identities and content hashes; published assets must also expose their expected final URLs. Foreign state fails immediately. Accepted native bytes are reused unchanged.
+
+The always-retained execution artifact includes `candidate-evidence/` and `publication-evidence/` beneath the execution directory. Each contains its exact export, complete inventory, matching gate record and version manifest. After verifying the original Actions ZIP digest and extracting it, use the exact qualified renderer checkout and run:
+
+```text
+node scripts/release-evidence.mjs PATH_TO_CANDIDATE_EVIDENCE
+node scripts/release-evidence.mjs PATH_TO_PUBLICATION_EVIDENCE
+```
+
+An optional second argument selects the retained documentation source root when it differs from that checkout. Verification reads the retained output without rebuilding and rejects missing, extra or changed files, stale source/renderer identities and mismatched gate projections. The existing `resume_execution_run` workflow input restores attributable interrupted-upload journals; it never authorizes replacing a published package.
+
 ## License
 
 Source and original documentation use [Apache 2.0](LICENSE). Upstream assets retain their notices in [NOTICE](NOTICE) and kit licensing files.

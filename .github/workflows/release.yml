@@ -68,6 +68,8 @@ jobs:
           path: |
             .local/release-execution.json
             .local/release-execution-*/release-state.json
+            .local/release-execution-*/candidate-evidence/
+            .local/release-execution-*/publication-evidence/
             .local/release-execution-*/artifacts/.release-upload-attempts.json
             .local/release-pages-evidence.json
           include-hidden-files: true
