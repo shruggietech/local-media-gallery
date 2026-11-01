@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import {productVersion} from './product-version.mjs';
 import {runUpdateCampaign} from './test-update-campaign.mjs';
 import {settingsControlsReady} from './native-driver-lifecycle.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';requireIsolatedDesktop();
@@ -13,9 +14,9 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));async function until(fn,message
 const updates=[],checks=[],native=[],installations=[],live=new Set();async function test(name,fn){await fn();checks.push({name,result:'pass',terminalFinished:new Date().toISOString()});console.log('PASS '+name)}
 const full=build.records.find(r=>r.edition==='full'),lite=build.records.find(r=>r.edition==='lite');const mount=path.join(work,'Mounted Full'),portable=path.join(work,'Lite gallery 雪');await mkdir(mount);await mkdir(portable);
 function color(value){return new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450"><rect width="600" height="450" fill="${value}"/></svg>`).render().asPng()}
-async function fixture(dir){await mkdir(dir,{recursive:true});await writeFile(path.join(dir,'red.png'),color('#dc1414'));await writeFile(path.join(dir,'red.png.json'),'{"retain":true}\n');await writeFile(path.join(dir,'settings.json'),JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{controlsExpanded:true},futureChoice:'retain'})+'\n')}
+async function fixture(dir){await mkdir(dir,{recursive:true});await writeFile(path.join(dir,'red.png'),color('#dc1414'));await writeFile(path.join(dir,'red.png.json'),'{"retain":true}\n');await writeFile(path.join(dir,'settings.json'),JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:productVersion,formatVersion:1,choices:{controlsExpanded:true},futureChoice:'retain'})+'\n')}
 const profile=path.join(os.homedir(),'Library/Application Support/tech.shruggie.local-media-gallery');
-await mkdir(profile,{recursive:true});await writeFile(path.join(profile,'settings.json'),JSON.stringify({version:'0.0.0',formatVersion:1,pageSize:24,cardSize:'medium',controlsExpanded:false,scrollIndicator:'auto',metadataExpanded:false,filter:'all',sort:'name',direction:'asc'})+'\n');await writeFile(path.join(profile,'recipient-retained.txt'),'retain user state');
+await mkdir(profile,{recursive:true});await writeFile(path.join(profile,'settings.json'),JSON.stringify({version:productVersion,formatVersion:1,pageSize:24,cardSize:'medium',controlsExpanded:false,scrollIndicator:'auto',metadataExpanded:false,filter:'all',sort:'name',direction:'asc'})+'\n');await writeFile(path.join(profile,'recipient-retained.txt'),'retain user state');
 async function retainedProfile(){const entries=[];for(const rel of ['settings.json','state/history.sqlite3','history.sqlite3','recipient-retained.txt']){try{const bytes=await readFile(path.join(profile,rel));entries.push({path:rel,sha256:hash(bytes),bytes:String(bytes.length)})}catch(e){if(e.code!=='ENOENT')throw e}}return entries}
 const gallery=path.join(work,'Full gallery 雪');await fixture(gallery);const before=await collectPayload(gallery);let mounted=false,trust;
 async function setup(scope,operation='install',app=null,bin=null){const args=[path.join(mount,'lmg-setup'),operation,'--scope',scope,...(app?['--directory',app]:[]),...(bin?['--command-directory',bin]:[])];return JSON.parse((await capture(scope==='system'?'/usr/bin/sudo':args.shift(),scope==='system'?['-n',...args]:args)).stdout)}

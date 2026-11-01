@@ -55,7 +55,7 @@ export interface MediaFacts {
 }
 
 export interface ViewSettings {
-  version: '0.0.0';
+  version: string;
   formatVersion: 1;
   pageSize: number;
   cardSize: 'small' | 'medium' | 'large';

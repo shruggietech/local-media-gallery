@@ -2,71 +2,57 @@
 
 Your media presented beautifully.
 
-A lightweight desktop gallery for browsing local images and videos, built with Rust, Tauri and a bundled static Next.js interface. Open a folder, browse its contents and focus on an asset without preparing a manifest.
+A lightweight desktop gallery for local images and videos. Open a directory and browse current media without importing a library, generating a manifest or preparing thumbnails. Rust and Tauri host the application with a bundled static Next.js interface.
 
-The application is in active development. No installable product package has been released. Windows is the first native verification host; Linux and macOS remain product targets.
+The current product version is 0.1.0. Package availability, exact download hashes and supported native rows come from the matching canonical [GitHub Release](https://github.com/shruggietech/local-media-gallery/releases) and [official website](https://localmedia.gallery). The retained [v0.0.0 specification](docs/v0.0.0/index.md) is not a shipped product.
 
-## Available in development
+## Browsing and editions
 
-- Open a directory through a native folder chooser or launch argument. Browse direct image/video files without modifying originals.
-- Sort and filter the discovered collection, with bounded pages of 24, 48 or 96 items and tightly packed, aspect-aware columns.
-- Focus on an image or video while gallery media work is suspended. Expand file information when needed without interrupting playback.
-- Keep controls out of the way with a compact collapsible toolbar, an information panel that starts collapsed and a scroll indicator that appears while scrolling.
-- Save view preferences immediately in per-user `settings.json` beneath the platform application configuration directory (AppData on Windows). Global font size offers Default (100%), Small (90%) and Smaller (80%).
-- Discover additions, removals and changes with **Refresh**. Opening and explicit refresh are the only directory scans; no background scanner runs.
+- Browse direct images/videos with natural filename, modified-time or byte-size sorting, media filters, bounded pages and aspect-aware cards.
+- Focus an image or manually play/pause/seek a video. Inspect arbitrary JSON sidecars, nested fields and optional card summaries.
+- Save user, remembered-directory, portable gallery or temporary presentation choices; metadata and media originals remain unchanged by viewing.
+- Use explicit **Refresh** for additions, removals and changed observations. No background directory scanner runs.
+- Optionally generate validated still/video thumbnails, inspect progress/diagnostics or clean owned cache outputs. An external video helper must be selected explicitly; none is bundled.
+- Full supplies installed integration. Lite runs in place on its declared supported host without installing Full or depending on a sender profile.
 
-Settings are global for now; the application does not write settings into the media directory. Malformed or unsupported settings remain intact with a visible warning and usable in-memory defaults.
+The elected package targets are Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 Apple Silicon. Runtime prerequisites, actual tested hosts and limits are explicit in [installation and distribution](docs/v0.1.0/installation-and-distribution.md). These are not universal clean-machine or every-architecture packages. Project signing and notarization are not performed.
 
-## Build and run on Windows
+Richer previews/autoplay/additional browsing criteria and media editing are deferred for 0.1.0. Existing settings/thumbnail operations remain available; guided preparation that fetches recipient launchers is subsequent work. Moving a closed gallery and reopening or explicitly refreshing it does not require manifest regeneration.
 
-Install Node.js 24+, Python 3.12+, Rust 1.96.0, the MSVC C++ build tools/Windows SDK and the WebView2 runtime. The Rust toolchain is pinned in this repository. FFmpeg is also needed for the small synthetic native-verification fixture.
+## Obtain and use a package
+
+1. Select an actually published Full or Lite artifact for the required OS/architecture from the verified release record. Compare the exact filename, size and SHA-256; a repository checkout or CI proof archive is not a published download.
+2. Read the matching [platform prerequisites and installation operations](docs/v0.1.0/installation-and-distribution.md). Full may provision declared dependencies. Lite uses declared host facilities and preserves its complete extracted payload.
+3. Open the application with a directory. Full starts with a chooser when no directory is supplied; Lite uses its external containing gallery. Use **Close folder** before relocating an open gallery on Windows, then reopen it at its new location.
+
+Recipients need no Node, Python, Rust, FFmpeg executable or separate browser for ordinary browsing. Host libraries/webview/codecs remain the declared prerequisites.
+
+## Build and contribute
+
+Maintainer setup uses Node 24+, Python 3.12+, the pinned Rust 1.96.0 toolchain and platform native build prerequisites. Windows additionally needs MSVC/Windows SDK and WebView2. FFmpeg creates the small synthetic acceptance clips.
 
 ```text
-git clone https://github.com/shruggietech/local-media-gallery.git
-cd local-media-gallery
 npm ci
 npm run prepare:local
 npm run build:app
+npm run check
+npm test
+npm run check:docs
+npm run check:app
 ```
 
-Launch `target/debug/local-media-gallery.exe`, optionally followed by one directory. With no directory, it opens a selection screen. `npm run app -- DIRECTORY` rebuilds and runs it for development. The built application uses WebView2 and does not require Node.js or a separate browser application.
+`prepare:local` prepares ignored maintainer tools; it does not install the product. `npm run app -- DIRECTORY` rebuilds and runs the development app. Native interactive/input/installer acceptance runs only on isolated CI desktops, never the active workstation.
 
-`prepare:local` creates an ignored Python environment and downloads an official checksum-verified Node 24.11.0 runtime for brand proof tools on Windows x64. It does not install the product. Installer and Lite prerequisite delivery remain future work.
+The [current documentation](docs/v0.1.0/index.md), [contribution guide](CONTRIBUTING.md), [changelog](CHANGELOG.md), [GitHub Issues](https://github.com/shruggietech/local-media-gallery/issues) and [Project](https://github.com/orgs/shruggietech/projects/8) describe contracts and development. Report vulnerabilities through [SECURITY.md](SECURITY.md); follow the [community conduct policy](CODE_OF_CONDUCT.md).
 
-Use **Close folder** before moving an open gallery on Windows; its directory capability holds the selected root while open. Reopen the moved directory to discover its current contents without rebuilding a manifest.
+## Website and brand maintenance
 
-## Documentation and development
+Use `npm run build:site`, `npm run check:site` and `npm run test:site` for the independent website. Its version manifest retains complete documentation/schema/reference snapshots. Only observed canonical publication elects current downloads and latest docs; Pages deploys exact qualified output.
 
-The [technical specification](docs/v0.0.0/index.md) defines the product contracts and unresolved decisions. The [contribution guide](CONTRIBUTING.md) covers required checks, small-fixture Windows verification, Spec Kit and brand maintenance. Read the [changelog](CHANGELOG.md) for implemented changes.
-
-Full installation, lightweight Lite sharing packages, portable gallery settings, remembered-directory history, sidecar inspection, optional thumbnails and adaptive calibration remain planned work. The independent [official website](https://localmedia.gallery) provides the landing page, retained versioned documentation, changelog and schema references.
-
-## Brand maintenance
-
-The brand comes from [ShruggieTech's brand repository](https://github.com/shruggietech/shruggie-brand), which publishes [brand.shruggie.tech](https://brand.shruggie.tech/). The updater verifies archive and manifest hashes, records provenance in `brand/lock.json` and preserves the delivered kit bytes.
-
-```text
-npm run brand:verify
-npm run brand:check
-npm run brand:update
-```
-
-`brand:check` is read-only. `brand:update` imports the newest stable release containing this project's kit. A supplied candidate can be imported explicitly with `node scripts/sync-brand-kit.mjs --import PATH_TO_ZIP`; its candidate status remains recorded until a formal release replaces it. See [brand integration](docs/v0.0.0/brand.md).
-
-## Contributing and support
-
-Report bugs and propose features through [GitHub Issues](https://github.com/shruggietech/local-media-gallery/issues). Follow the [contribution guide](CONTRIBUTING.md) for changes. GitHub Issues, milestones and the [repository Project](https://github.com/orgs/shruggietech/projects/8) provide primary work tracking; Spec Kit records implementation decisions and tasks.
-
-Report vulnerabilities through the [security policy](SECURITY.md). See the [community conduct policy](CODE_OF_CONDUCT.md).
+The upstream [brand repository](https://github.com/shruggietech/shruggie-brand) supplies the pinned kit. `npm run brand:verify` checks installed bytes, `brand:check` is read-only and `brand:update` imports the newest stable matching kit. Supplied candidates keep their provenance until a formal release replaces them. See [brand integration](docs/v0.1.0/brand.md).
 
 ## License
 
-Source code and original documentation use [Apache 2.0](LICENSE). Upstream assets retain their own notices; see [NOTICE](NOTICE) and the kit's licensing files.
+Source and original documentation use [Apache 2.0](LICENSE). Upstream assets retain their notices in [NOTICE](NOTICE) and kit licensing files.
 
-A [ShruggieTech](https://shruggie.tech/) project
-
-## Website development
-
-Run `npm run build:site`, `npm run check:site` and `npm run test:site` for the independent static website. Install the pinned Chromium test runtime with `node node_modules/playwright/cli.js install chromium` first. The export is `apps/site/out`; it can be served by an ordinary static web server. GitHub Pages publishes the exact checked artifact after all required qualification jobs pass.
-
-The version manifest is `site/versions.json`. Retain complete documentation snapshots and snapshot-owned reference/assets, with matching versioned schemas and examples. Do not substitute current content under a historical version label.
+A [ShruggieTech](https://shruggie.tech/) project.

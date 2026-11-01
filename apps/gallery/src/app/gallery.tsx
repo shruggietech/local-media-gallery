@@ -4,6 +4,7 @@
 import { type ComponentProps, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
+import { PRODUCT_VERSION } from '../lib/product-version';
 import { listen } from '@tauri-apps/api/event';
 import { AppFrame, Button, EmptyState, Field, FormControls, IconButton, StatusBadge } from '@brand/web/react/server';
 import { AppFrameEnvironmentBridge } from '@brand/web/react/environment';
@@ -19,7 +20,7 @@ import {usePreparation,PreparationControls,PreparationProgress,type Preparation}
 import {Diagnostics} from '../lib/diagnostics';
 import {useThumbnail} from '../lib/thumbnail';
 
-const initial: Snapshot = { version: '0.0.0', sequence: '0', discovery: null, sessionId: null, root: null, nativeRoot: null, status: 'selection', revision: '0', mediaOrigin: '', metadataRevision: '0', items: [], issues: [] };
+const initial: Snapshot = { version: PRODUCT_VERSION, sequence: '0', discovery: null, sessionId: null, root: null, nativeRoot: null, status: 'selection', revision: '0', mediaOrigin: '', metadataRevision: '0', items: [], issues: [] };
 const emptyFacts: MediaFacts = {};
 const keyOf = (item: MediaItem) => item.id + '/' + item.revision;
 const errorText = (error: unknown) => typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : String(error);

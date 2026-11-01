@@ -4,6 +4,28 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+No changes beyond the initial 0.1.0 release preparation are recorded.
+
+## [0.1.0]
+
+First public product version. Actual publication and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce package availability.
+
+### Highlights
+
+- Native local image/video browsing, metadata/sidecars, persistent and portable presentation, explicit Refresh, adaptive loading and optional thumbnail jobs.
+- Full/Lite packages for the elected Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 Apple Silicon rows, with exact inventories, dependency notices, source identity and retained native qualification.
+- Complete versioned product documentation and schemas, canonical verified release/download metadata and publication-gated latest documentation.
+- Richer previews/autoplay/additional criteria and media editing are deferred for 0.1.0. Guided preparation that fetches recipient launchers follows the first verified release. Existing browsing and optional jobs remain available.
+
+### Release preparation decisions
+
+- 2026-10-31: Align the initial product, owned package/workspace locks and complete documentation/schema snapshot at 0.1.0. Preserve every 0.0.0 baseline byte, strict stored-version writer behavior, permanent no-signing policy and elected host/runtime evidence limits. Derive native matrix, preparation schemas, frontend defaults and qualification receipts from the elected version.
+- 2026-10-31: Privately qualify the actual authored release snapshot before owner merge, separately from native assembly and controlled publication fixtures. Retain exact export/gate evidence, keep public selection on observed canonical releases, and capture documentation from a real earlier authored-source commit without requiring a self-referential revision. Product publication follows owner merge and trusted-main acceptance with unchanged native bytes.
+
+## Pre-publication development history
+
+The dated entries below retain their original development/candidate context before the initial public release. Later dated decisions supersede earlier implementation choices.
+
 Native qualification and platform package candidates updated on 2026-10-31; product packages remain unpublished.
 
 ### Added
@@ -24,7 +46,7 @@ Native qualification and platform package candidates updated on 2026-10-31; prod
 - Fresh dependency scan (2026-10-28): update Next.js 16.4.3, Playwright 1.64.1, UUID 1.29.0, native WebDriver plugin 1.5.1, SHA-2 0.11.1, Base64 0.23.1 and rusqlite 0.41.0. Preserve exact workspace lockfile declarations. Reuse scope/runner-image Cargo cache hints across lockfile changes while retaining actual locked builds and native qualification.
 
 - macOS release-profile Full DMG and portable Lite ZIP candidates, with a native scope-aware installer, exact signed bundle inventories and selective removal retaining galleries and user state. Candidates use ad-hoc signatures and remain unnotarized/unpublished.
-- Packaging decisions (2026-10-28): preserve the elected macOS15 Apple Silicon baseline, default user Applications/local command scope and explicitly elevated system scope. Verify ordinary candidates on an isolated hosted desktop using an external native observer. Known translocated Lite placement requires a selected gallery; external-volume galleries remain supported.
+- Packaging decisions (2026-10-28): preserve the elected macOS 15 Apple Silicon baseline, default user Applications/local command scope and explicitly elevated system scope. Verify ordinary candidates on an isolated hosted desktop using an external native observer. Known translocated Lite placement requires a selected gallery; external-volume galleries remain supported.
 
 - Windows release-profile Full/Lite candidate packaging, scope-specific MSI installation with actual ownership checks, trusted prerequisite entrypoints, native installed/extracted journeys and selective removal that retains galleries and user state. Candidates remain unsigned and unpublished.
 - Packaging decisions (2026-10-27): use standard Windows Installer transactions with explicit file/integration ownership, default user scope and a separately elevated machine entrypoint. Pin build/vendor inputs, keep shared Evergreen independent, and qualify ordinary recipient binaries on isolated hosted Windows. Correct native harness shutdown/profile/port diagnostics without weakening existing assertions.

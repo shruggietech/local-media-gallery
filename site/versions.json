@@ -111,6 +111,117 @@
           "title": "Platform and dependency matrix"
         }
       ]
+    },
+    {
+      "version": "v0.1.0",
+      "status": "released",
+      "source": "docs/v0.1.0",
+      "topics": [
+        "index",
+        "overview",
+        "architecture",
+        "installation-and-distribution",
+        "gallery-lifecycle",
+        "browsing-and-playback",
+        "metadata-and-sidecars",
+        "configuration-and-state",
+        "interfaces-and-contracts",
+        "thumbnails-and-performance",
+        "security-and-reliability",
+        "website-and-documentation",
+        "verification-and-compatibility",
+        "glossary",
+        "brand"
+      ],
+      "references": [
+        {
+          "source": "brand/kit/enforcement/consumer-contract.json",
+          "name": "enforcement/consumer-contract.json",
+          "captured": "site/snapshots/v0.1.0/references/enforcement_consumer-contract.json.source",
+          "sha256": "7314e9756c427b8f7403eea9d9f7bb79ca5e449822e7f3c9478d388cdf015369"
+        },
+        {
+          "source": "brand/kit/enforcement/IMPLEMENTATION.md",
+          "name": "enforcement/IMPLEMENTATION.md",
+          "captured": "site/snapshots/v0.1.0/references/enforcement_IMPLEMENTATION.md.source",
+          "sha256": "e65c45510de42afbd685e40969d3ec57aa734e653a143d33fb3c7193bdfb8d49"
+        },
+        {
+          "source": "brand/kit/web/adapter.json",
+          "name": "web/adapter.json",
+          "captured": "site/snapshots/v0.1.0/references/web_adapter.json.source",
+          "sha256": "ed791d31774e84aa1ca8292ff9afaf5c44dfaa156d978cf5dbf664209fcad778"
+        },
+        {
+          "source": "brand/kit/enforcement/component-recipes.json",
+          "name": "enforcement/component-recipes.json",
+          "captured": "site/snapshots/v0.1.0/references/enforcement_component-recipes.json.source",
+          "sha256": "c56f8eeac54670f4ca53d1bd06c8a02acfd59f94f8f0aed92bdfdc4947ccd241"
+        },
+        {
+          "source": "brand/kit/tokens/interface.css",
+          "name": "tokens/interface.css",
+          "captured": "site/snapshots/v0.1.0/references/tokens_interface.css.source",
+          "sha256": "617bfd731ad5422c8694ea5d3d5619fe8e950e021cda9c864d7972326fb471a4"
+        },
+        {
+          "source": "brand/kit/LICENSE",
+          "name": "LICENSE",
+          "captured": "site/snapshots/v0.1.0/references/LICENSE.source",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "source": "brand/kit/LICENSE-BRAND.md",
+          "name": "LICENSE-BRAND.md",
+          "captured": "site/snapshots/v0.1.0/references/LICENSE-BRAND.md.source",
+          "sha256": "bd1107a804108bbe02955ca64000945322a6fc2456b45b795dac11a253c0023a"
+        },
+        {
+          "source": "brand/kit/NOTICE",
+          "name": "NOTICE",
+          "captured": "site/snapshots/v0.1.0/references/NOTICE.source",
+          "sha256": "d919688fd2c931500447418b628dfd0acf4d82c88d7eb392692bb629f7d0193f"
+        }
+      ],
+      "schema": "schemas/v0.1.0/local-media-gallery.schema.json",
+      "additionalSchemas": [
+        {
+          "source": "schemas/v0.1.0/windows-packages.schema.json",
+          "topic": "windows-packages-schema",
+          "title": "Windows package payload schema"
+        },
+        {
+          "source": "schemas/v0.1.0/macos-packages.schema.json",
+          "topic": "macos-packages-schema",
+          "title": "macOS package payload schema"
+        },
+        {
+          "topic": "linux-packages",
+          "title": "Linux package payload schema",
+          "source": "schemas/v0.1.0/linux-packages.schema.json"
+        },
+        {
+          "topic": "recipient-update-schema",
+          "title": "Recipient update candidate and result schema",
+          "source": "schemas/v0.1.0/recipient-update.schema.json"
+        },
+        {
+          "source": "schemas/v0.1.0/release-record.schema.json",
+          "topic": "release-record-schema",
+          "title": "Canonical release and publication schema"
+        }
+      ],
+      "examples": [
+        "schemas/v0.1.0/examples/selection.json"
+      ],
+      "contracts": [
+        {
+          "source": "schemas/v0.1.0/platform-matrix.json",
+          "definition": "platformMatrix",
+          "topic": "platform-matrix",
+          "title": "Platform and dependency matrix"
+        }
+      ]
     }
   ]
 }

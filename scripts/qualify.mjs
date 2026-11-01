@@ -7,6 +7,7 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { root, node, cargo, exportInterface, execute, environment, buildEditions } from './run.mjs';
 import { sourceIdentity } from './provenance.mjs';
+import {productVersion} from './product-version.mjs';
 import { qualification } from './qualification.mjs';
 
 if (process.platform !== 'win32') throw new Error('This native qualification election is Windows-first.');
@@ -55,7 +56,7 @@ const record = await qualification({
     { name: 'source provenance and unchanged governed kit', run: async () => { assert.deepEqual(await sourceIdentity(), source); await execute(process.execPath, [npm, 'run', 'brand:verify']); await execute('git', ['diff', '--check']); } },
   ].filter(step=>!headless||!['Full/Lite native media and accessibility','Windows WebView2 functional acceptance','Windows rendered optional preparation and diagnostic export','Windows Full/Lite native launch contracts','Windows native operation and resource measurements','normal binary automation exclusion'].includes(step.name)),
 });
-record.version = '0.0.0'; record.source = source;
+record.version = productVersion; record.source = source;
 if(record.result==='pass'){record.proof=JSON.parse(await readFile(path.join(root,'.local/proof-results.json')));assert.deepEqual(record.proof.source,source);record.site=JSON.parse(await readFile(path.join(root,'.local/site-artifact.json')));record.browser=JSON.parse(await readFile(path.join(root,'.local/site-browser.json')));}
 if (record.result === 'pass' && !headless) {
   record.runtime=JSON.parse(await readFile(path.join(root,'.local/runtime-results.json')));assert.equal(record.runtime.result,'pass');assert.deepEqual(record.runtime.source,source);

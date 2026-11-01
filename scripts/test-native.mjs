@@ -1,3 +1,4 @@
+import {productVersion} from './product-version.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
@@ -103,7 +104,7 @@ try {
   await test('incremental discovery, visible cancellation and queued retirement', async () => {
     const directory = await mkdtemp(path.join(root, '.local/discovery-雪-'));
     for (const name of ['one.jpg','two.jpg','three.jpg']) await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(directory,name));
-    const portable = JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{fontScale:90},unknown:{keep:[false,0,null]}})+'\n';
+    const portable = JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:productVersion,formatVersion:1,choices:{fontScale:90},unknown:{keep:[false,0,null]}})+'\n';
     await writeFile(path.join(directory,'settings.json'),portable);
     const control = (action, config) => js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:arguments[1]})',[action,config??null]);
     await control('arm',{pauseAfter:2});
@@ -158,7 +159,7 @@ try {
   await test('blocked portable initialization leaves discovery, Cancel, Close and replacement responsive', async () => {
     const directory=await mkdtemp(path.join(root,'.local/discovery-profile-'));
     for(const name of ['one.jpg','two.jpg','three.jpg']) await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(directory,name));
-    const portable=JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{fontScale:80}})+'\n';
+    const portable=JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:productVersion,formatVersion:1,choices:{fontScale:80}})+'\n';
     await writeFile(path.join(directory,'settings.json'),portable);
     const control=(action,config)=>js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:arguments[1]})',[action,config??null]);
     await control('profile_arm'); await control('arm',{pauseAfter:3});
@@ -594,7 +595,7 @@ try {
   ];
   for(const [name,text] of metadataSources)await writeFile(path.join(metadataRoot,name),text);
   for(const [from,to]of [['clip silent.mp4','clip.mp4'],['image2.jpg','photo.jpg'],['image2.jpg','photo.png']])await copyFile(path.join(fixture.directory,from),path.join(metadataRoot,to));
-  await writeFile(metadataSettings,JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{metadataExpanded:false,fontScale:100,filter:'all',sort:'name',direction:'asc'},futureEnvelope:{keep:true}}));
+  await writeFile(metadataSettings,JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:productVersion,formatVersion:1,choices:{metadataExpanded:false,fontScale:100,filter:'all',sort:'name',direction:'asc'},futureEnvelope:{keep:true}}));
   await test('metadata demand, exact native transport, attributed nested data and lazy keyboard inspection',async()=>{
     await metadataControl('metadata_arm');
     await openSettled(metadataRoot);await visible('document.querySelectorAll(".media-card").length===3');
@@ -693,7 +694,7 @@ try {
   const loadingRoot=await mkdtemp(path.join(root,'.local/loading-雪-'));
   await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(loadingRoot,'image2.jpg'));
   await copyFile(path.join(fixture.directory,'clip silent.mp4'),path.join(loadingRoot,'clip.mp4'));
-  await writeFile(path.join(loadingRoot,'settings.json'),JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.0.0',formatVersion:1,choices:{loadingMode:'automatic'},futureEnvelope:{keep:true}})+'\n');
+  await writeFile(path.join(loadingRoot,'settings.json'),JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:productVersion,formatVersion:1,choices:{loadingMode:'automatic'},futureEnvelope:{keep:true}})+'\n');
   const loadingSettings=path.join(loadingRoot,'settings.json');
   const holdDecodes=()=>js('window.__s011Decode=HTMLImageElement.prototype.decode;window.__s011Held=[];HTMLImageElement.prototype.decode=function(){const element=this;return new Promise((resolve,reject)=>window.__s011Held.push(()=>window.__s011Decode.call(element).then(resolve,reject)));};return true;');
   const releaseDecodes=()=>js('HTMLImageElement.prototype.decode=window.__s011Decode;for(const release of window.__s011Held.splice(0))release();return true;');
