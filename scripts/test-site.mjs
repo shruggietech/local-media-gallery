@@ -15,6 +15,14 @@ const server = process.env.GALLERY_SITE_ORIGIN
 const selection=JSON.parse(await readFile(path.join(root,'.local/site-publication.json'),'utf8'));
 const publicModel=await createModel(root,selection.manifest,{releaseRecord:selection.releaseRecord});
 const currentVersion=publicModel.manifest.latest;
+async function assertLandingAvailability(page) {
+  if (!publicModel.release) {
+    assert.match(await page.locator('body').innerText(), /No installable Full or Lite packages/);
+    return;
+  }
+  const links = await page.locator('a[href]').evaluateAll(nodes => nodes.map(node => node.href));
+  for (const asset of publicModel.release.artifacts) assert.ok(links.includes(asset.url), 'Missing published package ' + asset.filename);
+}
 const live = Boolean(process.env.GALLERY_SITE_ORIGIN);
 if (live) assert.equal(server.url, 'https://localmedia.gallery', 'Unexpected live acceptance origin');
 const browser = await chromium.launch({
@@ -88,7 +96,7 @@ try {
           'First heading belongs in the initial reading viewport',
         );
         if (route === '/') {
-          if(!publicModel.release)assert.match(await page.locator('body').innerText(), /No installable Full or Lite packages/);else for(const asset of publicModel.release.artifacts)assert.ok(await page.locator('a').filter({hasText:'Download '+asset.edition+' for '+asset.platform}).count());
+          await assertLandingAvailability(page);
           assert.ok(await page.getByText('ILLUSTRATIVE GALLERY PREVIEW').isVisible());
         }
       }
@@ -317,8 +325,14 @@ try {
   for (const route of ['/docs/', '/docs/latest/', `/docs/${currentVersion}/`]) {
     await go(route);
     const entry = await page.locator('.source-content').innerText();
-    assert.ok(entry.includes('live website at https://localmedia.gallery'));
-    assert.ok(entry.includes('installable Full/Lite packages have not been published'));
+    if (publicModel.release) {
+      assert.equal(currentVersion, 'v' + publicModel.release.version);
+      assert.ok(entry.includes('actual package availability and download identities come from the matching canonical release record'));
+      assert.ok(entry.includes('Local Media Gallery ' + publicModel.release.version + ' documentation'));
+    } else {
+      assert.ok(entry.includes('live website at https://localmedia.gallery'));
+      assert.ok(entry.includes('installable Full/Lite packages have not been published'));
+    }
   }
   await go('/docs/latest/');
   assert.ok((await page.locator('.alias-note').innerText()).includes(currentVersion));
@@ -379,7 +393,7 @@ try {
   assert.ok(await plain.locator('[data-code-source]').count());
   assert.equal(await plain.locator('[data-copy-code]:visible').count(), 0);
   await plain.goto(server.url);
-  assert.match(await plain.locator('body').innerText(), /No installable Full or Lite packages/);
+  await assertLandingAvailability(plain);
   await offline.close();
   await context.route('**/search/*.json', (route) => route.abort());
   await go(`/docs/${currentVersion}/overview/`);
