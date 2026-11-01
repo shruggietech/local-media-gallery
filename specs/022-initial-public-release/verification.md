@@ -37,3 +37,24 @@ Official PR75 tracks74 and closes20/21 on owner merge; the three project items a
 Run41260232732 passes repository, website, product Windows/Linux/macOS and Linux/macOS packages. Windows ownership units pass, but the actual ordinary package campaign fails at573.585 qualification seconds (967.103 preparation,1540.688 combined): the machine activated-interruption case never observes activation because its supervisor exits before writing a matching terminal receipt. Retained prior extraction success is correctly not accepted. No native acceptance or release completion is claimed for that run.
 
 Startup stderr was discarded before the worker created client logs, hiding the original cause. Add bounded private supervisor stdout/stderr and include startup failure in the existing incomplete receipt refusal. Red regressions require stale preparation receipts to remain unaccepted, preserve their bytes and expose the original diagnostic; matching jobs still require terminal state and matching exit code. All native checks/deadlines remain mandatory; the next actual hosted run diagnoses or verifies the campaign.
+
+## 2026-10-31: Hosted checkpoint, independent readback and bounded review completion
+
+Run41262444240 is terminal success at 234db5d427ed1164a4a93306b44bbe0710993913. All nine elected scopes pass. Independent readback verifies ten original ZIP API digests, all nine source/terminal receipts, seven native/support assets, complete native assembly equality,351 exact public static files, actual authored0.1 docs gate/export/browser and both controlled current-renderer publication gates. Logical source is 3a1d841c758b2111519ff8ca9d2f040f3c671a9431a0e417f6733098f9434a58 with1428 files. The actual candidate gate binds source/renderer to this identity, candidate29ff8100a3439940ae7e6e3bef386e189a4610a44d42a19e3c67c031cb786f6a and both retained versions. No real release/tag/asset publication is inferred.
+
+The complete current Windows install/update/interruption/removal campaign passes; the earlier startup failure does not recur in this run. Retained supervisor diagnostics expose a future early failure rather than silently accepting old preparation success. Both requested review rounds complete without findings at f2e292a468f10e4698885df4aeecfa42ecef961e. The later diagnostic refinement is independently inspected and tested and receives the complete hosted qualification above; no third review is requested. There are zero unresolved review threads.
+
+| Original ZIP ID | Evidence artifact | SHA-256 |
+| ---: | --- | --- |
+| 13065543669 | repository-evidence-f744d59320e1228e53085ac202433eab15c60139 | 6f0acc5aa5f3a630cc8b6e1ad24c20957cd4d12ebda5baff5f352a27b6553f6c |
+| 13065683305 | website-evidence-f744d59320e1228e53085ac202433eab15c60139 | a42ed6637ac6b70aa3c135b862920252ed00ba5889ff2f4a971a7a3af1c2e10f |
+| 13065903309 | product-windows-evidence-f744d59320e1228e53085ac202433eab15c60139 | 282b2df9a26831eaebdf52db468910a6643a8a9882dbd72a956dd0cf7e3e2664 |
+| 13066545081 | product-linux-evidence-f744d59320e1228e53085ac202433eab15c60139 | 3a3930fea4558f62efe37c382d914293776784ff9bb11753ce16a14b358d4cb5 |
+| 13065199584 | product-macos-evidence-f744d59320e1228e53085ac202433eab15c60139 | ecc7088e747b3c6bf4106c2185ca295e6585ffae1c0d306887c0874e87aa2335 |
+| 13066257004 | windows-packages-evidence-f744d59320e1228e53085ac202433eab15c60139 | 727493c7178745d4579fc99874c4cfc8c9bdd295cb979486ea90aa7735b1e5cf |
+| 13065709726 | linux-packages-evidence-f744d59320e1228e53085ac202433eab15c60139 | 7c91d81eac8c9980c5f6da4f5e109ad7b22e43e2eff4ca2d48ed5947cc75a73e |
+| 13065838469 | macos-packages-evidence-f744d59320e1228e53085ac202433eab15c60139 | b453dbe721ec06548ddb600dcba704216d4317983cfd9749bcc38381d629c23c |
+| 13066458531 | release-validation-evidence-f744d59320e1228e53085ac202433eab15c60139 | 6cbaf6f497f1d46aa30fd3cbfe5c960f8644acc016f0385411cf470f0b939eab |
+| 13065488889 | website-static-f744d59320e1228e53085ac202433eab15c60139 | 4c6bf070bf9031ee59baced87742c6597dbfb5608df95ac9f893725dedd6fe68 |
+
+Installed convergence prerequisites select022-initial-public-release. Read-only reassessment of29 requirements/outcomes/scenarios, nine decisions and five core principles finds zero build gaps and leaves task bytes unchanged during assessment. All pre-merge tasks are recorded complete; T024-T026 remain explicitly pending after owner merge. Custom reviewer checklist markers remain unchanged. This progress-only record changes none of the qualified logical source. Final pushed-head CI/readback confirmation will be retained on PR75 before owner handoff, without another source-record commit loop. Actual publication continues only after owner merge and new trusted-main acceptance; #74 remains open through real public readback.
