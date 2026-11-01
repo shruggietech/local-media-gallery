@@ -40,7 +40,7 @@
 - [x] T015 [US2] Write actual-candidate docs gate identity/output refusal tests in tests/initial-release.test.mjs or dedicated candidate-docs tests before adding the helper and CI integration.
 - [x] T016 [US2] Add callable scripts/release-candidate-docs.mjs and scripts/ci-release.mjs step using the complete source manifest, exact native candidate and private output; keep native assembly unchanged and store separate gated receipt.
 - [x] T017 [US2] Retain actual candidate receipt/export in .github/workflows/ci.yml release-validation artifacts and supply the existing read-only GH_TOKEN for nonzero predecessor lookup.
-- [ ] T018 [US2] Record concise release history/dated decisions in CHANGELOG.md and commit complete authored docs/schema/sourceA, then use existing reviewVocabulary/retainSnapshot to record the ordinary review and real capture revision in site/retained/v0.1.0.json; commit receiptB separately.
+- [x] T018 [US2] Record concise release history/dated decisions in CHANGELOG.md and commit complete authored docs/schema/sourceA, then use existing reviewVocabulary/retainSnapshot to record the ordinary review and real capture revision in site/retained/v0.1.0.json; commit receiptB separately.
 
 ## Phase 5: US3 Publish after owner merge (P1), pre-merge delivery
 
