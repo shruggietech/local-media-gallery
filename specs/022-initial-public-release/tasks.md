@@ -49,9 +49,9 @@
 **Independent test**: All nine terminal CI scopes and independent readback agree with the clean pushed head; all findings resolved within two review rounds.
 
 - [x] T019 [US3] Run npm run check, npm test, check:docs, check:app and affected public/private renderer/browser checks; inspect UTF8/LF/mojibake and baseline hashes, recording preparation/qualification/combined clocks in specs/022-initial-public-release/measurements.md.
-- [ ] T020 [US3] Push/open the official S022 PR closing #20/#21 and referencing #74 without prematurely closing publication; set primary project items to S022/PR review.
+- [x] T020 [US3] Push/open the official S022 PR closing #20/#21 and referencing #74 without prematurely closing publication; set primary project items to S022/PR review.
 - [ ] T021 [US3] Complete all nine hosted qualification scopes and independently read exact native/proof ZIPs, assembly, public static output, actual candidate docs receipt/export and controlled publication gates; retain immutable IDs/digests and separated clocks in PR evidence.
-- [ ] T022 [US3] Respond to every actual review finding with changes/tests or a substantive resolution, resolve every thread and request no more than a second total round; record reviewed/fix heads in specs/022-initial-public-release/verification.md and PR.
+- [x] T022 [US3] Respond to every actual review finding with changes/tests or a substantive resolution, resolve every thread and request no more than a second total round; record reviewed/fix heads in specs/022-initial-public-release/verification.md and PR.
 - [ ] T023 [US3] Run installed Spec Kit convergence, append/complete only real remaining build gaps in specs/022-initial-public-release/tasks.md, and verify final clean pushed head, terminal checks and tracking before owner final review/merge.
 
 ## Phase 6: US3 Publish after owner merge (P1), post-merge execution

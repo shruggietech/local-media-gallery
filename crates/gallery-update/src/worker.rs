@@ -306,6 +306,31 @@ pub fn entry(path: &Path) -> Result<i32> {
     receipt(base, path, true, Some(code), Some(child.id()))?;
     Ok(code)
 }
+fn supervisor_log(path: &Path, extension: &str) -> Result<File> {
+    let file = path.with_extension(extension);
+    physical(&file)?;
+    io(OpenOptions::new().write(true).create_new(true).open(file))
+}
+fn terminal_receipt(path: &Path, receipt: &Path, code: Option<i32>) -> Result<serde_json::Value> {
+    let result = read_bounded(receipt, 16384).and_then(|bytes| {
+        serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|e| e.to_string())
+    });
+    if let Ok(value) = &result
+        && value["job"] == serde_json::json!(path)
+        && value["terminal"] == true
+        && value["code"].as_i64() == code.map(i64::from)
+    {
+        return result;
+    }
+    let diagnostic_path = path.with_extension("supervisor.stderr");
+    let diagnostic = physical(&diagnostic_path)
+        .and_then(|()| read_bounded(&diagnostic_path, 65536))
+        .map(|bytes| String::from_utf8_lossy(&bytes).trim().to_owned())
+        .unwrap_or_else(|error| format!("Supervisor diagnostic unavailable: {error}"));
+    Err(format!(
+        "incomplete: Native worker exited without a matching terminal receipt (exit {code:?}): {diagnostic}; inspect retained logs before further mutation"
+    ))
+}
 pub(super) fn execute(
     op: &Transaction,
     side: &str,
@@ -351,8 +376,8 @@ pub(super) fn execute(
         .arg("--__native-worker")
         .arg(&path)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(Stdio::from(supervisor_log(&path, "supervisor.stdout")?))
+        .stderr(Stdio::from(supervisor_log(&path, "supervisor.stderr")?));
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -397,15 +422,7 @@ pub(super) fn execute(
         }
         std::thread::sleep(Duration::from_millis(20));
     };
-    let result: serde_json::Value =
-        serde_json::from_slice(&read_bounded(&op.base.join("native-process.json"), 16384)?)
-            .map_err(|_| "incomplete: Native worker has no readable terminal receipt")?;
-    if result["job"] != serde_json::json!(path)
-        || result["terminal"] != true
-        || result["code"].as_i64() != status.code().map(i64::from)
-    {
-        return Err("incomplete: Native worker exited without a matching terminal receipt; inspect retained logs before further mutation".into());
-    }
+    let result = terminal_receipt(&path, &op.base.join("native-process.json"), status.code())?;
     Ok(std::process::Output {
         status,
         stdout: if path.with_extension("stdout").exists() {
@@ -444,5 +461,41 @@ pub fn run(path: &Path) -> Result<i32> {
             }
             Err(error)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn supervisor_failure_keeps_preparation_receipt_unaccepted_and_retains_reason() {
+        let work = tempfile::tempdir().unwrap();
+        let job = work.path().join("native-job-test.json");
+        let receipt = work.path().join("native-process.json");
+        let previous = br#"{"pid":17,"terminal":true,"code":0}"#;
+        fs::write(&receipt, previous).unwrap();
+        fs::write(
+            job.with_extension("supervisor.stderr"),
+            b"Native worker identity changed\n",
+        )
+        .unwrap();
+        let error = terminal_receipt(&job, &receipt, Some(2)).unwrap_err();
+        assert!(error.starts_with("incomplete:"));
+        assert!(error.contains("Native worker identity changed"));
+        assert!(error.contains("Some(2)"));
+        assert_eq!(fs::read(&receipt).unwrap(), previous);
+    }
+    #[test]
+    fn supervisor_terminal_requires_matching_job_and_exit_code() {
+        let work = tempfile::tempdir().unwrap();
+        let job = work.path().join("native-job-test.json");
+        let receipt = work.path().join("native-process.json");
+        fs::write(
+            &receipt,
+            serde_json::to_vec(&serde_json::json!({"job":job,"terminal":true,"code":2})).unwrap(),
+        )
+        .unwrap();
+        assert!(terminal_receipt(&job, &receipt, Some(0)).is_err());
+        assert!(terminal_receipt(&job, &receipt, Some(2)).is_ok());
     }
 }

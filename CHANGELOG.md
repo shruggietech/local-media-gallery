@@ -22,6 +22,8 @@ First public product version. Actual publication and its timestamp are establish
 - 2026-10-31: Align the initial product, owned package/workspace locks and complete documentation/schema snapshot at 0.1.0. Preserve every 0.0.0 baseline byte, strict stored-version writer behavior, permanent no-signing policy and elected host/runtime evidence limits. Derive native matrix, preparation schemas, frontend defaults and qualification receipts from the elected version.
 - 2026-10-31: Privately qualify the actual authored release snapshot before owner merge, separately from native assembly and controlled publication fixtures. Retain exact export/gate evidence, keep public selection on observed canonical releases, and capture documentation from a real earlier authored-source commit without requiring a self-referential revision. Product publication follows owner merge and trusted-main acceptance with unchanged native bytes.
 
+- 2026-10-31: Retain bounded hidden supervisor startup diagnostics when a native update worker exits before its own receipt; keep exact job/exit/terminal matching and refuse stale administrative-extraction receipts. This diagnostic refinement follows observed hosted machine-update failure and does not weaken native acceptance.
+
 ## Pre-publication development history
 
 The dated entries below retain their original development/candidate context before the initial public release. Later dated decisions supersede earlier implementation choices.
