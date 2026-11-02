@@ -66,3 +66,14 @@ test('Indexed Linux containers retain glib catalog obligations and complete vend
   const bundle=JSON.parse(bytes),license=bundle.files.find(file=>file.path==='rust/glib-0.18.5/LICENSE');license.text+='changed';license.sha256=hash(Buffer.from(license.text));license.bytes=String(Buffer.byteLength(license.text));const changed=Buffer.from(JSON.stringify(bundle)+'\n');await fs.writeFile(file,changed);row.noticeBundle.sha256=hash(changed);row.noticeBundle.inventorySha256=hash(JSON.stringify(bundle.files.map(({text,...file})=>file)));row.payload.files[0].sha256=hash(changed);row.payload.files[0].bytes=String(changed.length);await assert.rejects(verifyLinuxGlibNotices(work,row,root));
  }finally{await fs.rm(work,{recursive:true,force:true});}
 });
+
+
+test('Linux direct maintenance evidence preserves requested operation and validates native response identity',async()=>{
+ const {linuxMaintenanceOutcome,validateLinuxDirectMaintenance}=await import('../scripts/linux-packages.mjs');
+ const response=operation=>({formatVersion:1,product:'local-media-gallery',version:'0.2.0',operation:'maintain-'+operation,status:({replace:'complete',recover:'already-current',rollback:'restored'})[operation]});
+ const record={result:'pass',outcomes:['replace','recover','rollback'].map(operation=>linuxMaintenanceOutcome(operation,response(operation),'0.2.0'))};
+ assert.throws(()=>validateLinuxDirectMaintenance({result:'pass',outcomes:['replace','recover','rollback'].map(operation=>({operation,...response(operation)}))},'0.2.0'));
+ assert.deepEqual(record.outcomes.map(row=>row.operation),['replace','recover','rollback']);assert.equal(record.outcomes[0].response.operation,'maintain-replace');validateLinuxDirectMaintenance(record,'0.2.0');
+ for(const mutate of [r=>r.outcomes.pop(),r=>r.outcomes[1]=r.outcomes[0],r=>r.outcomes[0].response.operation='maintain-rollback',r=>r.outcomes[0].response.status='conflict',r=>r.outcomes[0].response.version='0.1.0',r=>r.outcomes[0].response.product='other',r=>r.outcomes[0].response.formatVersion=2]){const bad=structuredClone(record);mutate(bad);assert.throws(()=>validateLinuxDirectMaintenance(bad,'0.2.0'));}
+ assert.throws(()=>linuxMaintenanceOutcome('status',response('status'),'0.2.0'));
+});
