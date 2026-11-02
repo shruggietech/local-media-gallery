@@ -16,6 +16,7 @@ tauri-build = { version = "=2.7.4", features = [] }
 dirs = "=7.0.0"
 ctrlc = { version = "=3.5.2", features = ["termination"] }
 tokio-util = { version = "0.7", features = ["rt"] }
+gallery-preparation = { path = "../../../crates/gallery-preparation" }
 gallery-core = { path = "../../../crates/gallery-core" }
 cap-std = "=4.0.3"
 cap-fs-ext = "=4.0.3"

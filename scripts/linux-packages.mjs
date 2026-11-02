@@ -1,3 +1,4 @@
+import {validatePreparedRecipient} from './prepared-recipients.mjs';
 import {validateProductVersion,productVersion} from './product-version.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
@@ -48,6 +49,8 @@ export function validateLinuxMedia(m,pid){
  if(m.hasAudio){assert.ok(a.rms>0.01&&Math.abs(a.frequencyHz-440)<30);assert.ok(Number.isInteger(a.stream.index)&&a.stream.index>=0&&Number.isInteger(a.stream.pid)&&a.stream.pid>1);}else{assert.ok(a.rms<0.0001);assert.equal(a.stream.index,null);assert.equal(a.stream.pid,null);assert.equal(a.stream.absence,'No sink inputs before and after no-audio fixture capture');}return m;
 }
 export async function validateLinuxEvidence(build,result,root){
+ if(!['0.0.0','0.1.0'].includes(build.records[0].payload.version)){assert.ok(result.preparedRecipient,'Prepared published recipient evidence required');assert.deepEqual(result.preparedRecipient.source,result.source);assert.equal(result.preparedRecipient.revision,result.revision);await validatePreparedRecipient(result.preparedRecipient,root);}
+
  assert.equal(result.result,'pass');await validateUpdateEvidence(build,result.updates,root);assert.deepEqual(result.source,build.source);assert.equal(result.revision,build.revision);assert.equal(result.host.os,'linux');assert.equal(result.host.arch,'x64');
  const required=['containers','prerequisites','fresh ownership collisions','Full install and repeat','Full ownership collisions','Full removal and retention','config-files reinstall and purge','Lite in place','Lite explicit','Lite relocation Refresh','ordinary media'];for(const name of required)assert.ok(result.checks.some(c=>c.name===name&&c.result==='pass'),'Missing Linux package case '+name);
  for(const r of build.records){validateLinuxPayload(r.payload);validateLinuxFootprints(r.footprints);assert.deepEqual(r.payload.source,build.source);assert.equal(r.payload.revision,build.revision);const bytes=await readFile(path.join(root,r.archive.path));assert.equal(hash(bytes),r.archive.sha256);assert.equal(String(bytes.length),r.archive.bytes);assert.equal(r.footprints.download.bytes,r.archive.bytes);assert.equal(BigInt(r.footprints.application.bytes),r.archive.files.reduce((s,f)=>s+BigInt(f.bytes),0n));}

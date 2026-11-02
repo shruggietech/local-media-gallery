@@ -9,6 +9,7 @@ const LIMIT: u64 = 1024 * 1024;
 const FILE: &str = "settings.json";
 const LOCK: &str = ".local-media-gallery-settings.lock";
 
+#[derive(Clone)]
 pub struct Portable {
     pub choices: Map<String, Value>,
     bytes: Option<Vec<u8>>,
@@ -73,7 +74,8 @@ impl Portable {
             };
             if document.get("product") != Some(&json!("local-media-gallery"))
                 || document.get("kind") != Some(&json!("gallery-settings"))
-                || document.get("version") != Some(&json!(env!("CARGO_PKG_VERSION")))
+                || ![json!("0.1.0"), json!(env!("CARGO_PKG_VERSION"))]
+                    .contains(document.get("version").unwrap_or(&Value::Null))
                 || document.get("formatVersion") != Some(&json!(1))
             {
                 return Err(GalleryError::new(
@@ -176,6 +178,46 @@ impl Portable {
         self.choices = choices;
         Ok(())
     }
+    /// Published 0.1 recipients understand the same format1 fields but require
+    /// their release label. Keep that interoperability choice explicit.
+    pub fn prepared_bytes(&self, patch: &Map<String, Value>) -> Result<Vec<u8>, GalleryError> {
+        if let Some(warning) = &self.warning {
+            return Err(error(warning));
+        }
+        let mut document = self.document.clone();
+        document["version"] = json!("0.1.0");
+        let mut choices = self.choices.clone();
+        choices.extend(patch.clone());
+        document["choices"] = Value::Object(choices);
+        let mut bytes = serde_json::to_vec_pretty(&document).map_err(error)?;
+        bytes.push(b'\n');
+        if bytes.len() as u64 > LIMIT {
+            return Err(error("The one MiB limit was exceeded."));
+        }
+        Ok(bytes)
+    }
+    pub fn save_prepared(
+        &mut self,
+        dir: &Dir,
+        patch: &Map<String, Value>,
+    ) -> Result<(), GalleryError> {
+        if self.bytes.as_ref() == Some(&self.prepared_bytes(patch)?) {
+            if read(dir)? != self.bytes {
+                return Err(GalleryError::new(
+                    "portable_conflict",
+                    "Portable settings changed after preview. Reopen this gallery and preview preparation again.",
+                ));
+            }
+            return Ok(());
+        }
+        let previous = self.document.clone();
+        self.document["version"] = json!("0.1.0");
+        if let Err(e) = self.save(dir, patch, None) {
+            self.document = previous;
+            return Err(e);
+        }
+        Ok(())
+    }
 }
 
 /// The operand is the selected gallery directory, not an initialized settings file.
@@ -198,6 +240,70 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let dir = Dir::open_ambient_dir(temp.path(), cap_std::ambient_authority()).unwrap();
         (temp, dir)
+    }
+    #[test]
+    fn prepared_presentation_is_compatible_preserves_unknown_fields_and_reuses_exact_bytes() {
+        let (temp, dir) = fixture();
+        let original = json!({"product":"local-media-gallery","kind":"gallery-settings","version":"0.1.0","formatVersion":1,"choices":{"futureChoice":"retain"},"futureDocument":{"retain":true}});
+        std::fs::write(
+            temp.path().join(FILE),
+            serde_json::to_vec(&original).unwrap(),
+        )
+        .unwrap();
+        let mut state = Portable::load(&dir, false);
+        assert!(state.warning.is_none());
+        let patch = json!({"controlsExpanded":true});
+        let expected = state.prepared_bytes(patch.as_object().unwrap()).unwrap();
+        state
+            .save_prepared(&dir, patch.as_object().unwrap())
+            .unwrap();
+        assert_eq!(std::fs::read(temp.path().join(FILE)).unwrap(), expected);
+        let written = std::fs::metadata(temp.path().join(FILE))
+            .unwrap()
+            .modified()
+            .unwrap();
+        state
+            .save_prepared(&dir, patch.as_object().unwrap())
+            .unwrap();
+        assert_eq!(
+            std::fs::metadata(temp.path().join(FILE))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            written
+        );
+        let value: Value = serde_json::from_slice(&expected).unwrap();
+        assert_eq!(value["version"], "0.1.0");
+        assert_eq!(value["choices"]["futureChoice"], "retain");
+        assert_eq!(value["futureDocument"]["retain"], true);
+    }
+    #[test]
+    fn prepared_reuse_revalidates_edited_and_deleted_destinations() {
+        for deleted in [false, true] {
+            let (temp, dir) = fixture();
+            let patch = json!({"controlsExpanded":true});
+            let mut state = Portable::load(&dir, false);
+            state
+                .save_prepared(&dir, patch.as_object().unwrap())
+                .unwrap();
+            if deleted {
+                std::fs::remove_file(temp.path().join(FILE)).unwrap();
+            } else {
+                std::fs::write(temp.path().join(FILE), b"external editor bytes").unwrap();
+            }
+            let conflict = state
+                .save_prepared(&dir, patch.as_object().unwrap())
+                .unwrap_err();
+            assert_eq!(conflict.code, "portable_conflict");
+            if deleted {
+                assert!(!temp.path().join(FILE).exists());
+            } else {
+                assert_eq!(
+                    std::fs::read(temp.path().join(FILE)).unwrap(),
+                    b"external editor bytes"
+                );
+            }
+        }
     }
     #[test]
     fn sparse_unknown_conflict_and_removal() {

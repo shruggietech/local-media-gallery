@@ -50,9 +50,15 @@ elif mode == "extract":
             if len(members) != len(expected) or {m.filename for m in members} != set(expected):
                 raise ValueError("Archive inventory mismatch")
             for member in members:
-                if member.is_dir() or stat.S_ISLNK(member.external_attr >> 16) or member.file_size != int(expected[member.filename]["bytes"]):
-                    raise ValueError("Archive member type or size mismatch")
+                raw_mode = member.external_attr >> 16
+                expected_mode = expected[member.filename]["mode"]
+                if member.is_dir() or stat.S_IFMT(raw_mode) not in (0, stat.S_IFREG) or member.file_size != int(expected[member.filename]["bytes"]) or (expected_mode is not None and stat.S_IMODE(raw_mode) != int(expected_mode, 8)):
+                    raise ValueError("Archive member type, size or raw mode mismatch")
             source.extractall(directory)
+            for member in members:
+                expected_mode = expected[member.filename]["mode"]
+                if expected_mode is not None:
+                    directory.joinpath(*pathlib.PurePosixPath(member.filename).parts).chmod(int(expected_mode, 8))
     else:
         with tarfile.open(archive, "r:gz") as source:
             members = source.getmembers()

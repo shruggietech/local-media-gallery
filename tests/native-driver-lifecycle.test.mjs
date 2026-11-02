@@ -55,3 +55,13 @@ test('Ordinary settings readiness rejects disabled or hidden controls without wa
  assert.equal(settingsControlsReady([{name:'Hide controls',enabled:true,showing:false}]),false);
  assert.equal(settingsControlsReady([{name:'Hide controls',enabled:true,offscreen:true}]),false);
 });
+
+test('Expected presentation waits through default observations and rejects persistent mismatch',()=>{
+ const observation=name=>[{name,enabled:true,offscreen:false}];
+ const sequence=[observation('Show controls'),observation('Show controls'),observation('Hide controls')];
+ assert.deepEqual(sequence.map(records=>settingsControlsReady(records,{controlsExpanded:true})),[false,false,true]);
+ assert.equal(Array.from({length:20},()=>settingsControlsReady(observation('Show controls'),{controlsExpanded:true})).some(Boolean),false);
+ assert.equal(settingsControlsReady(observation('Show controls'),{controlsExpanded:false}),true);
+ assert.equal(settingsControlsReady(observation('Hide controls'),{controlsExpanded:false}),false);
+ assert.equal(settingsControlsReady([{name:'Hide controls',enabled:false}],{controlsExpanded:true}),false);
+});

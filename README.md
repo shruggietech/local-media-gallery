@@ -4,7 +4,7 @@ Your media presented beautifully.
 
 A lightweight desktop gallery for local images and videos. Open a directory and browse current media without importing a library, generating a manifest or preparing thumbnails. Rust and Tauri host the application with a bundled static Next.js interface.
 
-The current product version is 0.1.0. Package availability, exact download hashes and supported native rows come from the matching canonical [GitHub Release](https://github.com/shruggietech/local-media-gallery/releases) and [official website](https://localmedia.gallery). The retained [v0.0.0 specification](docs/v0.0.0/index.md) is not a shipped product.
+The published product version is 0.1.0. Development targets unreleased 0.2.0. Package availability, exact download hashes and supported native rows come from the matching canonical [GitHub Release](https://github.com/shruggietech/local-media-gallery/releases) and [official website](https://localmedia.gallery). The retained [v0.0.0 specification](docs/v0.0.0/index.md) is not a shipped product.
 
 ## Browsing and editions
 

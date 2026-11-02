@@ -68,5 +68,9 @@ export function useGalleryState() {
       catch (error) { if (scope.current.generation === generation) setWarning('History could not be changed: ' + message(error)); }
     });
   }, [accept]);
-  return { settings, envelope, ready, warning, destination, selectDestination, activate, change: mutate, remove: (field: SettingField, target: 'remembered' | 'portable') => mutate({}, field, false, target), clear: () => mutate({}, null, true, 'session'), forget };
+  const reload = useCallback(() => {
+    const {id,generation}=scope.current;if(id===undefined)return;
+    queue.current=queue.current.then(async()=>{if(scope.current.generation!==generation)return;try{accept(await invoke<SettingsEnvelope>('load_settings',{sessionId:id}),generation);}catch(e){if(scope.current.generation===generation)setWarning(message(e));}});
+  },[accept]);
+  return { settings, envelope, ready, warning, destination, selectDestination, activate, reload, change: mutate, remove: (field: SettingField, target: 'remembered' | 'portable') => mutate({}, field, false, target), clear: () => mutate({}, null, true, 'session'), forget };
 }

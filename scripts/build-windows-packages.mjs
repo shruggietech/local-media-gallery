@@ -30,7 +30,8 @@ const wixZip=await input('wix');const vendor=await input('bootstrapper');
 const wix=path.join(directory,'wix');await execute(python,[path.join(root,'scripts/extract-build-input.py'),wixZip,wix]);
 const inspect=async file=>JSON.parse((await capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/inspect-windows-package.ps1'),'-File',file])).stdout);
 const vendorAudit=await inspect(vendor);assert.equal(vendorAudit.signature.status,'Valid');assert.match(vendorAudit.signature.subject,/(?:^|,\s*)O=Microsoft Corporation(?:,|$)/);assert.equal(vendorAudit.fileVersion,inputs.bootstrapper.version);assert.equal(vendorAudit.machine,0x14c);
-await prepareCargoDependencies();await exportInterface();const binaries={};
+await prepareCargoDependencies();await exportInterface();await execute('cargo',['build','--locked','--release','-p','gallery-preparation']);
+const binaries={};
 for(const edition of ['full','lite']){await cargo(['build','--locked','--release','-p','local-media-gallery',...(edition==='lite'?['--features','lite']:[])]);const file=path.join(directory,'compiled-'+edition+'.exe');await copyFile(path.join(root,'target/release/local-media-gallery.exe'),file);binaries[edition]=file;}
 await node(path.join(root,'scripts/build-proof.mjs'),['--full',binaries.full,'--lite',binaries.lite,'--output',path.join(directory,'normal-assembly.json')]);
 await support(['build','--locked','--release','-p','gallery-update','--bin','lmg-update']);const updater=path.join(directory,'lmg-update.exe');await copyFile(path.join(root,'target/x86_64-pc-windows-msvc/release/lmg-update.exe'),updater);validateNativeAudit(await inspect(updater));

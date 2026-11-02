@@ -1,0 +1,12 @@
+{
+  "product": "local-media-gallery",
+  "kind": "gallery-settings",
+  "version": "0.2.0",
+  "formatVersion": 1,
+  "choices": {
+    "fontScale": 90,
+    "cardSize": "large",
+    "metadataExpanded": false,
+    "loadingMode": "automatic"
+  }
+}

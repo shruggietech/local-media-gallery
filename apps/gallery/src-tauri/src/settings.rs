@@ -204,18 +204,21 @@ impl Default for Settings {
 }
 impl Settings {
     pub(crate) fn parse(value: Value, test_page_size: bool) -> Result<Self, GalleryError> {
-        let settings: Self = serde_json::from_value(value).map_err(|e| {
+        let mut settings: Self = serde_json::from_value(value).map_err(|e| {
             GalleryError::new(
                 "settings_invalid",
                 format!("Preferences contain an invalid or missing field: {e}"),
             )
         })?;
-        if settings.version != env!("CARGO_PKG_VERSION") || settings.format_version != 1 {
+        if !["0.1.0", env!("CARGO_PKG_VERSION")].contains(&settings.version.as_str())
+            || settings.format_version != 1
+        {
             return Err(GalleryError::new(
                 "settings_version",
                 "This settings release or format version is unsupported.",
             ));
         }
+        settings.version = env!("CARGO_PKG_VERSION").into();
         if !(matches!(settings.page_size, 24 | 48 | 96)
             || test_page_size && settings.page_size == 4)
         {

@@ -22,7 +22,8 @@ export function usePreparation(sessionId:string|null){
  const start=(cleanup=false)=>job?action(cleanup?'preparation_cleanup':'preparation_start',{sessionId,previewId:job.id}):Promise.resolve();
  const cancel=()=>job?action('preparation_cancel',{sessionId,jobId:job.id}):Promise.resolve();
  const select=async()=>{setSelecting(true);setPending(true);setError('');try{const selected=await invoke<Helper|null>('select_thumbnail_helper');if(selected){setHelper(selected);current.current=null;setJob(null);}}catch(e){current.current=null;setJob(null);setError(message(e));}finally{setPending(false);setSelecting(false);}};
- return{job,error,pending,selecting,helper,epoch,preview,start,cancel,select,busy:active(job)};
+ const invalidate=useCallback(()=>setEpoch(n=>n+1),[]);
+ return{job,error,pending,selecting,helper,epoch,preview,start,cancel,select,invalidate,busy:active(job)};
 }
 export type Preparation=ReturnType<typeof usePreparation>;
 export function PreparationProgress({state}:{state:Preparation}) {

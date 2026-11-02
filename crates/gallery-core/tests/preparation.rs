@@ -24,6 +24,37 @@ use gallery_core::{
 };
 use std::sync::Arc;
 #[test]
+fn retiring_an_idle_preview_releases_its_root_for_close_and_relocation() {
+    let outer = tempfile::tempdir().unwrap();
+    let root = outer.path().join("gallery");
+    std::fs::create_dir(&root).unwrap();
+    image::RgbaImage::new(2, 2)
+        .save(root.join("photo.png"))
+        .unwrap();
+    let engine = Engine::new();
+    let session = engine.open(&root).unwrap().session_id.unwrap();
+    let service = Arc::new(PreparationService::new(
+        engine.clone(),
+        outer.path().join("cache"),
+        None,
+    ));
+    let preview = service
+        .preview(&session, DestinationKind::Portable)
+        .unwrap();
+    assert_eq!(service.wait(&preview.id).phase, "ready");
+    service.cancel_current();
+    assert_eq!(
+        service.status(&session, &preview.id).unwrap().phase,
+        "cancelled"
+    );
+    engine.close(&session).unwrap();
+    let moved = outer.path().join("moved");
+    std::fs::rename(&root, &moved).unwrap();
+    assert!(moved.join("photo.png").exists());
+    assert!(!moved.join(gallery_core::cache::PORTABLE).exists());
+    service.shutdown();
+}
+#[test]
 fn preview_is_write_free_and_generation_reuses_relocatable_validated_cache() {
     let root = tempfile::tempdir().unwrap();
     let cache = tempfile::tempdir().unwrap();

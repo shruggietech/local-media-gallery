@@ -96,6 +96,7 @@ jobs:
             .local/native-focus-failure.json
             .local/native-failure.png
             .local/preparation-results.json
+            .local/guided-preparation-preview.png
             .local/launch-results.json
             .local/measurement*.json
             .local/normal-results.json
@@ -159,6 +160,8 @@ jobs:
             .local/ci-windows-packages.json
             .local/windows-package-build.json
             .local/windows-package-results.json
+            .local/prepared-recipient-windows.json
+            .local/windows-package-test-*/prepared-recipient-*.zip
             .local/windows-package-failure.json
             .local/windows-packages-*/**/*.json
             .local/windows-package-test-*/update-evidence-*/**
@@ -227,6 +230,8 @@ jobs:
             .local/ci-macos-packages.json
             .local/macos-package-build.json
             .local/macos-package-results.json
+            .local/prepared-recipient-macos.json
+            .local/macos-package-test-*/prepared-recipient-*.tar.gz
             .local/macos-package-failure.json
             .local/macos-packages-*/**/*.json
             .local/macos-package-test-*/update-evidence-*/**
@@ -309,6 +314,8 @@ jobs:
             .local/linux-package-host-readiness.json
             .local/cargo-readiness-results.json
             .local/linux-package-results.json
+            .local/prepared-recipient-linux.json
+            .local/linux-package-test-*/prepared-recipient-*.tar.gz
             .local/linux-package-failure.json
             .local/linux-packages-*/**/*.json
             .local/linux-package-test-*/update-evidence-*/**

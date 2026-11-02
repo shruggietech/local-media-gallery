@@ -1,0 +1,597 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://localmedia.gallery/schemas/v0.2.0/release-record.schema.json",
+  "x-release-version": "0.2.0",
+  "title": "Canonical release candidate and published record",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "product": {
+      "const": "local-media-gallery"
+    },
+    "state": {
+      "enum": [
+        "candidate",
+        "staged",
+        "published"
+      ]
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "maxLength": 64
+    },
+    "previousVersion": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "maxLength": 64
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "revision",
+        "sha256",
+        "files"
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,180}$"
+          },
+          "role": {
+            "enum": [
+              "package",
+              "update-descriptor",
+              "documentation",
+              "qualification"
+            ]
+          },
+          "edition": {
+            "enum": [
+              "full",
+              "lite",
+              null
+            ]
+          },
+          "platform": {
+            "enum": [
+              "windows",
+              "linux",
+              "macos",
+              null
+            ]
+          },
+          "architecture": {
+            "enum": [
+              "x86_64",
+              "aarch64",
+              null
+            ]
+          },
+          "format": {
+            "enum": [
+              "zip",
+              "dmg",
+              "deb",
+              "tar.gz",
+              "json"
+            ]
+          },
+          "bytes": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "maxLength": 20
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "prerequisites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "optionalTools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inventory": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "files": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "bytes": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$",
+                "maxLength": 20
+              }
+            },
+            "required": [
+              "sha256",
+              "files",
+              "bytes"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "scope",
+              "sha256"
+            ]
+          },
+          "forArtifact": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,180}$"
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "edition",
+          "platform",
+          "architecture",
+          "format",
+          "bytes",
+          "sha256",
+          "url",
+          "prerequisites",
+          "optionalTools",
+          "inventory",
+          "evidence"
+        ]
+      },
+      "minItems": 6
+    },
+    "documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "snapshotSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "retainedSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "schemaSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "reviewSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "snapshotSha256",
+        "retainedSha256",
+        "schemaSha256",
+        "reviewSha256"
+      ]
+    },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "native",
+            "fixture"
+          ]
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$",
+          "maxLength": 20
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "preparationSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "qualificationSeconds": {
+                "type": "number",
+                "minimum": 0,
+                "exclusiveMaximum": 885
+              },
+              "combinedSeconds": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "scope",
+              "sha256",
+              "result",
+              "preparationSeconds",
+              "qualificationSeconds",
+              "combinedSeconds"
+            ]
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "runId",
+        "scopes"
+      ]
+    },
+    "candidateId": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "before": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "phase": {
+                  "enum": [
+                    "candidate",
+                    "publication"
+                  ]
+                },
+                "result": {
+                  "const": "pass"
+                },
+                "candidateId": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "sourceRevision": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40}$"
+                },
+                "sourceSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "snapshotsSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "rendererSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "projectionSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "publicationSha256": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "checkedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "checks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "result": {
+                        "const": "pass"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "result"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "phase",
+                "result",
+                "candidateId",
+                "sourceRevision",
+                "sourceSha256",
+                "snapshotsSha256",
+                "rendererSha256",
+                "projectionSha256",
+                "publicationSha256",
+                "checkedAt",
+                "checks"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "after": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "phase": {
+                  "enum": [
+                    "candidate",
+                    "publication"
+                  ]
+                },
+                "result": {
+                  "const": "pass"
+                },
+                "candidateId": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "sourceRevision": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40}$"
+                },
+                "sourceSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "snapshotsSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "rendererSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "projectionSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "publicationSha256": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "checkedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "checks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "result": {
+                        "const": "pass"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "result"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "phase",
+                "result",
+                "candidateId",
+                "sourceRevision",
+                "sourceSha256",
+                "snapshotsSha256",
+                "rendererSha256",
+                "projectionSha256",
+                "publicationSha256",
+                "checkedAt",
+                "checks"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "before",
+        "after"
+      ]
+    },
+    "publication": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": {
+              "type": "string"
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "tag": {
+              "type": "string"
+            },
+            "sourceRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "htmlUrl": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "publishedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "assets": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,180}$"
+                  },
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "bytes": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$",
+                    "maxLength": 20
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048
+                  }
+                },
+                "required": [
+                  "name",
+                  "id",
+                  "bytes",
+                  "sha256",
+                  "url"
+                ]
+              }
+            }
+          },
+          "required": [
+            "repository",
+            "id",
+            "tag",
+            "sourceRevision",
+            "htmlUrl",
+            "publishedAt",
+            "assets"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "formatVersion",
+    "product",
+    "state",
+    "repository",
+    "version",
+    "previousVersion",
+    "source",
+    "artifacts",
+    "documentation",
+    "qualification",
+    "candidateId",
+    "gates",
+    "publication"
+  ]
+}
