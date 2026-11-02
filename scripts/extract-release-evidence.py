@@ -4,6 +4,6 @@ import sys
 
 from archive_input import extract_verified_zip
 
-# Accepted Windows campaigns already retain about 1.4 GB of expanded evidence.
+# Accepted six-product campaigns retain up to 4.32 GB of expanded CI evidence.
 # This limit belongs to CI evidence; the smaller build-tool limit is unchanged.
-extract_verified_zip(sys.argv[1], sys.argv[2], max_bytes=4 * 1024 * 1024 * 1024)
+extract_verified_zip(sys.argv[1], sys.argv[2], max_bytes=5 * 1024 * 1024 * 1024)

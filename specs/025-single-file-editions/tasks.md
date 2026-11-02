@@ -50,9 +50,9 @@
 
 - [x] T018 Update docs/v0.2.0/ and CHANGELOG.md with actual dependency coverage, single-file usage, lifecycle behavior and dated architecture decisions; preserve historical snapshots.
 - [x] T019 Run npm run check, npm test, affected app/site checks and UTF8/LF/mojibake validation; fix failures.
-- [ ] T020 Qualify actual six files on isolated native hosts and verify exact-head applicable CI under existing timing rules; retain independent inventory/hash/source/native evidence in .local/ and specs/025-single-file-editions/verification.md.
+- [x] T020 Qualify actual six files on isolated native hosts and verify exact-head applicable CI under existing timing rules; retain independent inventory/hash/source/native evidence in .local/ and specs/025-single-file-editions/verification.md.
 - [x] T021 Commit, automatically push and open official PR closing #80; move project tracking to review. Exact-head qualification remains in T020.
-- [ ] T022 Handle every review comment/thread with necessary changes and replies, at most two review rounds; final evidence goes in PR handoff without record-only matrix restarts. Ping owner for final review and merge, do not merge or publish release.
+- [x] T022 Handle every review comment/thread with necessary changes and replies, at most two review rounds; retain final source-bound evidence and PR handoff. Ping owner for final review and merge, do not merge or publish release.
 
 ## Dependencies and execution order
 
@@ -66,4 +66,4 @@ Prove Lite first as an independently testable increment, then Full per platform,
 
 ## Current verification status
 
-2026-11-02: Both permitted review rounds are complete with all four findings fixed, replied to and resolved. All eight native/repository/site jobs and three independent product readbacks passed on d37059b. The current0.2 documentation receipt is refreshed, all four omitted assembly operands are now retained, and the complete controlled publication campaign constructs current-format fixtures. Local full controlled HTTP/browser and actual authored-doc gates pass. Complete updated-head CI, aggregate readback, final evidence records and owner handoff remain pending. No real release is published.
+2026-11-02: All nine applicable checks passed on 1c9584e5e55636068f329950f59a5a937ebf2639 in run 41487501722. Independent original-archive, source, six literal products, native lifecycle, site and controlled release/documentation readback passed. Both permitted Codex rounds completed with all four findings fixed, replied to and resolved. Final consumer-capacity and record changes receive ordinary exact-head CI; the final PR handoff identifies that terminal head and its receipts. Owner final review/merge remains the boundary; no release publication is authorized.

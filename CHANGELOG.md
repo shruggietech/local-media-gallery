@@ -21,6 +21,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Fixed
 
+- Stream large native qualification archives to exclusive partial files and verify original API digests before acceptance. Select the latest retained attempt after terminal qualification while preserving failed diagnostics. Read back corresponding-source payloads using their exact declared byte bound.
+
 - Recover interrupted offline Linux installation by configuring authenticated unpacked dependencies instead of requesting every runtime archive again. Keep normal explicit replacement behavior.
 - Keep Windows acceptance input independent of unused UI Automation and align native driver script readiness with its client deadline, retaining exact ownership and timeout restoration.
 
@@ -45,6 +47,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - 2026-11-01: Separate authenticated draft identity from final published URLs, retry only explicitly pending observations after one mutation within the existing qualification deadline, and preserve ownership, source, payload, canonical promotion and final URL checks. Retain both exact gated exports in always-uploaded workflow evidence; keep shipped product/versioned contracts and accepted native bytes unchanged.
 
 - 2026-11-02: Keep Windows recipient networking denied while allowing only verified CI runner control-plane traffic and configured DNS. Retain firewall restoration intent before mutation and restore policy independently after forced test termination, before artifact upload. Keep offline prerequisite, functional and ownership checks. Serialize qualification per scope so a running package campaign retains its diagnostics without blocking independent corrected platform checks; release validation still joins one exact-source run.
+
+- 2026-11-02: Elect bounded 4 GiB streamed native evidence transfers and 5 GiB evidence expansion after measuring the actual Windows archive. Keep smaller build-input and normal API bounds. Separate thirty-minute preparation from unchanged qualification deadlines; allow fifty minutes for the complete publication workflow.
 
 ## [0.1.0]
 
