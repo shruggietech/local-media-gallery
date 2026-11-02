@@ -8,11 +8,11 @@ permissions:
   contents: read
 env:
   QUALIFIED_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
-concurrency:
-  group: qualification-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
 jobs:
   repository:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-repository
+      cancel-in-progress: false
     name: repository
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -40,6 +40,9 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
   product-windows:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-product-windows
+      cancel-in-progress: false
     name: product-windows
     runs-on: windows-2025
     timeout-minutes: 45
@@ -114,6 +117,9 @@ jobs:
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
   windows-packages:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-windows-packages
+      cancel-in-progress: false
     name: windows-packages
     runs-on: windows-2025
     timeout-minutes: 90
@@ -208,6 +214,9 @@ jobs:
           key: ${{ steps.feature-helper-cache.outputs.cache-primary-key }}
 
   macos-packages:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-macos-packages
+      cancel-in-progress: false
     name: macos-packages
     runs-on: macos-15
     timeout-minutes: 60
@@ -303,6 +312,9 @@ jobs:
           key: ${{ steps.feature-helper-cache.outputs.cache-primary-key }}
 
   linux-packages:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-linux-packages
+      cancel-in-progress: false
     name: linux-packages
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -409,6 +421,9 @@ jobs:
           key: ${{ steps.feature-helper-cache.outputs.cache-primary-key }}
 
   native-proof:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-native-${{ matrix.scope }}
+      cancel-in-progress: false
     name: native-proof (${{ matrix.scope }})
     strategy:
       fail-fast: false
@@ -499,6 +514,9 @@ jobs:
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
   website:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-website
+      cancel-in-progress: false
     name: website
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -548,6 +566,9 @@ jobs:
           path: apps/site/out/
           include-hidden-files: true
   release-validation:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-release-validation
+      cancel-in-progress: false
     name: release-validation
     needs: [repository, product-windows, windows-packages, macos-packages, linux-packages, native-proof, website]
     runs-on: ubuntu-24.04

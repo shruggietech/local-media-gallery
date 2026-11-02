@@ -50,3 +50,9 @@ Post-design: PASS for design. Native feasibility and dependency inventory remain
 ## Complexity Tracking
 
 No governance exception. Native dependency packaging is necessary for the literal owner requirement; retain standard OS installers rather than replace platform lifecycle semantics.
+
+## CI queue refinement (2026-11-02)
+
+The observed workflow-wide mutex delayed independent corrected native scopes behind a long-running Windows package campaign. Use one non-cancelling mutex per elected scope, including separate Linux/macOS matrix values. Preserve in-progress scope evidence, the exact qualified revision and all elected checks. Release validation continues to require the complete same-run scope set; production Pages keeps its independent publication mutex and retirement checks. This changes scheduling, not product acceptance or review-round authorization.
+
+This uses the documented [GitHub job-level concurrency contexts](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency), including matrix scope. No qualification check is removed, skipped or borrowed from another run.
