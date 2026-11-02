@@ -34,10 +34,10 @@ pub(super) fn receive_profile(text: &str) -> Result<(), String> {
     }
     for path in [&p.settings, &p.history] {
         gallery_update::physical(path)?;
-        if let Ok(info) = fs::symlink_metadata(path) {
-            if !info.is_file() || info.uid() != uid {
-                return Err("Selected profile file does not belong to invoking user".into());
-            }
+        if let Ok(info) = fs::symlink_metadata(path)
+            && (!info.is_file() || info.uid() != uid)
+        {
+            return Err("Selected profile file does not belong to invoking user".into());
         }
     }
     PROFILE
@@ -52,16 +52,15 @@ pub(super) fn profile_context() -> Result<String, String> {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .ok_or("Invoking home unavailable")?;
-    let config = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home.join(".config"));
-    let state = std::env::var_os("XDG_STATE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home.join(".local/state"));
+    let (settings, history) = super::profile::paths(
+        &home,
+        std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
+        std::env::var_os("XDG_STATE_HOME").map(PathBuf::from),
+    );
     serde_json::to_string(&Profile {
         uid,
-        settings: config.join("tech.shruggie.local-media-gallery/settings.json"),
-        history: state.join("tech.shruggie.local-media-gallery/history.sqlite3"),
+        settings,
+        history,
     })
     .map_err(|e| e.to_string())
 }
@@ -183,8 +182,10 @@ fn copy_embedded(file: &mut File, package: &Package, destination: &Path) -> Resu
 }
 
 fn candidate(name: &str) -> Result<Candidate, String> {
-    let base = generation(name)?;
-    owned(&base, true)?;
+    candidate_at(name, &generation(name)?)
+}
+fn candidate_at(name: &str, base: &Path) -> Result<Candidate, String> {
+    owned(base, true)?;
     let receipt: Receipt = read(&base.join("receipt.json"))?;
     if receipt.format_version != 1 || receipt.generation != name {
         return Err("Retained receipt identity differs".into());
@@ -225,58 +226,66 @@ fn retain(
         .ok_or("Embedded descriptor generation absent")?
         .to_string();
     let base = generation(&name)?;
-    if base.exists() {
-        let c = candidate(&name)?;
-        let mut expected = descriptor.clone();
-        expected["native"]["installer"]["path"] = serde_json::json!(base.join("application.deb"));
-        if serde_json::to_value(c).map_err(|e| e.to_string())? != expected {
-            return Err("Retained generation collides with a different embedded descriptor".into());
-        }
-        return Ok(name);
-    }
-    create_directory(&base)?;
     let package = m
         .packages
         .iter()
         .find(|p| p.role == role)
         .ok_or("Embedded application package absent")?;
-    copy_embedded(file, package, &base.join("application.deb"))?;
-    let mut descriptor = descriptor.clone();
-    descriptor["native"]["installer"]["path"] = serde_json::json!("application.deb");
-    if descriptor["native"]["installer"]["sha256"] != package.sha256
-        || descriptor["native"]["installer"]["bytes"] != package.bytes.to_string()
-    {
-        return Err("Embedded descriptor package integrity differs".into());
-    }
-    write(&base.join("update.json"), &descriptor)?;
-    let installer_sha256 = if let Some(source) = installer {
-        let target = base.join("installer.run");
-        let mut from = File::open(source).map_err(|e| e.to_string())?;
-        let mut to = File::options()
-            .write(true)
-            .create_new(true)
-            .open(&target)
-            .map_err(|e| e.to_string())?;
-        std::io::copy(&mut from, &mut to).map_err(|e| e.to_string())?;
-        to.sync_all().map_err(|e| e.to_string())?;
-        fs::set_permissions(&target, fs::Permissions::from_mode(0o700))
-            .map_err(|e| e.to_string())?;
-        Some(hash(&target)?)
-    } else {
-        None
-    };
-    write(
-        &base.join("receipt.json"),
-        &Receipt {
-            format_version: 1,
-            generation: name.clone(),
-            installer_sha256,
-            descriptor_sha256: hash(&base.join("update.json"))?,
-            package_sha256: package.sha256.clone(),
-            provenance,
+    super::retention::publish_generation(
+        &base,
+        |staging| {
+            owned(staging, true)?;
+            copy_embedded(file, package, &staging.join("application.deb"))?;
+            let mut document = descriptor.clone();
+            document["native"]["installer"]["path"] = serde_json::json!("application.deb");
+            let package_bytes = package.bytes.to_string();
+            if document["native"]["installer"]["sha256"] != package.sha256
+                || document["native"]["installer"]["bytes"].as_str() != Some(package_bytes.as_str())
+            {
+                return Err("Embedded descriptor package integrity differs".into());
+            }
+            write(&staging.join("update.json"), &document)?;
+            let installer_sha256 = if let Some(source) = installer {
+                let target = staging.join("installer.run");
+                let mut from = File::open(source).map_err(|e| e.to_string())?;
+                let mut to = File::options()
+                    .write(true)
+                    .create_new(true)
+                    .open(&target)
+                    .map_err(|e| e.to_string())?;
+                std::io::copy(&mut from, &mut to).map_err(|e| e.to_string())?;
+                fs::set_permissions(&target, fs::Permissions::from_mode(0o700))
+                    .map_err(|e| e.to_string())?;
+                to.sync_all().map_err(|e| e.to_string())?;
+                Some(hash(&target)?)
+            } else {
+                None
+            };
+            write(
+                &staging.join("receipt.json"),
+                &Receipt {
+                    format_version: 1,
+                    generation: name.clone(),
+                    installer_sha256,
+                    descriptor_sha256: hash(&staging.join("update.json"))?,
+                    package_sha256: package.sha256.clone(),
+                    provenance,
+                },
+            )
+        },
+        |retained| {
+            let c = candidate_at(&name, retained)?;
+            let mut expected = descriptor.clone();
+            expected["native"]["installer"]["path"] =
+                serde_json::json!(retained.join("application.deb"));
+            if serde_json::to_value(c).map_err(|e| e.to_string())? != expected {
+                return Err(
+                    "Retained generation collides with a different embedded descriptor".into(),
+                );
+            }
+            Ok(())
         },
     )?;
-    candidate(&name)?;
     Ok(name)
 }
 fn state_operands() -> Result<Vec<StateOperand>, String> {
@@ -311,14 +320,15 @@ fn state_operands() -> Result<Vec<StateOperand>, String> {
         })
         .ok_or("Invoking user home unavailable")?;
     gallery_update::physical(&home)?;
+    let (settings, history) = super::profile::paths(&home, None, None);
     Ok(vec![
         StateOperand {
             kind: "settings".into(),
-            path: home.join(".config/tech.shruggie.local-media-gallery/settings.json"),
+            path: settings,
         },
         StateOperand {
             kind: "history".into(),
-            path: home.join(".local/state/tech.shruggie.local-media-gallery/history.sqlite3"),
+            path: history,
         },
     ])
 }
@@ -367,22 +377,22 @@ pub(super) fn operate(
     action: &str,
 ) -> Result<(), String> {
     let parent = Path::new("/var/lib/local-media-gallery");
-    let existed = parent.exists();
-    create_directory(parent)?;
-    let marker = parent.join("authority.json");
-    if existed {
-        let value: serde_json::Value = read(&marker)?;
-        if value
-            != serde_json::json!({"formatVersion":1,"product":"local-media-gallery","kind":"owned-maintenance"})
-        {
-            return Err("Unknown maintenance authority".into());
-        }
-    } else {
-        write(
-            &marker,
-            &serde_json::json!({"formatVersion":1,"product":"local-media-gallery","kind":"owned-maintenance"}),
-        )?;
-    }
+    let authority = serde_json::json!({"formatVersion":1,"product":"local-media-gallery","kind":"owned-maintenance"});
+    super::retention::publish_generation(
+        parent,
+        |staging| {
+            owned(staging, true)?;
+            write(&staging.join("authority.json"), &authority)
+        },
+        |retained| {
+            owned(retained, true)?;
+            let value: serde_json::Value = read(&retained.join("authority.json"))?;
+            if value != authority {
+                return Err("Unknown maintenance authority".into());
+            }
+            Ok(())
+        },
+    )?;
     for path in [
         Path::new(STORE),
         &Path::new(STORE).join("generations"),

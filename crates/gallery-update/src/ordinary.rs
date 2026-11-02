@@ -314,6 +314,43 @@ pub fn execute(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn actual_javascript_writer_metadata_is_readable_by_native_maintenance() {
+        use std::process::{Command, Stdio};
+        let writer = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/single-file.mjs");
+        let script = r#"
+import {pathToFileURL} from 'node:url';
+const {encodeSingleFile}=await import(pathToFileURL(process.argv[1]).href);
+const b=Buffer.alloc(256),os={win32:'windows',linux:'linux',darwin:'macos'}[process.platform],arch=process.arch==='arm64'?'aarch64':'x86_64';
+if(os==='windows'){b.write('MZ');b.writeUInt32LE(64,60);b.write('PE\0\0',64);b.writeUInt16LE(arch==='x86_64'?0x8664:0xaa64,68);b.writeUInt16LE(0x20b,88);}
+if(os==='linux'){b.set([0x7f,0x45,0x4c,0x46,2,1]);b.writeUInt16LE(arch==='x86_64'?62:183,18);}
+if(os==='macos'){b.writeUInt32LE(0xfeedfacf);b.writeUInt32LE(arch==='aarch64'?0x100000c:0x1000007,4);}
+process.stdout.write(encodeSingleFile(b,{version:'0.2.0',edition:'lite',os,arch,generation:'cross-language-fixture',source:{sha256:'a'.repeat(64),files:1,exclusions:['specs/internal-record.md']},revision:'b'.repeat(40),notices:[{path:'NOTICE',text:'Embedded fixture notice\n'}]}));
+"#;
+        let mut command = Command::new("node");
+        command
+            .args(["--input-type=module", "-e", script])
+            .arg(writer);
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000);
+        }
+        let output = command.output().expect("Repository Node prerequisite");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let decoded = SingleFile::decode(output.stdout).unwrap();
+        let candidate = decoded.candidate("fixture").unwrap();
+        assert_eq!(candidate.source.sha256, "a".repeat(64));
+        assert_eq!(candidate.files.len(), 1);
+    }
     fn executable(generation: &str) -> Vec<u8> {
         let mut body = vec![0u8; 256];
         #[cfg(windows)]

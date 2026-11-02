@@ -60,6 +60,7 @@ export async function checkApp() {
   await cargo(['fmt', '--all', '--', '--check']);
   await cargo(['test', '--locked', '-p', 'gallery-core']);
   await cargo(['test', '--locked', '-p', 'gallery-preparation']);
+  await cargo(['test', '--locked', '-p', 'gallery-update']);
   await cargo(['test', '--locked', '-p', 'gallery-windows-package']);
   await cargo(['test', '--locked', '-p', 'gallery-macos-package']);
   await cargo(['test', '--locked', '-p', 'gallery-linux-package']);

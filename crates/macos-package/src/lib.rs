@@ -830,7 +830,6 @@ mod tests {
             .unwrap();
         }
         // This case uses the same fixture bytes as the existing native lifecycle tests.
-        let mut p = p;
         for entry in &mut p.files {
             let bytes = fs::read(source.join(&entry.path)).unwrap();
             entry.bytes = bytes.len().to_string();

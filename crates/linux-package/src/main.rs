@@ -12,6 +12,10 @@ use std::path::Path;
 
 #[cfg(target_os = "linux")]
 mod maintenance;
+#[cfg(any(target_os = "linux", test))]
+mod profile;
+#[cfg(any(target_os = "linux", all(test, windows)))]
+mod retention;
 
 const MAGIC: &[u8; 16] = b"LMG-LINUX-FULL1\0";
 const MAX_METADATA: u64 = 8 * 1024 * 1024;
