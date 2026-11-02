@@ -11,7 +11,8 @@ import {writeUpdateDescriptor} from './update-packages.mjs';
 import {sourceIdentity} from './provenance.mjs';import {collectPayload} from './proof.mjs';import {hash,validateMacPayload} from './macos-packages.mjs';
 assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');
 const call=promisify(execFile);export async function capture(file,args,options={}){const p=call(file,args,{cwd:root,env:environment,shell:false,timeout:120000,maxBuffer:16*1024*1024,...options});p.child.stdin.end();return p;}
-const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim();const generation=randomBytes(16).toString('hex');const directory=await mkdtemp(path.join(root,'.local/macos-packages-'));await prepareCargoDependencies();await exportInterface();
+const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim();const generation=randomBytes(16).toString('hex');const directory=await mkdtemp(path.join(root,'.local/macos-packages-'));await execute('/usr/bin/swiftc',[path.join(root,'scripts/macos-package-ui.swift'),'-o',path.join(directory,'macos-package-ui')]);
+await prepareCargoDependencies();await exportInterface();
 await execute('cargo',['build','--locked','--release','-p','gallery-preparation']);
 const binaries={};for(const edition of ['full','lite']){await execute('cargo',['build','--locked','--release','-p','local-media-gallery',...(edition==='lite'?['--features','lite']:[])],{env:{...environment,MACOSX_DEPLOYMENT_TARGET:'15.0'}});binaries[edition]=path.join(directory,edition+'-compiled');await copyFile(path.join(root,'target/release/local-media-gallery'),binaries[edition]);await chmod(binaries[edition],0o755)}
 await node(path.join(root,'scripts/build-proof.mjs'),['--full',binaries.full,'--lite',binaries.lite,'--output',path.join(directory,'assembly.json')]);const assembly=JSON.parse(await readFile(path.join(directory,'assembly.json')));const records=[];
@@ -28,7 +29,6 @@ for(const edition of ['full','lite']){
  if(edition==='full')await capture('/usr/bin/hdiutil',['create','-fs','HFS+','-volname','Local Media Gallery Full','-srcfolder',container,'-format','UDZO',archive]);else await capture('/usr/bin/ditto',['-c','-k','--norsrc','--noextattr',container,archive]);
  const bytes=await readFile(archive);records.push({edition,payload,archive:{path:path.relative(root,archive),bytes:String(bytes.length),sha256:hash(bytes),files},native:{identity,plist,machO:file,loadCommands:loads,signing:'Project signing/notarization not performed by policy',compilerLoaderMetadata:/\bLC_CODE_SIGNATURE\b/.test(loads)},footprints:{download:{bytes:String(bytes.length),basis:'Exact unpublished container logical bytes'},extracted:{bytes:files.reduce((n,f)=>n+BigInt(f.bytes),0n).toString(),basis:'All container file logical bytes'},application:{bytes:payload.files.reduce((n,f)=>n+BigInt(f.bytes),0n).toString(),basis:'Owned application logical bytes'},runtime:{bytes:null,basis:'OS-provided WKWebView is shared with macOS; complete attributable marginal runtime bytes unavailable'},optionalTools:{bytes:null,basis:'No optional tools bundled'}}});
 }
-await execute('/usr/bin/swiftc',[path.join(root,'scripts/macos-package-ui.swift'),'-o',path.join(directory,'macos-package-ui')]);
 
 const upgrades={formatVersion:1,pairs:[]};
 for(const record of records){

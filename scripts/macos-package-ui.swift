@@ -25,19 +25,53 @@ guard args.count>=2,let pid=Int32(args[1]),let app=NSRunningApplication(processI
 if operation == "close" {guard app.terminate() else{fail("Termination rejected")};emit(["terminated":true]);exit(0)}
 guard AXIsProcessTrusted() else{fail("External observer lacks isolated-runner Accessibility permission")}
 let application=AXUIElementCreateApplication(pid);AXUIElementSetMessagingTimeout(application,0.2)
-AXUIElementSetAttributeValue(application,"AXEnhancedUserInterface" as CFString,kCFBooleanTrue)
-AXUIElementSetAttributeValue(application,"AXManualAccessibility" as CFString,kCFBooleanTrue)
-var queue:[(AXUIElement,Int)]=[(application,0)],records:[[String:Any]]=[],found:AXUIElement?=nil
-let wanted=args.count>2 ? args[2]:"";var visited=Set<CFHashCode>();let deadline=Date().addingTimeInterval(8)
-while !queue.isEmpty && records.count<2500 && Date()<deadline {
-    let (element,depth)=queue.removeFirst();let key=CFHash(element);if visited.contains(key){continue};visited.insert(key);AXUIElementSetMessagingTimeout(element,0.1)
-    let title=attribute(element,"AXTitle") as? String ?? "",desc=attribute(element,"AXDescription") as? String ?? "",value=attribute(element,"AXValue") as? String ?? "",role=attribute(element,"AXRole") as? String ?? ""
-    let name=title.isEmpty ? desc:title;records.append(["name":name,"title":title,"description":desc,"value":value,"role":role,"depth":depth,"enabled":attribute(element,"AXEnabled") as? Bool ?? false])
-    if !wanted.isEmpty && (name==wanted || desc==wanted || title==wanted){found=element}
-    if depth<35,let children=attribute(element,"AXChildren") as? [AXUIElement]{queue.append(contentsOf:children.map{($0,depth+1)})}
+// WebKit enables its remote AX tree asynchronously. Keep one client/run loop
+// alive while that tree arrives, rather than dropping the client after an
+// immediate window/menu-only traversal and repeating it in another process.
+let deadline=Date().addingTimeInterval(8)
+var observer:AXObserver?
+let observerStatus=AXObserverCreate(pid,{_,_,_,_ in},&observer)
+var notificationStatuses:[String:Int32]=[:]
+if let observer=observer {
+    CFRunLoopAddSource(CFRunLoopGetCurrent(),AXObserverGetRunLoopSource(observer),.defaultMode)
+    for name in [kAXFocusedUIElementChangedNotification,kAXFocusedWindowChangedNotification,kAXWindowCreatedNotification] {
+        notificationStatuses[name]=AXObserverAddNotification(observer,application,name as CFString,nil).rawValue
+    }
 }
-if operation == "press" {guard let found=found else{emit(["records":records,"missing":wanted]);exit(2)};let status=AXUIElementPerformAction(found,kAXPressAction as CFString);if status != .success{fail("AXPress failed \(status.rawValue)")};emit(["pressed":wanted]);exit(0)}
-var result:[String:Any]=["pid":Int(pid),"bundle":app.bundleURL?.path ?? "","executable":app.executableURL?.path ?? "","records":records,"overflow":!queue.isEmpty]
+func enableAccessibility(_ name:String)->[String:Any] {
+    let before=attribute(application,name) as? Bool
+    let status=before == true ? AXError.success:AXUIElementSetAttributeValue(application,name as CFString,kCFBooleanTrue)
+    let after=attribute(application,name) as? Bool
+    return ["before":before.map{$0 as Any} ?? NSNull(),"setStatus":status.rawValue,"after":after.map{$0 as Any} ?? NSNull()]
+}
+let enhanced=enableAccessibility("AXEnhancedUserInterface"),manual=enableAccessibility("AXManualAccessibility")
+var queue:[(AXUIElement,Int)]=[],records:[[String:Any]]=[],found:AXUIElement?=nil
+let wanted=operation == "press" && args.count>2 ? args[2]:""
+var scans=0,webContent=false,overflow=false,hashCollisions=0
+repeat {
+    queue=[(application,0)];records=[];found=nil;webContent=false;scans+=1
+    var visited:[CFHashCode:[AXUIElement]]=[:],cursor=0
+    while cursor<queue.count && records.count<2500 && Date()<deadline {
+        let (element,depth)=queue[cursor];cursor+=1
+        let key=CFHash(element),bucket=visited[key] ?? []
+        if bucket.contains(where:{CFEqual($0,element)}){continue}
+        if !bucket.isEmpty{hashCollisions+=1}
+        visited[key,default:[]].append(element);AXUIElementSetMessagingTimeout(element,0.1)
+        let title=attribute(element,"AXTitle") as? String ?? "",desc=attribute(element,"AXDescription") as? String ?? "",value=attribute(element,"AXValue") as? String ?? "",role=attribute(element,"AXRole") as? String ?? ""
+        let name=title.isEmpty ? desc:title;records.append(["name":name,"title":title,"description":desc,"value":value,"role":role,"depth":depth,"enabled":attribute(element,"AXEnabled") as? Bool ?? false])
+        if !wanted.isEmpty && (name==wanted || desc==wanted || title==wanted){found=element}
+        if depth<35,let children=attribute(element,"AXChildren") as? [AXUIElement]{
+            if role == "AXWebArea" && !children.isEmpty{webContent=true}
+            queue.append(contentsOf:children.map{($0,depth+1)})
+        }
+    }
+    overflow=cursor<queue.count
+    if webContent && (operation != "press" || found != nil){break}
+    if Date()<deadline{RunLoop.current.run(until:min(deadline,Date().addingTimeInterval(0.1)))}
+} while Date()<deadline
+let accessibility:[String:Any]=["observerStatus":observerStatus.rawValue,"notifications":notificationStatuses,"enhanced":enhanced,"manual":manual,"scans":scans,"webContent":webContent,"hashCollisions":hashCollisions]
+if operation == "press" {guard let found=found else{emit(["records":records,"missing":wanted,"accessibility":accessibility]);exit(2)};let status=AXUIElementPerformAction(found,kAXPressAction as CFString);if status != .success{fail("AXPress failed \(status.rawValue)")};emit(["pressed":wanted]);exit(0)}
+var result:[String:Any]=["pid":Int(pid),"bundle":app.bundleURL?.path ?? "","executable":app.executableURL?.path ?? "","records":records,"overflow":overflow,"accessibility":accessibility]
 if operation == "screenshot" {
     guard args.count>2 else{fail("Supply screenshot output")}
     guard let list=CGWindowListCopyWindowInfo([.optionOnScreenOnly,.excludeDesktopElements],kCGNullWindowID) as? [[String:Any]],let window=list.first(where:{($0[kCGWindowOwnerPID as String] as? Int)==Int(pid)&&($0[kCGWindowLayer as String] as? Int)==0}),let number=window[kCGWindowNumber as String] as? Int else{fail("No native app window")}
