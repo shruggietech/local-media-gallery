@@ -40,7 +40,7 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - Release staging verifies temporary draft assets through authenticated API identities and exact content hashes, then requires final public URLs after publication. Bounded read-after-write observation reconciles delayed or lost acknowledgements without blindly replaying mutations.
 - Retain the exact candidate and publication static exports, inventories and matching gated records for independent readback, including candidate evidence when later publication fails.
 
-- Documentation acceptance now waits for the completed document navigation when reselecting the current version, preventing overlapping same-URL loads in the release campaign.
+- Documentation acceptance distinguishes same-document history events from completed replacement documents, including current-version reloads, preventing overlapping navigation in release gates.
 
 ### Process decisions
 

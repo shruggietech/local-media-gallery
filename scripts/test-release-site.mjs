@@ -6,11 +6,11 @@ import {serve} from './static-server.mjs';
 import {snapshotTopics,topicRoute} from '../apps/site/src/lib/navigation.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 export async function selectDocumentationVersion(page,version,expectedPath){
- await Promise.all([
-  page.waitForEvent('framenavigated',{predicate:frame=>frame===page.mainFrame()&&new URL(frame.url()).pathname===expectedPath}),
-  page.getByLabel('Documentation version',{exact:true}).first().selectOption(version),
- ]);
- await page.waitForLoadState('load');
+ // History API updates can report framenavigated without replacing the document.
+ // Observe the new document itself, including same-URL reloads, before continuing.
+ const previousTimeOrigin=await page.evaluate(()=>performance.timeOrigin);
+ await page.getByLabel('Documentation version',{exact:true}).first().selectOption(version);
+ await page.waitForFunction(({previousTimeOrigin,expectedPath})=>performance.timeOrigin!==previousTimeOrigin&&window.location.pathname===expectedPath&&document.readyState==='complete',{previousTimeOrigin,expectedPath});
 }
 export async function testReleaseSite({outputRoot,manifest,record=null}){
  process.env.PLAYWRIGHT_BROWSERS_PATH??=path.join(root,'.local/browsers');const {chromium}=await import('playwright');const server=await serve(outputRoot),browser=await chromium.launch({headless:true,channel:'chromium',executablePath:process.env.GALLERY_SITE_BROWSER});const errors=[];
