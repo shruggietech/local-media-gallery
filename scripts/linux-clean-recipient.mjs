@@ -2,16 +2,36 @@
 // A root-only, bounded CI worker. All UI stays on the elected isolated desktop.
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
-import {readFile,writeFile,mkdir,copyFile,chmod,readlink,lstat,realpath,unlink} from 'node:fs/promises';
+import {readFile,writeFile,mkdir,copyFile,chmod,chown,readlink,lstat,realpath,unlink} from 'node:fs/promises';
 import {createInterface} from 'node:readline';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {watch} from 'node:fs';
-import {randomUUID} from 'node:crypto';
+import {watch,createReadStream,constants} from 'node:fs';
+import {randomUUID,createHash} from 'node:crypto';
 
 export async function observeReadyDirectory(directory,onChange=()=>{},timeout=3000){
  const name='.lmg-observer-ready-'+randomUUID(),probe=path.join(directory,name);let settle,fail,created=false;const observed=new Promise((resolve,reject)=>{settle=resolve;fail=reject;});const watcher=watch(directory,(event,file)=>{if(file?.toString()===name){if(event==='rename')settle({directory,probe:name,event,observedBeforeLaunch:true});return;}onChange(event,file);});watcher.on('error',fail);const timer=setTimeout(()=>fail(Error('Directory observer did not observe its readiness probe: '+directory)),timeout);
  try{await writeFile(probe,'observer readiness',{flag:'wx',mode:0o600});created=true;const readiness=await observed;await unlink(probe);created=false;return {watcher,readiness};}catch(error){watcher.close();if(created)await unlink(probe);throw error;}finally{clearTimeout(timer);}
+}
+
+export async function stageRecipientInstaller({recipient,source,name}){
+ assert.ok(['local-media-gallery-full.run','local-media-gallery-next.run'].includes(name),'Unknown recipient ingress name');
+ assert.ok(path.isAbsolute(recipient)&&path.resolve(recipient)===recipient,'Recipient must be an absolute normalized path');assert.ok(path.isAbsolute(source),'Installer source must be absolute');
+ const directory=path.join(recipient,'tmp'),target=path.join(directory,name),uid=process.getuid?.(),gid=process.getgid?.();
+ for(const parent of [recipient,directory]){const info=await lstat(parent);assert.ok(info.isDirectory()&&!info.isSymbolicLink(),'Recipient ingress parent must be physical');assert.equal(await realpath(parent),parent);if(uid!==undefined){assert.equal(info.uid,uid,'Ingress parent owner differs');assert.equal(info.gid,gid,'Ingress parent group differs');}}
+ async function fingerprint(file){const info=await lstat(file);assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.nlink===1,'Ingress must be a physical single-link file');assert.equal(await realpath(file),path.resolve(file));const hash=createHash('sha256');for await(const bytes of createReadStream(file))hash.update(bytes);return {bytes:info.size,sha256:hash.digest('hex')};}
+ const expected=await fingerprint(source);let present;try{present=await lstat(target);}catch(error){if(error.code!=='ENOENT')throw error;}
+ const reused=Boolean(present);
+ if(!present){
+  // libuv copyFile preserves source uid/gid. Publish only an absent ingress and
+  // take worker ownership before reuse, avoiding sticky-/tmp O_CREAT refusals.
+  await copyFile(source,target,constants.COPYFILE_EXCL);
+  if(uid!==undefined)await chown(target,uid,gid);
+  await chmod(target,0o755);present=await lstat(target);
+ }
+ if(uid!==undefined){assert.equal(present.uid,uid,'Ingress owner differs');assert.equal(present.gid,gid,'Ingress group differs');assert.equal(present.mode&0o777,0o755,'Ingress mode differs');}
+ assert.deepEqual(await fingerprint(target),expected,'Existing recipient ingress bytes differ');
+ return {target,reused,...expected};
 }
 
 export async function startCleanRecipient({recipient,installer,capture,environment}){
@@ -45,9 +65,9 @@ if(process.argv.includes('--worker')){
    const passwd='recipient:x:'+configuration.identity.uid+':'+configuration.identity.gid+':Recipient:/tmp/recipient-profile/home:/bin/sh\n';await writeFile(base+'/etc/passwd',(await readFile(base+'/etc/passwd','utf8'))+passwd);await writeFile(base+'/etc/group',(await readFile(base+'/etc/group','utf8'))+'recipient:x:'+configuration.identity.gid+':\n');
    run('/usr/sbin/ip',['link','set','lo','up']);const routes=await readFile('/proc/net/route','utf8');assert.equal(routes.trim().split('\n').length,1,'Offline namespace must have no route');const interfaces=await readFile('/proc/net/dev','utf8');assert.ok(!interfaces.includes('eth0:'));const networkNamespace=await readlink('/proc/self/ns/net');assert.notEqual(networkNamespace,configuration.before);result={networkNamespace,parentNetworkNamespace:configuration.before,routes,interfaces,basis:'Separate network namespace, only loopback enabled; external networking unavailable'};break;
   }
-  case 'install':{const target=configuration.recipient+'/tmp/local-media-gallery-full.run';await copyFile(configuration.installer,target);await chmod(target,0o755);run('/usr/sbin/chroot',[configuration.recipient,'/tmp/local-media-gallery-full.run']);result={records:records.splice(0),output:outputTail};break;}
+  case 'install':{await stageRecipientInstaller({recipient:configuration.recipient,source:configuration.installer,name:'local-media-gallery-full.run'});run('/usr/sbin/chroot',[configuration.recipient,'/tmp/local-media-gallery-full.run']);result={records:records.splice(0),output:outputTail};break;}
   case 'fresh-interruption':{
-   const target=configuration.recipient+'/tmp/local-media-gallery-full.run';await copyFile(configuration.installer,target);await chmod(target,0o755);assert.ok(Array.isArray(request.files)&&request.files.length>0);
+   await stageRecipientInstaller({recipient:configuration.recipient,source:configuration.installer,name:'local-media-gallery-full.run'});assert.ok(Array.isArray(request.files)&&request.files.length>0);
    result=await new Promise((resolve,reject)=>{let child,armed=false,sampling=false,interrupted=false,stdout='',stderr='',buffer='',snapshot,appWatch;const watchers=[],readiness=[];let events=0;const timer=setTimeout(()=>fail(Error('Fresh unpack interruption deadline: '+stdout+' '+stderr)),240000);
     const changed=(event,name)=>{events++;if(event==='rename')void inspect();};
     const attachApplication=()=>{if(appWatch)return;try{const directory=configuration.recipient+'/usr/lib/local-media-gallery';appWatch=watch(directory,changed);appWatch.on('error',fail);watchers.push(appWatch);}catch(e){if(e.code!=='ENOENT')throw e;}};
@@ -58,7 +78,7 @@ if(process.argv.includes('--worker')){
     }catch(error){fail(error);}})();
    });break;
   }
-  case 'replacement':{const target=configuration.recipient+'/tmp/local-media-gallery-next.run';assert.ok(path.isAbsolute(request.installer));await copyFile(request.installer,target);await chmod(target,0o755);if(!request.interrupt){const r=run('/usr/sbin/chroot',[configuration.recipient,'/tmp/local-media-gallery-next.run']);result={stdout:r.stdout,stderr:r.stderr};break;}
+  case 'replacement':{assert.ok(path.isAbsolute(request.installer));await stageRecipientInstaller({recipient:configuration.recipient,source:request.installer,name:'local-media-gallery-next.run'});if(!request.interrupt){const r=run('/usr/sbin/chroot',[configuration.recipient,'/tmp/local-media-gallery-next.run']);result={stdout:r.stdout,stderr:r.stderr};break;}
    result=await new Promise((resolve,reject)=>{const child=spawn('/usr/sbin/chroot',[configuration.recipient,'/tmp/local-media-gallery-next.run'],{shell:false,env:{PATH:'/usr/sbin:/usr/bin:/sbin:/bin',PKEXEC_UID:String(configuration.identity.uid),LMG_UPDATE_EVENTS:'1'},stdio:['ignore','pipe','pipe']});let output='',stderr='',buffer='',interrupted=false;const timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('Facade interruption boundary deadline: '+output+' '+stderr));},30000);child.stdout.on('data',bytes=>{output+=bytes;buffer+=bytes;while(buffer.includes('\n')){const at=buffer.indexOf('\n'),line=buffer.slice(0,at);buffer=buffer.slice(at+1);try{const event=JSON.parse(line);if(event.event==='phase'&&event.phase==='prepared'&&!interrupted){interrupted=true;child.kill('SIGKILL');}}catch{}}});child.stderr.on('data',b=>stderr+=b);child.once('error',error=>{clearTimeout(timer);reject(error);});child.once('exit',(code,signal)=>{clearTimeout(timer);interrupted&&signal==='SIGKILL'?resolve({interrupted,signal,stdout:output,stderr}):reject(Error('Facade did not reach elected interruption: '+code+' '+signal+' '+output+' '+stderr));});});break;}
   case 'command':{assert.ok(Array.isArray(request.args)&&request.args.every(x=>typeof x==='string'));const r=run('/usr/sbin/chroot',[configuration.recipient,...request.args]);result={stdout:r.stdout,stderr:r.stderr};break;}
   case 'launch':{
