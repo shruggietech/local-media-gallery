@@ -36,6 +36,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 - 2026-11-01: Separate authenticated draft identity from final published URLs, retry only explicitly pending observations after one mutation within the existing qualification deadline, and preserve ownership, source, payload, canonical promotion and final URL checks. Retain both exact gated exports in always-uploaded workflow evidence; keep shipped product/versioned contracts and accepted native bytes unchanged.
 
+- 2026-11-02: Keep Windows recipient networking denied while allowing only verified CI runner control-plane traffic and configured DNS. Retain firewall restoration intent before mutation and restore policy independently after forced test termination, before artifact upload. Keep offline prerequisite, functional and ownership checks.
+
 ## [0.1.0]
 
 First public product version. Actual publication and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce package availability.

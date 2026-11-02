@@ -163,6 +163,9 @@ jobs:
             feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - run: npm run ci -- windows-packages
+      - name: Restore recipient firewall after interrupted campaign
+        if: ${{ always() && hashFiles('scripts/windows-offline-firewall.mjs') != '' }}
+        run: node scripts/windows-offline-firewall.mjs --restore
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -182,6 +185,7 @@ jobs:
             .local/windows-packages-*/replacement-full.exe
             .local/windows-package-test-*/*.png
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/single-file-offline*.json
             .local/tmp/local-media-gallery-*.log
           include-hidden-files: true
           if-no-files-found: error

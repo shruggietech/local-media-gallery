@@ -6,7 +6,7 @@ PR [#82](https://github.com/shruggietech/local-media-gallery/pull/82) implements
 
 ## Local checks
 
-2026-11-02: Repository check passed (684 authored/configuration files and 572 governed brand files). Latest Node suite passed 223 tests with one platform-specific skip (224 total). App parity passed Rust tests, workspace Clippy, frontend checks and affected package tests. Earlier website verification passed 74 rendered HTML pages, 5454 local links and ten headless browser groups. Current candidate CI rechecks affected outputs.
+2026-11-02: Repository check passed (687 authored/configuration files and 572 governed brand files). Latest Node suite passed 227 tests with one platform-specific skip (228 total). App parity passed Rust tests, workspace Clippy, frontend checks and affected package tests. Earlier website verification passed 74 rendered HTML pages, 5454 local links and ten headless browser groups. Current candidate CI rechecks affected outputs.
 
 Linux and macOS native package helpers also passed cross-target all-target Clippy on the Windows maintainer host. These are compile/lint results, not native runtime claims. No product GUI, installer or desktop acceptance ran on the owner workstation.
 
@@ -42,3 +42,11 @@ Repeated macOS installation now retains journals at their original authenticated
 The same run stopped Linux Full before application unpack because offline APT selected an encoded dependency pathname without an absolute archive location. Failed logs and artifacts remain diagnostic. Windows package results were still pending at this entry.
 
 The Linux correction stages only selected, rehashed bundled archives in a private APT cache under canonical package/version/architecture names, including lowercase epoch escapes. APT receives that absolute cache path and retains no-download, no-removal and version-preservation rules. Cache collision, altered input and epoch-name regressions pass, as do all 14 host package units and Linux-target all-target Clippy. The native initial/interruption/recovery campaign remains mandatory.
+
+## Windows runner connectivity follow-up
+
+The 029f1a2 Windows package job ended at 2026-11-02T09:48:33Z after 62 minutes 17 seconds with the GitHub annotation that the hosted runner lost communication. Its final log/archive endpoint is unavailable; the annotation and job metadata are retained. The machine-wide outbound Block rule used by the offline campaign also blocks the Actions runner. This is not successful native qualification. The replacement campaign will isolate recipient networking using default outbound denial, verified runner-only control-plane exceptions and service-scoped configured DNS, with an actual failing external probe and complete policy restoration. Product/installer/runtime processes receive no outbound exception.
+
+Queued run 41421318250 was cancelled before jobs started. Full exact-head run [41423289077](https://github.com/shruggietech/local-media-gallery/actions/runs/41423289077) on 412240548786d1ff82950189a17756f7d468ce77 was independently dispatched to permit the corrected macOS/Linux campaigns to progress while retaining the old Windows diagnostics. This dispatch includes the complete check set and does not request an additional review round or publish a release. Repository and website checks have passed; native acceptance remains in progress.
+
+The Windows follow-up now persists restoration intent before mutation, admits only observed hash-verified runner executables on HTTPS plus configured-server DNS service traffic, disables pre-existing outbound allowances, and requires default outbound denial on every enabled profile. Actual curl and Node probes must be blocked at campaign entry and exit. An independent always-run workflow step restores pending campaign policy before artifact upload, including after forced child termination. Portable policy/refusal/interruption tests and read-only PowerShell syntax parsing pass; native firewall and complete package acceptance remain pending.

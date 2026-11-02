@@ -71,7 +71,7 @@ Lite is the direct matching EXE beside gallery media. It requires the declared s
 2. Launch the installed app from Applications and select a gallery. The bundled feature helper is inside the managed application.
 3. Open the replacement PKG for an owned system update, including a verified published v0.1.0 system installation. Reopening an interrupted matching operation uses retained recovery identity. Installation and maintenance retain media and compatible settings/history.
 4. To restore the prior owned application after an update, open the same PKG, choose Customize, select **Roll back to the prior owned application**, and continue. The installer discovers and verifies its retained predecessor without separate files or JSON operands. **Uninstall Local Media Gallery Full** is a mutually exclusive choice that removes only unchanged owned application/integration files; media and user settings/history remain.
-4. For Lite, place its direct Mach-O executable beside the gallery and launch that file with executable permission. No distributed app directory or companion file is required.
+5. For Lite, place its direct Mach-O executable beside the gallery and launch that file with executable permission. No distributed app directory or companion file is required.
 
 WKWebView, AppKit and system codecs are OS facilities. Additional codec support is bounded by observed native runtime behavior; generating a thumbnail is not proof that a host webview plays that codec.
 
