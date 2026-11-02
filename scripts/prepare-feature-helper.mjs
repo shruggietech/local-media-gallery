@@ -14,6 +14,24 @@ export const featureHelperConfiguration=['--disable-gpl','--disable-nonfree','--
 const hash=b=>createHash('sha256').update(b).digest('hex');
 async function capture(file,args,options={}){const p=promisify(execFile)(file,args,{cwd:root,env:environment,windowsHide:true,shell:false,timeout:30000,maxBuffer:1024*1024,...options});p.child?.stdin?.end();return p;}
 const shellQuote=s=>"'"+s.replaceAll("'","'\\''")+"'";
+export async function acquirePinnedFeatureSource(source,{fetcher=fetch,pause=ms=>new Promise(resolve=>setTimeout(resolve,ms)),attempts=4,timeoutMs=120000}={}){
+ assert.ok(Number.isSafeInteger(attempts)&&attempts>0&&attempts<=4);assert.ok(Number.isSafeInteger(timeoutMs)&&timeoutMs>0&&timeoutMs<=120000);const deadline=Date.now()+timeoutMs;
+ for(let attempt=0;attempt<attempts;attempt++){
+  let bytes;
+  try{
+   const remaining=deadline-Date.now();assert.ok(remaining>0,'Pinned source acquisition deadline reached');
+   const response=await fetcher(source.url,{signal:AbortSignal.timeout(remaining)});
+   if(!response.ok){await response.body?.cancel();const error=Error('Pinned source HTTP '+response.status);error.retryable=response.status===429||response.status>=500;throw error;}
+   const chunks=[];let size=0;for await(const chunk of response.body??[]){size+=chunk.length;assert.ok(size<=source.bytes,'Pinned source exceeds expected size');chunks.push(chunk);}bytes=Buffer.concat(chunks);
+  }catch(error){
+   const transport=error instanceof TypeError||['AbortError','TimeoutError'].includes(error.name)||error.retryable===true;
+   if(!transport||attempt+1===attempts||Date.now()>=deadline)throw error;
+   console.log('Pinned source transport attempt '+(attempt+1)+' failed; retrying within the preparation bound.');await pause(Math.min(250*2**attempt,Math.max(0,deadline-Date.now())));continue;
+  }
+  assert.equal(bytes.length,source.bytes,'Pinned source size differs');assert.equal(hash(bytes),source.sha256,'Pinned source digest differs');return bytes;
+ }
+ throw Error('Pinned source attempt bound reached');
+}
 export async function prepareFeatureHelper(){
  const key=process.platform+'-'+process.arch;assert.ok(['win32-x64','linux-x64','darwin-arm64'].includes(key));
  const extra=process.platform==='win32'?['--target-os=mingw32','--arch=x86_64','--cc=gcc','--disable-pthreads','--enable-w32threads','--extra-ldflags=-static']:process.platform==='linux'?['--extra-ldflags=-static']:['--pkg-config=false'];
@@ -21,7 +39,7 @@ export async function prepareFeatureHelper(){
  const directory=path.join(root,'.local/feature-helper-cache',configHash),binary=path.join(directory,'ffmpeg'+(process.platform==='win32'?'.exe':'')),recordFile=path.join(directory,'receipt.json');await mkdir(directory,{recursive:true});
  let record;try{record=JSON.parse(await readFile(recordFile,'utf8'));assert.equal(record.configurationSha256,configHash);assert.equal(hash(await readFile(binary)),record.sha256);assert.deepEqual(record.source.configuration,configuration);}catch(error){if(error.code!=='ENOENT')throw error;record=null;}
  if(!record){
-  const archive=path.join(directory,'ffmpeg-9.0.2.tar.xz');let bytes;try{bytes=await readFile(archive);}catch(e){if(e.code!=='ENOENT')throw e;const response=await fetch(featureHelperSource.url,{signal:AbortSignal.timeout(120000)});assert.ok(response.ok,'FFmpeg source HTTP '+response.status);bytes=Buffer.from(await response.arrayBuffer());}
+  const archive=path.join(directory,'ffmpeg-9.0.2.tar.xz');let bytes;try{bytes=await readFile(archive);}catch(e){if(e.code!=='ENOENT')throw e;bytes=await acquirePinnedFeatureSource(featureHelperSource);}
   assert.equal(bytes.length,featureHelperSource.bytes);assert.equal(hash(bytes),featureHelperSource.sha256);await writeFile(archive,bytes);
   await execute('tar',['-xf',archive,'-C',directory]);const sourceDirectory=path.join(directory,'ffmpeg-9.0.2');
   if(process.platform==='win32'){

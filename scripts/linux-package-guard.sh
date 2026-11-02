@@ -260,14 +260,14 @@ LMG_RECOVERY_ROWS
     fresh_owned() {
         fresh_authority=/run/local-media-gallery-install/authority
         check_parent "$fresh_authority"
-        [ -f "$fresh_authority" ] && [ ! -L "$fresh_authority" ] || fail 'Fresh process authority missing or linked.'
+        if [ ! -f "$fresh_authority" ] || [ -L "$fresh_authority" ]; then fail 'Fresh process authority missing or linked.'; fi
         [ "$(/usr/bin/stat -c '%u:%g:%a:%h' -- "$fresh_authority")" = 0:0:600:1 ] || fail 'Foreign fresh process authority.'
         [ "$(/usr/bin/stat -c '%u:%g:%a' -- /run/local-media-gallery-install)" = 0:0:700 ] || fail 'Foreign fresh process directory.'
         [ "$(/usr/bin/stat -c '%s' -- "$fresh_authority")" -le 8388608 ] || fail 'Oversized fresh process authority.'
         IFS='|' read -r fresh_protocol fresh_hash fresh_pid fresh_tick fresh_boot fresh_count fresh_version < "$fresh_authority"
-        [ "$fresh_protocol" = LMGFRESH1 ] && [ "$fresh_hash" = '@EXPECTED_HASH@' ] && [ "$fresh_version" = '@PRODUCT_VERSION@' ] || fail 'Fresh authority candidate differs.'
+        if [ "$fresh_protocol" != LMGFRESH1 ] || [ "$fresh_hash" != '@EXPECTED_HASH@' ] || [ "$fresh_version" != '@PRODUCT_VERSION@' ]; then fail 'Fresh authority candidate differs.'; fi
         case "$fresh_pid:$fresh_tick:$fresh_count" in *[!0-9:]*|:*|*::*|*:) fail 'Invalid fresh coordinator counters.' ;; esac
-        [ "$fresh_pid" -gt 1 ] && [ "$fresh_count" -gt 0 ] && [ "$fresh_count" -le 4097 ] || fail 'Fresh coordinator bounds.'
+        if [ "$fresh_pid" -le 1 ] || [ "$fresh_count" -le 0 ] || [ "$fresh_count" -gt 4097 ]; then fail 'Fresh coordinator bounds.'; fi
         kill -0 "$fresh_pid" 2>/dev/null || fail 'Fresh coordinator is no longer active; run the installer with --recover.'
         IFS= read -r fresh_current_boot < /proc/sys/kernel/random/boot_id
         [ "$fresh_current_boot" = "$fresh_boot" ] || fail 'Fresh coordinator boot differs.'
@@ -306,7 +306,7 @@ LMG_RECOVERY_ROWS
         while IFS='|' read -r fresh_file_hash fresh_mode fresh_size fresh_file; do
             check_parent "$fresh_file"
             if [ -e "$fresh_file" ] || [ -L "$fresh_file" ]; then
-                [ -f "$fresh_file" ] && [ ! -L "$fresh_file" ] || fail "Linked/nonregular fresh file: $fresh_file."
+                if [ ! -f "$fresh_file" ] || [ -L "$fresh_file" ]; then fail "Linked/nonregular fresh file: $fresh_file."; fi
                 [ "$(/usr/bin/stat -c '%a:%s:%u:%g:%h' -- "$fresh_file")" = "$fresh_mode:$fresh_size:0:0:1" ] || fail "Changed fresh file metadata: $fresh_file."
                 fresh_actual_hash=$(/usr/bin/sha256sum -- "$fresh_file") || fail 'Cannot hash fresh file.'
                 [ "${fresh_actual_hash%% *}" = "$fresh_file_hash" ] || fail "Changed fresh file bytes: $fresh_file."
