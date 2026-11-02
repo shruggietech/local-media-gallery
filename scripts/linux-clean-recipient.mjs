@@ -34,6 +34,17 @@ export async function stageRecipientInstaller({recipient,source,name}){
  return {target,reused,...expected};
 }
 
+export const recipientStateCaptureBasis='Authoritative preferences, persistent history, optional SQLite WAL and retained sentinels only. Derived WebKit/GTK caches, sockets, lock files and SQLite SHM are excluded from state artifacts. The complete original profile, including transient nodes, is preserved by directory rename.';
+export async function captureRecipientState(profile,destination){
+ const base=path.resolve(profile.base),names=[];for(const [key,directory]of Object.entries(profile.env))names.push(path.join(directory,'retained-'+key+'.txt'));
+ names.push(path.join(profile.env.XDG_CONFIG_HOME,'tech.shruggie.local-media-gallery/settings.json'));for(const suffix of ['', '-wal'])names.push(path.join(profile.env.XDG_STATE_HOME,'tech.shruggie.local-media-gallery/history.sqlite3'+suffix));
+ if(destination){destination=path.resolve(destination);assert.ok(destination!==base&&!destination.startsWith(base+path.sep),'State evidence must be outside its live profile');await mkdir(destination,{recursive:true});assert.equal(await realpath(destination),destination);}
+ const inventory=[];for(const file of names){const relative=path.relative(base,path.resolve(file));assert.ok(relative&&!relative.startsWith('..')&&!path.isAbsolute(relative),'State path escapes profile');let info;try{info=await lstat(file);}catch(error){if(error.code==='ENOENT')continue;throw error;}assert.ok(info.isFile()&&!info.isSymbolicLink()&&info.nlink===1,'Authoritative state must be a physical single-link regular file');assert.equal(await realpath(file),path.resolve(file),'Redirected authoritative state parent');const bytes=await readFile(file),mode=process.platform==='win32'?null:(info.mode&0o777).toString(8).padStart(3,'0');inventory.push({path:relative.replaceAll(path.sep,'/'),bytes:String(bytes.length),sha256:createHash('sha256').update(bytes).digest('hex'),mode});
+  if(destination){const target=path.join(destination,relative);await mkdir(path.dirname(target),{recursive:true});await writeFile(target,bytes,{flag:'wx',mode:0o600});if(mode!==null)await chmod(target,Number.parseInt(mode,8));assert.equal(createHash('sha256').update(await readFile(target)).digest('hex'),inventory.at(-1).sha256);}
+ }
+ return inventory.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
+}
+
 export async function isolateRecipientProfile(directory,exercise){
  assert.ok(path.isAbsolute(directory)&&path.resolve(directory)===directory,'Profile fixture must be absolute and normalized');const info=await lstat(directory);assert.ok(info.isDirectory()&&!info.isSymbolicLink());assert.equal(await realpath(directory),directory);
  const saved=directory+'-retained-current',published=directory+'-published-predecessor';for(const target of [saved,published])await assert.rejects(lstat(target),{code:'ENOENT'});

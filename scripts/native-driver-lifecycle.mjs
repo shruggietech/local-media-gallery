@@ -46,7 +46,8 @@ export async function readyDriver(child,origin,observation,timeout=15000,{nonce,
   while(Date.now()<end){
    alive();let identity;
    try{
-    await request('/status');
+    const status=await request('/status');note({phase:'listener-status',ready:status?.ready===true,message:typeof status?.message==='string'?status.message.slice(0,256):null});
+    if(status?.ready!==true)throw new Error(status?.ready===false?'Native WebView initialization is not ready':'Invalid driver readiness status');
     if(listenerOwner){const observed=await owner();listener={...listener,ownership:observed};if(!matches(observed))throw failure('Native driver ownership mismatch');}
     if(!session){const candidateSession=(await request('/session',{capabilities:{alwaysMatch:{'wdio:tauriServiceOptions':{windowLabel:'main'}}}}))?.sessionId;if(typeof candidateSession!=='string'||!/^[a-zA-Z0-9-]{1,128}$/.test(candidateSession))throw new Error('Invalid driver session identity');session=candidateSession;note({phase:'session-created'});}
     if(readinessScriptTimeoutMs!==undefined&&!ownedIdentity)await configureScript();

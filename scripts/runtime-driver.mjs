@@ -15,6 +15,11 @@ const call=promisify(execFile);
 export function nativeInputStages(stderr){const stages=[];for(const line of String(stderr??'').split(/\r?\n/)){try{const value=JSON.parse(line);if(['native-input-stage','native-input-win32'].includes(value.event)&&typeof value.stage==='string')stages.push(value);}catch{}}return stages;}
 export function subprocessFailure(error){const text=value=>value===undefined||value===null?null:Buffer.isBuffer(value)?value.toString('utf8'):String(value);return {pid:error.commandPid??null,code:error.code??null,killed:typeof error.killed==='boolean'?error.killed:null,signal:error.signal??null,stdout:text(error.stdout),stderr:text(error.stderr),timeoutMs:error.commandTimeoutMs??null,nativeInputStages:nativeInputStages(text(error.stderr))};}
 export async function hidden(file,args,options={}){const capture={cwd:root,windowsHide:true,shell:false,timeout:15000,maxBuffer:4*1024*1024,env:environment,...options};let pid;try{const pending=call(file,args,capture);pid=pending.child?.pid;return await pending;}catch(error){error.commandTimeoutMs=capture.timeout;error.commandPid=pid;throw error;}}
+export async function windowsStartupDiagnostics(pid,{capture=hidden,env=environment,platform=process.platform}={}){
+ assert.equal(platform,'win32');assert.equal(env.GITHUB_ACTIONS,'true');assert.equal(env.GALLERY_ISOLATED_DESKTOP,'1');assert.ok(Number.isSafeInteger(pid)&&pid>0);
+ const result=await capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/windows-native-startup.ps1'),'-AppProcessId',String(pid)],{timeout:3000,env});
+ const record=JSON.parse(result.stdout);assert.equal(record.result,'observed');assert.equal(record.kind,'windows-native-startup');assert.equal(record.targetPid,pid);return record;
+}
 async function stop(child){if(child.exitCode!==null||child.signalCode!==null)return;await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Native child exit was not observed')),5000);child.once('exit',()=>{clearTimeout(timer);resolve();});child.kill();});}
 export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
  requireIsolatedDesktop();
@@ -26,7 +31,12 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
   if(spawnError)throw spawnError;if(child.exitCode!==null)throw new Error('Native app exited '+child.exitCode+': '+output);
   const response=await fetch(origin+route,{method,headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});const r=await response.json();if(!response.ok||r.value?.error)throw new Error(r.value?.message??'Native WebDriver HTTP '+response.status);return r.value;
  }
- const readinessTimeline=[];let session;try{session=await readyDriver(child,origin,observation,20000,{nonce,timeline:readinessTimeline,...(process.platform==='win32'?{readinessScriptTimeoutMs:300}:{}),context:{operation:'native-runtime',edition:process.env.GALLERY_TEST_EDITION??'full',fixture:fixture.sha256}});await until(()=>request('/session/'+session+'/execute/sync',{script:'return document.readyState === "complete" && Boolean(document.querySelector(".app-header"));',args:[]},'POST',2000),'Native frontend readiness',20000);}catch(e){await stop(child);throw e;}
+ const readinessTimeline=[];let session;try{session=await readyDriver(child,origin,observation,20000,{nonce,timeline:readinessTimeline,...(process.platform==='win32'?{readinessScriptTimeoutMs:300}:{}),context:{operation:'native-runtime',edition:process.env.GALLERY_TEST_EDITION??'full',fixture:fixture.sha256}});await until(()=>request('/session/'+session+'/execute/sync',{script:'return document.readyState === "complete" && Boolean(document.querySelector(".app-header"));',args:[]},'POST',2000),'Native frontend readiness',20000);}catch(e){
+  // Observe only after acceptance failed, before terminating its owned PID. This
+  // bounded diagnostic never extends readiness or changes a failure into success.
+  if(process.platform==='win32')try{e.windowsStartupDiagnostics={...await windowsStartupDiagnostics(child.pid),capturedAfterReadinessFailure:true,child:observation()};}catch(error){e.windowsStartupDiagnostics={result:'unavailable',capturedAfterReadinessFailure:true,error:error.message,...subprocessFailure(error),child:observation()};}
+  try{await stop(child);}catch(error){e.shutdownFailure=error.message;}throw e;
+ }
  const js=(script,args=[])=>request('/session/'+session+'/execute/sync',{script,args});
  const command=(action,extra={})=>js('return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",arguments[0]);',[{action,...extra}]);
  const inputDiagnostics=[];
