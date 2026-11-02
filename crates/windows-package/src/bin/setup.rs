@@ -45,7 +45,7 @@ fn run() -> Result<serde_json::Value, String> {
             Some("--rollback") => maintenance = Some("rollback"),
             Some("--quiet" | "--json") => {}
             _ => return Err(
-                "Use --directory ABSOLUTE_PATH, --remove, --provision-runtime, --quiet or --json"
+                "Use --directory ABSOLUTE_PATH, --remove, --update, --recover, --rollback, --provision-runtime, --quiet or --json"
                     .into(),
             ),
         }

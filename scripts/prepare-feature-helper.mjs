@@ -39,7 +39,7 @@ export async function prepareFeatureHelper(){
  const directory=path.join(root,'.local/feature-helper-cache',configHash),binary=path.join(directory,'ffmpeg'+(process.platform==='win32'?'.exe':'')),recordFile=path.join(directory,'receipt.json');await mkdir(directory,{recursive:true});
  let record;try{record=JSON.parse(await readFile(recordFile,'utf8'));assert.equal(record.configurationSha256,configHash);assert.equal(hash(await readFile(binary)),record.sha256);assert.deepEqual(record.source.configuration,configuration);}catch(error){if(error.code!=='ENOENT')throw error;record=null;}
  if(!record){
-  const archive=path.join(directory,'ffmpeg-9.0.2.tar.xz');let bytes;try{bytes=await readFile(archive);}catch(e){if(e.code!=='ENOENT')throw e;bytes=await acquirePinnedFeatureSource(featureHelperSource);}
+  const archive=path.join(directory,'ffmpeg-9.0.2.tar.xz');let bytes;try{bytes=await readFile(archive);}catch(e){if(e.code!=='ENOENT')throw e;try{bytes=await readFile(path.join(root,'packaging/sources/ffmpeg-9.0.2.tar.xz'));}catch(missing){if(missing.code!=='ENOENT')throw missing;bytes=await acquirePinnedFeatureSource(featureHelperSource);}}
   assert.equal(bytes.length,featureHelperSource.bytes);assert.equal(hash(bytes),featureHelperSource.sha256);await writeFile(archive,bytes);
   await execute('tar',['-xf',archive,'-C',directory]);const sourceDirectory=path.join(directory,'ffmpeg-9.0.2');
   if(process.platform==='win32'){
