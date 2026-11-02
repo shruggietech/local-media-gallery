@@ -50,25 +50,40 @@ fn run() -> Result<serde_json::Value, String> {
             ),
         }
     }
-    let directory = directory
-        .or(native::installed_directory(machine)?)
-        .unwrap_or_else(|| {
-            PathBuf::from(
-                std::env::var_os(if machine {
-                    "ProgramFiles"
-                } else {
-                    "LOCALAPPDATA"
-                })
-                .unwrap_or_default(),
-            )
-            .join(if machine {
-                "Local Media Gallery"
+    let recovering = matches!(maintenance, Some("recover" | "rollback"));
+    let replace_existing = !recovering
+        && !remove
+        && native::registered_package(machine)?
+            .is_some_and(|code| Some(code.as_str()) != input["msi"]["packageCode"].as_str());
+    // Recovery already binds its actual destination through the retained journal;
+    // partial native registration must not prevent that authority from loading.
+    let directory = if recovering {
+        directory
+    } else {
+        gallery_windows_package::select_setup_directory(
+            directory,
+            maintenance.is_some() || replace_existing,
+            || native::installed_directory(machine),
+            || native::registered_install_directory(machine),
+        )?
+    }
+    .unwrap_or_else(|| {
+        PathBuf::from(
+            std::env::var_os(if machine {
+                "ProgramFiles"
             } else {
-                "Programs\\Local Media Gallery"
+                "LOCALAPPDATA"
             })
-        });
+            .unwrap_or_default(),
+        )
+        .join(if machine {
+            "Local Media Gallery"
+        } else {
+            "Programs\\Local Media Gallery"
+        })
+    });
     gallery_windows_package::check_path(&directory)?;
-    if machine && !remove && native::registered_package(false)?.is_some() {
+    if machine && !remove && !recovering && native::registered_package(false)?.is_some() {
         return Err("An existing per-user Full installation must be removed through Windows Apps before system installation. Its gallery media and user settings remain independent. Automatic cross-scope migration is not implemented.".into());
     }
     if let Some(operation) = maintenance {
@@ -76,10 +91,7 @@ fn run() -> Result<serde_json::Value, String> {
             &retained, &input, &directory, operation,
         );
     }
-    if !remove
-        && native::registered_package(machine)?
-            .is_some_and(|code| Some(code.as_str()) != input["msi"]["packageCode"].as_str())
-    {
+    if replace_existing {
         return gallery_windows_package::embedded::maintenance(
             &retained, &input, &directory, "update",
         );

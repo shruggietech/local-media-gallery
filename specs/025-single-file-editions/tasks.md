@@ -21,7 +21,7 @@
 - [x] T005 [US1] Embed notices and maintenance metadata in apps/gallery/src-tauri/build.rs and native product resources; retain CRT/system-only dependency audit.
 - [x] T006 [P] [US1] Produce direct Windows Lite file and copy-only launch checks in scripts/build-windows-packages.mjs and scripts/test-windows-packages.mjs.
 - [x] T007 [P] [US1] Produce direct Linux ELF and copy-only relocation checks in scripts/build-linux-packages.mjs and scripts/test-linux-packages.mjs.
-- [ ] T008 [P] [US1] Prove bare Mach-O native launch, produce direct macOS Lite and relocation checks in scripts/build-macos-packages.mjs and scripts/test-macos-packages.mjs.
+- [x] T008 [P] [US1] Prove bare Mach-O native launch, produce direct macOS Lite and relocation checks in scripts/build-macos-packages.mjs and scripts/test-macos-packages.mjs.
 
 ## Phase 4: US2 offline system Full
 
@@ -66,4 +66,4 @@ Prove Lite first as an independently testable increment, then Full per platform,
 
 ## Current verification status
 
-2026-11-02: All implementation tasks are complete except proof of bare Mach-O runtime feasibility. Hosted run 41401021930 on e7e4831 passed repository, website and all three core native product campaigns. Direct Linux Lite passed launch, ordinary maintenance, relocation and Refresh. Package campaigns retained actionable failures: Windows firewall filter configuration, Linux staging mode, and macOS PKG interruption observation. The final permitted Codex review reported Windows retained-input publication and Linux first-install authority gaps. Corrections and equivalent macOS/shared transaction recovery fixes are being integrated with explicit interruption regressions. No complete six-file qualification or final handoff is claimed. GitHub PR/check/review receipts remain the authoritative live record.
+2026-11-02: All implementation tasks are complete, and bare Mach-O native launch is proven. Hosted run 41401021930 on e7e4831 passed repository, website and all three core native product campaigns. Direct Linux Lite passed launch, ordinary maintenance, relocation and Refresh. Package campaigns retained actionable failures: Windows firewall filter configuration, Linux staging mode, and macOS PKG interruption observation. The final permitted Codex review reported Windows retained-input publication and Linux first-install authority gaps. Corrections and equivalent macOS/shared transaction recovery fixes are being integrated with explicit interruption regressions. No complete six-file qualification or final handoff is claimed. GitHub PR/check/review receipts remain the authoritative live record.

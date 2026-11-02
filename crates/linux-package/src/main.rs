@@ -224,6 +224,7 @@ fn install_packages(
     file: &mut File,
     m: &Manifest,
     include_application: bool,
+    repair_dependencies: bool,
 ) -> Result<(), String> {
     use std::process::Command;
     let work = tempfile::Builder::new()
@@ -282,6 +283,16 @@ fn install_packages(
     }
     // The package manager, rather than this bootstrap, owns dependencies and their
     // lifecycle. Every installation operand is retained inside this executable.
+    let sources = work.path().join("sources.list");
+    File::options()
+        .write(true)
+        .create_new(true)
+        .open(&sources)
+        .map_err(|e| e.to_string())?
+        .sync_all()
+        .map_err(|e| e.to_string())?;
+    let source_parts = work.path().join("sources.list.d");
+    std::fs::create_dir(&source_parts).map_err(|e| e.to_string())?;
     let mut command = Command::new("/usr/bin/apt-get");
     command
         .env_clear()
@@ -294,14 +305,16 @@ fn install_packages(
             "--no-install-recommends",
             "--reinstall",
             "--yes",
-            "-o",
-            "Dir::Etc::sourcelist=/dev/null",
-            "-o",
-            "Dir::Etc::sourceparts=-",
-            "-o",
-            "APT::Get::AllowUnauthenticated=false",
-            "install",
-        ])
+        ]);
+    if repair_dependencies {
+        command.arg("--fix-broken");
+    }
+    command
+        .arg("-o")
+        .arg(format!("Dir::Etc::sourcelist={}", sources.display()))
+        .arg("-o")
+        .arg(format!("Dir::Etc::sourceparts={}", source_parts.display()))
+        .args(["-o", "APT::Get::AllowUnauthenticated=false", "install"])
         .args(&selected);
     let status = command.status().map_err(|e| e.to_string())?;
     if !status.success() {

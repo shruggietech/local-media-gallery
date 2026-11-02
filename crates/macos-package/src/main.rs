@@ -40,6 +40,7 @@ fn run() -> gallery_macos_package::Result<()> {
     if ![
         "managed-install",
         "managed-remove",
+        "managed-rollback",
         "install",
         "remove",
         "update",
@@ -197,7 +198,45 @@ fn run() -> gallery_macos_package::Result<()> {
         .parent()
         .ok_or("Candidate parent unavailable")?
         .join(&payload.bundle);
-    let result = if operation == "managed-remove" {
+    let result = if operation == "managed-rollback" {
+        if scope != "system" || !options.is_empty() {
+            return Err("Managed rollback takes no operands and requires system scope".into());
+        }
+        let updates = PathBuf::from("/Library/Application Support/Local Media Gallery Updates");
+        let mut transaction = updates.join(&payload.generation);
+        if std::fs::symlink_metadata(&transaction)
+            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+        {
+            let prefix = format!("{}-retained-", payload.generation);
+            let mut retained = Vec::new();
+            for entry in std::fs::read_dir(&updates)? {
+                let entry = entry?;
+                let name = entry.file_name();
+                if let Some(name) = name.to_str()
+                    && let Some(suffix) = name.strip_prefix(&prefix)
+                    && let Ok(order) = suffix.parse::<u128>()
+                {
+                    retained.push((order, entry.path()));
+                }
+            }
+            retained.sort_by_key(|(order, _)| *order);
+            transaction=retained.pop().ok_or("No retained owned predecessor is available for rollback; application was not changed")?.1;
+        }
+        serde_json::to_value(gallery_update::Transaction::resume_admitted(
+            &transaction,
+            gallery_update::RecoveryCommand::Rollback,
+            |directory| {
+                if directory != app {
+                    return Err(
+                        "Retained rollback destination differs from this system installation"
+                            .into(),
+                    );
+                }
+                gallery_macos_package::destination_lease(directory)
+                    .map_err(|error| error.to_string())
+            },
+        )?)?
+    } else if operation == "managed-remove" {
         if scope != "system" || !options.is_empty() {
             return Err("Managed removal takes no operands and requires system scope".into());
         }

@@ -270,6 +270,7 @@ jobs:
             .local/macos-packages-*/replacement-*.dmg
             .local/macos-packages-*/replacement-*.zip
             .local/macos-packages-*/*-candidate.dmg
+            .local/macos-packages-*/published-predecessor-helper
             .local/macos-packages-*/*-candidate.zip
             .local/macos-packages-*/*-macos
             .local/macos-packages-*/*.pkg

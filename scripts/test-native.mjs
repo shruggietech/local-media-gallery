@@ -1,3 +1,4 @@
+import {subprocessFailure} from './runtime-driver.mjs';
 import {productVersion} from './product-version.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
@@ -793,10 +794,10 @@ try {
   console.log(`Native acceptance: ${passed.length} checks passed.`);
 } catch (error) {
   await mkdir(path.join(root, '.local'), { recursive: true });
-  await writeFile(path.join(root, '.local/native-failure.log'), `${error.stack}\n${diagnostics}`);
+  await writeFile(path.join(root, '.local/native-failure.log'), `${error.stack}\n${JSON.stringify({subprocessFailure:subprocessFailure(error)})}\n${diagnostics}`);
   if (session) { try {
     const observation=await js('const grid=document.querySelector(".media-grid"),scroll=document.querySelector(".bb-app-frame__scroll");return {hasFocus:document.hasFocus(),visibility:document.visibilityState,active:{tag:document.activeElement?.tagName,id:document.activeElement?.id,classes:document.activeElement?.className},filter:document.getElementById("media-filter")?.value,mode:document.getElementById("loading-mode")?.value,viewport:{width:innerWidth,height:innerHeight},scroll:scroll&&{top:scroll.scrollTop,rect:scroll.getBoundingClientRect().toJSON()},grid:grid&&{...grid.dataset},held:window.__s011Held?.length,cards:[...document.querySelectorAll(".media-card")].slice(0,12).map(card=>({name:card.dataset.name,rect:card.getBoundingClientRect().toJSON(),images:[...card.querySelectorAll("img")].map(image=>({loaded:image.naturalWidth>0,source:Boolean(image.getAttribute("src"))}))}))}');
-    await writeFile(path.join(root,'.local/native-focus-failure.json'),JSON.stringify(observation,null,2)+'\n');
+    await writeFile(path.join(root,'.local/native-focus-failure.json'),JSON.stringify({...observation,subprocessFailure:subprocessFailure(error)},null,2)+'\n');
     console.error('Native failure observation: '+JSON.stringify(observation));
   } catch {} }
   if (session) { try { await writeFile(path.join(root, '.local/native-failure.png'), Buffer.from(await request(`/session/${session}/screenshot`), 'base64')); } catch {} }

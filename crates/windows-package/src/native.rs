@@ -581,6 +581,32 @@ fn verify_manifest(directory: &Path, allow_missing: bool) -> Result<(), String> 
         _ => Err("Installed payload identity changed; preserve before retrying".into()),
     }
 }
+/// Read-only owned registration discovery for the managed predecessor path.
+/// This grants no replacement authority: the updater must still verify the
+/// complete retained predecessor inventory, source identity and native state.
+pub fn registered_install_directory(machine: bool) -> Result<Option<PathBuf>, String> {
+    let Some(package) = registered_package(machine)? else {
+        return Ok(None);
+    };
+    if registry(machine, KEY, "ProductCode")? != Some(OsString::from(product(machine)))
+        || registry(machine, KEY, "PackageCode")? != Some(OsString::from(&package))
+    {
+        return Err("Registered predecessor integration is foreign or changed; preserve it before maintenance".into());
+    }
+    let directory = registered(machine, "InstallLocation")?
+        .map(PathBuf::from)
+        .ok_or("Registered predecessor location is missing")?;
+    check_path(&directory)?;
+    let integrated = registry(machine, KEY, "InstallDir")?
+        .map(PathBuf::from)
+        .ok_or("Registered predecessor integration location is missing")?;
+    if !equal_path(&directory, &integrated) {
+        return Err(
+            "Registered predecessor locations disagree; preserve them before maintenance".into(),
+        );
+    }
+    Ok(Some(directory))
+}
 pub fn installed_directory(machine: bool) -> Result<Option<PathBuf>, String> {
     let scope = if machine { "machine" } else { "user" };
     match registered(machine,"PackageCode")? {Some(code) if code==OsString::from(guid(scope,&hash(PAYLOAD.as_bytes())))=>Ok(registered(machine,"InstallLocation")?.map(PathBuf::from)),Some(_)=>Err("A different candidate is registered; use its matching removal package before replacement".into()),None=>Ok(None)}

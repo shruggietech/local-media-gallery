@@ -12,7 +12,8 @@ import {availableLoopbackPort,observeChild,readyDriver} from './native-driver-li
 export const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export async function until(probe,message,timeout=12000){const end=Date.now()+timeout;let last;while(Date.now()<end){try{last=await probe();if(last)return last;}catch(e){last=e.message;}await pause(100);}throw new Error(message+': '+JSON.stringify(last));}
 const call=promisify(execFile);
-export async function hidden(file,args,options={}){return call(file,args,{cwd:root,windowsHide:true,shell:false,timeout:15000,maxBuffer:4*1024*1024,env:environment,...options});}
+export function subprocessFailure(error){const text=value=>value===undefined||value===null?null:Buffer.isBuffer(value)?value.toString('utf8'):String(value);return {code:error.code??null,killed:typeof error.killed==='boolean'?error.killed:null,signal:error.signal??null,stdout:text(error.stdout),stderr:text(error.stderr),timeoutMs:error.commandTimeoutMs??null};}
+export async function hidden(file,args,options={}){const capture={cwd:root,windowsHide:true,shell:false,timeout:15000,maxBuffer:4*1024*1024,env:environment,...options};try{return await call(file,args,capture);}catch(error){error.commandTimeoutMs=capture.timeout;throw error;}}
 async function stop(child){if(child.exitCode!==null||child.signalCode!==null)return;await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Native child exit was not observed')),5000);child.once('exit',()=>{clearTimeout(timer);resolve();});child.kill();});}
 export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
  requireIsolatedDesktop();
@@ -28,7 +29,8 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
  const js=(script,args=[])=>request('/session/'+session+'/execute/sync',{script,args});
  const command=(action,extra={})=>js('return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",arguments[0]);',[{action,...extra}]);
  const nativeKey=async key=>{
-  if(process.platform==='win32'){assert.ok(['Tab','ShiftTab','Space','Escape','Enter'].includes(key));await hidden('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File','scripts/native-input.ps1','-AppProcessId',String(child.pid),'-Action','scan-keys','-Keys',key]);}
+  // Windows cold assembly/Add-Type setup shares this bounded capture window; native focus/input assertions and the aggregate qualification deadline remain in force.
+  if(process.platform==='win32'){assert.ok(['Tab','ShiftTab','Space','Escape','Enter'].includes(key));await hidden('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File','scripts/native-input.ps1','-AppProcessId',String(child.pid),'-Action','scan-keys','-Keys',key],{timeout:30000});}
   else if(process.platform==='linux'){const found=await hidden('xdotool',['search','--onlyvisible','--pid',String(child.pid)]);const window=found.stdout.trim().split(/\s+/)[0];assert.match(window,/^[0-9]+$/);await hidden('xdotool',['windowfocus','--sync',window,'key','--clearmodifiers',({Tab:'Tab',ShiftTab:'shift+Tab',Space:'space',Escape:'Escape',Enter:'Return'})[key]]);}
   else await command('key',{key});
  };

@@ -2,11 +2,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {macProductDistribution,macInstallerScript,validateMacProduct} from '../scripts/macos-packages.mjs';
-test('Full installer selects system scope and only embedded install/remove packages',()=>{
+test('Full installer selects system scope and only embedded maintenance packages',()=>{
  const xml=macProductDistribution('0.2.0');
  assert.match(xml,/enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/);
  assert.match(xml,/<volume-check script="true"><allowed-os-versions>/);
- assert.match(xml,/selected="!choices.remove.selected"/);assert.match(xml,/>install.pkg</);assert.match(xml,/>remove.pkg</);assert.doesNotMatch(xml,/https?:/);
+ assert.match(xml,/selected="!\(choices.remove.selected \|\| choices.rollback.selected\)"/);assert.match(xml,/>rollback.pkg</);assert.match(xml,/enabled="!choices.remove.selected"/);assert.match(xml,/enabled="!choices.rollback.selected"/);assert.match(xml,/active="choices.rollback.selected \? !choices.remove.selected : false"/);assert.match(macInstallerScript('managed-rollback'),/lmg-setup managed-rollback/);assert.match(xml,/>install.pkg</);assert.match(xml,/>remove.pkg</);assert.doesNotMatch(xml,/https?:/);
  assert.throws(()=>macProductDistribution('0.2.0<injected>'));
  const install=macInstallerScript('managed-install');assert.match(install,/exec \.\/lmg-setup managed-install/);assert.doesNotMatch(install,/--scope|--prior|--transaction|--state|curl|wget/);
  assert.throws(()=>macInstallerScript('install; malicious'));

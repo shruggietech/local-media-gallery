@@ -556,6 +556,7 @@ fn finish_fresh(
         execution.cleanup()?;
         return Ok(());
     }
+    let repair_dependencies = a.phase == super::fresh::Phase::Applying;
     a.phase = super::fresh::Phase::Applying;
     write(&Path::new(STORE).join(FRESH_FILE), a)?;
     let mut execution = FreshExecution::acquire(&c, a)?;
@@ -566,18 +567,7 @@ fn finish_fresh(
         );
         std::io::stdout().flush().map_err(|e| e.to_string())?;
     }
-    let unpack = Command::new("/usr/bin/dpkg")
-        .env_clear()
-        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
-        .env("DEBIAN_FRONTEND", "noninteractive")
-        .arg("--unpack")
-        .arg(generation(&c.generation)?.join("application.deb"))
-        .status()
-        .map_err(|e| e.to_string())?;
-    if !unpack.success() {
-        return Err("Authorized fresh unpack did not complete; run --recover".into());
-    }
-    super::install_packages(file, m, true)?;
+    super::install_packages(file, m, true, repair_dependencies)?;
     c.verify(Path::new("/"))?;
     super::verify_identity(m)?;
     let registered = registration()?.ok_or("Fresh installed registration missing")?;
@@ -786,7 +776,7 @@ pub(super) fn operate(
                 drop(lock);
                 return exec_owned(executable, &target, action);
             }
-            super::install_packages(file, m, true)?;
+            super::install_packages(file, m, true, false)?;
             super::verify_identity(m)?;
             state.current = Some(name);
             write(&state_path, &state)?;
@@ -909,11 +899,11 @@ pub(super) fn operate(
         let old = candidate(&prior)?;
         old.verify(Path::new("/"))?;
         if prior == next {
-            super::install_packages(file, m, true)?;
+            super::install_packages(file, m, true, false)?;
             super::verify_identity(m)?;
             return Ok(());
         }
-        super::install_packages(file, m, false)?;
+        super::install_packages(file, m, false, false)?;
         let new = candidate(&next)?;
         let tx_name = format!(
             "{}-{}",

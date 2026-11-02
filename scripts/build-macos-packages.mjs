@@ -2,6 +2,8 @@ import {productVersion as version,packageProvenanceText} from './product-version
 import {writeLiteArtifact} from './single-file.mjs';
 import {prepareFeatureHelper} from './prepare-feature-helper.mjs';
 import {prepareMediaTool} from './prepare-media-tool.mjs';
+import {parseReleaseRecord,releaseHash} from './release-record.mjs';
+import {GitHubReleaseClient} from './github-release.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {prepareCargoDependencies} from './cargo-readiness.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';requireIsolatedDesktop();
@@ -11,10 +13,25 @@ import {mkdir,mkdtemp,readFile,writeFile,copyFile,cp,rm,chmod} from 'node:fs/pro
 import {randomBytes} from 'node:crypto';
 import {root,environment,execute,node,exportInterface} from './run.mjs';
 import {writeUpdateDescriptor} from './update-packages.mjs';
-import {sourceIdentity} from './provenance.mjs';import {collectPayload} from './proof.mjs';import {hash,validateMacPayload,macProductDistribution,macInstallerScript,validateMacProduct} from './macos-packages.mjs';
+import {sourceIdentity} from './provenance.mjs';import {collectPayload} from './proof.mjs';import {hash,validateMacPayload,macProductDistribution,macInstallerScript,validateMacProduct,macContainerInventory} from './macos-packages.mjs';
 assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');
 const call=promisify(execFile);export async function capture(file,args,options={}){const p=call(file,args,{cwd:root,env:environment,shell:false,timeout:120000,maxBuffer:16*1024*1024,...options});p.child.stdin.end();return p;}
 const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim();const generation=randomBytes(16).toString('hex');const directory=await mkdtemp(path.join(root,'.local/macos-packages-'));await execute('/usr/bin/swiftc',[path.join(root,'scripts/macos-package-ui.swift'),'-o',path.join(directory,'macos-package-ui')]);
+const predecessorRecordBytes=await readFile(path.join(root,'crates/gallery-preparation/tests/fixtures/release-0.1.0.json'));
+assert.equal(hash(predecessorRecordBytes),'079615f3ff8434b32c3c632190b544c6c32e17513fa125ec7e07f679a1c65f1f');
+const predecessorRelease=parseReleaseRecord(predecessorRecordBytes,{requirePublished:true});assert.equal(predecessorRelease.version,'0.1.0');
+const predecessorArtifact=predecessorRelease.artifacts.find(a=>a.role==='package'&&a.platform==='macos'&&a.edition==='full'&&a.architecture==='aarch64');assert.ok(predecessorArtifact);
+const predecessorTransport=new GitHubReleaseClient({repository:'shruggietech/local-media-gallery',timeoutMs:120000});
+const predecessorDownload=await predecessorTransport.download(predecessorArtifact.url,{collect:true,maxBytes:Number(predecessorArtifact.bytes)});assert.equal(predecessorDownload.sha256,predecessorArtifact.sha256);assert.equal(predecessorDownload.bytes,predecessorArtifact.bytes);
+const predecessorArchive=path.join(directory,predecessorArtifact.name);await writeFile(predecessorArchive,predecessorDownload.data);await writeFile(path.join(directory,'published-predecessor-release.json'),predecessorRecordBytes);
+const predecessorMount=path.join(directory,'published-predecessor-mount');await mkdir(predecessorMount);let publishedPredecessor;
+await capture('/usr/bin/hdiutil',['attach','-readonly','-nobrowse','-mountpoint',predecessorMount,predecessorArchive]);
+try{
+ const predecessorPayloadBytes=await readFile(path.join(predecessorMount,'candidate.json'));const predecessorPayloadFile=path.join(directory,'published-predecessor-payload.json');await writeFile(predecessorPayloadFile,predecessorPayloadBytes);const payload=JSON.parse(predecessorPayloadBytes);const inventory=await macContainerInventory(predecessorMount,payload);assert.equal(inventory.length,predecessorArtifact.inventory.files);assert.equal(inventory.reduce((n,f)=>n+BigInt(f.bytes),0n).toString(),predecessorArtifact.inventory.bytes);assert.equal(releaseHash(inventory),predecessorArtifact.inventory.sha256);validateMacPayload(payload);assert.equal(payload.version,'0.1.0');assert.equal(payload.edition,'full');assert.equal(payload.source.sha256,predecessorRelease.source.sha256);assert.equal(payload.revision,predecessorRelease.source.revision);await (await import('./macos-packages.mjs')).verifyMacPayload(path.join(predecessorMount,payload.bundle),payload);
+ const binary=path.join(predecessorMount,payload.bundle,payload.binary),native=JSON.parse((await capture(binary,['--version','--json'])).stdout);assert.equal(native.version,'0.1.0');assert.equal(native.edition,'full');assert.equal(native.os,'macos');assert.equal(native.arch,'aarch64');assert.equal(native.data.buildProfile,'release');
+ const helper=inventory.find(f=>f.path==='lmg-setup');assert.ok(helper&&helper.mode==='755');const helperFile=path.join(directory,'published-predecessor-helper');await copyFile(path.join(predecessorMount,helper.path),helperFile);await chmod(helperFile,0o755);assert.equal(hash(await readFile(helperFile)),helper.sha256);
+ publishedPredecessor={version:'0.1.0',releaseRecord:{path:path.relative(root,path.join(directory,'published-predecessor-release.json')),sha256:hash(predecessorRecordBytes)},artifact:predecessorArtifact,archive:{path:path.relative(root,predecessorArchive),bytes:predecessorArtifact.bytes,sha256:predecessorArtifact.sha256},inventory,payload,payloadRecord:{path:path.relative(root,predecessorPayloadFile),sha256:hash(predecessorPayloadBytes),bytes:String(predecessorPayloadBytes.length)},helper,helperRecord:{...helper,path:path.relative(root,helperFile)},native};
+}finally{await capture('/usr/bin/hdiutil',['detach',predecessorMount]);}
 await prepareCargoDependencies();await exportInterface();
 await execute('cargo',['build','--locked','--release','-p','gallery-preparation']);
 const featureHelper=await prepareFeatureHelper();
@@ -38,7 +55,7 @@ for(const edition of ['full','lite']){
 
  const instructions=`Local Media Gallery ${edition} ${version} macOS15 Apple Silicon. ${packageProvenanceText(version)}
 Ordinary native application with embedded interface and SQLite, OS WKWebView/AppKit and native media facilities.
-${edition==='full'?'Product download: one system-level .pkg. Open it with Installer and continue for install/update. Its Uninstall choice removes unchanged owned application files and command while retaining galleries, sidecars and user settings. All required redistributable feature dependencies, including FFmpeg video-thumbnail support, are inside this installer and selected automatically. No network download or separate helper/JSON operand is required. Internal diagnostic DMG/helper material is maintainer evidence, not another product download.':'Product download: one native executable. Set executable permission if the downloading client does not retain it, put it alongside the gallery and launch directly. Move that file and gallery together and Refresh after media changes. Full installation and developer tools are unnecessary. Optional video thumbnail generation can use a separately selected FFmpeg helper; ordinary browsing uses OS facilities.'}
+${edition==='full'?'Product download: one system-level .pkg. Open it with Installer and continue for install/update. Its Uninstall choice removes unchanged owned application files and command while retaining galleries, sidecars and user settings. Its Roll back choice restores the prior owned application from internal verified update retention without separate files or JSON operands. All required redistributable feature dependencies, including FFmpeg video-thumbnail support, are inside this installer and selected automatically. No network download or separate helper/JSON operand is required. Internal diagnostic DMG/helper material is maintainer evidence, not another product download.':'Product download: one native executable. Set executable permission if the downloading client does not retain it, put it alongside the gallery and launch directly. Move that file and gallery together and Refresh after media changes. Full installation and developer tools are unnecessary. Optional video thumbnail generation can use a separately selected FFmpeg helper; ordinary browsing uses OS facilities.'}
 Project signing and notarization are not performed. Ordinary compiler/linker loader metadata remains. Actual host assessments are recorded separately, without automatic quarantine removal.
 `;
 
@@ -57,15 +74,15 @@ const fixtureTool=await prepareMediaTool({download:true}),featureFixture=path.jo
 await capture(fixtureTool.binary,['-nostdin','-hide_banner','-loglevel','error','-f','lavfi','-i','color=red:size=160x96:rate=5:duration=1','-c:v','libx264','-threads','1','-pix_fmt','yuv420p','-movflags','+faststart',featureFixture]);
 const featureFixtureBytes=await readFile(featureFixture),fixtureRecord={path:path.relative(root,featureFixture),sha256:hash(featureFixtureBytes),bytes:String(featureFixtureBytes.length)};
 async function buildFullPkg(container,payload,output,tag){
-  const packages=path.join(directory,tag+'-pkg-components'),installScripts=path.join(directory,tag+'-pkg-install-scripts'),removeScripts=path.join(directory,tag+'-pkg-remove-scripts');
-  await mkdir(packages);await mkdir(installScripts);await mkdir(removeScripts);
+  const packages=path.join(directory,tag+'-pkg-components'),installScripts=path.join(directory,tag+'-pkg-install-scripts'),removeScripts=path.join(directory,tag+'-pkg-remove-scripts'),rollbackScripts=path.join(directory,tag+'-pkg-rollback-scripts');
+  await mkdir(packages);await mkdir(installScripts);await mkdir(removeScripts);await mkdir(rollbackScripts);
   await cp(path.join(container,payload.bundle),path.join(installScripts,payload.bundle),{recursive:true});
-  for(const scriptDir of [installScripts,removeScripts])await copyFile(path.join(container,'lmg-setup'),path.join(scriptDir,'lmg-setup'));
-  for(const [scriptDir,operation]of [[installScripts,'managed-install'],[removeScripts,'managed-remove']]){
+  for(const scriptDir of [installScripts,removeScripts,rollbackScripts])await copyFile(path.join(container,'lmg-setup'),path.join(scriptDir,'lmg-setup'));
+  for(const [scriptDir,operation]of [[installScripts,'managed-install'],[removeScripts,'managed-remove'],[rollbackScripts,'managed-rollback']]){
    await chmod(path.join(scriptDir,'lmg-setup'),0o755);
    await writeFile(path.join(scriptDir,'postinstall'),macInstallerScript(operation));await chmod(path.join(scriptDir,'postinstall'),0o755);
   }
-  for(const [name,scriptDir] of [['install',installScripts],['remove',removeScripts]])await capture('/usr/bin/pkgbuild',['--nopayload','--scripts',scriptDir,'--identifier','tech.shruggie.local-media-gallery.full.'+name,'--version',version,path.join(packages,name+'.pkg')]);
+  for(const [name,scriptDir] of [['install',installScripts],['remove',removeScripts],['rollback',rollbackScripts]])await capture('/usr/bin/pkgbuild',['--nopayload','--scripts',scriptDir,'--identifier','tech.shruggie.local-media-gallery.full.'+name,'--version',version,path.join(packages,name+'.pkg')]);
   const distribution=path.join(directory,tag+'-Distribution.xml');await writeFile(distribution,macProductDistribution(version,payload.files.reduce((n,f)=>n+BigInt(f.bytes),0n)));
   await capture('/usr/bin/productbuild',['--distribution',distribution,'--package-path',packages,output]);
   const bytes=await readFile(output),file={path:path.basename(output),bytes:String(bytes.length),sha256:hash(bytes),mode:'644'};
@@ -94,4 +111,4 @@ for(const record of records){
  if(edition==='full')for(const scope of ['user','system'])upgrades.pairs.push({...pair,scope});else upgrades.pairs.push(pair);
 }
 
-assert.deepEqual(await sourceIdentity(),source);await writeFile(path.join(root,'.local/macos-package-build.json'),JSON.stringify({formatVersion:1,generation,source,revision,directory:path.relative(root,directory),products,featureFixture:fixtureRecord,observer:path.relative(root,path.join(directory,'macos-package-ui')),upgrades,records},null,2)+'\n');console.log('Built ordinary macOS Full/Lite candidates.');
+assert.deepEqual(await sourceIdentity(),source);await writeFile(path.join(root,'.local/macos-package-build.json'),JSON.stringify({formatVersion:1,generation,source,revision,directory:path.relative(root,directory),products,publishedPredecessor,featureFixture:fixtureRecord,observer:path.relative(root,path.join(directory,'macos-package-ui')),upgrades,records},null,2)+'\n');console.log('Built ordinary macOS Full/Lite candidates.');
