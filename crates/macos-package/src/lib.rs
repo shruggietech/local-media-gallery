@@ -366,6 +366,131 @@ mod lifecycle {
             integration,
         })
     }
+    /// Select only journals published at their original authenticated location. Historical
+    /// renamed diagnostic directories are never recovery authority.
+    pub fn managed_transaction(updates: &Path, generation: &str) -> Result<Option<PathBuf>> {
+        let metadata = fs::symlink_metadata(updates)?;
+        if !metadata.is_dir()
+            || metadata.file_type().is_symlink()
+            || metadata.uid() != effective_owner()
+            || metadata.mode() & 0o077 != 0
+        {
+            return Err("Maintenance root owner, permissions or physical type differs".into());
+        }
+        let canonical = updates.join(generation);
+        let mut choices = Vec::new();
+        match fs::symlink_metadata(&canonical) {
+            Ok(_) => choices.push((0_u128, canonical)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        let prefix = format!("{generation}-attempt-");
+        for entry in fs::read_dir(updates)? {
+            let entry = entry?;
+            if let Some(name) = entry.file_name().to_str()
+                && let Some(suffix) = name.strip_prefix(&prefix)
+                && let Ok(order) = suffix.parse::<u128>()
+                && order > 0
+                && suffix == order.to_string()
+            {
+                choices.push((order, entry.path()));
+            }
+        }
+        choices.sort_by_key(|(order, _)| *order);
+        Ok(choices.pop().map(|(_, path)| path))
+    }
+    fn full_candidate(
+        payload: &Payload,
+        app: &Path,
+        command: &Path,
+        bytes: String,
+    ) -> Result<gallery_update::Candidate> {
+        update_candidate(
+            payload,
+            Some(gallery_update::Integration {
+                command: command.into(),
+                receipt: receipt_path(app)?,
+                receipt_bytes: bytes,
+            }),
+        )
+    }
+    fn expected_full_candidate(
+        payload: &Payload,
+        app: &Path,
+        command: &Path,
+    ) -> Result<gallery_update::Candidate> {
+        full_candidate(
+            payload,
+            app,
+            command,
+            serde_json::to_string_pretty(&Receipt {
+                scope: "system".into(),
+                directory: app.into(),
+                command: command.into(),
+                payload: payload.clone(),
+            })?,
+        )
+    }
+    /// Repeating an installer or explicitly reinstalling after rollback uses the
+    /// retained next bytes. A different completely owned predecessor gets a new
+    /// transaction at a new initially bound path, leaving previous authority intact.
+    pub fn reactivate_managed(
+        transaction: &Path,
+        app: &Path,
+        command: &Path,
+        payload: &Payload,
+    ) -> Result<Option<serde_json::Value>> {
+        let mut operation = gallery_update::Transaction::open(transaction)?;
+        let _lease = destination_lease(app)?;
+        let status = operation.status()?;
+        if status.directory != app
+            || operation.next_candidate() != &expected_full_candidate(payload, app, command)?
+        {
+            return Err(
+                "Retained update destination or incoming candidate differs from this installer"
+                    .into(),
+            );
+        }
+        if ["committed", "restored"].contains(&status.phase.as_str()) {
+            if fs::symlink_metadata(app)
+                .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
+            {
+                return Ok(None);
+            }
+            let installed = match owned_payload(app, command, "system") {
+                Ok(installed) => installed,
+                Err(_) if receipt(app, command, "system", payload).is_ok() => return Ok(None),
+                Err(error) => return Err(error),
+            };
+            let bytes =
+                gallery_update::read_receipt(&receipt_path(app)?).map_err(std::io::Error::other)?;
+            let current = full_candidate(&installed, app, command, String::from_utf8(bytes)?)?;
+            if current != *operation.prior_candidate() && current != *operation.next_candidate() {
+                return Ok(None);
+            }
+        }
+        Ok(Some(serde_json::to_value(
+            operation.apply_verified(false)?,
+        )?))
+    }
+    pub fn rollback_managed(
+        transaction: &Path,
+        app: &Path,
+        command: &Path,
+        payload: &Payload,
+    ) -> Result<serde_json::Value> {
+        let mut operation = gallery_update::Transaction::open(transaction)?;
+        let _lease = destination_lease(app)?;
+        if operation.status()?.directory != app
+            || operation.next_candidate() != &expected_full_candidate(payload, app, command)?
+        {
+            return Err(
+                "Retained rollback destination or incoming candidate differs from this installer"
+                    .into(),
+            );
+        }
+        Ok(serde_json::to_value(operation.apply_verified(true)?)?)
+    }
     pub struct UpdateOptions<'a> {
         pub prior_lite: Option<&'a Payload>,
         pub transaction: &'a Path,
@@ -927,6 +1052,141 @@ mod lifecycle {
                 std::ffi::OsStr::new(""),
             )
         }
+        fn executable_payload(
+            source: &Path,
+            payload: &mut Payload,
+            version: &str,
+            generation: &str,
+        ) {
+            payload.version = version.into();
+            payload.generation = generation.into();
+            let value = serde_json::json!({"product":payload.product,"version":version,"edition":"full","os":"macos","arch":"aarch64","data":{"buildProfile":"release"}});
+            let script = format!("#!/bin/sh\nprintf '%s\\n' '{}'\n", value);
+            let binary = source.join(&payload.binary);
+            fs::write(&binary, script.as_bytes()).unwrap();
+            fs::set_permissions(&binary, fs::Permissions::from_mode(0o755)).unwrap();
+            let file = payload
+                .files
+                .iter_mut()
+                .find(|file| file.path == payload.binary)
+                .unwrap();
+            file.bytes = script.len().to_string();
+            file.sha256 = hash(script.as_bytes());
+        }
+        #[test]
+        fn ordinary_repeat_rollback_reactivation_preserves_bound_journal_and_distinct_prior_gets_new_cycle()
+         {
+            let f = fixture();
+            let root = f.source.parent().unwrap().join("updates");
+            fs::create_dir(&root).unwrap();
+            fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+            let mut prior = f.payload.clone();
+            executable_payload(&f.source, &mut prior, "0.1.0", &"a".repeat(64));
+            super::install(
+                &f.source,
+                &f.app,
+                &f.command,
+                "system",
+                &prior,
+                std::ffi::OsStr::new(""),
+            )
+            .unwrap();
+            let bytes = gallery_update::read_receipt(&receipt_path(&f.app).unwrap()).unwrap();
+            let old = full_candidate(
+                &prior,
+                &f.app,
+                &f.command,
+                String::from_utf8(bytes).unwrap(),
+            )
+            .unwrap();
+            let mut next = f.payload.clone();
+            executable_payload(&f.source, &mut next, "0.2.0", &"b".repeat(64));
+            let transaction = root.join(&next.generation);
+            let mut operation = gallery_update::Transaction::prepare(
+                &transaction,
+                &f.app,
+                &old,
+                &expected_full_candidate(&next, &f.app, &f.command).unwrap(),
+                &f.source,
+                &[],
+            )
+            .unwrap();
+            operation.apply(false).unwrap();
+            drop(operation);
+            let identity = fs::read(transaction.join("identity.json")).unwrap();
+            assert!(
+                reactivate_managed(&transaction, &f.app, &f.command, &next)
+                    .unwrap()
+                    .is_some()
+            );
+            assert_eq!(
+                rollback_managed(&transaction, &f.app, &f.command, &next).unwrap()["phase"],
+                "restored"
+            );
+            assert_eq!(owned_payload(&f.app, &f.command, "system").unwrap(), prior);
+            assert!(
+                reactivate_managed(&transaction, &f.app, &f.command, &next)
+                    .unwrap()
+                    .is_some()
+            );
+            assert_eq!(owned_payload(&f.app, &f.command, "system").unwrap(), next);
+            assert_eq!(
+                fs::read(transaction.join("identity.json")).unwrap(),
+                identity
+            );
+            let mut wrong = next.clone();
+            wrong.generation = "d".repeat(64);
+            assert!(rollback_managed(&transaction, &f.app, &f.command, &wrong).is_err());
+            super::remove(&f.app, &f.command, "system", &next).unwrap();
+            let mut other = prior.clone();
+            executable_payload(&f.source, &mut other, "0.1.1", &"c".repeat(64));
+            super::install(
+                &f.source,
+                &f.app,
+                &f.command,
+                "system",
+                &other,
+                std::ffi::OsStr::new(""),
+            )
+            .unwrap();
+            assert!(
+                reactivate_managed(&transaction, &f.app, &f.command, &next)
+                    .unwrap()
+                    .is_none()
+            );
+            assert_eq!(owned_payload(&f.app, &f.command, "system").unwrap(), other);
+            executable_payload(&f.source, &mut next, "0.2.0", &"b".repeat(64));
+            let attempt = root.join(format!("{}-attempt-1", next.generation));
+            super::update(
+                &f.source,
+                &f.app,
+                &f.command,
+                "system",
+                &next,
+                UpdateOptions {
+                    prior_lite: None,
+                    transaction: &attempt,
+                    state: &[],
+                    activate: true,
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                managed_transaction(&root, &next.generation).unwrap(),
+                Some(attempt.clone())
+            );
+            rollback_managed(&attempt, &f.app, &f.command, &next).unwrap();
+            assert_eq!(owned_payload(&f.app, &f.command, "system").unwrap(), other);
+            fs::create_dir(root.join(format!("{}-retained-999", next.generation))).unwrap();
+            assert_eq!(
+                managed_transaction(&root, &next.generation).unwrap(),
+                Some(attempt)
+            );
+            assert_eq!(
+                fs::read(transaction.join("identity.json")).unwrap(),
+                identity
+            );
+        }
         #[test]
         fn durable_first_intent_recovers_absent_app_and_serializes_plain_and_managed_install() {
             let f = fixture();
@@ -1082,7 +1342,8 @@ mod lifecycle {
 #[cfg(unix)]
 pub use lifecycle::{
     InstallLease, UpdateOptions, destination_lease, install, managed_install, managed_remove,
-    owned_payload, receipt_path, remove, update,
+    managed_transaction, owned_payload, reactivate_managed, receipt_path, remove, rollback_managed,
+    update,
 };
 
 #[cfg(test)]

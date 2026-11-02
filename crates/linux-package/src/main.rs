@@ -184,6 +184,84 @@ fn extract(
     Ok(paths)
 }
 
+#[cfg(any(target_os = "linux", test))]
+fn cache_package(
+    package: &Package,
+    source: &Path,
+    cache: &Path,
+) -> Result<std::path::PathBuf, String> {
+    // Match APT's archive StoreFilename quoting, including lowercase epoch
+    // escapes. APT --no-download must find these exact names in its cache.
+    fn quote(value: &str) -> String {
+        let mut out = String::new();
+        for byte in value.bytes() {
+            if b"_:%".contains(&byte) || !(0x21..0x7f).contains(&byte) {
+                out.push_str(&format!("%{byte:02x}"));
+            } else {
+                out.push(char::from(byte));
+            }
+        }
+        out
+    }
+    if package.version.is_empty()
+        || !package
+            .version
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b".+-:~".contains(&b))
+        || package.package.is_empty()
+        || !package
+            .package
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"+.-".contains(&b))
+        || !matches!(package.architecture.as_str(), "amd64" | "all")
+    {
+        return Err("Invalid package identity for offline APT cache".into());
+    }
+    let name = format!(
+        "{}_{}_{}.deb",
+        quote(&package.package),
+        quote(&package.version),
+        quote(&package.architecture)
+    );
+    let target = cache.join(name);
+    let mut input = File::open(source).map_err(|e| e.to_string())?;
+    if input.metadata().map_err(|e| e.to_string())?.len() != package.bytes {
+        return Err(format!(
+            "Offline cache input size differs: {}",
+            package.name
+        ));
+    }
+    // Refuse aliases/collisions instead of replacing any previously admitted
+    // archive, even when its filename happens to match this package identity.
+    let mut output = File::options()
+        .write(true)
+        .create_new(true)
+        .open(&target)
+        .map_err(|e| e.to_string())?;
+    let mut hasher = Sha256::new();
+    let mut bytes = 0u64;
+    let mut buffer = [0u8; 65536];
+    loop {
+        let count = input.read(&mut buffer).map_err(|e| e.to_string())?;
+        if count == 0 {
+            break;
+        }
+        output
+            .write_all(&buffer[..count])
+            .map_err(|e| e.to_string())?;
+        hasher.update(&buffer[..count]);
+        bytes += count as u64;
+    }
+    output.sync_all().map_err(|e| e.to_string())?;
+    if bytes != package.bytes || hex::encode(hasher.finalize()) != package.sha256 {
+        return Err(format!(
+            "Offline cache input checksum differs: {}",
+            package.name
+        ));
+    }
+    Ok(target)
+}
+
 #[cfg(target_os = "linux")]
 fn install(executable: &Path, file: &mut File, m: &Manifest, action: &str) -> Result<(), String> {
     use std::process::Command;
@@ -236,6 +314,9 @@ fn install_packages(
         .tempdir_in("/var/tmp")
         .map_err(|e| e.to_string())?;
     let packages = extract(file, m, work.path())?;
+    let cache = work.path().join("archives");
+    std::fs::create_dir(&cache).map_err(|e| e.to_string())?;
+    std::fs::create_dir(cache.join("partial")).map_err(|e| e.to_string())?;
     let mut selected = Vec::new();
     for (package, pathname) in m.packages.iter().zip(packages) {
         if package.role == "predecessor" {
@@ -243,7 +324,7 @@ fn install_packages(
         }
         if package.role == "application" {
             if include_application {
-                selected.push(pathname);
+                selected.push(cache_package(package, &pathname, &cache)?);
             }
             continue;
         }
@@ -275,7 +356,7 @@ fn install_packages(
             false
         };
         if !keep {
-            selected.push(pathname);
+            selected.push(cache_package(package, &pathname, &cache)?);
         }
     }
     if selected.is_empty() {
@@ -314,7 +395,15 @@ fn install_packages(
         .arg(format!("Dir::Etc::sourcelist={}", sources.display()))
         .arg("-o")
         .arg(format!("Dir::Etc::sourceparts={}", source_parts.display()))
-        .args(["-o", "APT::Get::AllowUnauthenticated=false", "install"])
+        .arg("-o")
+        .arg(format!("Dir::Cache::archives={}/", cache.display()))
+        .args([
+            "-o",
+            "Dpkg::Use-Pty=0",
+            "-o",
+            "APT::Get::AllowUnauthenticated=false",
+            "install",
+        ])
         .args(&selected);
     let status = command.status().map_err(|e| e.to_string())?;
     if !status.success() {
@@ -473,6 +562,54 @@ mod tests {
         assert_eq!(
             std::fs::read(&extract(&mut input, &m, destination.path()).unwrap()[0]).unwrap(),
             b"deb"
+        );
+    }
+    #[test]
+    fn apt_cache_uses_canonical_epoch_name_and_revalidates_bytes() {
+        let source = tempfile::tempdir().unwrap();
+        let original = source.path().join("product-style-download.deb");
+        std::fs::write(&original, b"deb").unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        let mut package = sample().packages.remove(0);
+        package.package = "bsdutils".into();
+        package.version = "1:2.39.3-9ubuntu6.6".into();
+        let admitted = cache_package(&package, &original, cache.path()).unwrap();
+        assert_eq!(
+            admitted.file_name().unwrap(),
+            "bsdutils_1%3a2.39.3-9ubuntu6.6_amd64.deb"
+        );
+        assert_eq!(std::fs::read(&admitted).unwrap(), b"deb");
+        assert!(cache_package(&package, &original, cache.path()).is_err());
+        assert_eq!(std::fs::read(&admitted).unwrap(), b"deb");
+        let cache = tempfile::tempdir().unwrap();
+        std::fs::write(&original, b"bad").unwrap();
+        assert!(
+            cache_package(&package, &original, cache.path())
+                .unwrap_err()
+                .contains("checksum differs")
+        );
+        package.version = "../../outside".into();
+        assert!(
+            cache_package(&package, &original, cache.path())
+                .unwrap_err()
+                .contains("Invalid package identity")
+        );
+    }
+    #[test]
+    fn apt_cache_aliases_application_download_name_without_changing_payload() {
+        let source = tempfile::tempdir().unwrap();
+        let package = sample().packages.remove(0);
+        let original = source.path().join(&package.name);
+        std::fs::write(&original, b"deb").unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        let admitted = cache_package(&package, &original, cache.path()).unwrap();
+        assert_eq!(
+            admitted.file_name().unwrap(),
+            "local-media-gallery_0.2.0_amd64.deb"
+        );
+        assert_eq!(
+            std::fs::read(&admitted).unwrap(),
+            std::fs::read(&original).unwrap()
         );
     }
     #[test]

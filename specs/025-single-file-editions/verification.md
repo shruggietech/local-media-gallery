@@ -6,7 +6,7 @@ PR [#82](https://github.com/shruggietech/local-media-gallery/pull/82) implements
 
 ## Local checks
 
-2026-11-02: Repository check passed (678 authored/configuration files and 572 governed brand files). Node suite passed 216 tests with one platform-specific skip. App parity passed Rust tests, workspace Clippy, frontend checks and affected package tests. Earlier website verification passed 74 rendered HTML pages, 5454 local links and ten headless browser groups. Current candidate CI rechecks affected outputs.
+2026-11-02: Repository check passed (684 authored/configuration files and 572 governed brand files). Latest Node suite passed 223 tests with one platform-specific skip (224 total). App parity passed Rust tests, workspace Clippy, frontend checks and affected package tests. Earlier website verification passed 74 rendered HTML pages, 5454 local links and ten headless browser groups. Current candidate CI rechecks affected outputs.
 
 Linux and macOS native package helpers also passed cross-target all-target Clippy on the Windows maintainer host. These are compile/lint results, not native runtime claims. No product GUI, installer or desktop acceptance ran on the owner workstation.
 
@@ -32,3 +32,13 @@ Run [41407807830](https://github.com/shruggietech/local-media-gallery/actions/ru
 The same run retained three actionable failures: Windows keyboard input exceeded a 15-second helper capture before key admission; Windows replacement reached a current-candidate-only location resolver before automatic maintenance; Linux fresh pre-unpack created a broken dependency state before its runtime closure was installed. The follow-up uses a bounded 30-second Windows input capture with complete subprocess diagnostics, lazy owned-predecessor discovery, and one dependency-ordered fresh APT transaction. Interrupted Linux recovery alone may use fix-broken, retaining offline/no-removal conditions and source-bound partial-file checks. The external interruption observer proves readiness before launch.
 
 The canonical macOS case now acquires the unchanged published v0.1 Full DMG, observes old app/profile/history, upgrades through the single current PKG and restores through its ordinary Rollback choice. The final source must qualify this new case before handoff. All final source/CI/readback links and terminal timing belong in the PR handoff. No release publication is authorized by this implementation handoff.
+
+## Installer-cycle correction
+
+Run [41415459405](https://github.com/shruggietech/local-media-gallery/actions/runs/41415459405) on 029f1a236985920a678c50f47ed5a3f19438156b passed repository, website and all three core native checks. macOS package removal returned success without removing the app after the Rollback-choice change. The correction removes redundant package activation expressions, explicitly elects exactly one action in automated choice inputs, and retains native resolved-choice output and Installer logs before assertions.
+
+Repeated macOS installation now retains journals at their original authenticated paths. Explicit reinstallation after rollback verifies the retained incoming candidate against this installer before reactivation. An actually different owned predecessor receives a new transaction initially bound to its final path; renamed diagnostic archives are never recovery authority. The canonical v0.1 campaign now elects upgrade, repeat, rollback, reinstall, second rollback and uninstall, with six verified installed receipts and identities. Scoped macOS cross-target Clippy and integrated repository, Node and app checks pass; the expanded native campaign still requires CI.
+
+The same run stopped Linux Full before application unpack because offline APT selected an encoded dependency pathname without an absolute archive location. Failed logs and artifacts remain diagnostic. Windows package results were still pending at this entry.
+
+The Linux correction stages only selected, rehashed bundled archives in a private APT cache under canonical package/version/architecture names, including lowercase epoch escapes. APT receives that absolute cache path and retains no-download, no-removal and version-preservation rules. Cache collision, altered input and epoch-name regressions pass, as do all 14 host package units and Linux-target all-target Clippy. The native initial/interruption/recovery campaign remains mandatory.

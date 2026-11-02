@@ -203,39 +203,14 @@ fn run() -> gallery_macos_package::Result<()> {
             return Err("Managed rollback takes no operands and requires system scope".into());
         }
         let updates = PathBuf::from("/Library/Application Support/Local Media Gallery Updates");
-        let mut transaction = updates.join(&payload.generation);
-        if std::fs::symlink_metadata(&transaction)
-            .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
-        {
-            let prefix = format!("{}-retained-", payload.generation);
-            let mut retained = Vec::new();
-            for entry in std::fs::read_dir(&updates)? {
-                let entry = entry?;
-                let name = entry.file_name();
-                if let Some(name) = name.to_str()
-                    && let Some(suffix) = name.strip_prefix(&prefix)
-                    && let Ok(order) = suffix.parse::<u128>()
-                {
-                    retained.push((order, entry.path()));
-                }
-            }
-            retained.sort_by_key(|(order, _)| *order);
-            transaction=retained.pop().ok_or("No retained owned predecessor is available for rollback; application was not changed")?.1;
-        }
-        serde_json::to_value(gallery_update::Transaction::resume_admitted(
-            &transaction,
-            gallery_update::RecoveryCommand::Rollback,
-            |directory| {
-                if directory != app {
-                    return Err(
-                        "Retained rollback destination differs from this system installation"
-                            .into(),
-                    );
-                }
-                gallery_macos_package::destination_lease(directory)
-                    .map_err(|error| error.to_string())
-            },
-        )?)?
+        let transaction = gallery_macos_package::managed_transaction(
+            &updates,
+            &payload.generation,
+        )?
+        .ok_or(
+            "No retained owned predecessor is available for rollback; application was not changed",
+        )?;
+        gallery_macos_package::rollback_managed(&transaction, &app, &command, &payload)?
     } else if operation == "managed-remove" {
         if scope != "system" || !options.is_empty() {
             return Err("Managed removal takes no operands and requires system scope".into());
@@ -259,47 +234,22 @@ fn run() -> gallery_macos_package::Result<()> {
             );
         }
         std::fs::set_permissions(&updates, std::fs::Permissions::from_mode(0o700))?;
-        let transaction = updates.join(&payload.generation);
-        if transaction.exists() {
-            let status = gallery_update::Transaction::resume_admitted(
-                &transaction,
-                gallery_update::RecoveryCommand::Status,
-                |directory| {
-                    gallery_macos_package::destination_lease(directory)
-                        .map_err(|error| error.to_string())
-                },
-            )?;
-            if ["committed", "restored"].contains(&status.phase.as_str()) {
-                // Keep accepted journals but admit a later ordinary reinstall or upgrade.
-                let suffix = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)?
-                    .as_nanos();
-                std::fs::rename(
-                    &transaction,
-                    updates.join(format!("{}-retained-{suffix}", payload.generation)),
-                )?;
-            } else {
-                gallery_update::Transaction::resume_admitted(
-                    &transaction,
-                    gallery_update::RecoveryCommand::Recover,
-                    |directory| {
-                        gallery_macos_package::destination_lease(directory)
-                            .map_err(|error| error.to_string())
-                    },
-                )?;
-                if gallery_macos_package::owned_payload(&app, &command, "system")? == payload {
-                    println!(
-                        "{}",
-                        serde_json::json!({"result":"recovered","directory":app})
-                    );
-                    return Ok(());
-                }
-                return Err(
-                    "Retained update did not activate this installer; retain the internal journal"
-                        .into(),
-                );
-            }
+        let existing = gallery_macos_package::managed_transaction(&updates, &payload.generation)?;
+        if let Some(transaction) = &existing
+            && let Some(result) =
+                gallery_macos_package::reactivate_managed(transaction, &app, &command, &payload)?
+        {
+            println!("{}", serde_json::to_string(&result)?);
+            return Ok(());
         }
+        let transaction = if existing.is_some() {
+            let suffix = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos();
+            updates.join(format!("{}-attempt-{suffix}", payload.generation))
+        } else {
+            updates.join(&payload.generation)
+        };
         // Installation never writes recipient profiles. Observe the current console user's actual state
         // for update compatibility without initialization or requiring manual JSON/database operands.
         let user = output(

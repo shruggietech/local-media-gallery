@@ -1282,6 +1282,14 @@ impl Transaction {
         op.save()?;
         Ok(op)
     }
+    /// Inspect the sealed predecessor identity when selecting a new platform update cycle.
+    pub fn prior_candidate(&self) -> &Candidate {
+        &self.journal.prior
+    }
+    /// Inspect the sealed incoming identity before a platform explicitly reactivates it.
+    pub fn next_candidate(&self) -> &Candidate {
+        &self.journal.next
+    }
     pub fn open(base: &Path) -> Result<Self> {
         let op = Self::load(base)?;
         op.verify_retained()?;
