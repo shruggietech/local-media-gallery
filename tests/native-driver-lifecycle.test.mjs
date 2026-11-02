@@ -44,6 +44,36 @@ test('Slow session creation uses the original deadline without duplicate creatio
  try{assert.equal(await readyDriver(child,'http://127.0.0.1:'+port,observation,5000,{nonce}),'owned');assert.equal(observation().stdout.split('session-create').length-1,1);assert.ok(Date.now()-started<5000);}finally{await stopOwnedChild(child);}
 });
 
+function scriptTimeoutFixture(port,{foreign=false,stallSetter=false,refuseRestore=false,navigation=true,malformedFirst=false}={}){
+ return `let script=9876,executions=0,sessions=0;const prior={script:9876,pageLoad:4321,implicit:7};require('node:http').createServer((q,r)=>{const send=(value,status=200)=>{r.writeHead(status,{'content-type':'application/json'});r.end(JSON.stringify({value}));};if(q.url==='/status')return send({ready:true});if(q.url==='/session'){sessions++;console.log('session-created');return send({sessionId:${malformedFirst}&&sessions===1?'../invalid':'owned'});}if(!q.url.startsWith('/session/owned/'))console.log('invalid-session-route:'+q.url);if(q.url.endsWith('/timeouts')){if(q.method==='GET'){console.log('timeout-read:'+script);return send({...prior,script});}let body='';q.on('data',b=>body+=b);q.on('end',()=>{const requested=JSON.parse(body).script;console.log('timeout-set:'+requested);if(${stallSetter})return;script=${refuseRestore}&&requested===9876?17:requested;send(null);});return;}executions++;console.log('identity-start:'+executions+':'+script);if(${navigation}&&executions===1){setTimeout(()=>{console.log('native-timeout-complete');send({error:'script timeout',message:'Navigation discarded the temporary script result'},500);},script);return;}send({pid:process.pid,port:${port},nonce:${foreign}?"foreign-driver-nonce":process.env.GALLERY_TEST_DRIVER_NONCE});}).listen(${port},'127.0.0.1')`;
+}
+test('malformed session identity is never persisted into timeout or execution routes',async()=>{
+ const port=await availableLoopbackPort(),nonce=randomUUID(),child=launch(scriptTimeoutFixture(port,{malformedFirst:true,navigation:false}),nonce),observation=observeChild(child);
+ try{assert.equal(await readyDriver(child,'http://127.0.0.1:'+port,observation,3000,{nonce,readinessScriptTimeoutMs:100}),'owned');assert.equal(observation().stdout.split('session-created').length-1,2);assert.doesNotMatch(observation().stdout,/invalid-session-route/);}finally{await stopOwnedChild(child);}
+});
+test('native script deadline finishes uncancelled navigation work before identity retry and restores actual session settings',async()=>{
+ const port=await availableLoopbackPort(),nonce=randomUUID(),child=launch(scriptTimeoutFixture(port),nonce),observation=observeChild(child),timeline=[];
+ try{
+  assert.equal(await readyDriver(child,'http://127.0.0.1:'+port,observation,3000,{nonce,readinessScriptTimeoutMs:100,timeline}),'owned');
+  const output=observation().stdout;assert.equal(output.split('session-created').length-1,1);assert.equal(output.split('identity-start:').length-1,2);assert.match(output,/timeout-set:100/);assert.match(output,/native-timeout-complete/);assert.match(output,/timeout-set:9876/);assert.match(output,/timeout-read:9876/);
+  assert.ok(timeline.some(e=>e.phase==='native-script-timeout-ready'&&e.script===100));assert.ok(timeline.some(e=>e.phase==='native-script-timeout-restored'&&e.script===9876));assert.equal(timeline.at(-1).phase,'owned-driver-ready');assert.ok(timeline.some(e=>e.phase==='request-failed'&&e.route.endsWith('/execute/sync')));assert.ok(timeline.some(e=>e.phase==='response-body-complete'&&e.route==='/session'));assert.ok(timeline.every(e=>e.elapsedMilliseconds>=0));
+ }finally{await stopOwnedChild(child);}
+});
+test('unbounded native work reproduces the client deadline failure without certifying its listener',async()=>{
+ const port=await availableLoopbackPort(),nonce=randomUUID(),child=launch(scriptTimeoutFixture(port),nonce),observation=observeChild(child),timeline=[],began=Date.now();
+ try{await assert.rejects(readyDriver(child,'http://127.0.0.1:'+port,observation,700,{nonce,timeline}),error=>{assert.ok(error.readinessDiagnostics.timeline.some(e=>e.phase==='request-failed'&&e.route.endsWith('/execute/sync')));assert.equal(error.readinessDiagnostics.listener.route,'/session');return /readiness deadline/.test(error.message);});assert.ok(Date.now()-began<1600);assert.match(observation().stdout,/identity-start:1:9876/);assert.doesNotMatch(observation().stdout,/native-timeout-complete/);}finally{await stopOwnedChild(child);}
+});
+test('native timeout setup cannot certify wrong ownership, stalled setters or failed restoration',async()=>{
+ for(const options of [{foreign:true,navigation:false},{stallSetter:true},{refuseRestore:true,navigation:false}]){
+  const port=await availableLoopbackPort(),nonce=randomUUID(),child=launch(scriptTimeoutFixture(port,options),nonce),observation=observeChild(child),timeline=[],began=Date.now();
+  try{await assert.rejects(readyDriver(child,'http://127.0.0.1:'+port,observation,700,{nonce,readinessScriptTimeoutMs:100,timeline}),options.foreign?/ownership mismatch/:/readiness deadline/);assert.ok(Date.now()-began<1700);assert.ok(!timeline.some(e=>e.phase==='owned-driver-ready'));if(options.foreign){assert.match(observation().stdout,/timeout-set:9876/);assert.ok(timeline.some(e=>e.phase==='native-script-timeout-restored'));}if(options.refuseRestore)assert.ok(timeline.some(e=>e.phase==='request-failed'||e.phase==='native-script-timeout-ready'));}finally{await stopOwnedChild(child);}
+ }
+});
+test('native timeout election refuses external ownership paths and client-budget violations',async()=>{
+ const child={pid:process.pid,exitCode:null,signalCode:null},observation=()=>({pid:process.pid});
+ for(const options of [{listenerOwner:async()=>({}),readinessScriptTimeoutMs:100},{nonce:randomUUID(),readinessScriptTimeoutMs:1000},{nonce:randomUUID(),readinessScriptTimeoutMs:0}])await assert.rejects(readyDriver(child,'http://127.0.0.1:1',observation,500,options),/Bounded native script readiness/);
+});
+
 test('Ordinary settings readiness rejects disabled or hidden controls without waiting for a preferred value',()=>{
  for(const visibility of [{showing:true},{offscreen:false},{}]){
   const disabled={name:'Show controls',enabled:false,...visibility};assert.equal(settingsControlsReady([disabled]),false);

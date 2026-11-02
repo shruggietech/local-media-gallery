@@ -56,3 +56,9 @@ No governance exception. Native dependency packaging is necessary for the litera
 The observed workflow-wide mutex delayed independent corrected native scopes behind a long-running Windows package campaign. Use one non-cancelling mutex per elected scope, including separate Linux/macOS matrix values. Preserve in-progress scope evidence, the exact qualified revision and all elected checks. Release validation continues to require the complete same-run scope set; production Pages keeps its independent publication mutex and retirement checks. This changes scheduling, not product acceptance or review-round authorization.
 
 This uses the documented [GitHub job-level concurrency contexts](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency), including matrix scope. No qualification check is removed, skipped or borrowed from another run.
+
+## Native follow-up decisions (2026-11-02)
+
+After observed clean-root interrupted recovery, configure exact incomplete dependencies through offline APT fix-broken without global reinstall. Authenticated app replay, retained package/cache hashes, exact pre-mutation trigger identities, no-download, no-removal and version-preservation checks remain in force. Normal explicit replacement still elects reinstall. A real isolated APT fixture distinguishes these plans before native acceptance.
+
+Windows ownership readiness temporarily elects a 300-millisecond native script budget beneath its two-second client capture, then restores and reads back the actual original session settings after exact nonce/PID/port admission. This addresses uncancelled native work and navigation-related result loss without extending the twenty-second readiness deadline or relaunching a failed product. Input remains native Win32 with foreground/admission checks, no key retry, and no unused UIA setup on scan-key paths. Request and input stage diagnostics remain retained.

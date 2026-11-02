@@ -372,6 +372,25 @@ fn install(executable: &Path, file: &mut File, m: &Manifest, action: &str) -> Re
     maintenance::operate(executable, file, m, action)
 }
 
+#[cfg(any(target_os = "linux", test))]
+fn apt_install_flags(repair_dependencies: bool) -> Vec<&'static str> {
+    let mut flags = vec![
+        "--no-download",
+        "--no-remove",
+        "--no-install-recommends",
+        "--yes",
+    ];
+    if repair_dependencies {
+        // Retained app repair already restored its unpacked files. Configure
+        // exact incomplete packages instead of requesting hundreds of needless
+        // reinstalls from status-only APT candidate records.
+        flags.push("--fix-broken");
+    } else {
+        flags.push("--reinstall");
+    }
+    flags
+}
+
 #[cfg(target_os = "linux")]
 fn install_packages(
     file: &mut File,
@@ -455,16 +474,7 @@ fn install_packages(
         .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
         .env("DEBIAN_FRONTEND", "noninteractive")
         .env("LC_ALL", "C")
-        .args([
-            "--no-download",
-            "--no-remove",
-            "--no-install-recommends",
-            "--reinstall",
-            "--yes",
-        ]);
-    if repair_dependencies {
-        command.arg("--fix-broken");
-    }
+        .args(apt_install_flags(repair_dependencies));
     command
         .arg("-o")
         .arg(format!("Dir::Etc::sourcelist={}", sources.display()))
@@ -743,6 +753,101 @@ mod tests {
             verify_pending_packages(&m, "libc-bin|triggers-pending|2.39-0ubuntu8|amd64", &[])
                 .is_err()
         );
+    }
+    #[test]
+    fn repair_keeps_offline_guards_without_global_reinstallation() {
+        let repair = apt_install_flags(true);
+        assert!(repair.contains(&"--fix-broken"));
+        assert!(!repair.contains(&"--reinstall"));
+        for required in [
+            "--no-download",
+            "--no-remove",
+            "--no-install-recommends",
+            "--yes",
+        ] {
+            assert!(repair.contains(&required));
+        }
+        assert!(apt_install_flags(false).contains(&"--reinstall"));
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn native_apt_repairs_unpacked_inputs_without_reinstall_archive_requests() {
+        use std::process::Command;
+        let work = tempfile::tempdir().unwrap();
+        let root = work.path();
+        for dir in [
+            "archives/partial",
+            "state",
+            "lists/partial",
+            "etc/parts",
+            "etc/preferences.d",
+            "log",
+        ] {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+        }
+        std::fs::write(root.join("etc/sources.list"), "").unwrap();
+        let mut registrations = String::new();
+        let mut operands = Vec::new();
+        for (name, depends) in [
+            ("lmg-runtime-test", ""),
+            ("lmg-app-test", "Depends: lmg-runtime-test\n"),
+        ] {
+            let directory = root.join(name);
+            std::fs::create_dir_all(directory.join("DEBIAN")).unwrap();
+            let fields = format!(
+                "Package: {name}\nVersion: 1.0\nArchitecture: amd64\nMaintainer: Test <test@example.invalid>\nDescription: isolated recovery fixture\n{depends}"
+            );
+            std::fs::write(directory.join("DEBIAN/control"), &fields).unwrap();
+            let archive = root.join("archives").join(format!("{name}_1.0_amd64.deb"));
+            let built = Command::new("/usr/bin/dpkg-deb")
+                .env_clear()
+                .env("PATH", "/usr/bin:/bin")
+                .arg("--build")
+                .arg(&directory)
+                .arg(&archive)
+                .output()
+                .unwrap();
+            assert!(
+                built.status.success(),
+                "{}",
+                String::from_utf8_lossy(&built.stderr)
+            );
+            operands.push(archive);
+            registrations.push_str(&format!("Status: install ok unpacked\n{fields}\n"));
+        }
+        std::fs::write(root.join("state/status"), registrations).unwrap();
+        let config = root.join("apt.conf");
+        // Every writable APT location and all configuration/index inputs belong
+        // to this fixture. Download-only never invokes dpkg or changes the host.
+        std::fs::write(&config, format!("Dir::State \"{0}/state\"; Dir::State::status \"{0}/state/status\"; Dir::State::lists \"{0}/lists\"; Dir::Cache::archives \"{0}/archives\"; Dir::Cache::pkgcache \"\"; Dir::Cache::srcpkgcache \"\"; Dir::Etc \"{0}/etc\"; Dir::Etc::parts \"parts\"; Dir::Etc::main \"unused\"; Dir::Log \"{0}/log\"; APT::Architecture \"amd64\"; Debug::NoLocking \"true\";", root.display())).unwrap();
+        for reinstall in [true, false] {
+            let mut command = Command::new("/usr/bin/apt-get");
+            command
+                .env_clear()
+                .env("PATH", "/usr/bin:/bin")
+                .env("LC_ALL", "C")
+                .env("APT_CONFIG", &config)
+                .arg("--download-only")
+                .args(apt_install_flags(true));
+            if reinstall {
+                command.arg("--reinstall");
+            }
+            let output = command.arg("install").args(&operands).output().unwrap();
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(
+                output.status.success(),
+                "{stdout}\n{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(
+                stdout.contains("2 not fully installed or removed"),
+                "{stdout}"
+            );
+            assert_eq!(stdout.contains("2 reinstalled"), reinstall, "{stdout}");
+            if !reinstall {
+                assert!(!stdout.contains("reinstalled"), "{stdout}");
+            }
+        }
     }
     #[test]
     fn refuses_missing_or_truncated_footer() {

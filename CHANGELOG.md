@@ -21,6 +21,9 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Fixed
 
+- Recover interrupted offline Linux installation by configuring authenticated unpacked dependencies instead of requesting every runtime archive again. Keep normal explicit replacement behavior.
+- Keep Windows acceptance input independent of unused UI Automation and align native driver script readiness with its client deadline, retaining exact ownership and timeout restoration.
+
 - Retain exact configured Linux package identities before first installation so interrupted recovery can finish attributable system triggers while refusing unrelated unpacked or partially configured packages.
 
 - Preserve every Windows dependency notice in one indexed document with original paths, text and hashes, reducing repeated installation and update file operations. Retain independent source-bound readback of the complete notice inventory.
