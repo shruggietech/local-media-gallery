@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import {createServer} from 'node:net';
-export function settingsControlsReady(records){
- return records.some(r=>['Hide controls','Show controls'].includes(r.name)&&r.enabled===true&&r.showing!==false&&r.offscreen!==true);
+export function settingsControlsReady(records,expected){
+ return records.some(r=>(expected===undefined?['Hide controls','Show controls'].includes(r.name):r.name===(expected.controlsExpanded?'Hide controls':'Show controls'))&&r.enabled===true&&r.showing!==false&&r.offscreen!==true);
 }
 export async function availableLoopbackPort(){const s=createServer();await new Promise((resolve,reject)=>{s.once('error',reject);s.listen(0,'127.0.0.1',resolve);});const port=s.address().port;await new Promise((resolve,reject)=>s.close(e=>e?reject(e):resolve()));return port;}
 export function observeChild(child){

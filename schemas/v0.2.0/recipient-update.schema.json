@@ -1,0 +1,416 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:local-media-gallery:recipient-update:0.2.0",
+  "title": "Explicit recipient update candidate and results",
+  "x-release-version": "0.2.0",
+  "$ref": "#/$defs/candidate",
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "bytes": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/hash"
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formatVersion",
+        "product",
+        "version",
+        "edition",
+        "os",
+        "arch",
+        "generation",
+        "source",
+        "binary",
+        "files",
+        "native",
+        "integration"
+      ],
+      "properties": {
+        "formatVersion": {
+          "const": 1
+        },
+        "product": {
+          "const": "local-media-gallery"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "edition": {
+          "enum": [
+            "full",
+            "lite"
+          ]
+        },
+        "os": {
+          "enum": [
+            "windows",
+            "linux",
+            "macos"
+          ]
+        },
+        "arch": {
+          "enum": [
+            "x86_64",
+            "aarch64"
+          ]
+        },
+        "generation": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]{1,128}$"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha256",
+            "files"
+          ],
+          "properties": {
+            "sha256": {
+              "$ref": "#/$defs/hash"
+            },
+            "files": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "binary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8192,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "bytes",
+              "sha256",
+              "mode"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "bytes": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "sha256": {
+                "$ref": "#/$defs/hash"
+              },
+              "mode": {
+                "enum": [
+                  644,
+                  755
+                ]
+              }
+            }
+          }
+        },
+        "native": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "direct"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "installer"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "linux-deb"
+                },
+                "installer": {
+                  "$ref": "#/$defs/artifact"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "scope",
+                "productCode",
+                "packageCode",
+                "installer"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "windows-msi"
+                },
+                "scope": {
+                  "enum": [
+                    "user",
+                    "machine"
+                  ]
+                },
+                "productCode": {
+                  "type": "string",
+                  "pattern": "^\\{[A-Fa-f0-9-]{36}\\}$"
+                },
+                "packageCode": {
+                  "type": "string",
+                  "pattern": "^\\{[A-Fa-f0-9-]{36}\\}$"
+                },
+                "installer": {
+                  "$ref": "#/$defs/artifact"
+                }
+              }
+            }
+          ]
+        },
+        "integration": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "command",
+                "receipt",
+                "receiptBytes"
+              ],
+              "properties": {
+                "command": {
+                  "type": "string"
+                },
+                "receipt": {
+                  "type": "string"
+                },
+                "receiptBytes": {
+                  "type": "string",
+                  "maxLength": 4194304
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "phase",
+        "generation",
+        "version",
+        "directory",
+        "transaction",
+        "nativeProcess"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "complete",
+            "already-current",
+            "restored",
+            "selected-present",
+            "incomplete"
+          ]
+        },
+        "phase": {
+          "enum": [
+            "prepared",
+            "applying",
+            "unpacked",
+            "activated",
+            "committed",
+            "restoring",
+            "restored",
+            "incomplete"
+          ]
+        },
+        "generation": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "directory": {
+          "type": "string"
+        },
+        "transaction": {
+          "type": "string"
+        },
+        "nativeProcess": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "pid",
+                "terminal"
+              ],
+              "properties": {
+                "pid": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "terminal": {
+                  "type": "boolean"
+                },
+                "code": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "job": {
+                  "type": "string"
+                },
+                "clientPid": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product",
+        "version",
+        "formatVersion",
+        "compatible",
+        "meaning",
+        "states"
+      ],
+      "properties": {
+        "product": {
+          "const": "local-media-gallery"
+        },
+        "version": {
+          "const": "0.2.0"
+        },
+        "formatVersion": {
+          "const": 1
+        },
+        "compatible": {
+          "type": "boolean"
+        },
+        "meaning": {
+          "type": "string"
+        },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "path",
+              "compatible",
+              "error"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "settings",
+                  "portable",
+                  "history"
+                ]
+              },
+              "path": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "encoding",
+                  "bytes"
+                ],
+                "properties": {
+                  "encoding": {
+                    "enum": [
+                      "windows-utf16le",
+                      "unix-bytes"
+                    ]
+                  },
+                  "bytes": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 255
+                    }
+                  }
+                }
+              },
+              "compatible": {
+                "type": "boolean"
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$comment": "Runtime validation additionally binds descriptor/native metadata and actual bytes, physical ownership, path aliases, archive identity, scope and integration. Direct update.json descriptors exclude their own hash; reading them binds their exact bytes as an owned file in the retained transaction. Hash identity is independent from signing. These are supplied unpublished candidates, not release records."
+}

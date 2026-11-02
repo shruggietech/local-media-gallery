@@ -3,6 +3,7 @@
 mod compatibility;
 mod discovery;
 mod gallery_state;
+mod guided;
 mod history;
 mod launch;
 mod portable;
@@ -284,12 +285,18 @@ async fn close_gallery(
     app: tauri::AppHandle,
 ) -> Result<Snapshot, GalleryError> {
     main_window(&window)?;
+    let guided = app.state::<Arc<guided::Service>>().inner().clone();
+    guided.cancel_session(&session_id);
     app.state::<Arc<gallery_core::thumbnail::PreparationService>>()
         .cancel_current();
     let engine = runtime.engine.clone();
-    tauri::async_runtime::spawn_blocking(move || engine.close(&session_id))
-        .await
-        .map_err(|_| GalleryError::new("internal", "Close could not finish."))??;
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = engine.close(&session_id);
+        guided.wait_session_idle(&session_id);
+        result
+    })
+    .await
+    .map_err(|_| GalleryError::new("internal", "Close could not finish."))??;
     Ok(publish(&app, &runtime))
 }
 
@@ -302,6 +309,7 @@ fn enqueue_open(
         .worker
         .get()
         .ok_or_else(|| GalleryError::new("internal", "Discovery is unavailable."))?;
+    app.state::<Arc<guided::Service>>().cancel_current();
     app.state::<Arc<gallery_core::thumbnail::PreparationService>>()
         .cancel_current();
     worker.submit(runtime.engine.begin_open(&path));
@@ -392,6 +400,10 @@ fn run_application(
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
     #[cfg(feature = "native-tests")]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        guided::guided_preview,
+        guided::guided_start,
+        guided::guided_status,
+        guided::guided_cancel,
         preparation::preparation_preview,
         preparation::preparation_start,
         preparation::preparation_cleanup,
@@ -423,6 +435,10 @@ fn run_application(
     ]);
     #[cfg(not(feature = "native-tests"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        guided::guided_preview,
+        guided::guided_start,
+        guided::guided_status,
+        guided::guided_cancel,
         preparation::preparation_preview,
         preparation::preparation_start,
         preparation::preparation_cleanup,
@@ -453,6 +469,8 @@ fn run_application(
     let mut context = tauri::generate_context!();
     context.config_mut().identifier = launch::identifier(launch::edition()).into();
     let shutdown_service = service.clone();
+    let guided_shutdown = Arc::new(OnceLock::<Arc<guided::Service>>::new());
+    let setup_shutdown = guided_shutdown.clone();
     let app=builder
         .manage(service)
         .manage(Runtime {
@@ -482,7 +500,11 @@ fn run_application(
             #[cfg(feature="native-tests")]
             let history_path=std::env::var_os("GALLERY_TEST_HISTORY_DIR").map(PathBuf::from).map(|p|p.join("history.sqlite3")).or(history_path);
             let engine=app.state::<Runtime>().engine.clone();
-            app.manage(Arc::new(GalleryState::new(engine,settings,history::History::new(history_path,cfg!(feature="native-tests")))));
+            let state = Arc::new(GalleryState::new(engine.clone(),settings,history::History::new(history_path,cfg!(feature="native-tests"))));
+            let guided=Arc::new(guided::Service::new(engine,app.state::<Arc<gallery_core::thumbnail::PreparationService>>().inner().clone(),state.clone()));
+            app.manage(guided.clone());
+            let _=setup_shutdown.set(guided);
+            app.manage(state);
             let handle = app.handle().clone();
             let engine = app.state::<Runtime>().engine.clone();
             let worker = DiscoveryWorker::start(engine, move || {
@@ -506,6 +528,7 @@ fn run_application(
         })
         .on_window_event(|window, event| {
             if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                if let Some(guided)=window.try_state::<Arc<guided::Service>>() {guided.cancel_current();}
                 window.state::<Arc<gallery_core::thumbnail::PreparationService>>().cancel_current();
                 let runtime = window.state::<Runtime>();
                 runtime.initial_root.lock().unwrap().take();
@@ -519,6 +542,9 @@ fn run_application(
         .build(context)
         .map_err(|e|GalleryError::new("launch_failed",format!("The native application could not start: {e}. {}",launch::runtime_guidance())))?;
     let code = app.run_return(|_, _| {});
+    if let Some(guided) = guided_shutdown.get() {
+        guided.shutdown();
+    }
     shutdown_service.shutdown();
     Ok(code)
 }

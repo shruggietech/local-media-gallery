@@ -399,6 +399,43 @@ impl GalleryState {
     pub fn recent_path(&self, id: &str) -> Result<std::path::PathBuf, GalleryError> {
         self.history.reopen(id, now())
     }
+    pub fn prepare_portable(
+        &self,
+        id: &str,
+        expected: &str,
+        patch: Value,
+    ) -> Result<Envelope, GalleryError> {
+        self.load(Some(id))?;
+        let mut state = self.state.lock().unwrap();
+        self.engine.with_current_root(Some(id), |root| {
+            if state.id.as_deref() != Some(id) || state.revision != expected {
+                return Err(GalleryError::new(
+                    "state_conflict",
+                    "Presentation changed. Preview preparation again.",
+                ));
+            }
+            let patch = validate_patch(&patch, self.user.envelope().test_page_size.is_some())?;
+            let (dir, path) = root.ok_or_else(|| {
+                GalleryError::new("stale_session", "The selected gallery changed.")
+            })?;
+            root_identity(dir, path)?;
+            // Unlike interactive temporary changes, guided preparation reports
+            // persistence failure directly rather than returning a warning as success.
+            state
+                .portable
+                .as_mut()
+                .ok_or_else(|| {
+                    GalleryError::new("portable_unavailable", "Portable settings are unavailable.")
+                })?
+                .save_prepared(dir, &patch)?;
+            for key in patch.keys() {
+                state.saved_to.insert(key.clone(), "portable".into());
+            }
+            state.revision = revision();
+            Ok(())
+        })?;
+        Ok(self.envelope(&state))
+    }
     pub fn forget(
         &self,
         id: Option<&str>,

@@ -1,3 +1,4 @@
+import {validatePreparedRecipient} from './prepared-recipients.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {validateUpdateEvidence} from './update-packages.mjs';
 import assert from 'node:assert/strict';
@@ -5,6 +6,8 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {digest,validatePayload} from './windows-packages.mjs';
 export async function validatePackageEvidence(build,result,root){
+ if(!['0.0.0','0.1.0'].includes(build.records[0].payload.version)){assert.ok(result.preparedRecipient,'Prepared published recipient evidence required');assert.deepEqual(result.preparedRecipient.source,result.source);assert.equal(result.preparedRecipient.revision,result.revision);await validatePreparedRecipient(result.preparedRecipient,root);}
+
  assert.equal(result.result,'pass');assert.equal(result.acceptance,true);assert.equal(result.formatVersion,1);assert.deepEqual(result.source,build.source);assert.equal(result.revision,build.revision);assert.ok(new Date(result.terminalFinished)>=new Date(result.started));assert.equal(result.host.platform,'win32');assert.equal(result.host.arch,'x64');
  assert.deepEqual(result.installations.map(i=>i.scope),['user','machine']);for(const label of ['user-full','machine-full','lite-in-place','lite-relocated','lite-explicit'])assert.ok(result.native.some(i=>i.label===label));
  assert.equal(result.checks.length,29);assert.ok(result.checks.every(c=>c.result==='pass'&&c.terminalFinished));

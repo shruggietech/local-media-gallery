@@ -16,6 +16,7 @@ import { createLoadingPolicy } from '../lib/loading-policy';
 import { useGalleryState } from '../lib/use-gallery-state';
 import { SaveDestinationControl, StateControls } from '../lib/state-controls';
 import { MetadataInspector } from '../lib/metadata-inspector';
+import {GuidedPreparation} from '../lib/guided-preparation';
 import {usePreparation,PreparationControls,PreparationProgress,type Preparation} from '../lib/preparation';
 import {Diagnostics} from '../lib/diagnostics';
 import {useThumbnail} from '../lib/thumbnail';
@@ -237,6 +238,7 @@ export default function Gallery() {
   const state = useGalleryState();
   const preparation=usePreparation(snapshot.sessionId);
   const { settings, ready: settingsReady, warning: settingsWarning, activate, change: changeSettings } = state;
+  const prepared=useCallback(()=>{state.reload();preparation.invalidate();},[state.reload,preparation.invalidate]);
   const loadingPolicy = useMemo(() => createLoadingPolicy('automatic', performance.now()), [snapshot.sessionId]);
   useLayoutEffect(() => { loadingPolicy.setMode(settings.loadingMode, performance.now()); }, [loadingPolicy, settings.loadingMode]);
   const testPageSize = state.envelope?.testPageSize;
@@ -386,7 +388,7 @@ export default function Gallery() {
     </section> : null}
     <PreparationProgress state={preparation}/>
     <StateControls envelope={state.envelope} remove={state.remove} clear={state.clear} forget={state.forget} reopen={id => void reopen(id)} busy={busy || !settingsReady} />
-    <section className="discovery-status" aria-label="Discovery status"><div className="preparation-actions"><PreparationControls state={preparation} sessionId={snapshot.sessionId} items={snapshot.items}/><Diagnostics/></div><p role="status">{status}{snapshot.discovery ? ' (' + snapshot.discovery.entriesSeen + ' entries checked, ' + snapshot.discovery.mediaSeen + ' media observed)' : ''}{stale ? '. ' + stale + ' previous items not yet rechecked.' : ''}</p>{scanning ? <Button variant="secondary" onClick={() => void cancelDiscovery()}>Cancel discovery</Button> : snapshot.sessionId && snapshot.status !== 'complete' ? <Button variant="secondary" onClick={() => void refresh()} disabled={busy}>Retry discovery</Button> : null}</section>
+    <section className="discovery-status" aria-label="Discovery status"><div className="preparation-actions"><GuidedPreparation sessionId={snapshot.sessionId} envelope={state.envelope} completed={prepared}/><PreparationControls state={preparation} sessionId={snapshot.sessionId} items={snapshot.items}/><Diagnostics/></div><p role="status">{status}{snapshot.discovery ? ' (' + snapshot.discovery.entriesSeen + ' entries checked, ' + snapshot.discovery.mediaSeen + ' media observed)' : ''}{stale ? '. ' + stale + ' previous items not yet rechecked.' : ''}</p>{scanning ? <Button variant="secondary" onClick={() => void cancelDiscovery()}>Cancel discovery</Button> : snapshot.sessionId && snapshot.status !== 'complete' ? <Button variant="secondary" onClick={() => void refresh()} disabled={busy}>Retry discovery</Button> : null}</section>
     {error ? <p role="alert" className="media-error">{error}</p> : null}
     {settingsWarning ? <p role="status" className="media-error">{settingsWarning}</p> : null}
     {snapshot.issues.length ? <div role="status" className="media-error">{snapshot.issues.map((issue, i) => <p key={issue + '/' + i}>{issue}</p>)}</div> : null}
