@@ -19,12 +19,12 @@
 
 - [x] T007 [US2] Validate canonical release/publication/artifact and inventory identities with bounded native network/archive processing in crates/gallery-preparation/src/ (FR-004, FR-005).
 - [x] T008 [US2] Preserve complete per-platform bundles and relocatable root entrypoints with inventory-validated reuse and no unrelated replacement in crates/gallery-preparation/src/ (FR-005, FR-006, FR-009).
-- [ ] T009 [US2] Add deterministic invalid-record/archive/digest/collision/reuse tests in crates/gallery-preparation/tests/ and actual published-recipient native campaigns in scripts/test-*-packages.mjs (FR-004, FR-005, FR-006, FR-009; SC-002, SC-003).
+- [x] T009 [US2] Add deterministic invalid-record/archive/digest/collision/reuse tests in crates/gallery-preparation/tests/ and actual published-recipient native campaigns in scripts/test-*-packages.mjs (FR-004, FR-005, FR-006, FR-009; SC-002, SC-003).
 
 ## Phase5: Partial/canceled jobs (US3)
 
 - [x] T010 [US3] Integrate independent presentation/thumbnail/recipient actions, admission, progress, cancellation and lifecycle shutdown in apps/gallery/src-tauri/src/guided.rs, main.rs and crates/gallery-core/src/thumbnail.rs (FR-007, FR-008).
-- [ ] T011 [US3] Test no choices, combinations, stale previews, partial outcomes and observed helper-exit cancellation in apps/gallery/src-tauri/src/guided.rs and isolated native scripts (SC-001, SC-004).
+- [x] T011 [US3] Test no choices, combinations, stale previews, partial outcomes and observed helper-exit cancellation in apps/gallery/src-tauri/src/guided.rs and isolated native scripts (SC-001, SC-004).
 
 ## Phase6: Expected Windows presentation (US4)
 
@@ -34,8 +34,8 @@
 ## Phase7: Qualification and handoff
 
 - [x] T014 Update authoritative unreleased docs/contracts and CHANGELOG.md; retain new snapshot and check UTF8/LF/mojibake (FR-012).
-- [x] T015 Run npm run check, npm test, npm run check:docs, npm run check:app and affected site checks; retain terminal timing in specs/024-gallery-preparation/verification.md and measurements.json.
-- [ ] T016 Push official PR closing #27/#79, verify exact-head CI and original candidate artifacts, resolve every finding within two review rounds, update Projects and hand off for owner final review/merge.
+- [x] T015 Run npm run check, npm test, npm run check:docs, npm run check:app and affected site checks; retain terminal timing in specs/024-gallery-preparation/verification.md and measurements.md.
+- [x] T016 Push official PR closing #27/#79, verify exact-head CI and original candidate artifacts, resolve every finding within two review rounds, update Projects and hand off for owner final review/merge.
 
 ## Dependencies and execution
 
