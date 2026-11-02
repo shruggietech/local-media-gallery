@@ -1060,7 +1060,7 @@ mod lifecycle {
         ) {
             payload.version = version.into();
             payload.generation = generation.into();
-            let value = serde_json::json!({"product":payload.product,"version":version,"edition":"full","os":"macos","arch":"aarch64","data":{"buildProfile":"release"}});
+            let value = serde_json::json!({"product":payload.product,"version":version,"edition":"full","os":"macos","arch":"aarch64","data":{"buildProfile":"release","targetTriple":"aarch64-apple-darwin"}});
             let script = format!("#!/bin/sh\nprintf '%s\\n' '{}'\n", value);
             let binary = source.join(&payload.binary);
             fs::write(&binary, script.as_bytes()).unwrap();
@@ -1072,6 +1072,8 @@ mod lifecycle {
                 .unwrap();
             file.bytes = script.len().to_string();
             file.sha256 = hash(script.as_bytes());
+            payload.source =
+                serde_json::json!({"sha256":hash(script.as_bytes()),"files":payload.files.len()});
         }
         #[test]
         fn ordinary_repeat_rollback_reactivation_preserves_bound_journal_and_distinct_prior_gets_new_cycle()
