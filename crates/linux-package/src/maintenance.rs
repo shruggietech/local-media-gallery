@@ -567,6 +567,43 @@ fn finish_fresh(
         );
         std::io::stdout().flush().map_err(|e| e.to_string())?;
     }
+    if repair_dependencies {
+        // APT refuses a nonempty dpkg status-update journal before it can plan
+        // --fix-broken. Only dpkg may replay that journal. Re-unpack this one
+        // authenticated app archive, without triggers or configure-all, after
+        // proving all incomplete registrations belong to this exact closure.
+        let pending = Command::new("/usr/bin/dpkg-query")
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("LC_ALL", "C")
+            .args([
+                "-W",
+                "--showformat=${Package}|${db:Status-Status}|${Version}|${Architecture}\n",
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !pending.status.success() {
+            return Err("Native pending package inventory unavailable".into());
+        }
+        super::verify_pending_packages(
+            m,
+            &String::from_utf8(pending.stdout).map_err(|e| e.to_string())?,
+        )?;
+        let application = generation(&c.generation)?.join("application.deb");
+        let status = Command::new("/usr/bin/dpkg")
+            .env_clear()
+            .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
+            .env("DEBIAN_FRONTEND", "noninteractive")
+            .env("LC_ALL", "C")
+            .args(["--no-triggers", "--unpack"])
+            .arg(&application)
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("Authenticated interrupted application unpack did not complete".into());
+        }
+        c.verify(Path::new("/"))?;
+    }
     super::install_packages(file, m, true, repair_dependencies)?;
     c.verify(Path::new("/"))?;
     super::verify_identity(m)?;

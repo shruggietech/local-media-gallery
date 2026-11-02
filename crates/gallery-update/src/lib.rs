@@ -1584,6 +1584,7 @@ impl Transaction {
         self.validate_integration_union()?;
         self.publish_integration(&selected, &self.journal.directory)?;
         Self::verify_integration(&selected, &self.journal.directory)?;
+        self.prune_unselected_directories(&selected)?;
         self.journal.phase = if prior { "restored" } else { "committed" }.into();
         self.save()?;
         Ok(self.outcome(
@@ -1606,6 +1607,66 @@ impl Transaction {
             m.entry(f.path.clone()).or_insert((None, None)).1 = Some(f.clone());
         }
         m
+    }
+    fn prune_unselected_directories(&self, selected: &Candidate) -> Result<()> {
+        fn parents(candidate: &Candidate) -> BTreeSet<PathBuf> {
+            let mut directories = BTreeSet::new();
+            for file in &candidate.files {
+                let mut parent = Path::new(&file.path).parent();
+                while let Some(path) = parent.filter(|path| !path.as_os_str().is_empty()) {
+                    directories.insert(path.to_path_buf());
+                    parent = path.parent();
+                }
+            }
+            directories
+        }
+        let keep = parents(selected);
+        let mut all = parents(&self.journal.prior);
+        all.extend(parents(&self.journal.next));
+        let mut obsolete: Vec<_> = all.difference(&keep).cloned().collect();
+        obsolete.sort_by(|left, right| {
+            right
+                .components()
+                .count()
+                .cmp(&left.components().count())
+                .then_with(|| left.cmp(right))
+        });
+        for relative in obsolete {
+            let directory = self.journal.directory.join(relative);
+            #[cfg(windows)]
+            let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
+            #[cfg(windows)]
+            physical_in(&directory, &mut namespace)?;
+            #[cfg(not(windows))]
+            physical(&directory)?;
+            let metadata = match fs::symlink_metadata(&directory) {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.to_string()),
+            };
+            if !metadata.is_dir() || metadata.file_type().is_symlink() {
+                return Err("Changed candidate directory prevents empty-directory cleanup".into());
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                if metadata.uid() != io(fs::metadata(&self.journal.directory))?.uid() {
+                    return Err("Changed candidate directory owner prevents cleanup".into());
+                }
+            }
+            // Never walk or recursively remove content. Only parents declared by the
+            // unselected inventory are eligible; any foreign child keeps its directory.
+            match fs::remove_dir(&directory) {
+                Ok(()) => sync_directory(directory.parent().ok_or("Missing directory parent")?)?,
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::NotFound | std::io::ErrorKind::DirectoryNotEmpty
+                    ) => {}
+                Err(error) => return Err(error.to_string()),
+            }
+        }
+        Ok(())
     }
     fn displaced(&self, live: &Path) -> PathBuf {
         let name = hex::encode(Sha256::digest(live.to_string_lossy().as_bytes()));

@@ -262,6 +262,38 @@ fn cache_package(
     Ok(target)
 }
 
+#[cfg(any(target_os = "linux", test))]
+fn verify_pending_packages(m: &Manifest, registrations: &str) -> Result<(), String> {
+    for line in registrations.lines() {
+        let fields: Vec<_> = line.split('|').collect();
+        if fields.len() != 4 {
+            return Err("Malformed native pending package inventory".into());
+        }
+        if matches!(fields[1], "installed" | "not-installed" | "config-files") {
+            continue;
+        }
+        if !matches!(
+            fields[1],
+            "half-installed"
+                | "unpacked"
+                | "half-configured"
+                | "triggers-awaited"
+                | "triggers-pending"
+        ) || !m.packages.iter().any(|p| {
+            p.role != "predecessor"
+                && p.package == fields[0]
+                && p.version == fields[2]
+                && p.architecture == fields[3]
+        }) {
+            return Err(format!(
+                "Unattributed pending native package: {} ({}, {}, {})",
+                fields[0], fields[1], fields[2], fields[3]
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(target_os = "linux")]
 fn install(executable: &Path, file: &mut File, m: &Manifest, action: &str) -> Result<(), String> {
     use std::process::Command;
@@ -611,6 +643,27 @@ mod tests {
             std::fs::read(&admitted).unwrap(),
             std::fs::read(&original).unwrap()
         );
+    }
+    #[test]
+    fn pending_recovery_is_limited_to_exact_embedded_package_identities() {
+        let m = sample();
+        verify_pending_packages(
+            &m,
+            "unrelated|installed|9.0|amd64\nlocal-media-gallery|half-installed|0.2.0|amd64\n",
+        )
+        .unwrap();
+        for pending in [
+            "unrelated|unpacked|9.0|amd64",
+            "local-media-gallery|half-installed|0.1.0|amd64",
+            "local-media-gallery|unpacked|0.2.0|arm64",
+            "local-media-gallery|unknown|0.2.0|amd64",
+            "malformed",
+        ] {
+            assert!(verify_pending_packages(&m, pending).is_err(), "{pending}");
+        }
+        let mut m = sample();
+        m.packages[0].role = "predecessor".into();
+        assert!(verify_pending_packages(&m, "local-media-gallery|unpacked|0.2.0|amd64").is_err());
     }
     #[test]
     fn refuses_missing_or_truncated_footer() {

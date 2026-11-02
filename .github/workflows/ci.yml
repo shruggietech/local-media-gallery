@@ -180,6 +180,7 @@ jobs:
             .local/ci-windows-packages.json
             .local/windows-package-build.json
             .local/windows-package-results.json
+            .local/windows-package-fixtures.json
             .local/prepared-recipient-windows.json
             .local/windows-package-test-*/prepared-recipient-*.zip
             .local/windows-package-failure.json

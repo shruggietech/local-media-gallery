@@ -1052,6 +1052,7 @@ mod lifecycle {
                 std::ffi::OsStr::new(""),
             )
         }
+        #[cfg(target_os = "macos")]
         fn executable_payload(
             source: &Path,
             payload: &mut Payload,
@@ -1075,9 +1076,27 @@ mod lifecycle {
             payload.source =
                 serde_json::json!({"sha256":hash(script.as_bytes()),"files":payload.files.len()});
         }
+        // Positive activation binds a macOS target and must execute on that native host.
+        #[cfg(target_os = "macos")]
         #[test]
         fn ordinary_repeat_rollback_reactivation_preserves_bound_journal_and_distinct_prior_gets_new_cycle()
          {
+            fn current_only_resource(source: &Path, payload: &mut Payload) {
+                let name = "Contents/Resources/current-only/nested/resource.txt";
+                let file = source.join(name);
+                fs::create_dir_all(file.parent().unwrap()).unwrap();
+                fs::write(&file, b"current-only").unwrap();
+                fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).unwrap();
+                if !payload.files.iter().any(|entry| entry.path == name) {
+                    payload.files.push(File {
+                        path: name.into(),
+                        bytes: "12".into(),
+                        sha256: hash(b"current-only"),
+                        mode: "644".into(),
+                    });
+                }
+                payload.source["files"] = serde_json::json!(payload.files.len());
+            }
             let f = fixture();
             let root = f.source.parent().unwrap().join("updates");
             fs::create_dir(&root).unwrap();
@@ -1103,6 +1122,7 @@ mod lifecycle {
             .unwrap();
             let mut next = f.payload.clone();
             executable_payload(&f.source, &mut next, "0.2.0", &"b".repeat(64));
+            current_only_resource(&f.source, &mut next);
             let transaction = root.join(&next.generation);
             let mut operation = gallery_update::Transaction::prepare(
                 &transaction,
@@ -1126,6 +1146,7 @@ mod lifecycle {
                 "restored"
             );
             assert_eq!(owned_payload(&f.app, &f.command, "system").unwrap(), prior);
+            assert!(!f.app.join("Contents/Resources/current-only").exists());
             assert!(
                 reactivate_managed(&transaction, &f.app, &f.command, &next)
                     .unwrap()
@@ -1140,6 +1161,11 @@ mod lifecycle {
             wrong.generation = "d".repeat(64);
             assert!(rollback_managed(&transaction, &f.app, &f.command, &wrong).is_err());
             super::remove(&f.app, &f.command, "system", &next).unwrap();
+            fs::remove_file(
+                f.source
+                    .join("Contents/Resources/current-only/nested/resource.txt"),
+            )
+            .unwrap();
             let mut other = prior.clone();
             executable_payload(&f.source, &mut other, "0.1.1", &"c".repeat(64));
             super::install(
@@ -1158,6 +1184,7 @@ mod lifecycle {
             );
             assert_eq!(owned_payload(&f.app, &f.command, "system").unwrap(), other);
             executable_payload(&f.source, &mut next, "0.2.0", &"b".repeat(64));
+            current_only_resource(&f.source, &mut next);
             let attempt = root.join(format!("{}-attempt-1", next.generation));
             super::update(
                 &f.source,
@@ -1187,6 +1214,14 @@ mod lifecycle {
             assert_eq!(
                 fs::read(transaction.join("identity.json")).unwrap(),
                 identity
+            );
+            assert_eq!(
+                managed_remove(&f.app, &f.command).unwrap()["result"],
+                "removed"
+            );
+            assert!(
+                !f.app.exists(),
+                "Restored prior removal leaves no next-only empty directories"
             );
         }
         #[test]

@@ -21,6 +21,9 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Fixed
 
+- Preserve every Windows dependency notice in one indexed document with original paths, text and hashes, reducing repeated installation and update file operations. Retain independent source-bound readback of the complete notice inventory.
+- Remove only known empty directories left by direct candidate switching so macOS rollback followed by uninstall can remove the owned app without deleting foreign content.
+
 - Reused prepared presentation revalidates the actual settings document and reports external edits or deletion as a conflict. Prepared-gallery evidence archives preserve raw executable modes across CI transport.
 
 - Canceling an idle thumbnail preview releases its held gallery root so Close folder can be followed by relocation.

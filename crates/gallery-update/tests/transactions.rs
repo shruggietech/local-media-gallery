@@ -52,6 +52,50 @@ fn replacement_rollback_and_repeat() {
     assert_eq!(fs::read(live.join(&a.binary)).unwrap(), b"old");
 }
 #[test]
+fn direct_switch_prunes_only_known_unselected_empty_parents() {
+    fn resource(base: &Path, c: &mut Candidate, name: &str) {
+        let file = base.join(name);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, b"resource").unwrap();
+        c.files.push(FileRecord {
+            path: name.into(),
+            bytes: "8".into(),
+            sha256: hash(b"resource"),
+            mode: 644,
+        });
+    }
+    let t = fixture();
+    let live = t.path().join("live");
+    let next = t.path().join("next");
+    let mut a = candidate(&live, "a", b"old");
+    let mut b = candidate(&next, "b", b"new");
+    resource(&live, &mut a, "prior-only/deep/notice.txt");
+    resource(&next, &mut b, "next-only/deep/notice.txt");
+    resource(&next, &mut b, "retain-foreign/nested/notice.txt");
+    resource(&next, &mut b, "retain-empty-extra/notice.txt");
+    let mut op =
+        Transaction::prepare(&t.path().join("transaction"), &live, &a, &b, &next, &[]).unwrap();
+    op.apply(false).unwrap();
+    assert!(!live.join("prior-only").exists());
+    fs::create_dir(live.join("unknown-empty")).unwrap();
+    fs::create_dir(live.join("retain-empty-extra/unknown-empty")).unwrap();
+    fs::write(live.join("retain-foreign/nested/foreign.txt"), b"keep").unwrap();
+    op.apply(true).unwrap();
+    assert!(!live.join("next-only").exists());
+    assert!(live.join("prior-only/deep/notice.txt").is_file());
+    assert!(live.join("unknown-empty").is_dir());
+    assert!(live.join("retain-empty-extra/unknown-empty").is_dir());
+    assert_eq!(
+        fs::read(live.join("retain-foreign/nested/foreign.txt")).unwrap(),
+        b"keep"
+    );
+    op.apply(true).unwrap();
+    op.apply(false).unwrap();
+    assert!(!live.join("prior-only").exists());
+    assert!(live.join("next-only/deep/notice.txt").is_file());
+    assert!(live.join("unknown-empty").is_dir());
+}
+#[test]
 fn unknown_live_bytes_and_tampered_backup_refuse() {
     let t = fixture();
     let live = t.path().join("live");

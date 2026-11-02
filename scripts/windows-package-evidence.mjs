@@ -1,3 +1,4 @@
+import {decodeDependencyNotices,validateWindowsDiagnosticReadiness} from './windows-package-fixtures.mjs';
 import {validateWindowsOfflineFirewall} from './windows-offline-firewall.mjs';
 import {validatePreparedRecipient} from './prepared-recipients.mjs';
 // SPDX-License-Identifier: Apache-2.0
@@ -20,7 +21,9 @@ export function validateSingleFileWindows(build,result){
 }
 export async function validatePackageEvidence(build,result,root){
  if(!['0.0.0','0.1.0'].includes(build.records[0].payload.version)){
-  validateSingleFileWindows(build,result);
+  validateSingleFileWindows(build,result);validateWindowsDiagnosticReadiness(build,result.diagnosticFixtureReadiness);assert.ok(Date.parse(result.diagnosticFixtureReadiness.terminalFinished)<=Date.parse(result.started));
+  assert.match(build.directory,/^\.local\/windows-packages-[A-Za-z0-9_-]+$/);
+  for(const row of build.records){const bundled=row.noticeBundle;assert.equal(bundled.path,'licenses/dependencies.json');const file=row.payload.files.find(file=>file.path===bundled.path);assert.ok(file);const bytes=await readFile(path.join(root,build.directory,row.edition+'-payload',bundled.path));assert.equal(digest(bytes),file.sha256);assert.equal(String(bytes.length),file.bytes);assert.equal(digest(bytes),bundled.sha256);const notices=decodeDependencyNotices(bytes);assert.equal(notices.files.length,bundled.files);assert.equal(digest(Buffer.from(JSON.stringify(notices.files.map(({text,...record})=>record)))),bundled.inventorySha256);}
   for(const p of build.products){const bytes=await readFile(path.join(root,p.artifact.path));assert.equal(String(bytes.length),p.artifact.bytes);assert.equal(digest(bytes),p.artifact.sha256);}
  }
 
