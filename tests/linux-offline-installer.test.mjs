@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';import assert from 'node:assert/strict';
-import {validateOfflineInventory,linuxInstallerMagic,debFields,prepareOfflineClosure} from '../scripts/linux-offline-installer.mjs';
+import {validateOfflineInventory,linuxInstallerMagic,debFields,prepareOfflineClosure,retainCanonicalPredecessorArtifact} from '../scripts/linux-offline-installer.mjs';
 function inventory(){return {formatVersion:1,product:'local-media-gallery',os:'linux',arch:'x86_64',version:'0.2.0',nativeBytes:4,packages:[{name:'application.deb',package:'local-media-gallery',version:'0.2.0',architecture:'amd64',role:'application',offset:4,bytes:3,sha256:'a'.repeat(64)}]};}
 test('Linux installer inventory enforces exact package extents and one application',()=>{assert.equal(linuxInstallerMagic.length,16);validateOfflineInventory(inventory(),7);for(const change of [m=>m.packages[0].name='../outside.deb',m=>m.packages[0].offset=3,m=>m.packages[0].bytes=8,m=>m.packages[0].architecture='arm64',m=>m.packages[0].version='0.1.0',m=>m.packages[0].role='runtime',m=>m.packages.push({...m.packages[0],offset:7}),m=>m.packages[0].sha256='bad']){const m=inventory();change(m);assert.throws(()=>validateOfflineInventory(m,7));}});
 test('Debian field parsing preserves epoch versions and source identity',()=>{assert.deepEqual(debFields('Package: ffmpeg\nVersion: 7:6.1.1-3ubuntu5\nSource: ffmpeg (7:6.1.1-3ubuntu5)\n'),{Package:'ffmpeg',Version:'7:6.1.1-3ubuntu5',Source:'ffmpeg (7:6.1.1-3ubuntu5)'});});
@@ -12,3 +12,8 @@ test('Closure preparation clears debootstrap archive bytes before resolving appl
 });
 
 test('Independent source tar reader rejects altered corresponding source',async()=>{const {execFile}=await import('node:child_process');const {promisify}=await import('node:util');const {python,root}=await import('../scripts/run.mjs');await promisify(execFile)(python,['tests/linux-source-readback.test.py'],{cwd:root,shell:false,windowsHide:true,timeout:15000});});
+
+test('Published predecessor descriptor cannot overwrite the current lifecycle descriptor with the same name',async()=>{
+ const fs=await import('node:fs/promises'),path=await import('node:path'),os=await import('node:os'),{createHash}=await import('node:crypto');const directory=await fs.mkdtemp(path.join(os.tmpdir(),'linux-predecessor-'));const name='full-prior.update.json',current=Buffer.from('{"version":"0.2.0","generation":"current"}\n'),prior=Buffer.from('{"version":"0.1.0","generation":"published"}\n'),row={name,bytes:String(prior.length),sha256:createHash('sha256').update(prior).digest('hex')};
+ try{await fs.writeFile(path.join(directory,name),current);const retained=await retainCanonicalPredecessorArtifact({row,bytes:prior,directory});assert.equal(retained.file,path.join(directory,'canonical-0.1.0',name));assert.deepEqual(await fs.readFile(retained.file),prior);assert.deepEqual(await fs.readFile(path.join(directory,name)),current);await assert.rejects(retainCanonicalPredecessorArtifact({row,bytes:Buffer.from('changed'),directory}));assert.deepEqual(await fs.readFile(retained.file),prior);assert.deepEqual(await fs.readFile(path.join(directory,name)),current);}finally{assert.ok(path.basename(directory).startsWith('linux-predecessor-'));await fs.rm(directory,{recursive:true,force:true});}
+});

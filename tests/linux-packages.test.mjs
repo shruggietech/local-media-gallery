@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import Ajv from 'ajv/dist/2020.js';
-import {validateLinuxPayload,guardFiles,validateLinuxMedia,validateLinuxFootprints,linuxGalleryReady} from '../scripts/linux-packages.mjs';
+import {validateLinuxPayload,guardFiles,validateLinuxMedia,validateLinuxFootprints,linuxGalleryReady,linuxPreparedRecipientLaunch} from '../scripts/linux-packages.mjs';
 export function payload(edition='full'){
  const base=edition==='full'?'usr/lib/local-media-gallery/':'';const paths=[base+'local-media-gallery.bin',edition==='full'?'usr/bin/local-media-gallery':'local-media-gallery',base+'LICENSE',base+'NOTICE',base+'licenses/dependencies/inventory.json'];
  if(edition==='full')paths.push('usr/share/applications/tech.shruggie.local-media-gallery.desktop','usr/share/doc/local-media-gallery/copyright',...['48','256','512'].map(s=>'usr/share/icons/hicolor/'+s+'x'+s+'/apps/tech.shruggie.local-media-gallery.png'));
@@ -32,3 +32,5 @@ test('Native Linux readiness waits for enabled settings before portable preceden
 });
 
 test('Future numeric product versions remain parseable; malformed versions refuse',()=>{const p=payload();p.version='1.2.3';assert.ok(validateLinuxPayload(p));for(const v of ['01.2.3','1.2.3-beta','1.2','x']){p.version=v;assert.throws(()=>validateLinuxPayload(p));}});
+
+test('Prepared Linux launches the published direct artifact name while retaining legacy wrapper semantics',()=>{const legacy=linuxPreparedRecipientLaunch(payload('lite').files,{direct:false});assert.equal(legacy.entrypoint,'local-media-gallery');assert.equal(legacy.binary,'local-media-gallery.bin');const artifact={format:'elf',name:'local-media-gallery-0.2.0-lite-x86_64-linux',sha256:'a'.repeat(64),bytes:'3'},files=[{path:artifact.name,sha256:artifact.sha256,bytes:artifact.bytes,mode:'755'}];const direct=linuxPreparedRecipientLaunch(files,{direct:true,artifact});assert.equal(direct.entrypoint,artifact.name);assert.equal(direct.binary,artifact.name);assert.equal(direct.files,files);assert.throws(()=>linuxPreparedRecipientLaunch([{...files[0],path:'local-media-gallery.bin'}],{direct:true,artifact}));assert.throws(()=>linuxPreparedRecipientLaunch([{...files[0],sha256:'b'.repeat(64)}],{direct:true,artifact}));assert.throws(()=>linuxPreparedRecipientLaunch(files,{direct:true,artifact:{...artifact,format:'tar.gz'}}));});

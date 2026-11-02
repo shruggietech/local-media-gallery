@@ -18,6 +18,10 @@ export const packageName='local-media-gallery';
 export const fullBase='usr/lib/local-media-gallery/';
 export const desktop='usr/share/applications/tech.shruggie.local-media-gallery.desktop';
 export const iconPaths=['48','256','512'].map(s=>'usr/share/icons/hicolor/'+s+'x'+s+'/apps/tech.shruggie.local-media-gallery.png');
+export function linuxPreparedRecipientLaunch(inventory,{direct=false,artifact}={}){
+ if(direct){assert.equal(artifact?.format,'elf');assert.equal(path.basename(artifact.name),artifact.name);assert.equal(inventory.length,1);const file=inventory.find(f=>f.path===artifact.name);assert.ok(file,'Published direct executable absent from prepared inventory');assert.equal(file.sha256,artifact.sha256);assert.equal(file.bytes,artifact.bytes);assert.equal(file.mode,'755');return {entrypoint:artifact.name,binary:artifact.name,files:inventory};}
+ assert.ok(inventory.some(f=>f.path==='local-media-gallery')&&inventory.some(f=>f.path==='local-media-gallery.bin'),'Published legacy Linux wrapper and binary required');return {entrypoint:'local-media-gallery',binary:'local-media-gallery.bin',files:inventory};
+}
 const topKeys=['formatVersion','product','kind','version','edition','os','arch','targetTriple','buildProfile','generation','source','revision','binary','entrypoint','candidate','dependencies','files'];
 export function linuxPath(value,edition){
  payloadPath(value);assert.ok(value.length<=240&&!['|','*','?','[',']'].some(c=>value.includes(c)),'Unsafe Linux authority path');

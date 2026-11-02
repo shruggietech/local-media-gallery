@@ -47,15 +47,26 @@ pub fn installed_helper() -> Result<Option<Helper>, GalleryError> {
     }
     let executable =
         std::env::current_exe().map_err(|_| gallery_core::cache::error("helper_unavailable"))?;
-    let directory = executable
-        .parent()
-        .ok_or_else(|| gallery_core::cache::error("helper_unavailable"))?;
-    let Some((binary, sha256)) = installed_helper_identity(directory)? else {
+    let directory = installed_helper_directory(&executable)?;
+    let Some((binary, sha256)) = installed_helper_identity(&directory)? else {
         return Ok(None);
     };
     let mut helper = Helper::select(directory.join(binary), Some(&sha256))?;
     helper.origin = "bundled Full dependency; verified against installed helper metadata";
     Ok(Some(helper))
+}
+fn installed_helper_directory(executable: &Path) -> Result<PathBuf, GalleryError> {
+    // macOS can report the command symlink as current_exe. Resolve that actual
+    // executable before looking for its adjacent managed metadata and helper.
+    let executable = std::fs::canonicalize(executable)
+        .map_err(|_| gallery_core::cache::error("helper_unavailable"))?;
+    if !std::fs::metadata(&executable).is_ok_and(|m| m.is_file()) {
+        return Err(gallery_core::cache::error("helper_unavailable"));
+    }
+    executable
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| gallery_core::cache::error("helper_unavailable"))
 }
 fn installed_helper_identity(directory: &Path) -> Result<Option<(String, String)>, GalleryError> {
     use std::io::Read;
@@ -450,6 +461,48 @@ fn preparation_result(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn installed_helper_directory_uses_physical_executable_and_refuses_missing_or_directory() {
+        let root = tempfile::tempdir().unwrap();
+        let executable = root.path().join("app");
+        std::fs::write(&executable, b"application").unwrap();
+        assert_eq!(
+            installed_helper_directory(&executable).unwrap(),
+            std::fs::canonicalize(root.path()).unwrap()
+        );
+        assert!(installed_helper_directory(root.path()).is_err());
+        assert!(installed_helper_directory(&root.path().join("missing")).is_err());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn installed_helper_follows_the_invoked_command_to_the_actual_owned_executable() {
+        use std::os::unix::fs::symlink;
+        let root = tempfile::tempdir().unwrap();
+        let application = root.path().join("Applications/Full 雪.app/Contents/MacOS");
+        std::fs::create_dir_all(&application).unwrap();
+        let executable = application.join("local-media-gallery");
+        std::fs::write(&executable, b"application").unwrap();
+        std::fs::write(application.join("ffmpeg"), b"bundled helper").unwrap();
+        std::fs::write(
+            application.join("feature-helper.json"),
+            serde_json::to_vec(&serde_json::json!({"binary":"ffmpeg","sha256":"a".repeat(64)}))
+                .unwrap(),
+        )
+        .unwrap();
+        let bin = root.path().join("bin");
+        std::fs::create_dir(&bin).unwrap();
+        let command = bin.join("local-media-gallery");
+        symlink(&executable, &command).unwrap();
+        assert!(installed_helper_identity(&bin).unwrap().is_none());
+        let directory = installed_helper_directory(&command).unwrap();
+        assert_eq!(directory, std::fs::canonicalize(&application).unwrap());
+        assert_eq!(
+            installed_helper_identity(&directory).unwrap(),
+            Some(("ffmpeg".into(), "a".repeat(64)))
+        );
+        std::fs::remove_file(&executable).unwrap();
+        assert!(installed_helper_directory(&command).is_err());
+    }
     #[test]
     fn installed_helper_metadata_is_bounded_and_never_selects_external_paths() {
         let root = tempfile::tempdir().unwrap();

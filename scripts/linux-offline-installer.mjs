@@ -21,9 +21,16 @@ export async function writeOfflineInstaller({native,packages,output,metadata,cap
 
 export async function acquireCanonicalPredecessor({root,directory}){
  const recordBytes=await readFile(path.join(root,'crates/gallery-preparation/tests/fixtures/release-0.1.0.json'));assert.equal(hash(recordBytes),'079615f3ff8434b32c3c632190b544c6c32e17513fa125ec7e07f679a1c65f1f');const record=parseReleaseRecord(recordBytes,{requirePublished:true});const artifact=record.artifacts.find(a=>a.role==='package'&&a.platform==='linux'&&a.edition==='full'),descriptorRow=record.artifacts.find(a=>a.role==='update-descriptor'&&a.forArtifact===artifact.name);assert.ok(artifact&&descriptorRow);
- async function acquire(row){const response=await fetch(row.url,{signal:AbortSignal.timeout(120000)});assert.ok(response.ok,'Canonical predecessor HTTP '+response.status);const bytes=Buffer.from(await response.arrayBuffer());assert.equal(String(bytes.length),row.bytes);assert.equal(hash(bytes),row.sha256);const file=path.join(directory,row.name);await writeFile(file,bytes);return {file,bytes};}
+ async function acquire(row){const response=await fetch(row.url,{signal:AbortSignal.timeout(120000)});assert.ok(response.ok,'Canonical predecessor HTTP '+response.status);const bytes=Buffer.from(await response.arrayBuffer());return retainCanonicalPredecessorArtifact({row,bytes,directory});}
  const application=await acquire(artifact),descriptorFile=await acquire(descriptorRow),descriptor=JSON.parse(descriptorFile.bytes);assert.equal(descriptor.native.installer.sha256,artifact.sha256);assert.equal(descriptor.native.installer.bytes,artifact.bytes);assert.equal(descriptor.version,'0.1.0');
  return {package:{path:application.file,role:'predecessor',source:{package:'local-media-gallery',version:'0.1.0',source:descriptor.source,releaseRecordSha256:hash(recordBytes)}},descriptor,provenance:{version:'0.1.0',releaseUrl:'https://github.com/shruggietech/local-media-gallery/releases/tag/v0.1.0',releaseRecordSha256:hash(recordBytes),artifact,descriptor:descriptorRow}};
+}
+
+export async function retainCanonicalPredecessorArtifact({row,bytes,directory}){
+ assert.equal(path.basename(row.name),row.name,'Canonical artifact must be a basename');assert.notEqual(row.name,'.');assert.notEqual(row.name,'..');assert.equal(String(bytes.length),row.bytes);assert.equal(hash(bytes),row.sha256);
+ // Published descriptor names can equal the current campaign's names. Keep the
+ // immutable predecessor namespace separate from current-generation inputs.
+ const retained=path.join(directory,'canonical-0.1.0');await mkdir(retained,{recursive:true});const file=path.join(retained,row.name);await writeFile(file,bytes);return {file,bytes};
 }
 
 export async function prepareOfflineClosure({root,directory,application,dependencies,capture}){
