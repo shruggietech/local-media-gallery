@@ -202,6 +202,12 @@ impl Portable {
         patch: &Map<String, Value>,
     ) -> Result<(), GalleryError> {
         if self.bytes.as_ref() == Some(&self.prepared_bytes(patch)?) {
+            if read(dir)? != self.bytes {
+                return Err(GalleryError::new(
+                    "portable_conflict",
+                    "Portable settings changed after preview. Reopen this gallery and preview preparation again.",
+                ));
+            }
             return Ok(());
         }
         let previous = self.document.clone();
@@ -270,6 +276,34 @@ mod tests {
         assert_eq!(value["version"], "0.1.0");
         assert_eq!(value["choices"]["futureChoice"], "retain");
         assert_eq!(value["futureDocument"]["retain"], true);
+    }
+    #[test]
+    fn prepared_reuse_revalidates_edited_and_deleted_destinations() {
+        for deleted in [false, true] {
+            let (temp, dir) = fixture();
+            let patch = json!({"controlsExpanded":true});
+            let mut state = Portable::load(&dir, false);
+            state
+                .save_prepared(&dir, patch.as_object().unwrap())
+                .unwrap();
+            if deleted {
+                std::fs::remove_file(temp.path().join(FILE)).unwrap();
+            } else {
+                std::fs::write(temp.path().join(FILE), b"external editor bytes").unwrap();
+            }
+            let conflict = state
+                .save_prepared(&dir, patch.as_object().unwrap())
+                .unwrap_err();
+            assert_eq!(conflict.code, "portable_conflict");
+            if deleted {
+                assert!(!temp.path().join(FILE).exists());
+            } else {
+                assert_eq!(
+                    std::fs::read(temp.path().join(FILE)).unwrap(),
+                    b"external editor bytes"
+                );
+            }
+        }
     }
     #[test]
     fn sparse_unknown_conflict_and_removal() {

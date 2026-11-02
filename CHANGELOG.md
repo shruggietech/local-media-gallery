@@ -11,6 +11,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Fixed
 
+- Reused prepared presentation revalidates the actual settings document and reports external edits or deletion as a conflict. Prepared-gallery evidence archives preserve raw executable modes across CI transport.
+
 - Canceling an idle thumbnail preview releases its held gallery root so Close folder can be followed by relocation.
 
 - Windows package startup waits for the expected portable presentation inside its existing deadline, retaining attributed root, settings identity and last UI observation on failure.
