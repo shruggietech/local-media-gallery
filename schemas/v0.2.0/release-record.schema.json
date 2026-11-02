@@ -78,7 +78,8 @@
               "package",
               "update-descriptor",
               "documentation",
-              "qualification"
+              "qualification",
+              "source"
             ]
           },
           "edition": {
@@ -109,7 +110,13 @@
               "dmg",
               "deb",
               "tar.gz",
-              "json"
+              "json",
+              "exe",
+              "elf",
+              "mach-o",
+              "pkg",
+              "run",
+              "tar.xz"
             ]
           },
           "bytes": {

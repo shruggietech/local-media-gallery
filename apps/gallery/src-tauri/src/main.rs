@@ -6,6 +6,7 @@ mod gallery_state;
 mod guided;
 mod history;
 mod launch;
+mod maintenance;
 mod portable;
 mod preparation;
 #[cfg(feature = "native-tests")]
@@ -382,7 +383,12 @@ fn run_application(
     let service = Arc::new(gallery_core::thumbnail::PreparationService::new(
         engine.clone(),
         preparation::cache_root(),
-        None,
+        preparation::installed_helper().unwrap_or_else(|_| {
+            engine
+                .diagnostics()
+                .record(gallery_core::diagnostics::Event::HelperUnavailable);
+            None
+        }),
     ));
     engine.set_preparation(&service);
     let transport =
@@ -397,7 +403,17 @@ fn run_application(
     let listener = transport.ok();
     let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
     #[cfg(feature = "native-tests")]
-    let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+    let builder = builder
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry, ()>::new("gallery-native-startup")
+                .on_webview_ready(|webview| {
+                    if webview.label() == "main" {
+                        qualification::startup_marker("main-webview-ready");
+                    }
+                })
+                .build(),
+        )
+        .plugin(tauri_plugin_wdio_webdriver::init());
     #[cfg(feature = "native-tests")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         guided::guided_preview,
@@ -471,6 +487,8 @@ fn run_application(
     let shutdown_service = service.clone();
     let guided_shutdown = Arc::new(OnceLock::<Arc<guided::Service>>::new());
     let setup_shutdown = guided_shutdown.clone();
+    #[cfg(feature = "native-tests")]
+    qualification::startup_marker("application-build-start");
     let app=builder
         .manage(service)
         .manage(Runtime {
@@ -482,6 +500,8 @@ fn run_application(
             startup_receipt,
         })
         .setup(move |app| {
+            #[cfg(feature = "native-tests")]
+            qualification::startup_marker("application-setup-start");
             let handle=app.handle().clone();
             app.state::<Arc<gallery_core::thumbnail::PreparationService>>().set_notify(Arc::new(move|status|{let _=handle.emit_to("main","preparation-changed",status);}));
             let settings = match app.path().app_config_dir().map(launch::shared_state_directory) {
@@ -524,6 +544,8 @@ fn run_application(
                     }
                 });
             }
+            #[cfg(feature = "native-tests")]
+            qualification::startup_marker("application-setup-complete");
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -541,7 +563,18 @@ fn run_application(
         })
         .build(context)
         .map_err(|e|GalleryError::new("launch_failed",format!("The native application could not start: {e}. {}",launch::runtime_guidance())))?;
-    let code = app.run_return(|_, _| {});
+    #[cfg(feature = "native-tests")]
+    qualification::startup_marker("application-build-complete");
+    #[cfg(feature = "native-tests")]
+    qualification::startup_marker("event-loop-enter");
+    let code = app.run_return(|_, event| {
+        #[cfg(feature = "native-tests")]
+        if matches!(event, tauri::RunEvent::Ready) {
+            qualification::startup_marker("event-loop-ready");
+        }
+        #[cfg(not(feature = "native-tests"))]
+        let _ = event;
+    });
     if let Some(guided) = guided_shutdown.get() {
         guided.shutdown();
     }
@@ -557,6 +590,9 @@ fn output(result: &launch::OperationResult, machine: bool) -> i32 {
 }
 fn main() {
     use launch::{Mode, Operation, OperationResult, Status};
+    if let Some(code) = maintenance::intercept() {
+        std::process::exit(code);
+    }
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     if args.first().is_some_and(|a| a == "state-compatibility") {
         let (value, code) = match compatibility::probe(&args[1..]) {

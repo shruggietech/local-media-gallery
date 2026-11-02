@@ -38,6 +38,9 @@ fn run() -> gallery_macos_package::Result<()> {
         .and_then(|v| v.to_str())
         .ok_or("Supply install or remove; use --help")?;
     if ![
+        "managed-install",
+        "managed-remove",
+        "managed-rollback",
         "install",
         "remove",
         "update",
@@ -91,18 +94,33 @@ fn run() -> gallery_macos_package::Result<()> {
             "rollback" => gallery_update::RecoveryCommand::Rollback,
             _ => gallery_update::RecoveryCommand::Recover,
         };
-        let result = gallery_update::Transaction::resume(&transaction, action)?;
+        let helper_payload: gallery_macos_package::Payload =
+            serde_json::from_slice(include_bytes!(concat!(env!("OUT_DIR"), "/payload.json")))?;
+        helper_payload.validate()?;
+        let result =
+            gallery_update::Transaction::resume_admitted(&transaction, action, |directory| {
+                if helper_payload.edition == "full" {
+                    gallery_macos_package::destination_lease(directory)
+                        .map(Some)
+                        .map_err(|error| error.to_string())
+                } else {
+                    Ok(None)
+                }
+            })?;
         println!("{}", serde_json::to_string(&result)?);
         return Ok(());
     }
-    let scope = options
-        .get("--scope")
-        .and_then(|v| v.to_str())
-        .unwrap_or("user");
+    let scope = options.get("--scope").and_then(|v| v.to_str()).unwrap_or(
+        if operation.starts_with("managed-") {
+            "system"
+        } else {
+            "user"
+        },
+    );
     if !["user", "system"].contains(&scope) {
         return Err("Scope must be user or system".into());
     }
-    fn output(file: &str, args: &[&std::ffi::OsStr]) -> gallery_macos_package::Result<String> {
+    fn raw_output(file: &str, args: &[&std::ffi::OsStr]) -> gallery_macos_package::Result<String> {
         let result = Command::new(file)
             .args(args)
             .stdin(std::process::Stdio::null())
@@ -114,7 +132,10 @@ fn run() -> gallery_macos_package::Result<()> {
             )
             .into());
         }
-        Ok(String::from_utf8(result.stdout)?.trim().into())
+        Ok(String::from_utf8(result.stdout)?)
+    }
+    fn output(file: &str, args: &[&std::ffi::OsStr]) -> gallery_macos_package::Result<String> {
+        Ok(raw_output(file, args)?.trim().into())
     }
     if std::env::consts::ARCH != "aarch64" {
         return Err("Unsupported architecture; requires Apple Silicon".into());
@@ -172,11 +193,94 @@ fn run() -> gallery_macos_package::Result<()> {
         return Err("Application and command directory must be separate".into());
     }
     let command = bin.join("local-media-gallery");
-    let source = std::env::current_exe()?
+    let installer = std::fs::canonicalize(std::env::current_exe()?)?;
+    let source = installer
         .parent()
         .ok_or("Candidate parent unavailable")?
         .join(&payload.bundle);
-    let result = if ["update", "prepare-update"].contains(&operation) {
+    let result = if operation == "managed-rollback" {
+        if scope != "system" || !options.is_empty() {
+            return Err("Managed rollback takes no operands and requires system scope".into());
+        }
+        let updates = PathBuf::from("/Library/Application Support/Local Media Gallery Updates");
+        let transaction = gallery_macos_package::managed_transaction(
+            &updates,
+            &payload.generation,
+        )?
+        .ok_or(
+            "No retained owned predecessor is available for rollback; application was not changed",
+        )?;
+        gallery_macos_package::rollback_managed(&transaction, &app, &command, &payload)?
+    } else if operation == "managed-remove" {
+        if scope != "system" || !options.is_empty() {
+            return Err("Managed removal takes no operands and requires system scope".into());
+        }
+        gallery_macos_package::managed_remove(&app, &command)?
+    } else if operation == "managed-install" {
+        if scope != "system" || !options.is_empty() {
+            return Err("Managed installation takes no operands and requires system scope".into());
+        }
+        gallery_macos_package::verify(&source, &payload, true)?;
+        let updates = PathBuf::from("/Library/Application Support/Local Media Gallery Updates");
+        if std::fs::symlink_metadata(&updates).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err("Redirected maintenance directory".into());
+        }
+        std::fs::create_dir_all(&updates)?;
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let metadata = std::fs::symlink_metadata(&updates)?;
+        if metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
+            return Err(
+                "Maintenance directory must be root-owned and not writable by other users".into(),
+            );
+        }
+        std::fs::set_permissions(&updates, std::fs::Permissions::from_mode(0o700))?;
+        let existing = gallery_macos_package::managed_transaction(&updates, &payload.generation)?;
+        if let Some(transaction) = &existing
+            && let Some(result) =
+                gallery_macos_package::reactivate_managed(transaction, &app, &command, &payload)?
+        {
+            println!("{}", serde_json::to_string(&result)?);
+            return Ok(());
+        }
+        let transaction = if existing.is_some() {
+            let suffix = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos();
+            updates.join(format!("{}-attempt-{suffix}", payload.generation))
+        } else {
+            updates.join(&payload.generation)
+        };
+        // Installation never writes recipient profiles. Observe the current console user's actual state
+        // for update compatibility without initialization or requiring manual JSON/database operands.
+        let user = output(
+            "/usr/bin/stat",
+            &["-f".as_ref(), "%Su".as_ref(), "/dev/console".as_ref()],
+        )?;
+        if user.is_empty() || user.contains('/') || user.chars().any(char::is_control) {
+            return Err("Console recipient identity unavailable".into());
+        }
+        let record = format!("/Users/{user}");
+        let account = raw_output(
+            "/usr/bin/dscl",
+            &[
+                ".".as_ref(),
+                "-read".as_ref(),
+                record.as_ref(),
+                "NFSHomeDirectory".as_ref(),
+            ],
+        )?;
+        let home = gallery_macos_package::account_home(&account)?;
+        let state = gallery_macos_package::recipient_state(&home)?;
+        gallery_macos_package::managed_install(
+            &source,
+            &app,
+            &command,
+            &payload,
+            &transaction,
+            &state,
+            &std::env::var_os("PATH").unwrap_or_default(),
+        )?
+    } else if ["update", "prepare-update"].contains(&operation) {
         if payload.edition == "lite" && !options.contains_key("--directory") {
             return Err("Lite update requires explicit --directory APP".into());
         }

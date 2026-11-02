@@ -1,3 +1,5 @@
+import {decodeDependencyNotices,validateWindowsDiagnosticReadiness} from './windows-package-fixtures.mjs';
+import {validateWindowsOfflineFirewall} from './windows-offline-firewall.mjs';
 import {validatePreparedRecipient} from './prepared-recipients.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {validateUpdateEvidence} from './update-packages.mjs';
@@ -5,7 +7,26 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {digest,validatePayload} from './windows-packages.mjs';
+export function validateSingleFileWindows(build,result){
+ assert.equal(build.products.length,2);assert.deepEqual([...build.products.map(p=>p.edition)].sort(),['full','lite']);
+ const direct=result.singleFile;assert.equal(direct.result,'pass');assert.equal(direct.products.length,2);
+ for(const product of direct.products){const expected=build.products.find(p=>p.edition===product.edition);assert.deepEqual(product.artifact,expected.artifact);assert.equal(expected.artifact.format,'exe');assert.equal(expected.artifact.files.length,1);assert.deepEqual(product.recipientFiles,[expected.artifact.binary]);}
+ assert.equal(direct.offline.result,'pass');assert.deepEqual(direct.offline.absent.executables,[]);assert.ok(direct.offline.absent.registration.every(r=>!r.version||r.version==='0.0.0.0'));validateWindowsOfflineFirewall(direct.offline.firewall);validateWindowsOfflineFirewall(direct.offline.firewall.final); assert.equal(direct.offline.install.scope,'machine');assert.equal(direct.offline.install.runtimeAfter.scope,'machine');assert.ok([0,3010].includes(direct.offline.install.runtimeBootstrapperExit));assert.equal(direct.offline.removed.operation,'remove');
+ assert.equal(direct.publishedPredecessor.result,'pass');assert.equal(direct.publishedPredecessor.version,'0.1.0');assert.equal(direct.publishedPredecessor.upgrade.status,'complete');assert.equal(direct.publishedPredecessor.rollback.status,'restored');
+ assert.equal(direct.features.result,'pass');assert.equal(direct.features.helperSha256,build.featureHelper.sha256);assert.equal(direct.features.job.completed,'1');assert.equal(direct.features.job.failed,'0');
+ assert.equal(direct.maintenance.result,'pass');assert.equal(direct.maintenance.update.status,'complete');assert.equal(direct.maintenance.recovered.status,'already-current');assert.equal(direct.maintenance.rollback.status,'restored');
+ assert.equal(direct.liteMaintenance.result,'pass');assert.equal(direct.liteMaintenance.replace.status,'complete');assert.equal(direct.liteMaintenance.recover.status,'already-current');assert.equal(direct.liteMaintenance.rollback.status,'restored');
+ for(const label of ['single-file-lite-in-place','single-file-lite-relocated'])assert.ok(direct.native.some(n=>n.label===label));
+ return true;
+}
 export async function validatePackageEvidence(build,result,root){
+ if(!['0.0.0','0.1.0'].includes(build.records[0].payload.version)){
+  validateSingleFileWindows(build,result);validateWindowsDiagnosticReadiness(build,result.diagnosticFixtureReadiness);assert.ok(Date.parse(result.diagnosticFixtureReadiness.terminalFinished)<=Date.parse(result.started));
+  assert.match(build.directory,/^\.local\/windows-packages-[A-Za-z0-9_-]+$/);
+  for(const row of build.records){const bundled=row.noticeBundle;assert.equal(bundled.path,'licenses/dependencies.json');const file=row.payload.files.find(file=>file.path===bundled.path);assert.ok(file);const bytes=await readFile(path.join(root,build.directory,row.edition+'-payload',bundled.path));assert.equal(digest(bytes),file.sha256);assert.equal(String(bytes.length),file.bytes);assert.equal(digest(bytes),bundled.sha256);const notices=decodeDependencyNotices(bytes);assert.equal(notices.files.length,bundled.files);assert.equal(digest(Buffer.from(JSON.stringify(notices.files.map(({text,...record})=>record)))),bundled.inventorySha256);}
+  for(const p of build.products){const bytes=await readFile(path.join(root,p.artifact.path));assert.equal(String(bytes.length),p.artifact.bytes);assert.equal(digest(bytes),p.artifact.sha256);}
+ }
+
  if(!['0.0.0','0.1.0'].includes(build.records[0].payload.version)){assert.ok(result.preparedRecipient,'Prepared published recipient evidence required');assert.deepEqual(result.preparedRecipient.source,result.source);assert.equal(result.preparedRecipient.revision,result.revision);await validatePreparedRecipient(result.preparedRecipient,root);}
 
  assert.equal(result.result,'pass');assert.equal(result.acceptance,true);assert.equal(result.formatVersion,1);assert.deepEqual(result.source,build.source);assert.equal(result.revision,build.revision);assert.ok(new Date(result.terminalFinished)>=new Date(result.started));assert.equal(result.host.platform,'win32');assert.equal(result.host.arch,'x64');
@@ -14,7 +35,7 @@ export async function validatePackageEvidence(build,result,root){
  for(const edition of ['full','lite']){
   const record=build.records.find(r=>r.edition===edition);validatePayload(record.payload);assert.deepEqual(record.payload.source,build.source);assert.equal(record.payload.revision,build.revision);assert.deepEqual(result.extracted[edition],record.archive);
   const bytes=await readFile(path.join(root,record.archive.path));assert.equal(digest(bytes),record.archive.sha256);assert.equal(String(bytes.length),record.archive.bytes);
-  for(const native of result.native.filter(n=>n.edition===edition)){assert.equal(native.binarySha256,record.payload.files.find(f=>f.path===record.payload.binary).sha256);assert.ok(native.accessibility.some(n=>n.name==='Open red.png'));assert.ok(native.pixels.red>1500);assert.equal(native.pixels.stride,4);const screenshot=await readFile(path.join(root,native.screenshot));assert.equal(digest(screenshot),native.screenshotSha256);assert.equal(String(screenshot.length),native.screenshotBytes);assert.ok(screenshot.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])));if(native.label==='lite-relocated'){assert.ok(native.refreshedPixels.green>1500);const bytes=await readFile(path.join(root,native.refreshScreenshot.path));assert.equal(digest(bytes),native.refreshScreenshot.sha256);assert.equal(String(bytes.length),native.refreshScreenshot.bytes);}}
+  for(const native of result.native.filter(n=>n.edition===edition&&!n.label.startsWith('single-file-lite'))){assert.equal(native.binarySha256,record.payload.files.find(f=>f.path===record.payload.binary).sha256);assert.ok(native.accessibility.some(n=>n.name==='Open red.png'));assert.ok(native.pixels.red>1500);assert.equal(native.pixels.stride,4);const screenshot=await readFile(path.join(root,native.screenshot));assert.equal(digest(screenshot),native.screenshotSha256);assert.equal(String(screenshot.length),native.screenshotBytes);assert.ok(screenshot.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])));if(native.label==='lite-relocated'){assert.ok(native.refreshedPixels.green>1500);const bytes=await readFile(path.join(root,native.refreshScreenshot.path));assert.equal(digest(bytes),native.refreshScreenshot.sha256);assert.equal(String(bytes.length),native.refreshScreenshot.bytes);}}
  }
  for(const install of result.installations){const pkg=build.bundle.packages.find(p=>p.scope===install.scope);assert.equal(install.observed.registered.package.toUpperCase(),pkg.packageCode);assert.equal(install.observed.integration.product,pkg.productCode);assert.equal(install.removed.observed.registered,null);assert.equal(install.removed.observed.integration,null);assert.ok(install.removed.retained.length>0);assert.match(install.installedBytes,/^[1-9][0-9]*$/);}
  assert.equal(build.bundle.bootstrapper.audit.signature.status,'Valid');assert.match(build.bundle.bootstrapper.audit.signature.subject,/Microsoft Corporation/);await validateUpdateEvidence(build,result.updates,root);return true;

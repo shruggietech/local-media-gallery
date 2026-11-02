@@ -55,7 +55,7 @@ export class ReleasePublisher {
   assert.equal(asset.state,'uploaded','Incomplete remote asset');assert.equal(String(asset.size),expected.bytes,'Remote asset bytes differ');
   // Draft browser URLs are temporary. They are never credentials or canonical metadata.
   if(!draft)assert.equal(asset.browser_download_url,expected.url,'Remote asset URL differs');
-  const actual=await this.client.download(asset.url);assert.equal(actual.bytes,expected.bytes);assert.equal(actual.sha256,expected.sha256,'Remote asset digest differs');
+  const actual=await this.client.download(asset.url,{maxBytes:Number(expected.bytes),timeoutMs:300000});assert.equal(actual.bytes,expected.bytes);assert.equal(actual.sha256,expected.sha256,'Remote asset digest differs');
   return {name:asset.name,id:asset.id,bytes:actual.bytes,sha256:actual.sha256,url:expected.url};
  }
  async verifyAssets(record,release,options={}){

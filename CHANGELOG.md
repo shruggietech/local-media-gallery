@@ -4,12 +4,32 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Development decisions (2026-11-02)
+
+- Replace the new-version product archive contract with direct native Lite files and one offline system Full installer per covered platform. Preserve historical release identities. Embed native installation/update components and dependency provenance, retain normal platform ownership/privilege handling, and qualify actual downloaded files on isolated hosts. Build the Full thumbnail helper from pinned corresponding source and distinguish runtime source assets from product choices.
+
+### Changed
+
+- New Full delivery installs at system scope and bundles redistributable runtimes and video-thumbnail support. New Lite delivery is one native executable with embedded notices and maintenance identity. Historical v0.1.0 archives remain unchanged; legacy Windows per-user installations use normal removal before adopting the new system edition.
+
 ### Added
+
+- Single-file Lite executables and offline system Full installers are in development for the covered Windows, Linux and macOS rows, with embedded notices, runtime dependencies and bundled video-thumbnail support.
 
 - Guided gallery preparation independently previews and applies portable presentation, thumbnails and verified published Lite recipient packages, with complete bundle retention, gallery-root launch copies, progress, cancellation, partial results and exact reuse.
 - Unreleased0.2.0 software, documentation and schema contracts retain every shipped0.1.0 snapshot. Prepared presentation remains readable by published0.1.0 recipients.
 
 ### Fixed
+
+- Stream large native qualification archives to exclusive partial files and verify original API digests before acceptance. Select the latest retained attempt after terminal qualification while preserving failed diagnostics. Read back corresponding-source payloads using their exact declared byte bound.
+
+- Recover interrupted offline Linux installation by configuring authenticated unpacked dependencies instead of requesting every runtime archive again. Keep normal explicit replacement behavior.
+- Keep Windows acceptance input independent of unused UI Automation and align native driver script readiness with its client deadline, retaining exact ownership and timeout restoration.
+
+- Retain exact configured Linux package identities before first installation so interrupted recovery can finish attributable system triggers while refusing unrelated unpacked or partially configured packages.
+
+- Preserve every Windows and Linux dependency notice in one indexed document with original paths, text and hashes, reducing repeated installation and update file operations. Retain independent source-bound readback of the complete notice inventory.
+- Remove only known empty directories left by direct candidate switching so macOS rollback followed by uninstall can remove the owned app without deleting foreign content.
 
 - Reused prepared presentation revalidates the actual settings document and reports external edits or deletion as a conflict. Prepared-gallery evidence archives preserve raw executable modes across CI transport.
 
@@ -20,11 +40,15 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - Release staging verifies temporary draft assets through authenticated API identities and exact content hashes, then requires final public URLs after publication. Bounded read-after-write observation reconciles delayed or lost acknowledgements without blindly replaying mutations.
 - Retain the exact candidate and publication static exports, inventories and matching gated records for independent readback, including candidate evidence when later publication fails.
 
-- Documentation acceptance now waits for the completed document navigation when reselecting the current version, preventing overlapping same-URL loads in the release campaign.
+- Documentation acceptance distinguishes same-document history events from completed replacement documents, including current-version reloads, preventing overlapping navigation in release gates.
 
 ### Process decisions
 
 - 2026-11-01: Separate authenticated draft identity from final published URLs, retry only explicitly pending observations after one mutation within the existing qualification deadline, and preserve ownership, source, payload, canonical promotion and final URL checks. Retain both exact gated exports in always-uploaded workflow evidence; keep shipped product/versioned contracts and accepted native bytes unchanged.
+
+- 2026-11-02: Keep Windows recipient networking denied while allowing only verified CI runner control-plane traffic and configured DNS. Retain firewall restoration intent before mutation and restore policy independently after forced test termination, before artifact upload. Keep offline prerequisite, functional and ownership checks. Serialize qualification per scope so a running package campaign retains its diagnostics without blocking independent corrected platform checks; release validation still joins one exact-source run.
+
+- 2026-11-02: Elect bounded 4 GiB streamed native evidence transfers and 5 GiB evidence expansion after measuring the actual Windows archive. Keep smaller build-input and normal API bounds. Separate thirty-minute preparation from unchanged qualification deadlines; allow fifty minutes for the complete publication workflow.
 
 ## [0.1.0]
 

@@ -4,6 +4,22 @@ use gallery_core::GalleryError;
 use serde_json::{Value, json};
 use tauri::WebviewWindow;
 
+/// Startup observations exist only in native-test artifacts with an explicit driver.
+/// They contain no nonce, gallery path or user identity and never grant readiness.
+pub fn startup_marker(phase: &str) {
+    if std::env::var("GALLERY_TEST_DRIVER_NONCE").is_ok_and(|nonce| nonce.len() >= 16)
+        && std::env::var("TAURI_WEBDRIVER_PORT")
+            .ok()
+            .and_then(|port| port.parse::<u16>().ok())
+            .is_some_and(|port| port > 0)
+    {
+        eprintln!(
+            "{}",
+            json!({"event":"native-startup","phase":phase,"pid":std::process::id()})
+        );
+    }
+}
+
 fn error() -> GalleryError {
     GalleryError::new(
         "native_qualification_failed",

@@ -18,3 +18,48 @@ test('Observation timeout aborts slow requests and preserves the original mutati
  let calls=0;await assert.rejects(client.observe(async()=>{calls++;throw Object.assign(Error('API forbidden'),{status:403});},'pending'),/forbidden/);
  assert.equal(calls,1);
 });
+
+
+test('Latest terminal-run evidence selects the newest unexpired exact-name artifact',async()=>{
+ const {latestQualificationArtifact}=await import('../scripts/github-release.mjs');
+ const old={id:10,name:'scope-sha',created_at:'2026-11-01T00:00:00Z'},current={...old,id:12,created_at:'2026-11-02T00:00:00Z'};
+ assert.equal(latestQualificationArtifact([{...current,id:99,expired:true},{...current,id:100,name:'foreign'},old,current],'scope-sha'),current);
+ assert.equal(latestQualificationArtifact([current,{...current,id:13}],'scope-sha').id,13);
+ assert.equal(latestQualificationArtifact([{id:1,name:'fixture'},{id:2,name:'fixture'}],'fixture').id,2);
+ assert.throws(()=>latestQualificationArtifact([old],'missing'),/Missing qualification artifact/);
+ assert.throws(()=>latestQualificationArtifact([{...old,created_at:'invalid'}],'scope-sha'),/creation time/);
+ assert.throws(()=>latestQualificationArtifact([{...old,id:-1}],'scope-sha'),/identity/);
+});
+
+test('Evidence download streams exact bytes and refuses existing or oversized targets',async t=>{
+ const {mkdtemp,readFile,writeFile,stat,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const path=await import('node:path');const {createHash}=await import('node:crypto');
+ const directory=await mkdtemp(path.join(tmpdir(),'lmg-stream-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const chunk=Buffer.alloc(65536,0xa5),bytes=chunk.length*32;let leaked;
+ const remote=await service((req,res)=>{leaked=req.headers.authorization;for(let i=0;i<32;i++)res.write(chunk);res.end();});t.after(remote.close);
+ const local=await service((req,res)=>{res.writeHead(302,{location:remote.url+'/bytes'});res.end();});t.after(local.close);
+ const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true,token:'fixture-secret'}),file=path.join(directory,'accepted.partial');
+ const result=await client.downloadFile('/redirect',file,{maxBytes:bytes});assert.equal(result.bytes,String(bytes));assert.equal(Object.hasOwn(result,'data'),false);assert.equal(leaked,undefined);
+ const actual=await readFile(file);assert.equal(actual.length,bytes);assert.equal(result.sha256,createHash('sha256').update(actual).digest('hex'));assert.ok(actual.every(v=>v===0xa5));
+ const foreign=path.join(directory,'foreign');await writeFile(foreign,'foreign');await assert.rejects(client.downloadFile('/redirect',foreign),/EEXIST/);assert.equal(await readFile(foreign,'utf8'),'foreign');
+ const partial=path.join(directory,'oversized.partial');await assert.rejects(client.downloadFile('/redirect',partial,{maxBytes:1024}),/Binary response bound/);assert.ok((await stat(partial)).size<=1024);await assert.rejects(stat(path.join(directory,'oversized')),error=>error.code==='ENOENT');
+});
+
+test('Evidence transfer timeout remains bounded by global and observation deadlines',async t=>{
+ const {mkdtemp,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const path=await import('node:path');
+ const directory=await mkdtemp(path.join(tmpdir(),'lmg-stream-timeout-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const local=await service((req,res)=>setTimeout(()=>res.end('slow bytes'),200));t.after(local.close);
+ const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true,timeoutMs:80,observation:{attempts:1,intervalMs:0,timeoutMs:60}});
+ await assert.rejects(client.downloadFile('/slow',path.join(directory,'normal.partial')),error=>['AbortError','TimeoutError'].includes(error.name));
+ assert.equal((await client.downloadFile('/slow',path.join(directory,'elected.partial'),{timeoutMs:1000})).bytes,'10');
+ client.deadline=Date.now()+60;await assert.rejects(client.downloadFile('/slow',path.join(directory,'global.partial'),{timeoutMs:1000}),error=>['AbortError','TimeoutError'].includes(error.name));
+ client.deadline=Date.now()+5000;const original=Error('observation expired');await assert.rejects(client.observe(()=>client.downloadFile('/slow',path.join(directory,'observed.partial'),{timeoutMs:1000}),'pending',original),error=>error===original);
+});
+
+
+test('Large upload timeout inherits global and mutation-observation deadlines',async t=>{
+ const local=await service((req,res)=>{req.resume();setTimeout(()=>res.end('{}'),200);});t.after(local.close);
+ const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true,timeoutMs:60,observation:{attempts:1,intervalMs:0,timeoutMs:60}}),release={upload_url:local.url+'/upload{?name}'};
+ assert.deepEqual(await client.upload(release,'source.tar.xz',Buffer.from('source')),{});
+ client.deadline=Date.now()+60;await assert.rejects(client.upload(release,'source.tar.xz',Buffer.from('source')),error=>['AbortError','TimeoutError'].includes(error.name));
+ client.deadline=Date.now()+5000;const failure=Error('observation expired');await assert.rejects(client.observe(()=>client.upload(release,'source.tar.xz',Buffer.from('source')),'pending',failure),error=>error===failure);
+});

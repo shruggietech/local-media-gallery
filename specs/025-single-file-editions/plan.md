@@ -1,0 +1,66 @@
+# Implementation Plan: Single-file editions
+
+**Branch**: `codex/s025-single-file-editions` | **Date**: 2026-11-02 | **Spec**: [spec.md](spec.md)
+
+## Summary
+
+Complete #80 with six directly delivered artifacts: native Lite executable and offline system Full installer on Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 arm64. Preserve native ownership/lifecycle logic internally, coordinate source/docs/schema v0.2.0, release projections and gallery preparation, and qualify actual files.
+
+## Technical Context
+
+**Language/Version**: Pinned repository Rust toolchain, Node24.11, Python3.12; existing Tauri/Next frontend.
+
+**Primary Dependencies**: Native OS webviews; Windows offline WebView2; Ubuntu GTK/WebKit/GStreamer package closure; OS WKWebView; deliberately built FFmpeg CLI.
+
+**Storage**: Embedded executable metadata, managed system installation and private update state; existing gallery data boundaries.
+
+**Testing**: Node contract/negative tests, Rust ownership/update/preparation tests, native isolated package campaigns and source-bound readback.
+
+**Target Platform**: Three elected platform/architecture rows, six deliverables; no new architecture claims.
+
+**Project Type**: Native desktop product with static documentation/download site.
+
+**Performance Goals**: Existing functional acceptance and qualification accounting; package preparation separate from660s target/900s hard limit.
+
+**Constraints**: One-file distribution; Full offline with prerequisite absence; no workstation GUI use, no signing; historical release bytes immutable.
+
+## Constitution Check
+
+Pre-research: PASS. Scope follows explicit owner correction; no product narrowing. Existing feature branch model and push/PR authorization apply; merge/publication stay owner-controlled. Checks include repository, tests, affected product/site and all elected native checks.
+
+Post-design: PASS for design. Native feasibility and dependency inventory remain implementation acceptance tasks, not claimed proven outcomes. Any demonstrated requirement conflict returns to owner before a fallback.
+
+## Project Structure
+
+- specs/025-single-file-editions/: spec, plan, research, data model, contracts, quickstart, tasks and analysis/verification evidence.
+- apps/gallery/src-tauri/: embedded notices/metadata, installed helper discovery and launch behavior.
+- crates/windows-package/, crates/macos-package/, crates/gallery-update/: embedded installer and ordinary maintenance facades preserving ownership.
+- crates/gallery-preparation/: version-aware direct Lite consumption.
+- scripts/build-*-packages.mjs, scripts/*-packages.mjs, scripts/test-*-packages.mjs: six artifacts, dependency assembly and actual-file acceptance.
+- scripts/release-*.mjs, schemas/v0.2.0/, site/: new product forms and two-choice projections while reading historical records.
+- docs/v0.2.0/, CHANGELOG.md: current authoritative distribution behavior and decisions.
+
+## Implementation sequence
+
+1. Establish native Lite feasibility and single-file metadata/integrity contracts with negative tests.
+2. Deliver Lite and all consumer compatibility, preserving historical v0.1 paths.
+3. Deliver each Full installer and its bundled dependency closure, then ordinary maintenance and automatic feature helper selection.
+4. Run repository/product/site parity and isolated native copy-only/offline lifecycle checks, resolve findings, push/open PR and handle no more than two review rounds.
+
+## Complexity Tracking
+
+No governance exception. Native dependency packaging is necessary for the literal owner requirement; retain standard OS installers rather than replace platform lifecycle semantics.
+
+## CI queue refinement (2026-11-02)
+
+The observed workflow-wide mutex delayed independent corrected native scopes behind a long-running Windows package campaign. Use one non-cancelling mutex per elected scope, including separate Linux/macOS matrix values. Preserve in-progress scope evidence, the exact qualified revision and all elected checks. Release validation continues to require the complete same-run scope set; production Pages keeps its independent publication mutex and retirement checks. This changes scheduling, not product acceptance or review-round authorization.
+
+This uses the documented [GitHub job-level concurrency contexts](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency), including matrix scope. No qualification check is removed, skipped or borrowed from another run.
+
+## Native follow-up decisions (2026-11-02)
+
+After observed clean-root interrupted recovery, configure exact incomplete dependencies through offline APT fix-broken without global reinstall. Authenticated app replay, retained package/cache hashes, exact pre-mutation trigger identities, no-download, no-removal and version-preservation checks remain in force. Normal explicit replacement still elects reinstall. A real isolated APT fixture distinguishes these plans before native acceptance.
+
+Windows ownership readiness temporarily elects a 300-millisecond native script budget beneath its two-second client capture, then restores and reads back the actual original session settings after exact nonce/PID/port admission. This addresses uncancelled native work and navigation-related result loss without extending the twenty-second readiness deadline or relaunching a failed product. Input remains native Win32 with foreground/admission checks, no key retry, and no unused UIA setup on scan-key paths. Request and input stage diagnostics remain retained.
+
+Linux new-version payloads use the same lossless dependency-notice index as Windows. The observed Linux Full inventory had 1281 notice files among 1303 files, and repeated durable native transitions took 45-51 seconds on the hosted image. Preserve complete original paths/text/lengths/hashes and independently decode the managed index before replacing the fresh copied notice subtree. Direct Lite footers still read the original individual notices; canonical0.1 archives remain unchanged. Consolidation reduces file-operation cost without reducing transition coverage or durability.

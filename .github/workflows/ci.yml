@@ -8,11 +8,11 @@ permissions:
   contents: read
 env:
   QUALIFIED_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
-concurrency:
-  group: qualification-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
 jobs:
   repository:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-repository
+      cancel-in-progress: false
     name: repository
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -40,6 +40,9 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
   product-windows:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-product-windows
+      cancel-in-progress: false
     name: product-windows
     runs-on: windows-2025
     timeout-minutes: 45
@@ -73,10 +76,11 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
+            cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - run: npm run ci -- product-windows
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -113,6 +117,9 @@ jobs:
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
   windows-packages:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-windows-packages
+      cancel-in-progress: false
     name: windows-packages
     runs-on: windows-2025
     timeout-minutes: 90
@@ -146,12 +153,25 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
+            cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore verified feature-helper build cache
+        id: feature-helper-cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .local/feature-helper-cache/
+          key: feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-feature-helper.mjs') }}
+          restore-keys: |
+            feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - run: npm run ci -- windows-packages
+      - name: Restore recipient firewall after interrupted campaign
+        if: ${{ always() && hashFiles('scripts/windows-offline-firewall.mjs') != '' }}
+        run: node scripts/windows-offline-firewall.mjs --restore
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -160,6 +180,7 @@ jobs:
             .local/ci-windows-packages.json
             .local/windows-package-build.json
             .local/windows-package-results.json
+            .local/windows-package-fixtures.json
             .local/prepared-recipient-windows.json
             .local/windows-package-test-*/prepared-recipient-*.zip
             .local/windows-package-failure.json
@@ -167,8 +188,13 @@ jobs:
             .local/windows-package-test-*/update-evidence-*/**
             .local/windows-package-test-*/failed-update-*/**
             .local/windows-packages-*/*-candidate.zip
+            .local/windows-packages-*/published-*.zip
+            .local/windows-packages-*/replacement-lite.exe
+            .local/windows-packages-*/*-windows.exe
+            .local/windows-packages-*/replacement-full.exe
             .local/windows-package-test-*/*.png
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/single-file-offline*.json
             .local/tmp/local-media-gallery-*.log
           include-hidden-files: true
           if-no-files-found: error
@@ -182,7 +208,18 @@ jobs:
             ~/.cargo/git/db
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+      - name: Save feature-helper cache after terminal evidence
+        if: ${{ !cancelled() && steps.feature-helper-cache.outputs.cache-hit != 'true' && hashFiles('.local/feature-helper.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .local/feature-helper-cache/
+          key: ${{ steps.feature-helper-cache.outputs.cache-primary-key }}
+
   macos-packages:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-macos-packages
+      cancel-in-progress: false
     name: macos-packages
     runs-on: macos-15
     timeout-minutes: 60
@@ -216,10 +253,20 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
+            cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore verified feature-helper build cache
+        id: feature-helper-cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .local/feature-helper-cache/
+          key: feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-feature-helper.mjs') }}
+          restore-keys: |
+            feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - run: npm run ci -- macos-packages
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -239,9 +286,15 @@ jobs:
             .local/macos-packages-*/replacement-*.dmg
             .local/macos-packages-*/replacement-*.zip
             .local/macos-packages-*/*-candidate.dmg
+            .local/macos-packages-*/published-predecessor-helper
             .local/macos-packages-*/*-candidate.zip
+            .local/macos-packages-*/bundled-feature-input.mp4
+            .local/macos-packages-*/*-macos
+            .local/macos-packages-*/*.pkg
             .local/macos-package-test-*/*.png
             .local/macos-package-test-*/*.log
+            .local/macos-package-test-*/pkg-interruption/**
+            .local/macos-package-test-*/pkg-first-install/**
           include-hidden-files: true
           if-no-files-found: error
       - name: Save Cargo cache after terminal evidence
@@ -254,7 +307,18 @@ jobs:
             ~/.cargo/git/db
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+      - name: Save feature-helper cache after terminal evidence
+        if: ${{ !cancelled() && steps.feature-helper-cache.outputs.cache-hit != 'true' && hashFiles('.local/feature-helper.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .local/feature-helper-cache/
+          key: ${{ steps.feature-helper-cache.outputs.cache-primary-key }}
+
   linux-packages:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-linux-packages
+      cancel-in-progress: false
     name: linux-packages
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -285,7 +349,7 @@ jobs:
         run: |
           sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev patchelf dpkg-dev desktop-file-utils shellcheck xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 gir1.2-gtk-3.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev zlib1g-dev debootstrap policykit-1 patchelf dpkg-dev desktop-file-utils shellcheck xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 gir1.2-gtk-3.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
       - name: Identify Cargo cache image and source
         run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
@@ -301,6 +365,17 @@ jobs:
           restore-keys: |
             cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-
+            cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore verified feature-helper build cache
+        id: feature-helper-cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .local/feature-helper-cache/
+          key: feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-feature-helper.mjs') }}
+          restore-keys: |
+            feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - name: Run actual package campaign on isolated Linux desktop
         run: dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1200x24' npm run ci -- linux-packages
@@ -322,6 +397,10 @@ jobs:
             .local/linux-package-test-*/failed-update-*/**
             .local/linux-packages-*/*-candidate.deb
             .local/linux-packages-*/*-candidate.tar.gz
+            .local/linux-packages-*/replacement-lite-executable
+            .local/linux-packages-*/*-linux
+            .local/linux-packages-*/*.run
+            .local/linux-packages-*/*-runtime-sources.tar.xz
             .local/linux-packages-*/*-fixture.deb
             .local/linux-package-test-*/*.png
             .local/linux-package-test-*/*.log
@@ -338,7 +417,18 @@ jobs:
             ~/.cargo/git/db
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+      - name: Save feature-helper cache after terminal evidence
+        if: ${{ !cancelled() && steps.feature-helper-cache.outputs.cache-hit != 'true' && hashFiles('.local/feature-helper.json') != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .local/feature-helper-cache/
+          key: ${{ steps.feature-helper-cache.outputs.cache-primary-key }}
+
   native-proof:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-native-${{ matrix.scope }}
+      cancel-in-progress: false
     name: native-proof (${{ matrix.scope }})
     strategy:
       fail-fast: false
@@ -392,10 +482,11 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
+            cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - name: Run native qualification on isolated Linux display
         if: runner.os == 'Linux'
@@ -428,6 +519,9 @@ jobs:
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
   website:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-website
+      cancel-in-progress: false
     name: website
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -477,6 +571,9 @@ jobs:
           path: apps/site/out/
           include-hidden-files: true
   release-validation:
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-release-validation
+      cancel-in-progress: false
     name: release-validation
     needs: [repository, product-windows, windows-packages, macos-packages, linux-packages, native-proof, website]
     runs-on: ubuntu-24.04

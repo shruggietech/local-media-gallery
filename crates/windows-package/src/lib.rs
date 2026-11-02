@@ -4,10 +4,12 @@ use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::{fs, path::Path};
 
+pub mod embedded;
 #[cfg(windows)]
 pub mod native;
 #[cfg(windows)]
 pub mod private;
+pub const INSTALLER_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/installer.bin"));
 pub const PAYLOAD: &str = include_str!(concat!(env!("OUT_DIR"), "/payload.json"));
 pub const SETUP: &str = include_str!(concat!(env!("OUT_DIR"), "/setup.json"));
 pub fn hash(bytes: &[u8]) -> String {
@@ -229,6 +231,25 @@ pub fn check_path(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Discover a predecessor only for managed maintenance; exact-candidate checks
+/// remain the default for ordinary reinstall/removal. Explicit destinations do
+/// not eagerly invoke either registry resolver and are validated by the caller.
+pub fn select_setup_directory<T>(
+    explicit: Option<T>,
+    maintenance: bool,
+    current: impl FnOnce() -> Result<Option<T>, String>,
+    predecessor: impl FnOnce() -> Result<Option<T>, String>,
+) -> Result<Option<T>, String> {
+    if explicit.is_some() {
+        return Ok(explicit);
+    }
+    if maintenance {
+        predecessor()
+    } else {
+        current()
+    }
+}
+
 /// Windows Installer quotes a property's value, rather than its whole assignment.
 #[cfg(windows)]
 pub fn msi_directory_property(path: &Path) -> Result<std::ffi::OsString, String> {
@@ -308,6 +329,39 @@ mod tests {
         for invalid in ["C:\\bad\" REBOOT=Force", "C:\\bad\npath", "C:\\bad\0path"] {
             assert!(msi_directory_property(Path::new(invalid)).is_err());
         }
+    }
+    #[test]
+    fn managed_predecessor_discovery_precedes_exact_candidate_validation_only_for_maintenance() {
+        let path = std::path::PathBuf::from("owned-installation");
+        assert_eq!(
+            select_setup_directory(
+                None,
+                true,
+                || Err("different candidate".into()),
+                || Ok(Some(path.clone()))
+            )
+            .unwrap(),
+            Some(path.clone())
+        );
+        assert!(
+            select_setup_directory(
+                None::<std::path::PathBuf>,
+                false,
+                || Err("different candidate".into()),
+                || panic!("removal cannot use predecessor discovery")
+            )
+            .is_err()
+        );
+        assert_eq!(
+            select_setup_directory(
+                Some(path.clone()),
+                true,
+                || panic!("explicit path must resolve lazily"),
+                || panic!("explicit path must resolve lazily")
+            )
+            .unwrap(),
+            Some(path)
+        );
     }
     #[test]
     fn machine_scope_cannot_be_satisfied_by_a_user_only_runtime() {

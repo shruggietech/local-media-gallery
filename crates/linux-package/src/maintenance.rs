@@ -1,0 +1,1020 @@
+// SPDX-License-Identifier: Apache-2.0
+use super::{Manifest, Package};
+use gallery_update::{Candidate, RecoveryCommand, StateOperand, Transaction};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::fs::{self, File};
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::os::unix::process::CommandExt;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+const STORE: &str = "/var/lib/local-media-gallery/updates";
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Profile {
+    uid: u32,
+    settings: PathBuf,
+    history: PathBuf,
+}
+static PROFILE: std::sync::OnceLock<Profile> = std::sync::OnceLock::new();
+pub(super) fn receive_profile(text: &str) -> Result<(), String> {
+    if text.len() > 16384 {
+        return Err("Profile context exceeds limit".into());
+    }
+    let p: Profile = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    let uid = std::env::var("PKEXEC_UID")
+        .or_else(|_| std::env::var("SUDO_UID"))
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(|| unsafe { libc::getuid() });
+    if p.uid != uid {
+        return Err("Profile context does not belong to invoking user".into());
+    }
+    for path in [&p.settings, &p.history] {
+        gallery_update::physical(path)?;
+        if let Ok(info) = fs::symlink_metadata(path)
+            && (!info.is_file() || info.uid() != uid)
+        {
+            return Err("Selected profile file does not belong to invoking user".into());
+        }
+    }
+    PROFILE
+        .set(p)
+        .map_err(|_| "Profile context repeated".into())
+}
+pub(super) fn profile_context() -> Result<String, String> {
+    if let Some(p) = PROFILE.get() {
+        return serde_json::to_string(p).map_err(|e| e.to_string());
+    }
+    let uid = unsafe { libc::getuid() };
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .ok_or("Invoking home unavailable")?;
+    let (settings, history) = super::profile::paths(
+        &home,
+        std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
+        std::env::var_os("XDG_STATE_HOME").map(PathBuf::from),
+    );
+    serde_json::to_string(&Profile {
+        uid,
+        settings,
+        history,
+    })
+    .map_err(|e| e.to_string())
+}
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct State {
+    current: Option<String>,
+    last_transaction: Option<RetainedTransaction>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RetainedTransaction {
+    name: String,
+    prior: String,
+    next: String,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Receipt {
+    format_version: u32,
+    generation: String,
+    installer_sha256: Option<String>,
+    descriptor_sha256: String,
+    package_sha256: String,
+    provenance: serde_json::Value,
+}
+
+fn owned(path: &Path, directory: bool) -> Result<(), String> {
+    gallery_update::physical(path)?;
+    for parent in path.ancestors().skip(1) {
+        let m = fs::metadata(parent).map_err(|e| e.to_string())?;
+        if !m.is_dir() || m.uid() != 0 || m.gid() != 0 || m.permissions().mode() & 0o022 != 0 {
+            return Err(format!("Foreign maintenance parent: {}", parent.display()));
+        }
+    }
+    let m = fs::symlink_metadata(path).map_err(|e| e.to_string())?;
+    if m.uid() != 0
+        || m.gid() != 0
+        || m.is_dir() != directory
+        || m.file_type().is_symlink()
+        || (!directory && m.nlink() != 1)
+        || m.permissions().mode() & 0o077 != 0
+    {
+        return Err(format!("Foreign maintenance authority: {}", path.display()));
+    }
+    Ok(())
+}
+fn create_directory(path: &Path) -> Result<(), String> {
+    gallery_update::physical(path)?;
+    match fs::create_dir(path) {
+        Ok(()) => fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+            .map_err(|e| e.to_string())?,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(e) => return Err(e.to_string()),
+    };
+    owned(path, true)
+}
+fn write(path: &Path, value: &impl Serialize) -> Result<(), String> {
+    let parent = path.parent().ok_or("Missing authority parent")?;
+    owned(parent, true)?;
+    match fs::symlink_metadata(path) {
+        Ok(_) => owned(path, false)?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e.to_string()),
+    }
+    let mut file = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
+    file.as_file_mut()
+        .write_all(&serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    file.as_file().sync_all().map_err(|e| e.to_string())?;
+    file.persist(path).map_err(|e| e.to_string())?;
+    File::open(parent)
+        .and_then(|f| f.sync_all())
+        .map_err(|e| e.to_string())
+}
+fn read<T: for<'a> Deserialize<'a>>(path: &Path) -> Result<T, String> {
+    owned(path, false)?;
+    let m = fs::metadata(path).map_err(|e| e.to_string())?;
+    if m.len() > 8 * 1024 * 1024 {
+        return Err("Maintenance authority is oversized".into());
+    }
+    serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+}
+fn hash(path: &Path) -> Result<String, String> {
+    let mut file = File::open(path).map_err(|e| e.to_string())?;
+    let mut h = Sha256::new();
+    let mut bytes = [0u8; 65536];
+    loop {
+        let n = file.read(&mut bytes).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        h.update(&bytes[..n]);
+    }
+    Ok(hex::encode(h.finalize()))
+}
+fn generation(name: &str) -> Result<PathBuf, String> {
+    if name.len() != 32
+        || !name
+            .bytes()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    {
+        return Err("Invalid maintenance generation".into());
+    }
+    Ok(Path::new(STORE).join("generations").join(name))
+}
+fn copy_embedded(file: &mut File, package: &Package, destination: &Path) -> Result<(), String> {
+    let mut output = File::options()
+        .write(true)
+        .create_new(true)
+        .open(destination)
+        .map_err(|e| e.to_string())?;
+    fs::set_permissions(destination, fs::Permissions::from_mode(0o600))
+        .map_err(|e| e.to_string())?;
+    file.seek(SeekFrom::Start(package.offset))
+        .map_err(|e| e.to_string())?;
+    let copied =
+        std::io::copy(&mut file.take(package.bytes), &mut output).map_err(|e| e.to_string())?;
+    output.sync_all().map_err(|e| e.to_string())?;
+    if copied != package.bytes || hash(destination)? != package.sha256 {
+        return Err("Retained package integrity differs".into());
+    }
+    Ok(())
+}
+
+fn candidate(name: &str) -> Result<Candidate, String> {
+    candidate_at(name, &generation(name)?)
+}
+fn candidate_at(name: &str, base: &Path) -> Result<Candidate, String> {
+    owned(base, true)?;
+    let receipt: Receipt = read(&base.join("receipt.json"))?;
+    if receipt.format_version != 1 || receipt.generation != name {
+        return Err("Retained receipt identity differs".into());
+    }
+    for (file, expected) in [
+        ("update.json", receipt.descriptor_sha256),
+        ("application.deb", receipt.package_sha256),
+    ] {
+        let path = base.join(file);
+        owned(&path, false)?;
+        if hash(&path)? != expected {
+            return Err(format!("Retained {file} changed"));
+        }
+    }
+    if let Some(expected) = receipt.installer_sha256 {
+        let path = base.join("installer.run");
+        owned(&path, false)?;
+        if hash(&path)? != expected {
+            return Err("Retained installer changed".into());
+        }
+    }
+    let c = Candidate::read(&base.join("update.json"))?;
+    if c.generation != name || c.edition != "full" || c.os != "linux" {
+        return Err("Retained candidate identity differs".into());
+    }
+    Ok(c)
+}
+fn retain(
+    file: &mut File,
+    m: &Manifest,
+    role: &str,
+    descriptor: &serde_json::Value,
+    installer: Option<&Path>,
+    provenance: serde_json::Value,
+) -> Result<String, String> {
+    let name = descriptor["generation"]
+        .as_str()
+        .ok_or("Embedded descriptor generation absent")?
+        .to_string();
+    let base = generation(&name)?;
+    let package = m
+        .packages
+        .iter()
+        .find(|p| p.role == role)
+        .ok_or("Embedded application package absent")?;
+    super::retention::publish_generation(
+        &base,
+        |staging| {
+            owned(staging, true)?;
+            copy_embedded(file, package, &staging.join("application.deb"))?;
+            let mut document = descriptor.clone();
+            document["native"]["installer"]["path"] = serde_json::json!("application.deb");
+            let package_bytes = package.bytes.to_string();
+            if document["native"]["installer"]["sha256"] != package.sha256
+                || document["native"]["installer"]["bytes"].as_str() != Some(package_bytes.as_str())
+            {
+                return Err("Embedded descriptor package integrity differs".into());
+            }
+            write(&staging.join("update.json"), &document)?;
+            let installer_sha256 = if let Some(source) = installer {
+                let target = staging.join("installer.run");
+                let mut from = File::open(source).map_err(|e| e.to_string())?;
+                let mut to = File::options()
+                    .write(true)
+                    .create_new(true)
+                    .open(&target)
+                    .map_err(|e| e.to_string())?;
+                std::io::copy(&mut from, &mut to).map_err(|e| e.to_string())?;
+                fs::set_permissions(&target, fs::Permissions::from_mode(0o700))
+                    .map_err(|e| e.to_string())?;
+                to.sync_all().map_err(|e| e.to_string())?;
+                Some(hash(&target)?)
+            } else {
+                None
+            };
+            write(
+                &staging.join("receipt.json"),
+                &Receipt {
+                    format_version: 1,
+                    generation: name.clone(),
+                    installer_sha256,
+                    descriptor_sha256: hash(&staging.join("update.json"))?,
+                    package_sha256: package.sha256.clone(),
+                    provenance,
+                },
+            )
+        },
+        |retained| {
+            let c = candidate_at(&name, retained)?;
+            let mut expected = descriptor.clone();
+            expected["native"]["installer"]["path"] =
+                serde_json::json!(retained.join("application.deb"));
+            if serde_json::to_value(c).map_err(|e| e.to_string())? != expected {
+                return Err(
+                    "Retained generation collides with a different embedded descriptor".into(),
+                );
+            }
+            Ok(())
+        },
+    )?;
+    Ok(name)
+}
+const FRESH_FILE: &str = "fresh-install.json";
+const FRESH_BASELINE: &str = "fresh-baseline.json";
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FreshBaseline {
+    authority: super::fresh::Authority,
+    installed: Vec<super::NativePackageIdentity>,
+}
+fn native_registrations() -> Result<String, String> {
+    let result = Command::new("/usr/bin/dpkg-query")
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .env("LC_ALL", "C")
+        .args([
+            "-W",
+            "--showformat=${Package}|${db:Status-Status}|${Version}|${Architecture}\n",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !result.status.success() {
+        return Err("Native package inventory unavailable".into());
+    }
+    String::from_utf8(result.stdout).map_err(|e| e.to_string())
+}
+
+fn registration() -> Result<Option<super::fresh::Registration>, String> {
+    let result = Command::new("/usr/bin/dpkg-query")
+        .args([
+            "-W",
+            "--showformat=${db:Status-Status}|${Version}|${Architecture}",
+            "--",
+            "local-media-gallery",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if result.status.code() == Some(1) {
+        return Ok(None);
+    }
+    if !result.status.success() {
+        return Err("Fresh package registration query failed".into());
+    }
+    let text = String::from_utf8_lossy(&result.stdout);
+    let fields: Vec<_> = text.trim().split('|').collect();
+    if fields.len() != 3 {
+        return Err("Malformed package registration".into());
+    }
+    Ok(Some(super::fresh::Registration {
+        state: fields[0].into(),
+        version: fields[1].into(),
+        arch: fields[2].into(),
+    }))
+}
+fn verify_fresh_destinations(c: &Candidate) -> Result<(), String> {
+    let mut parents = std::collections::BTreeSet::new();
+    for f in &c.files {
+        let path = Path::new("/").join(&f.path);
+        gallery_update::physical(&path)?;
+        for parent in path.ancestors().skip(1) {
+            if !parents.insert(parent.to_path_buf()) {
+                continue;
+            }
+            match fs::metadata(parent) {
+                Ok(m) => {
+                    if !m.is_dir()
+                        || m.uid() != 0
+                        || m.gid() != 0
+                        || m.permissions().mode() & 0o022 != 0
+                    {
+                        return Err("Fresh destination parent ownership differs".into());
+                    }
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+    }
+    let mut command = Command::new("/usr/bin/dpkg-query");
+    command.args(["-S", "--", "/usr/lib/local-media-gallery"]);
+    for f in &c.files {
+        command.arg(format!("/{}", f.path));
+    }
+    let report = command.output().map_err(|e| e.to_string())?;
+    if !matches!(report.status.code(), Some(0 | 1)) {
+        return Err("Fresh destination owner query failed".into());
+    }
+    for line in String::from_utf8_lossy(&report.stdout).lines() {
+        if !line.starts_with("local-media-gallery: /")
+            && !line.starts_with("local-media-gallery:amd64: /")
+        {
+            return Err(format!(
+                "Fresh destination has a foreign owner or diversion: {line}"
+            ));
+        }
+    }
+    let visible = Command::new("/bin/sh")
+        .env_clear()
+        .env(
+            "PATH",
+            "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        )
+        .args(["-c", "command -v local-media-gallery || true"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    let visible = String::from_utf8_lossy(&visible.stdout);
+    if !visible.trim().is_empty() && visible.trim() != "/usr/bin/local-media-gallery" {
+        return Err("Fresh installation conflicts with a foreign visible command".into());
+    }
+    Ok(())
+}
+fn fresh_binding(name: &str) -> Result<super::fresh::Authority, String> {
+    let base = generation(name)?;
+    let c = candidate(name)?;
+    let receipt: Receipt = read(&base.join("receipt.json"))?;
+    Ok(super::fresh::Authority {
+        format_version: 1,
+        generation: name.into(),
+        descriptor_sha256: receipt.descriptor_sha256,
+        installer_sha256: receipt
+            .installer_sha256
+            .ok_or("Fresh generation has no retained installer")?,
+        inventory_sha256: super::fresh::digest(super::fresh::inventory(&c.files).as_bytes()),
+        phase: super::fresh::Phase::Prepared,
+    })
+}
+fn verify_fresh_binding(a: &super::fresh::Authority) -> Result<Candidate, String> {
+    let trusted = fresh_binding(&a.generation)?;
+    if !a.same_inputs(&trusted) {
+        return Err("Fresh install authority no longer matches retained inputs".into());
+    }
+    candidate(&a.generation)
+}
+fn process_identity(pid: u32) -> Result<String, String> {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).map_err(|e| e.to_string())?;
+    let fields = stat
+        .rsplit_once(')')
+        .ok_or("Missing coordinator identity")?
+        .1;
+    if matches!(fields.split_whitespace().next(), Some("Z" | "X" | "x")) {
+        return Err("Fresh coordinator is no longer live".into());
+    }
+    let tick = fields
+        .split_whitespace()
+        .nth(19)
+        .ok_or("Missing coordinator start time")?;
+    let boot = fs::read_to_string("/proc/sys/kernel/random/boot_id").map_err(|e| e.to_string())?;
+    Ok(format!("{tick}|{}", boot.trim()))
+}
+struct FreshExecution {
+    path: PathBuf,
+    digest: String,
+    live: bool,
+}
+impl FreshExecution {
+    fn acquire(c: &Candidate, a: &super::fresh::Authority) -> Result<Self, String> {
+        let directory = Path::new("/run/local-media-gallery-install");
+        create_directory(directory)?;
+        let path = directory.join("authority");
+        let rows = super::fresh::inventory(&c.files);
+        let identity = process_identity(std::process::id())?;
+        let data = format!(
+            "LMGFRESH1|{}|{}|{}|{}|{}\n{}",
+            a.inventory_sha256,
+            std::process::id(),
+            identity,
+            c.files.len(),
+            c.version,
+            rows
+        );
+        if path.exists() {
+            owned(&path, false)?;
+            let existing = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let (header, body) = existing
+                .split_once('\n')
+                .ok_or("Foreign fresh process authority")?;
+            let fields: Vec<_> = header.split('|').collect();
+            if fields.len() != 7
+                || fields[0] != "LMGFRESH1"
+                || fields[1] != a.inventory_sha256
+                || body != rows
+                || fields[5].parse::<usize>().ok() != Some(c.files.len())
+                || fields[6] != c.version
+            {
+                return Err("Foreign fresh process authority".into());
+            }
+            let pid: u32 = fields[2].parse().map_err(|_| "Invalid fresh coordinator")?;
+            if pid != std::process::id()
+                && process_identity(pid).ok().as_deref()
+                    == Some(format!("{}|{}", fields[3], fields[4]).as_str())
+            {
+                return Err("Another fresh installation coordinator is active".into());
+            }
+        }
+        let mut temporary =
+            tempfile::NamedTempFile::new_in(directory).map_err(|e| e.to_string())?;
+        temporary
+            .write_all(data.as_bytes())
+            .map_err(|e| e.to_string())?;
+        temporary.as_file().sync_all().map_err(|e| e.to_string())?;
+        temporary.persist(&path).map_err(|e| e.to_string())?;
+        File::open(directory)
+            .and_then(|f| f.sync_all())
+            .map_err(|e| e.to_string())?;
+        Ok(Self {
+            path,
+            digest: super::fresh::digest(data.as_bytes()),
+            live: true,
+        })
+    }
+    fn cleanup(&mut self) -> Result<(), String> {
+        owned(&self.path, false)?;
+        if hash(&self.path)? != self.digest {
+            return Err("Fresh process authority changed".into());
+        }
+        fs::remove_file(&self.path).map_err(|e| e.to_string())?;
+        File::open(self.path.parent().ok_or("Missing fresh authority parent")?)
+            .and_then(|f| f.sync_all())
+            .map_err(|e| e.to_string())?;
+        self.live = false;
+        Ok(())
+    }
+}
+impl Drop for FreshExecution {
+    fn drop(&mut self) {
+        if self.live {
+            let _ = self.cleanup();
+        }
+    }
+}
+fn finish_fresh(
+    file: &mut File,
+    m: &Manifest,
+    a: &mut super::fresh::Authority,
+) -> Result<(), String> {
+    let c = verify_fresh_binding(a)?;
+    if c.generation != m.generation {
+        return Err("Recover the pending installation through its retained installer".into());
+    }
+    verify_fresh_destinations(&c)?;
+    let registered = registration()?;
+    let active = super::fresh::registration_active(registered.as_ref(), &c.version)?;
+    let source = tempfile::Builder::new()
+        .prefix("local-media-gallery-fresh-source-")
+        .permissions(fs::Permissions::from_mode(0o700))
+        .tempdir_in("/var/tmp")
+        .map_err(|e| e.to_string())?;
+    let status = Command::new("/usr/bin/dpkg-deb")
+        .args(["--extract"])
+        .arg(generation(&c.generation)?.join("application.deb"))
+        .arg(source.path())
+        .status()
+        .map_err(|e| e.to_string())?;
+    if !status.success() {
+        return Err("Retained fresh source extraction failed".into());
+    }
+    c.verify(source.path())?;
+    if a.phase == super::fresh::Phase::Prepared {
+        match fs::read_dir("/usr/lib/local-media-gallery") {
+            Ok(mut files) => {
+                if files.next().is_some() {
+                    return Err("Nonempty foreign fresh application destination".into());
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    // A durable applying authority follows a verified all-absent preflight. dpkg
+    // may not have published its status/list files when its first rename occurs.
+    // Missing registration is permitted in that phase; foreign registration was
+    // rejected above, and every present byte still needs exact retained identity.
+    super::fresh::reconcile(
+        Path::new("/"),
+        &c.files,
+        a.phase,
+        active || a.phase == super::fresh::Phase::Applying,
+        Some((0, 0)),
+        Some(source.path()),
+    )?;
+    if a.phase == super::fresh::Phase::Complete {
+        if registered.as_ref().map(|r| r.state.as_str()) != Some("installed") {
+            return Err("Completed fresh install is not configured".into());
+        }
+        let mut execution = FreshExecution::acquire(&c, a)?;
+        execution.cleanup()?;
+        return Ok(());
+    }
+    // Record configured system identities before the first package mutation.
+    // dpkg may legitimately queue triggers in these packages during unpack.
+    let baseline_path = Path::new(STORE).join(FRESH_BASELINE);
+    let baseline: FreshBaseline = if a.phase == super::fresh::Phase::Prepared {
+        let baseline = FreshBaseline {
+            authority: fresh_binding(&c.generation)?,
+            installed: super::installed_baseline(&native_registrations()?)?,
+        };
+        write(&baseline_path, &baseline)?;
+        baseline
+    } else {
+        read(&baseline_path)?
+    };
+    if !baseline.authority.same_inputs(a) {
+        return Err("Fresh baseline does not match retained installation authority".into());
+    }
+    let repair_dependencies = a.phase == super::fresh::Phase::Applying;
+    a.phase = super::fresh::Phase::Applying;
+    write(&Path::new(STORE).join(FRESH_FILE), a)?;
+    let mut execution = FreshExecution::acquire(&c, a)?;
+    if std::env::var_os("LMG_UPDATE_EVENTS").is_some() {
+        println!(
+            "{}",
+            serde_json::json!({"event":"fresh-install","phase":"applying","generation":c.generation})
+        );
+        std::io::stdout().flush().map_err(|e| e.to_string())?;
+    }
+    if repair_dependencies {
+        // APT refuses a nonempty dpkg status-update journal before it can plan
+        // --fix-broken. Only dpkg may replay that journal. Re-unpack this one
+        // authenticated app archive, without triggers or configure-all, after
+        // admitting only exact closure registrations or trigger-only states in
+        // the exact configured system identities retained before mutation.
+        super::verify_pending_packages(m, &native_registrations()?, &baseline.installed)?;
+        let application = generation(&c.generation)?.join("application.deb");
+        let status = Command::new("/usr/bin/dpkg")
+            .env_clear()
+            .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
+            .env("DEBIAN_FRONTEND", "noninteractive")
+            .env("LC_ALL", "C")
+            .args(["--no-triggers", "--unpack"])
+            .arg(&application)
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("Authenticated interrupted application unpack did not complete".into());
+        }
+        c.verify(Path::new("/"))?;
+        super::verify_pending_packages(m, &native_registrations()?, &baseline.installed)?;
+    }
+    super::install_packages(file, m, true, repair_dependencies)?;
+    c.verify(Path::new("/"))?;
+    super::verify_identity(m)?;
+    let registered = registration()?.ok_or("Fresh installed registration missing")?;
+    if registered.state != "installed"
+        || !super::fresh::registration_active(Some(&registered), &c.version)?
+    {
+        return Err("Fresh installation did not reach configured state".into());
+    }
+    a.phase = super::fresh::Phase::Complete;
+    write(&Path::new(STORE).join(FRESH_FILE), a)?;
+    execution.cleanup()
+}
+fn clear_fresh(expected: &super::fresh::Authority) -> Result<(), String> {
+    let path = Path::new(STORE).join(FRESH_FILE);
+    owned(&path, false)?;
+    let current: super::fresh::Authority = read(&path)?;
+    if !current.same_inputs(expected) || current.phase != super::fresh::Phase::Complete {
+        return Err("Fresh completion authority changed".into());
+    }
+    fs::remove_file(path).map_err(|e| e.to_string())?;
+    File::open(STORE)
+        .and_then(|f| f.sync_all())
+        .map_err(|e| e.to_string())
+}
+
+fn state_operands() -> Result<Vec<StateOperand>, String> {
+    if let Some(profile) = PROFILE.get() {
+        return Ok(vec![
+            StateOperand {
+                kind: "settings".into(),
+                path: profile.settings.clone(),
+            },
+            StateOperand {
+                kind: "history".into(),
+                path: profile.history.clone(),
+            },
+        ]);
+    }
+    let uid = std::env::var("PKEXEC_UID")
+        .or_else(|_| std::env::var("SUDO_UID"))
+        .unwrap_or_else(|_| unsafe { libc::getuid() }.to_string());
+    let uid: u32 = uid
+        .parse()
+        .map_err(|_| "Invoking user identity unavailable")?;
+    let passwd = fs::read_to_string("/etc/passwd").map_err(|e| e.to_string())?;
+    let home = passwd
+        .lines()
+        .find_map(|line| {
+            let fields: Vec<_> = line.split(':').collect();
+            if fields.len() >= 7 && fields[2].parse::<u32>().ok() == Some(uid) {
+                Some(PathBuf::from(fields[5]))
+            } else {
+                None
+            }
+        })
+        .ok_or("Invoking user home unavailable")?;
+    gallery_update::physical(&home)?;
+    let (settings, history) = super::profile::paths(&home, None, None);
+    Ok(vec![
+        StateOperand {
+            kind: "settings".into(),
+            path: settings,
+        },
+        StateOperand {
+            kind: "history".into(),
+            path: history,
+        },
+    ])
+}
+fn registered() -> Result<Option<String>, String> {
+    let result = Command::new("/usr/bin/dpkg-query")
+        .args([
+            "-W",
+            "--showformat=${db:Status-Status}|${Version}|${Architecture}",
+            "--",
+            "local-media-gallery",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if result.status.code() == Some(1) {
+        return Ok(None);
+    }
+    if !result.status.success() {
+        return Err("Package registration query failed".into());
+    }
+    let text = String::from_utf8_lossy(&result.stdout);
+    let fields: Vec<_> = text.trim().split('|').collect();
+    if fields.first() == Some(&"config-files") || fields.first() == Some(&"not-installed") {
+        return Ok(None);
+    }
+    if fields.len() != 3 || fields[2] != "amd64" {
+        return Err("Foreign package registration".into());
+    }
+    Ok(Some(fields[1].into()))
+}
+fn exec_owned(executable: &Path, target: &Path, action: &str) -> Result<(), String> {
+    if executable != target {
+        let mut command = Command::new(target);
+        command.arg(action);
+        if PROFILE.get().is_some() {
+            command.arg("--__profile").arg(profile_context()?);
+        }
+        return Err(command.exec().to_string());
+    }
+    Ok(())
+}
+
+pub(super) fn operate(
+    executable: &Path,
+    file: &mut File,
+    m: &Manifest,
+    action: &str,
+) -> Result<(), String> {
+    let parent = Path::new("/var/lib/local-media-gallery");
+    let authority = serde_json::json!({"formatVersion":1,"product":"local-media-gallery","kind":"owned-maintenance"});
+    super::retention::publish_generation(
+        parent,
+        |staging| {
+            owned(staging, true)?;
+            write(&staging.join("authority.json"), &authority)
+        },
+        |retained| {
+            owned(retained, true)?;
+            let value: serde_json::Value = read(&retained.join("authority.json"))?;
+            if value != authority {
+                return Err("Unknown maintenance authority".into());
+            }
+            Ok(())
+        },
+    )?;
+    for path in [
+        Path::new(STORE),
+        &Path::new(STORE).join("generations"),
+        &Path::new(STORE).join("transactions"),
+    ] {
+        create_directory(path)?;
+    }
+    let lock_path = Path::new(STORE).join("operation.lock");
+    let lock = match File::options()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(&lock_path)
+    {
+        Ok(file) => {
+            fs::set_permissions(&lock_path, fs::Permissions::from_mode(0o600))
+                .map_err(|e| e.to_string())?;
+            file
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            owned(&lock_path, false)?;
+            File::options()
+                .read(true)
+                .write(true)
+                .open(&lock_path)
+                .map_err(|e| e.to_string())?
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    owned(&lock_path, false)?;
+    lock.try_lock()
+        .map_err(|_| "Another installer owns maintenance")?;
+    let state_path = Path::new(STORE).join("state.json");
+    let mut state: State = if state_path.exists() {
+        read(&state_path)?
+    } else {
+        State::default()
+    };
+    let fresh_path = Path::new(STORE).join(FRESH_FILE);
+    if fresh_path.exists() {
+        if matches!(action, "--rollback" | "--remove") {
+            return Err("Recover the pending fresh installation before rollback or removal".into());
+        }
+        let mut pending: super::fresh::Authority = read(&fresh_path)?;
+        verify_fresh_binding(&pending)?;
+        if action != "--recover" && m.generation != pending.generation {
+            return Err(
+                "Recover the pending fresh installation before using another installer".into(),
+            );
+        }
+        let target = generation(&pending.generation)?.join("installer.run");
+        if executable != target {
+            drop(lock);
+            return exec_owned(executable, &target, "--recover");
+        }
+        finish_fresh(file, m, &mut pending)?;
+        state.current = Some(pending.generation.clone());
+        state.last_transaction = None;
+        write(&state_path, &state)?;
+        clear_fresh(&pending)?;
+        return Ok(());
+    }
+    if matches!(action, "--recover" | "--rollback") {
+        if action == "--recover" && state.last_transaction.is_none() {
+            let name = m.application_descriptor["generation"]
+                .as_str()
+                .ok_or("Missing embedded generation")?
+                .to_string();
+            let retained = candidate(&name)?;
+            if registered()?.as_deref() != Some(retained.version.as_str()) {
+                return Err("No registered trusted installation is available for repair".into());
+            }
+            retained.verify(Path::new("/"))?;
+            let target = generation(&name)?.join("installer.run");
+            if executable != target {
+                drop(lock);
+                return exec_owned(executable, &target, action);
+            }
+            super::install_packages(file, m, true, false)?;
+            super::verify_identity(m)?;
+            state.current = Some(name);
+            write(&state_path, &state)?;
+            println!("Recovered verified fresh installation using its retained package.");
+            return Ok(());
+        }
+        let previous = state
+            .last_transaction
+            .as_ref()
+            .ok_or("No retained update transaction is available")?
+            .clone();
+        let target = generation(&previous.next)?.join("installer.run");
+        candidate(&previous.next)?;
+        drop(lock);
+        exec_owned(executable, &target, action)?;
+        let lock = File::options()
+            .read(true)
+            .write(true)
+            .open(&lock_path)
+            .map_err(|e| e.to_string())?;
+        lock.try_lock()
+            .map_err(|_| "Another installer owns maintenance")?;
+        let command = if action == "--rollback" {
+            RecoveryCommand::Rollback
+        } else {
+            RecoveryCommand::Recover
+        };
+        let outcome = Transaction::resume(
+            &Path::new(STORE).join("transactions").join(&previous.name),
+            command,
+        )?;
+        state.current = Some(outcome.generation.clone());
+        write(&state_path, &state)?;
+        println!(
+            "{}",
+            serde_json::to_string(&outcome).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if action == "--remove" {
+        let current = state
+            .current
+            .as_ref()
+            .ok_or("No owned installation is recorded")?;
+        candidate(current)?.verify(Path::new("/"))?;
+        let status = Command::new("/usr/bin/apt-get")
+            .env_clear()
+            .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
+            .env("DEBIAN_FRONTEND", "noninteractive")
+            .args([
+                "--no-download",
+                "--yes",
+                "-o",
+                "APT::Get::AutomaticRemove=false",
+                "remove",
+                "local-media-gallery",
+            ])
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err("Owned application removal failed".into());
+        }
+        state.current = None;
+        write(&state_path, &state)?;
+        println!(
+            "Removed application; galleries, settings, shared runtimes and root-owned recovery history retained."
+        );
+        return Ok(());
+    }
+    let next = retain(
+        file,
+        m,
+        "application",
+        &m.application_descriptor,
+        Some(executable),
+        serde_json::json!({"source":m.source,"revision":m.revision}),
+    )?;
+    let predecessor = if let Some(p) = &m.predecessor {
+        Some(retain(
+            file,
+            m,
+            "predecessor",
+            &p["descriptor"],
+            None,
+            p["provenance"].clone(),
+        )?)
+    } else {
+        None
+    };
+    let target = generation(&next)?.join("installer.run");
+    drop(lock);
+    exec_owned(executable, &target, "--__maintain")?;
+    let lock = File::options()
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .map_err(|e| e.to_string())?;
+    lock.try_lock()
+        .map_err(|_| "Another installer owns maintenance")?;
+    if let Some(version) = registered()? {
+        if state.current.is_none() {
+            let prior = if version == m.version {
+                next.clone()
+            } else {
+                predecessor.ok_or("Installed application has no trusted retained predecessor")?
+            };
+            let c = candidate(&prior)?;
+            if c.version != version {
+                return Err("Installed version differs from the canonical predecessor".into());
+            }
+            c.verify(Path::new("/"))?;
+            state.current = Some(prior);
+            write(&state_path, &state)?;
+        }
+        let prior = state
+            .current
+            .as_ref()
+            .ok_or("Missing prior generation")?
+            .clone();
+        let old = candidate(&prior)?;
+        old.verify(Path::new("/"))?;
+        if prior == next {
+            super::install_packages(file, m, true, false)?;
+            super::verify_identity(m)?;
+            return Ok(());
+        }
+        super::install_packages(file, m, false, false)?;
+        let new = candidate(&next)?;
+        let tx_name = format!(
+            "{}-{}",
+            next,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|e| e.to_string())?
+                .as_nanos()
+        );
+        let tx = Path::new(STORE).join("transactions").join(&tx_name);
+        let saved = state.last_transaction.clone();
+        state.last_transaction = Some(RetainedTransaction {
+            name: tx_name,
+            prior,
+            next: next.clone(),
+        });
+        write(&state_path, &state)?;
+        let mut transaction = match Transaction::prepare(
+            &tx,
+            Path::new("/"),
+            &old,
+            &new,
+            &generation(&next)?,
+            &state_operands()?,
+        ) {
+            Ok(tx) => tx,
+            Err(error) => {
+                state.last_transaction = saved;
+                write(&state_path, &state)?;
+                return Err(error);
+            }
+        };
+        let outcome = transaction.apply_verified(false)?;
+        state.current = Some(next);
+        write(&state_path, &state)?;
+        println!(
+            "{}",
+            serde_json::to_string(&outcome).map_err(|e| e.to_string())?
+        );
+    } else {
+        let mut pending = fresh_binding(&next)?;
+        write(&Path::new(STORE).join(FRESH_FILE), &pending)?;
+        finish_fresh(file, m, &mut pending)?;
+        state.current = Some(next);
+        state.last_transaction = None;
+        write(&state_path, &state)?;
+        clear_fresh(&pending)?;
+    }
+    drop(lock);
+    Ok(())
+}

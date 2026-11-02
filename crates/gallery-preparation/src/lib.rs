@@ -298,9 +298,19 @@ impl Release {
                 "Recipient identity mismatch",
             )?;
             if edition == "lite" {
+                let expected = if v == "0.1.0" {
+                    if platform == "linux" { "tar.gz" } else { "zip" }
+                } else {
+                    match platform {
+                        "windows" => "exe",
+                        "linux" => "elf",
+                        _ => "mach-o",
+                    }
+                };
                 require(
                     bytes <= MAX_ARCHIVE
-                        && row["format"] == if platform == "linux" { "tar.gz" } else { "zip" },
+                        && row["format"] == expected
+                        && (v == "0.1.0" || row["inventory"]["files"] == 1),
                     "Unsupported Lite container",
                 )?;
                 let a: Artifact = serde_json::from_value(row.clone()).map_err(|e| e.to_string())?;
@@ -446,6 +456,36 @@ pub fn extract(
         bytes.len().to_string() == artifact.bytes && hash(bytes) == artifact.sha256,
         "Artifact byte count or SHA256 mismatch",
     )?;
+    if matches!(artifact.format.as_str(), "exe" | "elf" | "mach-o") {
+        direct_identity(bytes, artifact)?;
+        checked(cancel)?;
+        portable_path(&artifact.name)?;
+        require(
+            !artifact.name.contains('/'),
+            "Direct executable filename required",
+        )?;
+        let file = write_entry(
+            base,
+            &artifact.name,
+            bytes,
+            bytes.len() as u64,
+            if artifact.platform == "windows" {
+                None
+            } else {
+                Some("755".into())
+            },
+            cancel,
+        )?;
+        require(
+            artifact.inventory.files == 1
+                && artifact.inventory.bytes == artifact.bytes
+                && hash(&canonical(
+                    &serde_json::to_value(vec![file.clone()]).map_err(|e| e.to_string())?,
+                )?) == artifact.inventory.sha256,
+            "Direct executable inventory mismatch",
+        )?;
+        return Ok(vec![file]);
+    }
     let mut files = Vec::new();
     let mut names = BTreeSet::new();
     let mut prefixes = std::collections::BTreeMap::<String, String>::new();
@@ -637,6 +677,52 @@ pub struct Prepared {
     pub preview: Preview,
     tops: Vec<String>,
 }
+fn direct_identity(bytes: &[u8], artifact: &Artifact) -> Result<Value> {
+    let magic = b"LMG-SINGLE-FILE1\0";
+    require(
+        bytes.len() > 40 + magic.len() && bytes.ends_with(magic),
+        "Missing executable metadata",
+    )?;
+    let at = bytes.len() - 40 - magic.len();
+    let length = u64::from_le_bytes(
+        bytes[at..at + 8]
+            .try_into()
+            .map_err(|_| "Invalid metadata length")?,
+    );
+    require(
+        length > 0 && length <= 16 * 1024 * 1024 && length < at as u64,
+        "Invalid metadata length",
+    )?;
+    let start = at - length as usize;
+    let encoded = &bytes[start..at];
+    require(
+        hash(encoded) == hex::encode(&bytes[at + 8..at + 40]),
+        "Executable metadata digest mismatch",
+    )?;
+    let m: Value = serde_json::from_slice(encoded).map_err(|e| e.to_string())?;
+    require(
+        m["kind"] == "local-media-gallery-single-file"
+            && m["formatVersion"] == 1
+            && m["product"] == "local-media-gallery"
+            && m["edition"] == "lite"
+            && m["os"] == artifact.platform
+            && m["arch"] == artifact.architecture
+            && m["executableBytes"].as_u64() == Some(start as u64)
+            && m["executableSha256"] == hash(&bytes[..start])
+            && m["notices"].as_array().is_some_and(|v| !v.is_empty()),
+        "Executable metadata identity mismatch",
+    )?;
+    require(
+        match artifact.platform.as_str() {
+            "windows" => artifact.format == "exe" && bytes.starts_with(b"MZ"),
+            "linux" => artifact.format == "elf" && bytes.starts_with(b"\x7fELF"),
+            "macos" => artifact.format == "mach-o" && bytes.starts_with(&[0xcf, 0xfa, 0xed, 0xfe]),
+            _ => false,
+        },
+        "Native executable platform mismatch",
+    )?;
+    Ok(m)
+}
 impl Prepared {
     pub fn acquire(
         release: &Release,
@@ -670,6 +756,61 @@ impl Prepared {
         let name = format!("LMG-{}-{}", artifact.platform, artifact.architecture);
         let base = stage.path().join(&name);
         fs::create_dir(&base).map_err(|e| e.to_string())?;
+        if matches!(artifact.format.as_str(), "exe" | "elf" | "mach-o") {
+            let identity = direct_identity(bytes, artifact)?;
+            require(
+                identity["version"] == release.version,
+                "Executable release version mismatch",
+            )?;
+            let mut files = extract(bytes, artifact, stage.path(), cancel)?;
+            files.push(write_entry(
+                stage.path(),
+                &format!("{name}/release.json"),
+                release.bytes.as_slice(),
+                release.bytes.len() as u64,
+                Some("644".into()),
+                cancel,
+            )?);
+            let receipt = json!({"formatVersion":1,"product":"local-media-gallery","kind":"prepared-recipient","version":release.version,"candidateId":release.candidate_id,"artifact":artifact,"entrypoints":[artifact.name],"direct":true});
+            let mut receipt = canonical(&receipt)?;
+            receipt.push(b'\n');
+            files.push(write_entry(
+                stage.path(),
+                &format!("{name}/preparation.json"),
+                receipt.as_slice(),
+                receipt.len() as u64,
+                Some("644".into()),
+                cancel,
+            )?);
+            files.sort_by(|a, b| a.path.cmp(&b.path));
+            let storage = files.iter().try_fold(0u64, |n, f| {
+                f.bytes
+                    .parse::<u64>()
+                    .ok()
+                    .and_then(|v| n.checked_add(v))
+                    .ok_or("Storage overflow")
+            })?;
+            let preview = Preview {
+                platform: artifact.platform.clone(),
+                architecture: artifact.architecture.clone(),
+                release_version: release.version.clone(),
+                candidate_id: release.candidate_id.clone(),
+                artifact_name: artifact.name.clone(),
+                artifact_sha256: artifact.sha256.clone(),
+                download_bytes: artifact.bytes.clone(),
+                extracted_bytes: artifact.bytes.clone(),
+                entrypoint_bytes: artifact.bytes.clone(),
+                storage_bytes: storage.to_string(),
+                destinations: vec![name.clone(), artifact.name.clone()],
+                disposition: "new".into(),
+            };
+            return Ok(Self {
+                stage,
+                files,
+                preview,
+                tops: vec![name, artifact.name.clone()],
+            });
+        }
         let bundle = base.join("bundle");
         fs::create_dir(&bundle).map_err(|e| e.to_string())?;
         let inventory = extract(bytes, artifact, &bundle, cancel)?;

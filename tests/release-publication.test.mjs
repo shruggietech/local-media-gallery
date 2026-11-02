@@ -66,3 +66,13 @@ test('Duplicate asset identities fail and authorization errors do not enter reco
  const assets=[...service.state.assets.values()][0];assets[1].id=assets[0].id;await assert.rejects(publisher.stage(record,'Fixture'),/Duplicate asset identity/);
  let reads=0;await assert.rejects(publisher.reconcile(async()=>{throw Object.assign(Error('forbidden'),{status:403});},async()=>{reads++;return true;},'pending'),/forbidden/);assert.equal(reads,0);
 });
+
+
+test('Large corresponding-source readback streams beyond the default bound and still requires the exact digest',async t=>{
+ const {createServer}=await import('node:http'),{Readable}=await import('node:stream'),{pipeline}=await import('node:stream/promises'),{createHash}=await import('node:crypto');
+ const size=1073741825,chunk=Buffer.alloc(1024*1024,0x71),hash=createHash('sha256');for(let left=size;left>0;left-=chunk.length)hash.update(chunk.subarray(0,Math.min(left,chunk.length)));
+ const server=createServer((req,res)=>pipeline(Readable.from((function*(){for(let left=size;left>0;left-=chunk.length)yield chunk.subarray(0,Math.min(left,chunk.length));})()),res).catch(()=>{}));await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));
+ const origin='http://127.0.0.1:'+server.address().port,client=new GitHubReleaseClient({repository:'o/r',apiOrigin:origin,fixture:true}),publisher=new ReleasePublisher({client,artifactRoot:''}),expected={name:'runtime-source.tar.xz',bytes:String(size),sha256:hash.digest('hex'),url:'https://github.com/o/r/releases/download/v1.0.0/runtime-source.tar.xz'},asset={id:1,name:expected.name,state:'uploaded',size,url:origin+'/repos/o/r/releases/assets/1',browser_download_url:expected.url};
+ assert.equal((await publisher.bytes(asset,expected)).sha256,expected.sha256);
+ await assert.rejects(publisher.bytes({...asset,size:size+1},expected),/bytes differ/);
+});
