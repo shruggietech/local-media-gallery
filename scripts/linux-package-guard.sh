@@ -253,6 +253,76 @@ LMG_RECOVERY_ROWS
         fi
     }
 
+    fresh_authority_present() {
+        [ -e /run/local-media-gallery-install/authority ] || [ -L /run/local-media-gallery-install/authority ]
+    }
+
+    fresh_owned() {
+        fresh_authority=/run/local-media-gallery-install/authority
+        check_parent "$fresh_authority"
+        [ -f "$fresh_authority" ] && [ ! -L "$fresh_authority" ] || fail 'Fresh process authority missing or linked.'
+        [ "$(/usr/bin/stat -c '%u:%g:%a:%h' -- "$fresh_authority")" = 0:0:600:1 ] || fail 'Foreign fresh process authority.'
+        [ "$(/usr/bin/stat -c '%u:%g:%a' -- /run/local-media-gallery-install)" = 0:0:700 ] || fail 'Foreign fresh process directory.'
+        [ "$(/usr/bin/stat -c '%s' -- "$fresh_authority")" -le 8388608 ] || fail 'Oversized fresh process authority.'
+        IFS='|' read -r fresh_protocol fresh_hash fresh_pid fresh_tick fresh_boot fresh_count fresh_version < "$fresh_authority"
+        [ "$fresh_protocol" = LMGFRESH1 ] && [ "$fresh_hash" = '@EXPECTED_HASH@' ] && [ "$fresh_version" = '@PRODUCT_VERSION@' ] || fail 'Fresh authority candidate differs.'
+        case "$fresh_pid:$fresh_tick:$fresh_count" in *[!0-9:]*|:*|*::*|*:) fail 'Invalid fresh coordinator counters.' ;; esac
+        [ "$fresh_pid" -gt 1 ] && [ "$fresh_count" -gt 0 ] && [ "$fresh_count" -le 4097 ] || fail 'Fresh coordinator bounds.'
+        kill -0 "$fresh_pid" 2>/dev/null || fail 'Fresh coordinator is no longer active; run the installer with --recover.'
+        IFS= read -r fresh_current_boot < /proc/sys/kernel/random/boot_id
+        [ "$fresh_current_boot" = "$fresh_boot" ] || fail 'Fresh coordinator boot differs.'
+        IFS= read -r fresh_stat < "/proc/$fresh_pid/stat"
+        fresh_fields=${fresh_stat##*) }
+        # The kernel numeric/stat fields after the parenthesized comm use spaces.
+        # shellcheck disable=SC2086
+        set -- $fresh_fields
+        [ "$#" -ge 20 ] || fail 'Fresh coordinator identity unavailable.'
+        case "$1" in Z|X|x) fail 'Fresh coordinator is no longer live.' ;; esac
+        shift 19
+        [ "$1" = "$fresh_tick" ] || fail 'Fresh coordinator start time differs.'
+        [ "$(/usr/bin/wc -l < "$fresh_authority")" -eq "$((fresh_count + 1))" ] || fail 'Fresh authority row count differs.'
+        fresh_rows=$(/usr/bin/tail -n +2 -- "$fresh_authority") || fail 'Cannot read fresh inventory.'
+        fresh_observed=$(printf '%s\n' "$fresh_rows" | /usr/bin/sha256sum)
+        [ "${fresh_observed%% *}" = "$fresh_hash" ] || fail 'Fresh inventory changed.'
+        # dpkg-query expands these literal control fields.
+        # shellcheck disable=SC2016
+        fresh_registration=$(/usr/bin/dpkg-query -W --showformat='${db:Status-Status}|${Version}|${Architecture}' local-media-gallery 2>/dev/null) || { fresh_query_status=$?; [ "$fresh_query_status" = 1 ] || fail 'Fresh registration query failed.'; fresh_registration=; }
+        fresh_state=not-installed
+        if [ -n "$fresh_registration" ]; then
+            fresh_state=${fresh_registration%%|*}
+            fresh_rest=${fresh_registration#*|}
+            fresh_registered_version=${fresh_rest%%|*}
+            fresh_arch=${fresh_rest#*|}
+            [ "$fresh_arch" = amd64 ] || fail 'Fresh registration architecture differs.'
+            case "$fresh_state" in
+                not-installed|config-files) : ;;
+                installed|half-installed|unpacked|half-configured|triggers-awaited|triggers-pending)
+                    [ "$fresh_registered_version" = '@PRODUCT_VERSION@' ] || fail 'Fresh registered version differs.' ;;
+                *) fail 'Unknown fresh registration state.' ;;
+            esac
+        fi
+        check_visible_command
+        set -- /usr/lib/local-media-gallery
+        while IFS='|' read -r fresh_file_hash fresh_mode fresh_size fresh_file; do
+            check_parent "$fresh_file"
+            if [ -e "$fresh_file" ] || [ -L "$fresh_file" ]; then
+                [ -f "$fresh_file" ] && [ ! -L "$fresh_file" ] || fail "Linked/nonregular fresh file: $fresh_file."
+                [ "$(/usr/bin/stat -c '%a:%s:%u:%g:%h' -- "$fresh_file")" = "$fresh_mode:$fresh_size:0:0:1" ] || fail "Changed fresh file metadata: $fresh_file."
+                fresh_actual_hash=$(/usr/bin/sha256sum -- "$fresh_file") || fail 'Cannot hash fresh file.'
+                [ "${fresh_actual_hash%% *}" = "$fresh_file_hash" ] || fail "Changed fresh file bytes: $fresh_file."
+            fi
+            set -- "$@" "$fresh_file"
+        done <<LMG_FRESH_FILES
+$fresh_rows
+LMG_FRESH_FILES
+        if fresh_owners=$(/usr/bin/dpkg-query -S -- "$@" 2>/dev/null); then : ; else fresh_owner_status=$?; [ "$fresh_owner_status" = 1 ] || fail 'Fresh ownership query failed.'; fi
+        while IFS= read -r fresh_owner; do
+            case "$fresh_owner" in ''|'local-media-gallery: /'*|'local-media-gallery:amd64: /'*) : ;; *) fail "Foreign fresh owner/diversion: $fresh_owner" ;; esac
+        done <<LMG_FRESH_OWNERS
+$fresh_owners
+LMG_FRESH_OWNERS
+    }
+
     verify_owned() {
         registered_state
         case "$package_state" in

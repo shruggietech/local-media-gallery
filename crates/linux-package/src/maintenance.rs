@@ -102,6 +102,7 @@ fn owned(path: &Path, directory: bool) -> Result<(), String> {
         || m.gid() != 0
         || m.is_dir() != directory
         || m.file_type().is_symlink()
+        || (!directory && m.nlink() != 1)
         || m.permissions().mode() & 0o077 != 0
     {
         return Err(format!("Foreign maintenance authority: {}", path.display()));
@@ -121,6 +122,11 @@ fn create_directory(path: &Path) -> Result<(), String> {
 fn write(path: &Path, value: &impl Serialize) -> Result<(), String> {
     let parent = path.parent().ok_or("Missing authority parent")?;
     owned(parent, true)?;
+    match fs::symlink_metadata(path) {
+        Ok(_) => owned(path, false)?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e.to_string()),
+    }
     let mut file = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
     file.as_file_mut()
         .write_all(&serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?)
@@ -288,6 +294,315 @@ fn retain(
     )?;
     Ok(name)
 }
+const FRESH_FILE: &str = "fresh-install.json";
+fn registration() -> Result<Option<super::fresh::Registration>, String> {
+    let result = Command::new("/usr/bin/dpkg-query")
+        .args([
+            "-W",
+            "--showformat=${db:Status-Status}|${Version}|${Architecture}",
+            "--",
+            "local-media-gallery",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if result.status.code() == Some(1) {
+        return Ok(None);
+    }
+    if !result.status.success() {
+        return Err("Fresh package registration query failed".into());
+    }
+    let text = String::from_utf8_lossy(&result.stdout);
+    let fields: Vec<_> = text.trim().split('|').collect();
+    if fields.len() != 3 {
+        return Err("Malformed package registration".into());
+    }
+    Ok(Some(super::fresh::Registration {
+        state: fields[0].into(),
+        version: fields[1].into(),
+        arch: fields[2].into(),
+    }))
+}
+fn verify_fresh_destinations(c: &Candidate) -> Result<(), String> {
+    let mut parents = std::collections::BTreeSet::new();
+    for f in &c.files {
+        let path = Path::new("/").join(&f.path);
+        gallery_update::physical(&path)?;
+        for parent in path.ancestors().skip(1) {
+            if !parents.insert(parent.to_path_buf()) {
+                continue;
+            }
+            match fs::metadata(parent) {
+                Ok(m) => {
+                    if !m.is_dir()
+                        || m.uid() != 0
+                        || m.gid() != 0
+                        || m.permissions().mode() & 0o022 != 0
+                    {
+                        return Err("Fresh destination parent ownership differs".into());
+                    }
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+    }
+    let mut command = Command::new("/usr/bin/dpkg-query");
+    command.args(["-S", "--", "/usr/lib/local-media-gallery"]);
+    for f in &c.files {
+        command.arg(format!("/{}", f.path));
+    }
+    let report = command.output().map_err(|e| e.to_string())?;
+    if !matches!(report.status.code(), Some(0 | 1)) {
+        return Err("Fresh destination owner query failed".into());
+    }
+    for line in String::from_utf8_lossy(&report.stdout).lines() {
+        if !line.starts_with("local-media-gallery: /")
+            && !line.starts_with("local-media-gallery:amd64: /")
+        {
+            return Err(format!(
+                "Fresh destination has a foreign owner or diversion: {line}"
+            ));
+        }
+    }
+    let visible = Command::new("/bin/sh")
+        .env_clear()
+        .env(
+            "PATH",
+            "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        )
+        .args(["-c", "command -v local-media-gallery || true"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    let visible = String::from_utf8_lossy(&visible.stdout);
+    if !visible.trim().is_empty() && visible.trim() != "/usr/bin/local-media-gallery" {
+        return Err("Fresh installation conflicts with a foreign visible command".into());
+    }
+    Ok(())
+}
+fn fresh_binding(name: &str) -> Result<super::fresh::Authority, String> {
+    let base = generation(name)?;
+    let c = candidate(name)?;
+    let receipt: Receipt = read(&base.join("receipt.json"))?;
+    Ok(super::fresh::Authority {
+        format_version: 1,
+        generation: name.into(),
+        descriptor_sha256: receipt.descriptor_sha256,
+        installer_sha256: receipt
+            .installer_sha256
+            .ok_or("Fresh generation has no retained installer")?,
+        inventory_sha256: super::fresh::digest(super::fresh::inventory(&c.files).as_bytes()),
+        phase: super::fresh::Phase::Prepared,
+    })
+}
+fn verify_fresh_binding(a: &super::fresh::Authority) -> Result<Candidate, String> {
+    let trusted = fresh_binding(&a.generation)?;
+    if !a.same_inputs(&trusted) {
+        return Err("Fresh install authority no longer matches retained inputs".into());
+    }
+    candidate(&a.generation)
+}
+fn process_identity(pid: u32) -> Result<String, String> {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).map_err(|e| e.to_string())?;
+    let fields = stat
+        .rsplit_once(')')
+        .ok_or("Missing coordinator identity")?
+        .1;
+    if matches!(fields.split_whitespace().next(), Some("Z" | "X" | "x")) {
+        return Err("Fresh coordinator is no longer live".into());
+    }
+    let tick = fields
+        .split_whitespace()
+        .nth(19)
+        .ok_or("Missing coordinator start time")?;
+    let boot = fs::read_to_string("/proc/sys/kernel/random/boot_id").map_err(|e| e.to_string())?;
+    Ok(format!("{tick}|{}", boot.trim()))
+}
+struct FreshExecution {
+    path: PathBuf,
+    digest: String,
+    live: bool,
+}
+impl FreshExecution {
+    fn acquire(c: &Candidate, a: &super::fresh::Authority) -> Result<Self, String> {
+        let directory = Path::new("/run/local-media-gallery-install");
+        create_directory(directory)?;
+        let path = directory.join("authority");
+        let rows = super::fresh::inventory(&c.files);
+        let identity = process_identity(std::process::id())?;
+        let data = format!(
+            "LMGFRESH1|{}|{}|{}|{}|{}\n{}",
+            a.inventory_sha256,
+            std::process::id(),
+            identity,
+            c.files.len(),
+            c.version,
+            rows
+        );
+        if path.exists() {
+            owned(&path, false)?;
+            let existing = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let (header, body) = existing
+                .split_once('\n')
+                .ok_or("Foreign fresh process authority")?;
+            let fields: Vec<_> = header.split('|').collect();
+            if fields.len() != 7
+                || fields[0] != "LMGFRESH1"
+                || fields[1] != a.inventory_sha256
+                || body != rows
+                || fields[5].parse::<usize>().ok() != Some(c.files.len())
+                || fields[6] != c.version
+            {
+                return Err("Foreign fresh process authority".into());
+            }
+            let pid: u32 = fields[2].parse().map_err(|_| "Invalid fresh coordinator")?;
+            if pid != std::process::id()
+                && process_identity(pid).ok().as_deref()
+                    == Some(format!("{}|{}", fields[3], fields[4]).as_str())
+            {
+                return Err("Another fresh installation coordinator is active".into());
+            }
+        }
+        let mut temporary =
+            tempfile::NamedTempFile::new_in(directory).map_err(|e| e.to_string())?;
+        temporary
+            .write_all(data.as_bytes())
+            .map_err(|e| e.to_string())?;
+        temporary.as_file().sync_all().map_err(|e| e.to_string())?;
+        temporary.persist(&path).map_err(|e| e.to_string())?;
+        File::open(directory)
+            .and_then(|f| f.sync_all())
+            .map_err(|e| e.to_string())?;
+        Ok(Self {
+            path,
+            digest: super::fresh::digest(data.as_bytes()),
+            live: true,
+        })
+    }
+    fn cleanup(&mut self) -> Result<(), String> {
+        owned(&self.path, false)?;
+        if hash(&self.path)? != self.digest {
+            return Err("Fresh process authority changed".into());
+        }
+        fs::remove_file(&self.path).map_err(|e| e.to_string())?;
+        File::open(self.path.parent().ok_or("Missing fresh authority parent")?)
+            .and_then(|f| f.sync_all())
+            .map_err(|e| e.to_string())?;
+        self.live = false;
+        Ok(())
+    }
+}
+impl Drop for FreshExecution {
+    fn drop(&mut self) {
+        if self.live {
+            let _ = self.cleanup();
+        }
+    }
+}
+fn finish_fresh(
+    file: &mut File,
+    m: &Manifest,
+    a: &mut super::fresh::Authority,
+) -> Result<(), String> {
+    let c = verify_fresh_binding(a)?;
+    if c.generation != m.generation {
+        return Err("Recover the pending installation through its retained installer".into());
+    }
+    verify_fresh_destinations(&c)?;
+    let registered = registration()?;
+    let active = super::fresh::registration_active(registered.as_ref(), &c.version)?;
+    let source = tempfile::Builder::new()
+        .prefix("local-media-gallery-fresh-source-")
+        .permissions(fs::Permissions::from_mode(0o700))
+        .tempdir_in("/var/tmp")
+        .map_err(|e| e.to_string())?;
+    let status = Command::new("/usr/bin/dpkg-deb")
+        .args(["--extract"])
+        .arg(generation(&c.generation)?.join("application.deb"))
+        .arg(source.path())
+        .status()
+        .map_err(|e| e.to_string())?;
+    if !status.success() {
+        return Err("Retained fresh source extraction failed".into());
+    }
+    c.verify(source.path())?;
+    if a.phase == super::fresh::Phase::Prepared {
+        match fs::read_dir("/usr/lib/local-media-gallery") {
+            Ok(mut files) => {
+                if files.next().is_some() {
+                    return Err("Nonempty foreign fresh application destination".into());
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    // A durable applying authority follows a verified all-absent preflight. dpkg
+    // may not have published its status/list files when its first rename occurs.
+    // Missing registration is permitted in that phase; foreign registration was
+    // rejected above, and every present byte still needs exact retained identity.
+    super::fresh::reconcile(
+        Path::new("/"),
+        &c.files,
+        a.phase,
+        active || a.phase == super::fresh::Phase::Applying,
+        Some((0, 0)),
+        Some(source.path()),
+    )?;
+    if a.phase == super::fresh::Phase::Complete {
+        if registered.as_ref().map(|r| r.state.as_str()) != Some("installed") {
+            return Err("Completed fresh install is not configured".into());
+        }
+        let mut execution = FreshExecution::acquire(&c, a)?;
+        execution.cleanup()?;
+        return Ok(());
+    }
+    a.phase = super::fresh::Phase::Applying;
+    write(&Path::new(STORE).join(FRESH_FILE), a)?;
+    let mut execution = FreshExecution::acquire(&c, a)?;
+    if std::env::var_os("LMG_UPDATE_EVENTS").is_some() {
+        println!(
+            "{}",
+            serde_json::json!({"event":"fresh-install","phase":"applying","generation":c.generation})
+        );
+        std::io::stdout().flush().map_err(|e| e.to_string())?;
+    }
+    let unpack = Command::new("/usr/bin/dpkg")
+        .env_clear()
+        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
+        .env("DEBIAN_FRONTEND", "noninteractive")
+        .arg("--unpack")
+        .arg(generation(&c.generation)?.join("application.deb"))
+        .status()
+        .map_err(|e| e.to_string())?;
+    if !unpack.success() {
+        return Err("Authorized fresh unpack did not complete; run --recover".into());
+    }
+    super::install_packages(file, m, true)?;
+    c.verify(Path::new("/"))?;
+    super::verify_identity(m)?;
+    let registered = registration()?.ok_or("Fresh installed registration missing")?;
+    if registered.state != "installed"
+        || !super::fresh::registration_active(Some(&registered), &c.version)?
+    {
+        return Err("Fresh installation did not reach configured state".into());
+    }
+    a.phase = super::fresh::Phase::Complete;
+    write(&Path::new(STORE).join(FRESH_FILE), a)?;
+    execution.cleanup()
+}
+fn clear_fresh(expected: &super::fresh::Authority) -> Result<(), String> {
+    let path = Path::new(STORE).join(FRESH_FILE);
+    owned(&path, false)?;
+    let current: super::fresh::Authority = read(&path)?;
+    if !current.same_inputs(expected) || current.phase != super::fresh::Phase::Complete {
+        return Err("Fresh completion authority changed".into());
+    }
+    fs::remove_file(path).map_err(|e| e.to_string())?;
+    File::open(STORE)
+        .and_then(|f| f.sync_all())
+        .map_err(|e| e.to_string())
+}
+
 fn state_operands() -> Result<Vec<StateOperand>, String> {
     if let Some(profile) = PROFILE.get() {
         return Ok(vec![
@@ -431,6 +746,30 @@ pub(super) fn operate(
     } else {
         State::default()
     };
+    let fresh_path = Path::new(STORE).join(FRESH_FILE);
+    if fresh_path.exists() {
+        if matches!(action, "--rollback" | "--remove") {
+            return Err("Recover the pending fresh installation before rollback or removal".into());
+        }
+        let mut pending: super::fresh::Authority = read(&fresh_path)?;
+        verify_fresh_binding(&pending)?;
+        if action != "--recover" && m.generation != pending.generation {
+            return Err(
+                "Recover the pending fresh installation before using another installer".into(),
+            );
+        }
+        let target = generation(&pending.generation)?.join("installer.run");
+        if executable != target {
+            drop(lock);
+            return exec_owned(executable, &target, "--recover");
+        }
+        finish_fresh(file, m, &mut pending)?;
+        state.current = Some(pending.generation.clone());
+        state.last_transaction = None;
+        write(&state_path, &state)?;
+        clear_fresh(&pending)?;
+        return Ok(());
+    }
     if matches!(action, "--recover" | "--rollback") {
         if action == "--recover" && state.last_transaction.is_none() {
             let name = m.application_descriptor["generation"]
@@ -615,11 +954,13 @@ pub(super) fn operate(
             serde_json::to_string(&outcome).map_err(|e| e.to_string())?
         );
     } else {
-        super::install_packages(file, m, true)?;
-        super::verify_identity(m)?;
+        let mut pending = fresh_binding(&next)?;
+        write(&Path::new(STORE).join(FRESH_FILE), &pending)?;
+        finish_fresh(file, m, &mut pending)?;
         state.current = Some(next);
         state.last_transaction = None;
         write(&state_path, &state)?;
+        clear_fresh(&pending)?;
     }
     drop(lock);
     Ok(())

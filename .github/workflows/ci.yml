@@ -73,10 +73,11 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
+            cargo-v1-product-windows-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - run: npm run ci -- product-windows
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -146,10 +147,11 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
+            cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-
       - name: Restore verified feature-helper build cache
         id: feature-helper-cache
         continue-on-error: true
@@ -235,10 +237,11 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
+            cargo-v1-macos-packages-${{ runner.os }}-${{ runner.arch }}-
       - name: Restore verified feature-helper build cache
         id: feature-helper-cache
         continue-on-error: true
@@ -272,6 +275,8 @@ jobs:
             .local/macos-packages-*/*.pkg
             .local/macos-package-test-*/*.png
             .local/macos-package-test-*/*.log
+            .local/macos-package-test-*/pkg-interruption/**
+            .local/macos-package-test-*/pkg-first-install/**
           include-hidden-files: true
           if-no-files-found: error
       - name: Save Cargo cache after terminal evidence
@@ -339,6 +344,8 @@ jobs:
           restore-keys: |
             cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-
+            cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-
       - name: Restore verified feature-helper build cache
         id: feature-helper-cache
         continue-on-error: true
@@ -450,10 +457,11 @@ jobs:
             ~/.cargo/git/db
             target/
           key: cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints; Cargo still validates compiler/dependency fingerprints.
+          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
+            cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - name: Run native qualification on isolated Linux display
         if: runner.os == 'Linux'

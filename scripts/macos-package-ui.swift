@@ -13,10 +13,18 @@ let args=Array(CommandLine.arguments.dropFirst())
 guard let operation=args.first else {fail("Supply an operation")}
 // The isolated maintainer observer interrupts a real Installer-owned coordinator.
 // No fault-injection hook or altered product payload is shipped.
-if operation == "interrupt-package" {
+if operation == "interrupt-package" || operation == "interrupt-first-install" {
     guard args.count==5 else{fail("Supply package, owned transaction, helper digest and log directory")}
-    let package=args[1],transaction=args[2],expectedDigest=args[3],logs=args[4]
-    guard package.hasPrefix("/"),transaction.hasPrefix("/Library/Application Support/Local Media Gallery Updates/"),expectedDigest.count==64 else{fail("Invalid interruption identity")}
+    let package=args[1],transaction=args[2],expectedDigest=args[3],logs=args[4],fresh=operation == "interrupt-first-install"
+    let authorityValid=fresh ? transaction.hasPrefix("/Applications/.") && transaction.hasSuffix(".lmg-install.json"):transaction.hasPrefix("/Library/Application Support/Local Media Gallery Updates/")
+    guard package.hasPrefix("/"),authorityValid,expectedDigest.count==64 else{fail("Invalid interruption identity")}
+    let monitor=fresh ? transaction:transaction+"/journal.json"
+    func admittedPhase(_ value:[String:Any])->String? {
+        if !fresh {guard let phase=value["phase"] as? String,["prepared","applying","activated"].contains(phase) else{return nil};return phase}
+        guard let directory=value["directory"] as? String,directory.hasPrefix("/Applications/"),let command=value["command"] as? String,!FileManager.default.fileExists(atPath:command),let payload=value["payload"] as? [String:Any],let files=payload["files"] as? [[String:Any]] else{return nil}
+        let present=files.filter{if let relative=$0["path"] as? String{return FileManager.default.fileExists(atPath:directory+"/"+relative)};return false}.count
+        return present>0 && present<files.count ? "install-intent-with-partial-app":nil
+    }
     guard let library=dlopen("/usr/lib/libproc.dylib",RTLD_NOW),let listSymbol=dlsym(library,"proc_listallpids"),let pathSymbol=dlsym(library,"proc_pidpath") else{fail("Process inspection unavailable")}
     typealias ListPids = @convention(c) (UnsafeMutableRawPointer?,Int32)->Int32
     typealias PidPath = @convention(c) (Int32,UnsafeMutableRawPointer?,UInt32)->Int32
@@ -43,11 +51,11 @@ if operation == "interrupt-package" {
                 }
             }}
         }
-        if let pid=coordinator,let data=try? Data(contentsOf:URL(fileURLWithPath:transaction+"/journal.json")),let journal=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],let current=journal["phase"] as? String {
+        if let pid=coordinator,let data=try? Data(contentsOf:URL(fileURLWithPath:monitor)),let journal=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],let current=admittedPhase(journal) {
             phase=current
-            if ["prepared","applying","activated"].contains(current) {
+            if fresh || ["prepared","applying","activated"].contains(current) {
                 guard kill(pid,SIGSTOP)==0 else{fail("Could not stop owned coordinator")}
-                guard let stopped=try? Data(contentsOf:URL(fileURLWithPath:transaction+"/journal.json")),let value=(try? JSONSerialization.jsonObject(with:stopped)) as? [String:Any],let stoppedPhase=value["phase"] as? String,["prepared","applying","activated"].contains(stoppedPhase) else {kill(pid,SIGCONT);fail("Coordinator passed the admitted interruption boundary")}
+                guard let stopped=try? Data(contentsOf:URL(fileURLWithPath:monitor)),let value=(try? JSONSerialization.jsonObject(with:stopped)) as? [String:Any],let stoppedPhase=admittedPhase(value) else {kill(pid,SIGCONT);fail("Coordinator passed the admitted interruption boundary")}
                 phase=stoppedPhase
                 // Replay only the authentic embedded facade, with no descriptor operands,
                 // while the first owner is stopped and still holds its OS lease.
@@ -64,7 +72,7 @@ if operation == "interrupt-package" {
         }
         Thread.sleep(forTimeInterval:coordinator == nil ? 0.01:0.0005)
     }
-    guard interrupted,let coordinator=coordinator else{if process.isRunning{process.terminate()};fail("No admitted owned PKG interruption before deadline (phase \(phase))")}
+    guard interrupted,let coordinator=coordinator else{if process.isRunning{process.terminate()};let stdout=(try? String(contentsOfFile:out,encoding:.utf8)) ?? "",stderr=(try? String(contentsOfFile:err,encoding:.utf8)) ?? "";fail("No admitted owned PKG interruption before deadline (phase \(phase), coordinator \(coordinator.map(String.init) ?? "none")). Installer stdout: \(stdout.suffix(16000)) stderr: \(stderr.suffix(16000))")}
     let completion=Date().addingTimeInterval(20);while process.isRunning && Date()<completion{Thread.sleep(forTimeInterval:0.05)}
     guard !process.isRunning else{process.terminate();fail("Installer did not settle after coordinator interruption")}
     guard process.terminationStatus != 0 else{fail("Interrupted Installer incorrectly reported success")}

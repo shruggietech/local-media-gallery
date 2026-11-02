@@ -844,6 +844,32 @@ fn sync_directory(p: &Path) -> Result<()> {
     let _ = p;
     Ok(())
 }
+fn sync_prepared_directories(base: &Path) -> Result<()> {
+    #[cfg(unix)]
+    {
+        let mut pending = vec![base.to_path_buf()];
+        let mut directories = Vec::new();
+        while let Some(directory) = pending.pop() {
+            physical(&directory)?;
+            for entry in io(fs::read_dir(&directory))? {
+                let entry = io(entry)?;
+                let kind = io(entry.file_type())?;
+                if kind.is_symlink() || (!kind.is_file() && !kind.is_dir()) {
+                    return Err("Unexpected retained preparation entry".into());
+                }
+                if kind.is_dir() {
+                    pending.push(entry.path());
+                }
+            }
+            directories.push(directory);
+        }
+        for directory in directories.into_iter().rev() {
+            sync_directory(&directory)?;
+        }
+    }
+    let _ = base;
+    Ok(())
+}
 fn durable_json<T: Serialize>(p: &Path, v: &T) -> Result<()> {
     physical(p)?;
     let parent = p.parent().ok_or("No parent")?;
@@ -1130,16 +1156,30 @@ impl Transaction {
         if matches!(next.native, Native::Direct) {
             next.verify(source)?;
         }
+        if base.try_exists().map_err(|e| e.to_string())? {
+            return Err("Transaction destination already exists".into());
+        }
+        let final_base = base;
+        let parent = base.parent().ok_or("Missing transaction parent")?;
+        physical(parent)?;
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_nanos();
+        let staging = parent.join(format!(".lmg-preparing-{}-{nonce:x}", std::process::id()));
         #[cfg(windows)]
         let mut namespace =
-            gallery_windows_package::private::create_directory(base, machine_scope(prior))?;
-        #[cfg(not(windows))]
-        io(fs::create_dir(base))?;
+            gallery_windows_package::private::create_directory(&staging, machine_scope(prior))?;
+        #[cfg(windows)]
+        let staging_pin = namespace.len() - 1;
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
-            io(fs::set_permissions(base, fs::Permissions::from_mode(0o700)))?
+            use std::os::unix::fs::DirBuilderExt;
+            io(fs::DirBuilder::new().mode(0o700).create(&staging))?;
         }
+        // No canonical transaction exists until its complete retained authority is durable.
+        // An interrupted private staging directory is never adopted on a later retry.
+        let base = staging.as_path();
         let locked = lock(base)?;
         #[cfg(windows)]
         if matches!(prior.native, Native::Direct) {
@@ -1149,7 +1189,7 @@ impl Transaction {
             format_version: 1,
             binding: String::new(),
             directory: directory.to_path_buf(),
-            transaction: base.to_path_buf(),
+            transaction: final_base.to_path_buf(),
             prior: prior.clone(),
             next: next.clone(),
             phase: "preparing".into(),
@@ -1187,6 +1227,14 @@ impl Transaction {
             )?;
             #[cfg(not(windows))]
             c.verify(&dst)?;
+            #[cfg(test)]
+            if name == "prior" {
+                match std::env::var("LMG_UPDATE_TEST_INTERRUPT_PREPARATION").as_deref() {
+                    Ok("exit") => std::process::exit(86),
+                    Ok("disk-full") => return Err("Simulated retained storage exhaustion".into()),
+                    _ => {}
+                }
+            }
         }
         if !state.is_empty() {
             native::identity(next, &base.join("next"))?;
@@ -1197,6 +1245,40 @@ impl Transaction {
         durable_json(&base.join("identity.json"), &identity)?;
         op.journal.binding = hash(&read_bounded(&base.join("identity.json"), 8 * 1024 * 1024)?);
         op.journal.phase = "prepared".into();
+        durable_json(&base.join("journal.json"), &op.journal)?;
+        op.verify_retained()?;
+        sync_prepared_directories(base)?;
+        let Self {
+            base: staged,
+            journal,
+            _lock: preparation_lock,
+            _destination_lock,
+            #[cfg(windows)]
+            mut _namespace,
+            verify_native,
+        } = op;
+        // Windows denies renaming a directory while its own namespace pin/lock is held.
+        // Keep parent/live pins and the destination lease across exclusive publication.
+        drop(preparation_lock);
+        #[cfg(windows)]
+        drop(_namespace.remove(staging_pin));
+        rename_exclusive(&staged, final_base)?;
+        sync_directory(parent)?;
+        #[cfg(windows)]
+        _namespace.extend(gallery_windows_package::private::validate_directory(
+            final_base,
+            machine_scope(prior),
+        )?);
+        let op = Self {
+            base: final_base.to_path_buf(),
+            journal,
+            _lock: lock(final_base)?,
+            _destination_lock,
+            #[cfg(windows)]
+            _namespace,
+            verify_native,
+        };
+        op.verify_retained()?;
         op.save()?;
         Ok(op)
     }
@@ -1207,7 +1289,18 @@ impl Transaction {
     }
     /// Load and execute one command with one complete pre-effect integrity pass.
     pub fn resume(base: &Path, command: RecoveryCommand) -> Result<Outcome> {
+        Self::resume_admitted(base, command, |_| Ok(()))
+    }
+    /// Admit a platform lifecycle lease using the validated destination, then hold
+    /// it through the existing single integrity/effect pass. No untrusted journal
+    /// path is exposed before normal transaction authority validation.
+    pub fn resume_admitted<G>(
+        base: &Path,
+        command: RecoveryCommand,
+        admit: impl FnOnce(&Path) -> Result<G>,
+    ) -> Result<Outcome> {
         let mut op = Self::load(base)?;
+        let _admission = admit(&op.journal.directory)?;
         match command {
             RecoveryCommand::Status => op.status(),
             RecoveryCommand::Recover => op.recover_verified(),
@@ -1298,7 +1391,7 @@ impl Transaction {
         Ok(op)
     }
     fn identity(&self) -> serde_json::Value {
-        serde_json::json!({"formatVersion":1,"transaction":self.base,"directory":self.journal.directory,"prior":self.journal.prior,"next":self.journal.next,"state":self.journal.state})
+        serde_json::json!({"formatVersion":1,"transaction":self.journal.transaction,"directory":self.journal.directory,"prior":self.journal.prior,"next":self.journal.next,"state":self.journal.state})
     }
     fn save(&self) -> Result<()> {
         durable_json(&self.base.join("journal.json"), &self.journal)?;
@@ -1800,6 +1893,171 @@ mod version_contract_tests {
         }
         for value in ["01.2.3", "1.2", "1.2.3-beta", "1..3", "1.2.٣"] {
             assert!(!super::valid_product_version(value));
+        }
+    }
+}
+
+#[cfg(test)]
+mod preparation_tests {
+    use super::*;
+    fn candidate(base: &Path, generation: &str, bytes: &[u8]) -> Candidate {
+        fs::create_dir_all(base).unwrap();
+        fs::write(base.join("local-media-gallery"), bytes).unwrap();
+        Candidate {
+            format_version: 1,
+            product: "local-media-gallery".into(),
+            version: "0.0.0".into(),
+            edition: "lite".into(),
+            os: std::env::consts::OS.into(),
+            arch: std::env::consts::ARCH.into(),
+            generation: generation.into(),
+            source: Source {
+                sha256: "a".repeat(64),
+                files: 1,
+            },
+            binary: "local-media-gallery".into(),
+            files: vec![FileRecord {
+                path: "local-media-gallery".into(),
+                bytes: bytes.len().to_string(),
+                sha256: hash(bytes),
+                mode: 644,
+            }],
+            native: Native::Direct,
+            integration: None,
+        }
+    }
+    #[test]
+    fn platform_admission_refusal_precedes_recovery_effects() {
+        #[cfg(windows)]
+        let parent = gallery_windows_package::private::storage_root(false).unwrap();
+        #[cfg(not(windows))]
+        let parent = fs::canonicalize(std::env::temp_dir()).unwrap();
+        let temporary = tempfile::Builder::new().tempdir_in(parent).unwrap();
+        let live = temporary.path().join("live");
+        let source = temporary.path().join("next");
+        let prior = candidate(&live, "a", b"old");
+        let next = candidate(&source, "b", b"new");
+        let base = temporary.path().join("transaction");
+        drop(Transaction::prepare(&base, &live, &prior, &next, &source, &[]).unwrap());
+        let result =
+            Transaction::resume_admitted::<()>(&base, RecoveryCommand::Recover, |destination| {
+                assert_eq!(destination, live);
+                Err("Another platform lifecycle owner is active".into())
+            });
+        assert!(result.unwrap_err().contains("lifecycle owner"));
+        assert_eq!(fs::read(live.join("local-media-gallery")).unwrap(), b"old");
+        assert_eq!(
+            Transaction::resume(&base, RecoveryCommand::Status)
+                .unwrap()
+                .phase,
+            "prepared"
+        );
+        assert_eq!(
+            Transaction::resume_admitted(&base, RecoveryCommand::Status, |destination| {
+                assert_eq!(destination, live);
+                Ok(())
+            })
+            .unwrap()
+            .phase,
+            "prepared"
+        );
+    }
+    #[test]
+    fn interruption_child() {
+        let Some(parent) = std::env::var_os("LMG_UPDATE_TEST_PREPARATION_ROOT") else {
+            return;
+        };
+        let root = PathBuf::from(parent);
+        let live = root.join("live");
+        let source = root.join("next");
+        let prior = candidate(&live, "a", b"old");
+        let next = candidate(&source, "b", b"new");
+        let result = Transaction::prepare(
+            &root.join("transaction"),
+            &live,
+            &prior,
+            &next,
+            &source,
+            &[],
+        );
+        if std::env::var("LMG_UPDATE_TEST_INTERRUPT_PREPARATION").as_deref() == Ok("disk-full") {
+            assert!(result.err().unwrap().contains("storage exhaustion"));
+        } else {
+            panic!("The child should have exited during retained preparation");
+        }
+    }
+    #[test]
+    fn interrupted_preparation_never_publishes_an_incomplete_transaction_and_retry_succeeds() {
+        for fault in ["exit", "disk-full"] {
+            #[cfg(windows)]
+            let parent = gallery_windows_package::private::storage_root(false).unwrap();
+            #[cfg(not(windows))]
+            let parent = fs::canonicalize(std::env::temp_dir()).unwrap();
+            let temporary = tempfile::Builder::new().tempdir_in(parent).unwrap();
+            let root = temporary.path();
+            let mut child = Command::new(std::env::current_exe().unwrap());
+            child
+                .args([
+                    "--exact",
+                    "preparation_tests::interruption_child",
+                    "--nocapture",
+                ])
+                .env("LMG_UPDATE_TEST_PREPARATION_ROOT", root)
+                .env("LMG_UPDATE_TEST_INTERRUPT_PREPARATION", fault)
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped());
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                child.creation_flags(0x08000000);
+            }
+            let output = child.output().unwrap();
+            assert_eq!(
+                output.status.code(),
+                Some(if fault == "exit" { 86 } else { 0 }),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let base = root.join("transaction");
+            assert!(!base.exists());
+            assert_eq!(
+                fs::read(root.join("live/local-media-gallery")).unwrap(),
+                b"old"
+            );
+            let stages: Vec<_> = fs::read_dir(root)
+                .unwrap()
+                .map(|e| e.unwrap().path())
+                .filter(|p| {
+                    p.file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .starts_with(".lmg-preparing-")
+                })
+                .collect();
+            assert_eq!(stages.len(), 1);
+            assert_eq!(
+                fs::read(stages[0].join("prior/local-media-gallery")).unwrap(),
+                b"old"
+            );
+            assert!(!stages[0].join("journal.json").exists());
+            let live = root.join("live");
+            let source = root.join("next");
+            let prior = candidate(&live, "a", b"old");
+            let next = candidate(&source, "b", b"new");
+            let op = Transaction::prepare(&base, &live, &prior, &next, &source, &[]).unwrap();
+            assert_eq!(op.status().unwrap().phase, "prepared");
+            assert_eq!(op.journal.transaction, base);
+            drop(op);
+            assert_eq!(
+                Transaction::open(&base).unwrap().status().unwrap().phase,
+                "prepared"
+            );
+            assert!(Transaction::prepare(&base, &live, &prior, &next, &source, &[]).is_err());
+            assert_eq!(
+                fs::read(stages[0].join("prior/local-media-gallery")).unwrap(),
+                b"old"
+            );
         }
     }
 }

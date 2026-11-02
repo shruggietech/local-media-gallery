@@ -72,49 +72,169 @@ pub struct Retained {
     pub directory: std::path::PathBuf,
     _locks: Vec<std::fs::File>,
 }
+
 #[cfg(windows)]
 pub fn retain(machine: bool, input: &serde_json::Value) -> Result<Retained, String> {
-    use std::io::Write;
     let embedded = Embedded::parse(crate::INSTALLER_BYTES)?;
     if (input["scope"] == "machine") != machine {
         return Err("Embedded scope differs".into());
     }
     let storage = crate::private::ensure_storage_root(machine)?;
     let directory = storage.join(format!("package-{}", hash(crate::SETUP.as_bytes())));
-    let mut locks = if directory.exists() {
-        crate::private::validate_directory(&directory, machine)?
-    } else {
-        crate::private::create_directory(&directory, machine)?
-    };
     let setup = FileRecord {
         path: "setup.json".into(),
         bytes: crate::SETUP.len().to_string(),
         sha256: hash(crate::SETUP.as_bytes()),
     };
-    for (record, data) in embedded
+    let entries: Vec<_> = embedded
         .files
         .iter()
-        .map(|(r, b)| (r, *b))
+        .map(|(record, data)| (record, *data))
         .chain(std::iter::once((&setup, crate::SETUP.as_bytes())))
-    {
+        .collect();
+    retain_complete(&directory, machine, &entries)
+}
+#[cfg(windows)]
+fn retain_complete(
+    directory: &std::path::Path,
+    machine: bool,
+    entries: &[(&FileRecord, &[u8])],
+) -> Result<Retained, String> {
+    retain_complete_with(
+        directory,
+        machine,
+        entries,
+        |file, bytes| {
+            use std::io::Write;
+            file.write_all(bytes)
+        },
+        publish_directory,
+    )
+}
+#[cfg(windows)]
+fn present(path: &std::path::Path) -> Result<bool, String> {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e.to_string()),
+    }
+}
+#[cfg(windows)]
+fn verified_retention(
+    directory: &std::path::Path,
+    machine: bool,
+    entries: &[(&FileRecord, &[u8])],
+) -> Result<Retained, String> {
+    let mut locks = crate::private::validate_directory(directory, machine)?;
+    let expected: std::collections::BTreeSet<_> =
+        entries.iter().map(|(r, _)| r.path.to_lowercase()).collect();
+    let mut seen = std::collections::BTreeSet::new();
+    fn visit(
+        root: &std::path::Path,
+        at: &std::path::Path,
+        machine: bool,
+        expected: &std::collections::BTreeSet<String>,
+        seen: &mut std::collections::BTreeSet<String>,
+        locks: &mut Vec<std::fs::File>,
+    ) -> Result<(), String> {
+        for child in std::fs::read_dir(at).map_err(|e| e.to_string())? {
+            let child = child.map_err(|e| e.to_string())?;
+            let path = child.path();
+            let relative = path
+                .strip_prefix(root)
+                .map_err(|e| e.to_string())?
+                .to_str()
+                .ok_or("Non-Unicode retained member")?
+                .replace('\\', "/")
+                .to_lowercase();
+            let kind = child.file_type().map_err(|e| e.to_string())?;
+            if kind.is_dir() {
+                if !expected
+                    .iter()
+                    .any(|name| name.starts_with(&(relative.clone() + "/")))
+                {
+                    return Err("Unexpected retained directory".into());
+                }
+                locks.extend(crate::private::validate_directory(&path, machine)?);
+                visit(root, &path, machine, expected, seen, locks)?;
+            } else if !kind.is_file() || !expected.contains(&relative) || !seen.insert(relative) {
+                return Err("Unexpected retained file, alias or redirect".into());
+            }
+        }
+        Ok(())
+    }
+    visit(
+        directory, directory, machine, &expected, &mut seen, &mut locks,
+    )?;
+    if seen != expected {
+        return Err("Retained directory is incomplete; preserve it before recovery".into());
+    }
+    for (record, _) in entries {
         let file = directory.join(&record.path);
-        let parent = file.parent().ok_or("Missing embedded parent")?;
-        if !parent.exists() {
-            crate::private::child_directories(parent)?;
-        }
-        if !file.exists() {
-            let mut f = crate::private::create_file(&file)?;
-            f.write_all(data)
-                .and_then(|_| f.sync_all())
-                .map_err(|e| e.to_string())?;
-        }
         crate::private::validate_file(&file, machine)?;
         locks.push(crate::open_verified_input(&file, record)?);
     }
     Ok(Retained {
-        directory,
+        directory: directory.to_owned(),
         _locks: locks,
     })
+}
+#[cfg(windows)]
+fn publish_directory(stage: &std::path::Path, directory: &std::path::Path) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn MoveFileExW(from: *const u16, to: *const u16, flags: u32) -> i32;
+    }
+    let from: Vec<_> = stage.as_os_str().encode_wide().chain(Some(0)).collect();
+    let to: Vec<_> = directory.as_os_str().encode_wide().chain(Some(0)).collect();
+    // No REPLACE_EXISTING: even an empty competing directory is never overwritten.
+    if unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), 8) } == 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    Ok(())
+}
+#[cfg(windows)]
+fn retain_complete_with(
+    directory: &std::path::Path,
+    machine: bool,
+    entries: &[(&FileRecord, &[u8])],
+    mut write: impl FnMut(&mut std::fs::File, &[u8]) -> std::io::Result<()>,
+    publish: impl FnOnce(&std::path::Path, &std::path::Path) -> Result<(), String>,
+) -> Result<Retained, String> {
+    if present(directory)? {
+        return verified_retention(directory, machine, entries);
+    }
+    let parent = directory.parent().ok_or("Missing retained parent")?;
+    let _parent_pins = crate::private::validate_directory(parent, machine)?;
+    let id = unsafe { windows::Win32::System::Com::CoCreateGuid() }.map_err(|e| e.to_string())?;
+    let stage = parent.join(format!(".lmg-retaining-{:032x}", id.to_u128()));
+    // Incomplete stages are not authority. A terminated process can leave one;
+    // retries create a distinct stage and never adopt or overwrite the orphan.
+    drop(crate::private::create_directory(&stage, machine)?);
+    for (record, data) in entries {
+        if !portable(&record.path) {
+            return Err("Invalid retained member".into());
+        }
+        let file = stage.join(&record.path);
+        let folder = file.parent().ok_or("Missing staged parent")?;
+        if !present(folder)? {
+            crate::private::child_directories(folder)?;
+        }
+        let mut output = crate::private::create_file(&file)?;
+        write(&mut output, data)
+            .and_then(|_| output.sync_all())
+            .map_err(|e| e.to_string())?;
+    }
+    // Release stage/file pins before the directory rename; they deny Windows deletion.
+    drop(verified_retention(&stage, machine, entries)?);
+    if let Err(error) = publish(&stage, directory) {
+        if !present(directory)? {
+            return Err(error);
+        }
+        return verified_retention(directory, machine, entries);
+    }
+    verified_retention(directory, machine, entries)
 }
 
 #[cfg(windows)]
@@ -124,7 +244,6 @@ fn seed_published_predecessor(
     directory: &std::path::Path,
     registered: &str,
 ) -> Result<Option<std::path::PathBuf>, String> {
-    use std::io::Write;
     let predecessor = &input["predecessor"];
     if predecessor["scope"] != "machine"
         || predecessor["msi"]["packageCode"].as_str() != Some(registered)
@@ -147,17 +266,13 @@ fn seed_published_predecessor(
     }
     let root = crate::private::storage_root(true)?;
     let retained = root.join(format!("package-{}", hash(&setup)));
-    let _pins = if retained.exists() {
-        crate::private::validate_directory(&retained, true)?
-    } else {
-        crate::private::create_directory(&retained, true)?
-    };
     let msi = predecessor["msi"]["path"]
         .as_str()
         .ok_or("Invalid published MSI path")?;
     if !portable(msi) || msi.contains('/') {
         return Err("Invalid published MSI leaf".into());
     }
+    let mut owned = Vec::new();
     for name in [
         msi,
         "update.json",
@@ -166,22 +281,20 @@ fn seed_published_predecessor(
         "release.json",
     ] {
         let data = std::fs::read(source.join(name)).map_err(|e| e.to_string())?;
-        let file = retained.join(name);
-        let record = FileRecord {
-            path: name.into(),
-            bytes: data.len().to_string(),
-            sha256: hash(&data),
-        };
-        if !file.exists() {
-            let mut output = crate::private::create_file(&file)?;
-            output
-                .write_all(&data)
-                .and_then(|_| output.sync_all())
-                .map_err(|e| e.to_string())?;
-        }
-        crate::private::validate_file(&file, true)?;
-        let _verified = crate::open_verified_input(&file, &record)?;
+        owned.push((
+            FileRecord {
+                path: name.into(),
+                bytes: data.len().to_string(),
+                sha256: hash(&data),
+            },
+            data,
+        ));
     }
+    let entries: Vec<_> = owned
+        .iter()
+        .map(|(record, data)| (record, data.as_slice()))
+        .collect();
+    let _complete = retain_complete(&retained, true, &entries)?;
     Ok(Some(retained))
 }
 #[cfg(any(windows, test))]
@@ -328,6 +441,257 @@ mod tests {
         b.extend(index);
         b.extend(vec![b'x'; paths.len()]);
         b
+    }
+
+    #[cfg(windows)]
+    fn retention_fixture() -> (tempfile::TempDir, std::path::PathBuf) {
+        let root = crate::private::storage_root(false).unwrap();
+        let temp = tempfile::tempdir_in(root).unwrap();
+        let private = temp.path().join("authority");
+        drop(crate::private::create_directory(&private, false).unwrap());
+        (temp, private)
+    }
+    #[cfg(windows)]
+    fn retained_test_record() -> FileRecord {
+        FileRecord {
+            path: "source/input.bin".into(),
+            bytes: "24".into(),
+            sha256: hash(b"complete retained input!"),
+        }
+    }
+    #[cfg(windows)]
+    fn retained_test_entries(record: &FileRecord) -> [(&FileRecord, &'static [u8]); 1] {
+        [(record, b"complete retained input!")]
+    }
+    #[cfg(windows)]
+    #[test]
+    fn retention_child_fixture() {
+        let Some(root) = std::env::var_os("LMG_RETENTION_KILL_ROOT") else {
+            return;
+        };
+        let root = std::path::PathBuf::from(root);
+        let record = retained_test_record();
+        let _ = retain_complete_with(
+            &root.join("package"),
+            false,
+            &retained_test_entries(&record),
+            |file, bytes| {
+                use std::io::Write;
+                file.write_all(&bytes[..3])?;
+                file.sync_all()?;
+                std::fs::write(root.join("child-ready"), b"partial stage")?;
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+            },
+            publish_directory,
+        );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn terminated_retention_child_leaves_only_orphan_stage_and_retry_succeeds() {
+        use std::{
+            os::windows::process::CommandExt,
+            process::{Command, Stdio},
+            time::{Duration, Instant},
+        };
+        let (_temp, root) = retention_fixture();
+        let final_path = root.join("package");
+        struct ChildGuard(std::process::Child);
+        impl Drop for ChildGuard {
+            fn drop(&mut self) {
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+            }
+        }
+        let mut child = ChildGuard(
+            Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "embedded::tests::retention_child_fixture",
+                    "--nocapture",
+                ])
+                .env("LMG_RETENTION_KILL_ROOT", &root)
+                .creation_flags(0x08000000)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap(),
+        );
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !root.join("child-ready").exists() {
+            assert!(
+                child.0.try_wait().unwrap().is_none(),
+                "retention child exited before partial write"
+            );
+            assert!(
+                Instant::now() < deadline,
+                "retention child did not reach partial write"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        child.0.kill().unwrap();
+        child.0.wait().unwrap();
+        assert!(!final_path.exists());
+        let orphans: Vec<_> = std::fs::read_dir(&root)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| {
+                p.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with(".lmg-retaining-")
+            })
+            .collect();
+        assert_eq!(orphans.len(), 1);
+        assert_eq!(
+            std::fs::read(orphans[0].join("source/input.bin")).unwrap(),
+            b"com"
+        );
+        let record = retained_test_record();
+        let retained =
+            retain_complete(&final_path, false, &retained_test_entries(&record)).unwrap();
+        assert_eq!(
+            std::fs::read(retained.directory.join("source/input.bin")).unwrap(),
+            b"complete retained input!"
+        );
+        assert_eq!(
+            std::fs::read(orphans[0].join("source/input.bin")).unwrap(),
+            b"com"
+        );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn disk_full_staging_never_publishes_partial_authority_and_retry_succeeds() {
+        let (_temp, root) = retention_fixture();
+        let final_path = root.join("package");
+        let record = retained_test_record();
+        assert!(
+            retain_complete_with(
+                &final_path,
+                false,
+                &retained_test_entries(&record),
+                |file, bytes| {
+                    use std::io::Write;
+                    file.write_all(&bytes[..3])?;
+                    file.sync_all()?;
+                    Err(std::io::Error::from_raw_os_error(112))
+                },
+                publish_directory
+            )
+            .is_err()
+        );
+        assert!(!final_path.exists());
+        let retained =
+            retain_complete(&final_path, false, &retained_test_entries(&record)).unwrap();
+        assert_eq!(
+            std::fs::read(retained.directory.join("source/input.bin")).unwrap(),
+            b"complete retained input!"
+        );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn concurrent_complete_retention_publications_reuse_only_the_verified_winner() {
+        use std::{sync::mpsc, time::Duration};
+        let (_temp, root) = retention_fixture();
+        let final_path = root.join("package");
+        let record = retained_test_record();
+        let entries = retained_test_entries(&record);
+        let (ready_tx, ready_rx) = mpsc::channel();
+        std::thread::scope(|scope| {
+            let mut releases = Vec::new();
+            let mut threads = Vec::new();
+            for _ in 0..2 {
+                let (release_tx, release_rx) = mpsc::channel();
+                releases.push(release_tx);
+                let ready = ready_tx.clone();
+                let final_path = &final_path;
+                let entries = &entries;
+                threads.push(scope.spawn(move || {
+                    retain_complete_with(
+                        final_path,
+                        false,
+                        entries,
+                        |file, bytes| {
+                            use std::io::Write;
+                            file.write_all(bytes)
+                        },
+                        |stage, directory| {
+                            ready.send(()).map_err(|e| e.to_string())?;
+                            release_rx
+                                .recv_timeout(Duration::from_secs(15))
+                                .map_err(|e| e.to_string())?;
+                            publish_directory(stage, directory)
+                        },
+                    )
+                }));
+            }
+            for _ in 0..2 {
+                ready_rx.recv_timeout(Duration::from_secs(15)).unwrap();
+            }
+            for release in releases {
+                release.send(()).unwrap();
+            }
+            for thread in threads {
+                let retained = thread.join().unwrap().unwrap();
+                assert_eq!(
+                    std::fs::read(retained.directory.join("source/input.bin")).unwrap(),
+                    b"complete retained input!"
+                );
+            }
+        });
+    }
+    #[cfg(windows)]
+    #[test]
+    fn empty_foreign_and_incomplete_final_directories_are_never_overwritten_or_adopted() {
+        use std::io::Write;
+        for foreign in [None, Some(b"foreign".as_slice())] {
+            let (_temp, root) = retention_fixture();
+            let final_path = root.join("package");
+            let record = retained_test_record();
+            let result = retain_complete_with(
+                &final_path,
+                false,
+                &retained_test_entries(&record),
+                |file, bytes| file.write_all(bytes),
+                |stage, directory| {
+                    drop(crate::private::create_directory(directory, false)?);
+                    if let Some(bytes) = foreign {
+                        let mut f = crate::private::create_file(&directory.join("foreign.bin"))?;
+                        f.write_all(bytes)
+                            .and_then(|_| f.sync_all())
+                            .map_err(|e| e.to_string())?;
+                    }
+                    publish_directory(stage, directory)
+                },
+            );
+            assert!(result.is_err());
+            assert!(!final_path.join("source/input.bin").exists());
+            if let Some(bytes) = foreign {
+                assert_eq!(
+                    std::fs::read(final_path.join("foreign.bin")).unwrap(),
+                    bytes
+                );
+            }
+            assert!(retain_complete(&final_path, false, &retained_test_entries(&record)).is_err());
+        }
+        let (_temp, root) = retention_fixture();
+        let final_path = root.join("package");
+        drop(crate::private::create_directory(&final_path, false).unwrap());
+        crate::private::child_directory(&final_path.join("source")).unwrap();
+        {
+            let mut file =
+                crate::private::create_file(&final_path.join("source/input.bin")).unwrap();
+            file.write_all(b"partial").unwrap();
+            file.sync_all().unwrap();
+        }
+        let record = retained_test_record();
+        assert!(retain_complete(&final_path, false, &retained_test_entries(&record)).is_err());
+        assert_eq!(
+            std::fs::read(final_path.join("source/input.bin")).unwrap(),
+            b"partial"
+        );
     }
     #[test]
     fn only_the_exact_published_predecessor_record_can_seed_authority() {

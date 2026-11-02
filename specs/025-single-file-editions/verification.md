@@ -14,11 +14,12 @@ Linux and macOS native package helpers also passed cross-target all-target Clipp
 
 1. Run 41393158356 on 2af011f retained initial preparation failures and passing Linux/macOS core native observations. Preparation defects were corrected before the next candidate.
 2. Run 41396621633 on 5d03a9a passed repository, website and Windows core product. Package campaigns exposed the macOS command-symlink helper lookup, Linux predecessor descriptor collision, and Windows firewall cleanup error. Those failed receipts and original Actions archives are retained diagnostically.
-3. Run 41398636963 on 7dc4b25 includes first-review fixes. It is superseded when the native failure fixes are pushed; no failed or superseded receipt authorizes candidate acceptance.
+3. Run 41398636963 on 7dc4b25 was cancelled after native failure fixes were pushed. It is not acceptance evidence.
+4. Run 41401021930 on e7e4831 passed repository, website and all three core native campaigns. Linux direct Lite launch, maintenance and relocation passed. Windows package acceptance stopped at the invalid firewall address prefixes; Linux Full stopped at a non-private staging directory; macOS Full passed bundled helper use before its interruption observer failed to admit a coordinator. These terminal failed receipts are retained; none authorizes complete candidate acceptance.
 
 ## Review chronology
 
-The automatic first Codex round reported two findings: Lite history lookup must use the actual writer location, and Linux retained generations must publish atomically. Both were corrected in 7dc4b2577dbf2d0d54d5e3074db062298814fc53 with focused regressions, replies and resolved threads. The second and final round has not been requested. Final PR handoff must identify the terminal accepted commit, checks and artifact readback.
+The automatic first Codex round reported two findings: Lite history lookup must use the actual writer location, and Linux retained generations must publish atomically. Both were corrected in 7dc4b2577dbf2d0d54d5e3074db062298814fc53 with focused regressions, replies and resolved threads. The second and final round was requested once on e7e48310caf55dc81c94de64e2f0bdc65a49646d. It reported Windows retained-input publication and Linux first-install recovery authority defects; the corresponding fixes and peer-platform recovery checks are in progress. No third round is authorized or requested. Final PR handoff must identify the terminal accepted commit, checks and artifact readback.
 
 ## Evidence boundaries
 

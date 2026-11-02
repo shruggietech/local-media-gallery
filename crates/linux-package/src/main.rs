@@ -10,6 +10,8 @@ use std::io::{Read, Seek, SeekFrom};
 #[cfg(any(target_os = "linux", test))]
 use std::path::Path;
 
+#[cfg(any(target_os = "linux", all(test, windows)))]
+mod fresh;
 #[cfg(target_os = "linux")]
 mod maintenance;
 #[cfg(any(target_os = "linux", test))]
@@ -226,6 +228,10 @@ fn install_packages(
     use std::process::Command;
     let work = tempfile::Builder::new()
         .prefix("local-media-gallery-install-")
+        .permissions({
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::Permissions::from_mode(0o700)
+        })
         .tempdir_in("/var/tmp")
         .map_err(|e| e.to_string())?;
     let packages = extract(file, m, work.path())?;

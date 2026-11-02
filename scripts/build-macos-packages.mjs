@@ -77,7 +77,7 @@ for(const record of records){
  if(edition==='lite'){
   record.artifact=await writeLiteArtifact({binary:binaries.lite,output,metadata:{version,edition,os:'macos',arch:'aarch64',generation,source,revision,prerequisites:['macOS15 Apple Silicon','OS WKWebView and AppKit','OS media codecs','Executable permission for direct launch']},noticesDirectory:path.join(root,assembly.records.find(r=>r.edition==='lite').payloadDirectory,'licenses/dependencies')});
  }else{
-  record.artifact=await buildFullPkg(path.join(directory,'full'),record.payload,output,'product');
+  record.artifact=await buildFullPkg(path.join(directory,'full'),record.payload,output,'product');record.installerHelperSha256=hash(await readFile(path.join(directory,'full/lmg-setup')));
   record.dependencies={facilities:['macOS15 arm64','AppKit','WKWebView','system media codecs','OS zlib'],helperLibraries,bundled:[{feature:'video thumbnails',binary:'Contents/MacOS/ffmpeg',sha256:featureHelper.sha256,bytes:featureHelper.bytes,source:{url:featureHelper.source.url,sha256:featureHelper.source.sha256,configuration:featureHelper.source.configuration}}],networkRequired:false};
  }
  validateMacProduct(record.artifact,edition);

@@ -69,10 +69,14 @@ pub(super) fn publish_generation(
         Err(error) => return Err(error.to_string()),
     }
     let parent = base.parent().ok_or("Missing retained-generation parent")?;
-    let staging = tempfile::Builder::new()
-        .prefix(".local-media-gallery-staged-generation-")
-        .tempdir_in(parent)
-        .map_err(|e| e.to_string())?;
+    let mut builder = tempfile::Builder::new();
+    builder.prefix(".local-media-gallery-staged-generation-");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        builder.permissions(fs::Permissions::from_mode(0o700));
+    }
+    let staging = builder.tempdir_in(parent).map_err(|e| e.to_string())?;
     prepare(staging.path())?;
     verify(staging.path())?;
     sync_directory(staging.path())?;
@@ -223,5 +227,32 @@ mod tests {
                 assert_eq!(fs::read_dir(&base).unwrap().count(), 0);
             }
         }
+    }
+    #[cfg(unix)]
+    #[test]
+    fn staging_is_private_before_any_input_is_written() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let directory = tempfile::tempdir().unwrap();
+        let base = directory.path().join("generation");
+        publish_generation(
+            &base,
+            |stage| {
+                let metadata = fs::symlink_metadata(stage).unwrap();
+                let parent = fs::metadata(directory.path()).unwrap();
+                assert!(metadata.is_dir());
+                assert_eq!(metadata.permissions().mode() & 0o777, 0o700);
+                assert_eq!(
+                    (metadata.uid(), metadata.gid()),
+                    (parent.uid(), parent.gid())
+                );
+                complete(stage)
+            },
+            verify,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::metadata(base).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
     }
 }

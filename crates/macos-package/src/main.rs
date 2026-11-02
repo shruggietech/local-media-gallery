@@ -93,7 +93,19 @@ fn run() -> gallery_macos_package::Result<()> {
             "rollback" => gallery_update::RecoveryCommand::Rollback,
             _ => gallery_update::RecoveryCommand::Recover,
         };
-        let result = gallery_update::Transaction::resume(&transaction, action)?;
+        let helper_payload: gallery_macos_package::Payload =
+            serde_json::from_slice(include_bytes!(concat!(env!("OUT_DIR"), "/payload.json")))?;
+        helper_payload.validate()?;
+        let result =
+            gallery_update::Transaction::resume_admitted(&transaction, action, |directory| {
+                if helper_payload.edition == "full" {
+                    gallery_macos_package::destination_lease(directory)
+                        .map(Some)
+                        .map_err(|error| error.to_string())
+                } else {
+                    Ok(None)
+                }
+            })?;
         println!("{}", serde_json::to_string(&result)?);
         return Ok(());
     }
@@ -180,7 +192,8 @@ fn run() -> gallery_macos_package::Result<()> {
         return Err("Application and command directory must be separate".into());
     }
     let command = bin.join("local-media-gallery");
-    let source = std::env::current_exe()?
+    let installer = std::fs::canonicalize(std::env::current_exe()?)?;
+    let source = installer
         .parent()
         .ok_or("Candidate parent unavailable")?
         .join(&payload.bundle);
@@ -209,9 +222,13 @@ fn run() -> gallery_macos_package::Result<()> {
         std::fs::set_permissions(&updates, std::fs::Permissions::from_mode(0o700))?;
         let transaction = updates.join(&payload.generation);
         if transaction.exists() {
-            let status = gallery_update::Transaction::resume(
+            let status = gallery_update::Transaction::resume_admitted(
                 &transaction,
                 gallery_update::RecoveryCommand::Status,
+                |directory| {
+                    gallery_macos_package::destination_lease(directory)
+                        .map_err(|error| error.to_string())
+                },
             )?;
             if ["committed", "restored"].contains(&status.phase.as_str()) {
                 // Keep accepted journals but admit a later ordinary reinstall or upgrade.
@@ -223,9 +240,13 @@ fn run() -> gallery_macos_package::Result<()> {
                     updates.join(format!("{}-retained-{suffix}", payload.generation)),
                 )?;
             } else {
-                gallery_update::Transaction::resume(
+                gallery_update::Transaction::resume_admitted(
                     &transaction,
                     gallery_update::RecoveryCommand::Recover,
+                    |directory| {
+                        gallery_macos_package::destination_lease(directory)
+                            .map_err(|error| error.to_string())
+                    },
                 )?;
                 if gallery_macos_package::owned_payload(&app, &command, "system")? == payload {
                     println!(
