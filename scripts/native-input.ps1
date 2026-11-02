@@ -7,14 +7,21 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { throw 'Native input requires an explicitly isolated CI desktop; active workstation focus must not be changed.' }
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
+$inputClock = [Diagnostics.Stopwatch]::StartNew()
+function Write-InputStage {
+    param([string]$Stage,[hashtable]$Details=@{})
+    $record=@{event='native-input-stage';stage=$Stage;helperPid=$PID;targetPid=$AppProcessId;action=$Action;key=$Keys;elapsedMilliseconds=$inputClock.ElapsedMilliseconds;utc=[DateTime]::UtcNow.ToString('o')}
+    foreach($name in $Details.Keys){$record[$name]=$Details[$name]}
+    [Console]::Error.WriteLine(($record | ConvertTo-Json -Compress))
+    [Console]::Error.Flush()
+}
+Write-InputStage 'compile-win32-start'
 Add-Type @'
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
 public static class GalleryNativeInput {
+    private static void Trace(string stage) { Console.Error.WriteLine("{\"event\":\"native-input-win32\",\"stage\":\""+stage+"\"}"); Console.Error.Flush(); }
     [StructLayout(LayoutKind.Sequential)] public struct KeyboardInput { public ushort virtualKey, scanCode; public uint flags, time; public UIntPtr extraInfo; }
     [StructLayout(LayoutKind.Sequential)] public struct MouseInput { public int x, y; public uint data, flags, time; public UIntPtr extraInfo; }
     [StructLayout(LayoutKind.Explicit)] public struct InputUnion { [FieldOffset(0)] public KeyboardInput keyboard; [FieldOffset(0)] public MouseInput mouse; }
@@ -47,38 +54,65 @@ public static class GalleryNativeInput {
     [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint first, uint second, bool attach);
     public static bool FocusControl(IntPtr window, IntPtr control) {
+        Trace("focus-thread-identities");
         uint current = GetCurrentThreadId();
         uint target = GetWindowThreadProcessId(window, IntPtr.Zero);
         uint foreground = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+        Trace("attach-target-start");
         bool targetAttached = current != target && AttachThreadInput(current, target, true);
+        Trace("attach-foreground-start");
         bool foregroundAttached = foreground != current && foreground != target && AttachThreadInput(current, foreground, true);
-        try { SetForegroundWindow(window); if (control != IntPtr.Zero) SetFocus(control); return GetForegroundWindow() == window; }
+        try {
+            Trace("set-foreground-start"); SetForegroundWindow(window);
+            if (control != IntPtr.Zero) { Trace("set-control-focus-start"); SetFocus(control); }
+            Trace("verify-foreground-start"); return GetForegroundWindow() == window;
+        }
         finally {
+            Trace("detach-input-start");
             if (foregroundAttached) AttachThreadInput(current, foreground, false);
             if (targetAttached) AttachThreadInput(current, target, false);
+            Trace("detach-input-complete");
         }
     }
 }
 '@
+Write-InputStage 'compile-win32-complete'
+Write-InputStage 'application-window-start'
 $app = Get-Process -Id $AppProcessId
 if ($app.MainWindowHandle -eq [IntPtr]::Zero) { throw 'Application has no native window.' }
-if ($Action -eq 'window') { Write-Output 'Native application window exists.'; return }
-$condition = [System.Windows.Automation.PropertyCondition]::new(
-    [System.Windows.Automation.AutomationElement]::ProcessIdProperty, $AppProcessId)
-$window = [System.Windows.Automation.AutomationElement]::FromHandle($app.MainWindowHandle)
-[void][GalleryNativeInput]::SetForegroundWindow($app.MainWindowHandle)
+Write-InputStage 'application-window-complete'
+if ($Action -eq 'window') { Write-InputStage 'window-observed'; Write-Output 'Native application window exists.'; return }
 if ($Action -in @('focus', 'keys', 'scan-keys')) {
+    # Scan codes and foreground admission require Win32 only. UIA FromHandle can
+    # wait on a provider; picker-only automation must never block this input path.
+    if ($Action -eq 'keys') { Write-InputStage 'sendkeys-assembly-start'; Add-Type -AssemblyName System.Windows.Forms; Write-InputStage 'sendkeys-assembly-complete' }
+    Write-InputStage 'focus-start'
     $focusDeadline = [DateTime]::UtcNow.AddSeconds(5)
     do {
         $focused = [GalleryNativeInput]::FocusControl($app.MainWindowHandle, [IntPtr]::Zero)
         if (-not $focused) { Start-Sleep -Milliseconds 100 }
     } until ($focused -or [DateTime]::UtcNow -gt $focusDeadline)
     if (-not $focused) { throw 'Cannot confirm the application is foreground; keyboard input was withheld.' }
+    $foreground=[GalleryNativeInput]::GetForegroundWindow()
+    if($foreground -ne $app.MainWindowHandle){throw 'Application foreground changed; keyboard input was withheld.'}
+    Write-InputStage 'foreground-confirmed' @{targetWindow=$app.MainWindowHandle.ToInt64();foregroundWindow=$foreground.ToInt64()}
     if ($Action -eq 'focus') { return }
+    Write-InputStage 'key-admission-start'
     if ($Action -eq 'scan-keys') { [GalleryNativeInput]::SendScanKeys($Keys) }
     else { [System.Windows.Forms.SendKeys]::SendWait($Keys) }
+    Write-InputStage 'key-admission-complete'
     return
 }
+Write-InputStage 'picker-uia-assembly-start'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+Write-InputStage 'picker-uia-assembly-complete'
+$condition = [System.Windows.Automation.PropertyCondition]::new(
+    [System.Windows.Automation.AutomationElement]::ProcessIdProperty, $AppProcessId)
+Write-InputStage 'picker-uia-provider-start'
+$window = [System.Windows.Automation.AutomationElement]::FromHandle($app.MainWindowHandle)
+Write-InputStage 'picker-uia-provider-complete'
+[void][GalleryNativeInput]::SetForegroundWindow($app.MainWindowHandle)
 $deadline = [DateTime]::UtcNow.AddSeconds(8)
 do {
     $windows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
