@@ -188,6 +188,8 @@ jobs:
             .local/windows-package-test-*/update-evidence-*/**
             .local/windows-package-test-*/failed-update-*/**
             .local/windows-packages-*/*-candidate.zip
+            .local/windows-packages-*/published-*.zip
+            .local/windows-packages-*/replacement-lite.exe
             .local/windows-packages-*/*-windows.exe
             .local/windows-packages-*/replacement-full.exe
             .local/windows-package-test-*/*.png
@@ -286,6 +288,7 @@ jobs:
             .local/macos-packages-*/*-candidate.dmg
             .local/macos-packages-*/published-predecessor-helper
             .local/macos-packages-*/*-candidate.zip
+            .local/macos-packages-*/bundled-feature-input.mp4
             .local/macos-packages-*/*-macos
             .local/macos-packages-*/*.pkg
             .local/macos-package-test-*/*.png
@@ -394,6 +397,7 @@ jobs:
             .local/linux-package-test-*/failed-update-*/**
             .local/linux-packages-*/*-candidate.deb
             .local/linux-packages-*/*-candidate.tar.gz
+            .local/linux-packages-*/replacement-lite-executable
             .local/linux-packages-*/*-linux
             .local/linux-packages-*/*.run
             .local/linux-packages-*/*-runtime-sources.tar.xz
