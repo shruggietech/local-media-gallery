@@ -184,8 +184,7 @@ impl Release {
             require(
                 scope["result"] == "pass"
                     && p >= 0.0
-                    && q >= 0.0
-                    && q < 885.0
+                    && (0.0..885.0).contains(&q)
                     && c >= 0.0
                     && (p + q - c).abs() < 0.002,
                 "Invalid native qualification receipt",

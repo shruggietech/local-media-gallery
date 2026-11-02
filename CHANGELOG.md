@@ -11,6 +11,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Fixed
 
+- Canceling an idle thumbnail preview releases its held gallery root so Close folder can be followed by relocation.
+
 - Windows package startup waits for the expected portable presentation inside its existing deadline, retaining attributed root, settings identity and last UI observation on failure.
 
 - Release staging verifies temporary draft assets through authenticated API identities and exact content hashes, then requires final public URLs after publication. Bounded read-after-write observation reconciles delayed or lost acknowledgements without blindly replaying mutations.

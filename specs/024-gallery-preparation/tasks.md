@@ -23,7 +23,7 @@
 
 ## Phase5: Partial/canceled jobs (US3)
 
-- [x] T010 [US3] Integrate independent presentation/thumbnail/recipient actions, admission, progress, cancellation and lifecycle shutdown in apps/gallery/src-tauri/src/guided.rs and main.rs (FR-007, FR-008).
+- [x] T010 [US3] Integrate independent presentation/thumbnail/recipient actions, admission, progress, cancellation and lifecycle shutdown in apps/gallery/src-tauri/src/guided.rs, main.rs and crates/gallery-core/src/thumbnail.rs (FR-007, FR-008).
 - [ ] T011 [US3] Test no choices, combinations, stale previews, partial outcomes and observed helper-exit cancellation in apps/gallery/src-tauri/src/guided.rs and isolated native scripts (SC-001, SC-004).
 
 ## Phase6: Expected Windows presentation (US4)

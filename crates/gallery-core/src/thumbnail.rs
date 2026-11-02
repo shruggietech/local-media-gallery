@@ -727,10 +727,25 @@ impl PreparationService {
         self.cancel_current();
     }
     pub fn cancel_current(&self) {
-        let state = self.state.lock().unwrap();
-        self.inspection_cancel.lock().unwrap().cancel();
-        if let Some(a) = state.as_ref() {
-            a.cancel.cancel()
+        let status = {
+            let mut state = self.state.lock().unwrap();
+            self.inspection_cancel.lock().unwrap().cancel();
+            state.as_mut().and_then(|a| {
+                a.cancel.cancel();
+                if !a.busy && a.status.phase == "ready" {
+                    // Idle previews still own captured root/cache capabilities.
+                    // Retiring them must release those handles before relocation.
+                    a.preview = None;
+                    a.status.phase = "cancelled".into();
+                    a.status.sequence = (a.status.sequence.parse::<u64>().unwrap() + 1).to_string();
+                    Some(a.status.clone())
+                } else {
+                    None
+                }
+            })
+        };
+        if let Some(status) = status {
+            self.notify_status(status);
         }
     }
     pub fn shutdown(&self) {
