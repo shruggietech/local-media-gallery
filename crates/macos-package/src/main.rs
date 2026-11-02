@@ -38,6 +38,8 @@ fn run() -> gallery_macos_package::Result<()> {
         .and_then(|v| v.to_str())
         .ok_or("Supply install or remove; use --help")?;
     if ![
+        "managed-install",
+        "managed-remove",
         "install",
         "remove",
         "update",
@@ -95,10 +97,13 @@ fn run() -> gallery_macos_package::Result<()> {
         println!("{}", serde_json::to_string(&result)?);
         return Ok(());
     }
-    let scope = options
-        .get("--scope")
-        .and_then(|v| v.to_str())
-        .unwrap_or("user");
+    let scope = options.get("--scope").and_then(|v| v.to_str()).unwrap_or(
+        if operation.starts_with("managed-") {
+            "system"
+        } else {
+            "user"
+        },
+    );
     if !["user", "system"].contains(&scope) {
         return Err("Scope must be user or system".into());
     }
@@ -176,7 +181,94 @@ fn run() -> gallery_macos_package::Result<()> {
         .parent()
         .ok_or("Candidate parent unavailable")?
         .join(&payload.bundle);
-    let result = if ["update", "prepare-update"].contains(&operation) {
+    let result = if operation == "managed-remove" {
+        if scope != "system" || !options.is_empty() {
+            return Err("Managed removal takes no operands and requires system scope".into());
+        }
+        gallery_macos_package::managed_remove(&app, &command)?
+    } else if operation == "managed-install" {
+        if scope != "system" || !options.is_empty() {
+            return Err("Managed installation takes no operands and requires system scope".into());
+        }
+        gallery_macos_package::verify(&source, &payload, true)?;
+        let updates = PathBuf::from("/Library/Application Support/Local Media Gallery Updates");
+        if std::fs::symlink_metadata(&updates).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err("Redirected maintenance directory".into());
+        }
+        std::fs::create_dir_all(&updates)?;
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let metadata = std::fs::symlink_metadata(&updates)?;
+        if metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
+            return Err(
+                "Maintenance directory must be root-owned and not writable by other users".into(),
+            );
+        }
+        std::fs::set_permissions(&updates, std::fs::Permissions::from_mode(0o700))?;
+        let transaction = updates.join(&payload.generation);
+        if transaction.exists() {
+            let status = gallery_update::Transaction::resume(
+                &transaction,
+                gallery_update::RecoveryCommand::Status,
+            )?;
+            if ["committed", "restored"].contains(&status.phase.as_str()) {
+                // Keep accepted journals but admit a later ordinary reinstall or upgrade.
+                let suffix = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_nanos();
+                std::fs::rename(
+                    &transaction,
+                    updates.join(format!("{}-retained-{suffix}", payload.generation)),
+                )?;
+            } else {
+                gallery_update::Transaction::resume(
+                    &transaction,
+                    gallery_update::RecoveryCommand::Recover,
+                )?;
+                if gallery_macos_package::owned_payload(&app, &command, "system")? == payload {
+                    println!(
+                        "{}",
+                        serde_json::json!({"result":"recovered","directory":app})
+                    );
+                    return Ok(());
+                }
+                return Err(
+                    "Retained update did not activate this installer; retain the internal journal"
+                        .into(),
+                );
+            }
+        }
+        // Installation never writes recipient profiles. Observe the current console user's actual state
+        // for update compatibility without initialization or requiring manual JSON/database operands.
+        let user = output(
+            "/usr/bin/stat",
+            &["-f".as_ref(), "%Su".as_ref(), "/dev/console".as_ref()],
+        )?;
+        if user.is_empty() || user.contains('/') {
+            return Err("Console recipient identity unavailable".into());
+        }
+        let profile = PathBuf::from("/Users")
+            .join(&user)
+            .join("Library/Application Support/tech.shruggie.local-media-gallery");
+        let state = [
+            gallery_update::StateOperand {
+                kind: "settings".into(),
+                path: profile.join("settings.json"),
+            },
+            gallery_update::StateOperand {
+                kind: "history".into(),
+                path: profile.join("state/history.sqlite3"),
+            },
+        ];
+        gallery_macos_package::managed_install(
+            &source,
+            &app,
+            &command,
+            &payload,
+            &transaction,
+            &state,
+            &std::env::var_os("PATH").unwrap_or_default(),
+        )?
+    } else if ["update", "prepare-update"].contains(&operation) {
         if payload.edition == "lite" && !options.contains_key("--directory") {
             return Err("Lite update requires explicit --directory APP".into());
         }

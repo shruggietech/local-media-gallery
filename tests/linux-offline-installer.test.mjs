@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+import test from 'node:test';import assert from 'node:assert/strict';
+import {validateOfflineInventory,linuxInstallerMagic} from '../scripts/linux-offline-installer.mjs';
+function inventory(){return {formatVersion:1,product:'local-media-gallery',os:'linux',arch:'x86_64',version:'0.2.0',nativeBytes:4,packages:[{name:'application.deb',package:'local-media-gallery',version:'0.2.0',architecture:'amd64',role:'application',offset:4,bytes:3,sha256:'a'.repeat(64)}]};}
+test('Linux installer inventory enforces exact package extents and one application',()=>{assert.equal(linuxInstallerMagic.length,16);validateOfflineInventory(inventory(),7);for(const change of [m=>m.packages[0].name='../outside.deb',m=>m.packages[0].offset=3,m=>m.packages[0].bytes=8,m=>m.packages[0].architecture='arm64',m=>m.packages[0].version='0.1.0',m=>m.packages[0].role='runtime',m=>m.packages.push({...m.packages[0],offset:7}),m=>m.packages[0].sha256='bad']){const m=inventory();change(m);assert.throws(()=>validateOfflineInventory(m,7));}});

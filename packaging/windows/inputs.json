@@ -8,10 +8,10 @@
     "disposition": "Archived WiX3 tooling, isolated build-time input only; not a recipient runtime"
   },
   "bootstrapper": {
-    "version": "1.3.303.7",
-    "url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/4a41d80d-4493-4463-a466-d0988b97f1c4/MicrosoftEdgeWebview2Setup.exe",
-    "bytes": "1888472",
-    "sha256": "ca4c9016c70e2184c5e231662e0e98abf4826647180ef3faab32fcb1ca2ec15e",
-    "disposition": "Signed Microsoft online Evergreen bootstrapper input; downloaded runtime version is observed separately"
+    "version": "1.3.307.15",
+    "url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/d5cc3c1c-bb59-4158-aedc-db0035e44466/MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+    "bytes": "215017168",
+    "sha256": "62863f0f0611a16ccf124b4f15650c3b66624504eba74d7cde1e2ae5d951249b",
+    "disposition": "Complete Microsoft Evergreen Standalone x64 installer; offline deployment payload embedded in Full"
   }
 }

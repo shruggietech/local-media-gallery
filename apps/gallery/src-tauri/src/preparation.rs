@@ -39,6 +39,63 @@ pub fn cache_root() -> PathBuf {
         .join(launch::identifier(launch::Edition::Full))
         .join("thumbnails-v1")
 }
+/// Full's installer owns this metadata and helper next to the executable.
+/// Lite never searches the sender profile or PATH for an automatic helper.
+pub fn installed_helper() -> Result<Option<Helper>, GalleryError> {
+    if cfg!(feature = "lite") {
+        return Ok(None);
+    }
+    let executable =
+        std::env::current_exe().map_err(|_| gallery_core::cache::error("helper_unavailable"))?;
+    let directory = executable
+        .parent()
+        .ok_or_else(|| gallery_core::cache::error("helper_unavailable"))?;
+    let Some((binary, sha256)) = installed_helper_identity(directory)? else {
+        return Ok(None);
+    };
+    let mut helper = Helper::select(directory.join(binary), Some(&sha256))?;
+    helper.origin = "bundled Full dependency; verified against installed helper metadata";
+    Ok(Some(helper))
+}
+fn installed_helper_identity(directory: &Path) -> Result<Option<(String, String)>, GalleryError> {
+    use std::io::Read;
+    let file = directory.join("feature-helper.json");
+    let stat = match std::fs::symlink_metadata(&file) {
+        Ok(value) => value,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err(gallery_core::cache::error("helper_unavailable")),
+    };
+    if !stat.is_file() || stat.is_symlink() || stat.len() > 1024 * 1024 {
+        return Err(gallery_core::cache::error("helper_identity"));
+    }
+    let mut bytes = Vec::new();
+    std::fs::File::open(&file)
+        .and_then(|file| file.take(1024 * 1024 + 1).read_to_end(&mut bytes))
+        .map_err(|_| gallery_core::cache::error("helper_unavailable"))?;
+    if bytes.len() > 1024 * 1024 {
+        return Err(gallery_core::cache::error("helper_identity"));
+    }
+    let metadata: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|_| gallery_core::cache::error("helper_identity"))?;
+    let expected = if cfg!(windows) {
+        "ffmpeg.exe"
+    } else {
+        "ffmpeg"
+    };
+    let binary = metadata["binary"].as_str().unwrap_or("");
+    let sha256 = metadata["sha256"].as_str().unwrap_or("");
+    if binary != expected
+        || sha256.len() != 64
+        || !sha256
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        || !std::fs::symlink_metadata(directory.join(binary))
+            .is_ok_and(|s| s.is_file() && !s.is_symlink())
+    {
+        return Err(gallery_core::cache::error("helper_identity"));
+    }
+    Ok(Some((binary.into(), sha256.into())))
+}
 #[tauri::command]
 pub async fn preparation_preview(
     window: WebviewWindow,
@@ -256,7 +313,16 @@ pub fn finite(
                 "Supply a directory for finite preparation.",
             )
         })?;
-        let service = Arc::new(PreparationService::new(engine.clone(), cache_root(), None));
+        let bundled = if request.preparation.helper.is_some() {
+            None
+        } else {
+            installed_helper()?
+        };
+        let service = Arc::new(PreparationService::new(
+            engine.clone(),
+            cache_root(),
+            bundled,
+        ));
         let signal_service = service.clone();
         let signal_engine = engine.clone();
         launch::attach_terminal();
@@ -384,6 +450,38 @@ fn preparation_result(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn installed_helper_metadata_is_bounded_and_never_selects_external_paths() {
+        let root = tempfile::tempdir().unwrap();
+        assert!(installed_helper_identity(root.path()).unwrap().is_none());
+        let expected = if cfg!(windows) {
+            "ffmpeg.exe"
+        } else {
+            "ffmpeg"
+        };
+        std::fs::write(root.path().join(expected), b"fixture").unwrap();
+        let file = root.path().join("feature-helper.json");
+        for value in [
+            serde_json::json!({"binary":"../outside","sha256":"a".repeat(64)}),
+            serde_json::json!({"binary":expected,"sha256":"invalid"}),
+            serde_json::json!({"binary":"/usr/bin/ffmpeg","sha256":"a".repeat(64)}),
+        ] {
+            std::fs::write(&file, serde_json::to_vec(&value).unwrap()).unwrap();
+            assert!(installed_helper_identity(root.path()).is_err());
+        }
+        std::fs::write(
+            &file,
+            serde_json::to_vec(&serde_json::json!({"binary":expected,"sha256":"a".repeat(64)}))
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            installed_helper_identity(root.path()).unwrap(),
+            Some((expected.into(), "a".repeat(64)))
+        );
+        std::fs::write(&file, vec![b' '; 1024 * 1024 + 1]).unwrap();
+        assert!(installed_helper_identity(root.path()).is_err());
+    }
     #[test]
     fn finite_preparation_preserves_incomplete_discovery_and_exact_coverage() {
         let root = tempfile::tempdir().unwrap();

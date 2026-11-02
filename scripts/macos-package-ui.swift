@@ -10,6 +10,20 @@ func attribute(_ element: AXUIElement,_ name:String)->CFTypeRef? {var value:CFTy
 let args=Array(CommandLine.arguments.dropFirst())
 guard let operation=args.first else {fail("Supply an operation")}
 if operation == "preflight" {emit(["accessibility":AXIsProcessTrusted(),"screenCapture":CGPreflightScreenCaptureAccess()]);exit(0)}
+if operation == "launch-executable" {
+    guard args.count>=2 else{fail("Supply executable")}
+    let process=Process();process.executableURL=URL(fileURLWithPath:args[1]);process.arguments=Array(args.dropFirst(2));process.environment=["PATH":"/usr/bin:/bin:/usr/sbin:/sbin","HOME":NSHomeDirectory()];process.standardInput=FileHandle.nullDevice;process.standardOutput=FileHandle.nullDevice;process.standardError=FileHandle.nullDevice
+    do{try process.run()}catch{fail("Bare executable launch: \(error)")}
+    let pid=process.processIdentifier,deadline=Date().addingTimeInterval(25)
+    while Date()<deadline {
+        guard process.isRunning else{fail("Bare executable exited \(process.terminationStatus)")}
+        if let app=NSRunningApplication(processIdentifier:pid),app.isFinishedLaunching {
+            app.activate(options:[]);emit(["pid":Int(pid),"bundle":app.bundleURL?.path ?? "","executable":app.executableURL?.path ?? args[1]]);exit(0)
+        }
+        RunLoop.current.run(until:Date().addingTimeInterval(0.05))
+    }
+    process.terminate();fail("Bare executable GUI readiness deadline")
+}
 if operation == "launch" {
     guard args.count>=2 else{fail("Supply app")}
     let config=NSWorkspace.OpenConfiguration();config.createsNewApplicationInstance=true;config.activates=true;config.arguments=Array(args.dropFirst(2));config.environment=["PATH":"/usr/bin:/bin:/usr/sbin:/sbin","HOME":NSHomeDirectory()]

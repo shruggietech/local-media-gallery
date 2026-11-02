@@ -1,4 +1,7 @@
 import {productVersion as version,packageProvenanceText} from './product-version.mjs';
+import {writeLiteArtifact} from './single-file.mjs';
+import {prepareFeatureHelper} from './prepare-feature-helper.mjs';
+import {prepareOfflineClosure,writeOfflineInstaller} from './linux-offline-installer.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {prepareCargoDependencies} from './cargo-readiness.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';requireIsolatedDesktop();
@@ -8,6 +11,7 @@ import {root,environment,execute,node,python,exportInterface} from './run.mjs';i
 import {writeUpdateDescriptor} from './update-packages.mjs';
 import {fullBase,desktop,iconPaths,hash,validateLinuxPayload,guardFiles,verifyLinuxPayload} from './linux-packages.mjs';import {renderLauncher,renderMaintainerScripts} from './linux-package-scripts.mjs';
 assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');const call=promisify(execFile);async function capture(file,args,options={}){const p=call(file,args,{cwd:root,env:environment,shell:false,timeout:120000,maxBuffer:32*1024*1024,...options});p.child.stdin.end();return p;}
+const featureHelper=await prepareFeatureHelper();
 const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim(),generation=randomBytes(16).toString('hex');const directory=await mkdtemp(path.join(root,'.local/linux-packages-'));await chmod(directory,0o755);await prepareCargoDependencies();await exportInterface();
 await execute('cargo',['build','--locked','--release','-p','gallery-preparation']);
 const binaries={};for(const edition of ['full','lite']){await execute('cargo',['build','--locked','--release','-p','local-media-gallery',...(edition==='lite'?['--features','lite']:[])]);binaries[edition]=path.join(directory,edition+'-compiled');await copyFile(path.join(root,'target/release/local-media-gallery'),binaries[edition]);await chmod(binaries[edition],0o755);}
@@ -18,6 +22,7 @@ const pluginDependencies=['gstreamer1.0-libav','gstreamer1.0-plugins-good','gstr
 async function output(base,name,bytes,mode=0o644){const file=path.join(base,name);await mkdir(path.dirname(file),{recursive:true});await writeFile(file,bytes);await chmod(file,mode);}
 for(const edition of ['full','lite']){
  const stage=path.join(directory,edition),base=edition==='full'?fullBase:'';await mkdir(stage);const binary=base+'local-media-gallery.bin',entrypoint=edition==='full'?'usr/bin/local-media-gallery':'local-media-gallery',candidate=base+'candidate.json';await output(stage,binary,await readFile(binaries[edition]),0o755);await output(stage,entrypoint,renderLauncher(edition),0o755);await output(stage,base+'lmg-update',await readFile(updater),0o755);
+ if(edition==='full'){await output(stage,base+'ffmpeg',await readFile(featureHelper.binary),0o755);const {archive,...helperSource}=featureHelper.source;await output(stage,base+'feature-helper.json',JSON.stringify({...featureHelper,binary:'ffmpeg',source:helperSource})+'\n');await output(stage,base+'licenses/feature-helper/source.tar.xz',await readFile(archive));await output(stage,base+'licenses/feature-helper/recipe.json',JSON.stringify(helperSource,null,2)+'\n');for(const notice of featureHelper.notices)await output(stage,base+'licenses/feature-helper/'+notice.path,notice.text);}
  const seed=assembly.records.find(r=>r.edition===edition);for(const name of ['LICENSE','NOTICE','licenses'])await cp(path.join(root,seed.payloadDirectory,name),path.join(stage,base,name),{recursive:true});
  // dpkg-shlibdeps needs a source control context, not a dependency bypass.
  const dependencyContext=path.join(directory,edition+'-dependency-context');await output(dependencyContext,'debian/control','Source: local-media-gallery\nSection: graphics\nPriority: optional\nMaintainer: '+packageMaintainer+'\nStandards-Version: 4.7.0\n\nPackage: local-media-gallery\nArchitecture: amd64\nDescription: Local Media Gallery native application\n');
@@ -28,7 +33,7 @@ for(const edition of ['full','lite']){
   for(let i=0;i<iconPaths.length;i++){const size=['48','256','512'][i],file='brand/kit/icons/web/favicon-'+size+'x'+size+'.png',bytes=await readFile(path.join(root,file));await output(stage,iconPaths[i],bytes);assets.push({source:file,path:iconPaths[i],sha256:hash(bytes)});}
   await output(stage,'usr/share/doc/local-media-gallery/copyright',Buffer.concat([await readFile(path.join(root,'NOTICE')),Buffer.from('\nComplete Apache-2.0 text: /usr/lib/local-media-gallery/LICENSE\nBundled dependency/font/brand notices: /usr/lib/local-media-gallery/licenses/\n')]));await capture('/usr/bin/desktop-file-validate',[path.join(stage,desktop)]);
  }
- for(const f of await collectPayload(stage))await chmod(path.join(stage,f.path),[binary,entrypoint,base+'lmg-update'].includes(f.path)?0o755:0o644);
+ for(const f of await collectPayload(stage))await chmod(path.join(stage,f.path),[binary,entrypoint,base+'lmg-update',base+'ffmpeg'].includes(f.path)?0o755:0o644);
  const identity=JSON.parse((await capture(path.join(stage,binary),['--version','--json'])).stdout);assert.equal(identity.edition,edition);assert.equal(identity.version,version);assert.equal(identity.arch,'x86_64');assert.equal(identity.data.buildProfile,'release');assert.equal(identity.data.targetTriple,'x86_64-unknown-linux-gnu');
  const payload={formatVersion:1,product:'local-media-gallery',kind:'linux-application-payload',version,edition,os:'linux',arch:'x86_64',targetTriple:'x86_64-unknown-linux-gnu',buildProfile:'release',generation,source,revision,binary,entrypoint,candidate,dependencies,files:await collectPayload(stage)};validateLinuxPayload(payload);const metadata=Buffer.from(JSON.stringify(payload,null,2)+'\n');await output(stage,candidate,metadata);const files=guardFiles(payload,metadata);if(edition==='lite'){await writeUpdateDescriptor(path.join(stage,'update.json'),payload,files);const bytes=await readFile(path.join(stage,'update.json'));files.push({path:'update.json',sha256:hash(bytes),bytes:String(bytes.length),mode:'644'});files.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);}await verifyLinuxPayload(stage,payload);const controlFiles=[];
  const archive=path.join(directory,'local-media-gallery-'+version+'-'+edition+'-x86_64-linux-candidate.'+(edition==='full'?'deb':'tar.gz'));let control;
@@ -74,4 +79,19 @@ for(const [edition,a,b] of [['full',full,replacementFull],['lite',liteRecord,nul
  upgrades.pairs.push({edition,from:{...from,path:path.relative(root,from.path)},to:{...to,path:path.relative(root,to.path)},source:path.relative(root,next.stage),priorSource:path.relative(root,path.join(directory,edition)),applicationSha256:a.payload.files.find(f=>f.path===a.payload.binary).sha256});
 }
 
-assert.deepEqual(await sourceIdentity(),source,'Linux assembly changed qualified source');await writeFile(path.join(root,'.local/linux-package-build.json'),JSON.stringify({formatVersion:1,generation,source,revision,directory:path.relative(root,directory),negativeInputs,upgrades,records},null,2)+'\n');console.log('Built ordinary Linux Full .deb and Lite tar.gz candidates.');
+
+// Product delivery is independent of diagnostic package/update campaign containers.
+const products=[];
+const directLite=path.join(directory,'local-media-gallery-'+version+'-lite-x86_64-linux');
+const liteArtifact=await writeLiteArtifact({binary:binaries.lite,output:directLite,metadata:{version,edition:'lite',os:'linux',arch:'x86_64',generation,source,revision},noticesDirectory:path.join(directory,'lite/licenses/dependencies')});
+liteArtifact.path=path.relative(root,directLite);liteRecord.artifact=liteArtifact;products.push({edition:'lite',artifact:liteArtifact});
+await execute('cargo',['build','--locked','--release','-p','gallery-linux-package']);
+const offline=await prepareOfflineClosure({root,directory,application:path.join(root,full.archive.path),dependencies:full.payload.dependencies,capture});
+const installerFile=path.join(directory,'local-media-gallery-'+version+'-full-x86_64-linux.run');
+const installer=await writeOfflineInstaller({native:path.join(root,'target/release/lmg-linux-setup'),packages:offline.packages,output:installerFile,metadata:{version,os:'linux',arch:'x86_64',generation,source,revision},capture});
+installer.artifact.path=path.relative(root,installerFile);full.artifact=installer.artifact;products.push({edition:'full',artifact:installer.artifact});
+const installerIdentity=JSON.parse((await capture(installerFile,['--inspect'])).stdout);assert.deepEqual(installerIdentity,installer.manifest);
+full.footprints.download.bytes=installer.artifact.bytes;full.footprints.download.basis='Exact single offline Full native installer logical bytes';full.footprints.runtime={status:'measured',bytes:String(installer.manifest.packages.filter(p=>p.role==='runtime').reduce((n,p)=>n+p.bytes,0)),basis:'Exact bundled Ubuntu runtime dependency deb bytes, distinct from installed shared filesystem attribution'};full.footprints.optionalTools={status:'measured',bytes:featureHelper.bytes,basis:'Exact bundled FFmpeg native executable bytes'};liteRecord.footprints.download.bytes=liteArtifact.bytes;liteRecord.footprints.download.basis='Exact single direct Lite ELF with embedded notices and maintenance metadata';
+const offlineEvidence={...offline,packages:installer.manifest.packages,installer:installer.manifest,featureHelper:{...featureHelper,binary:'usr/lib/local-media-gallery/ffmpeg'}};
+
+assert.deepEqual(await sourceIdentity(),source,'Linux assembly changed qualified source');await writeFile(path.join(root,'.local/linux-package-build.json'),JSON.stringify({formatVersion:1,generation,source,revision,directory:path.relative(root,directory),negativeInputs,upgrades,records,products,offline:offlineEvidence},null,2)+'\n');console.log('Built Linux direct Lite ELF and Full offline native installer; retained internal deb/tar campaign inputs.');

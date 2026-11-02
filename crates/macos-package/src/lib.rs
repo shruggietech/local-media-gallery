@@ -491,6 +491,60 @@ mod lifecycle {
         }
         Ok(retained)
     }
+    /// Discover the installed identity from an ownership receipt, never a user-selected JSON operand.
+    pub fn owned_payload(app: &Path, command: &Path, scope: &str) -> Result<Payload> {
+        let file = receipt_path(app)?;
+        let bytes = gallery_update::read_receipt(&file).map_err(std::io::Error::other)?;
+        let installed: Receipt = serde_json::from_slice(&bytes)?;
+        installed.payload.validate()?;
+        if installed.payload.edition != "full" {
+            return Err("Managed maintenance requires owned Full installation".into());
+        }
+        receipt(app, command, scope, &installed.payload)?;
+        link(command, app, &installed.payload)?;
+        if fs::symlink_metadata(app)?.file_type().is_symlink() {
+            return Err("Redirected application".into());
+        }
+        Ok(installed.payload)
+    }
+    pub fn managed_install(
+        source: &Path,
+        app: &Path,
+        command: &Path,
+        payload: &Payload,
+        transaction: &Path,
+        state: &[gallery_update::StateOperand],
+        path: &std::ffi::OsStr,
+    ) -> Result<serde_json::Value> {
+        payload.validate()?;
+        if payload.edition != "full" {
+            return Err("Managed installation requires Full payload".into());
+        }
+        if fs::symlink_metadata(app).is_err() {
+            return install(source, app, command, "system", payload, path);
+        }
+        let prior = owned_payload(app, command, "system")?;
+        if prior == *payload {
+            return install(source, app, command, "system", payload, path);
+        }
+        update(
+            source,
+            app,
+            command,
+            "system",
+            payload,
+            UpdateOptions {
+                prior_lite: None,
+                transaction,
+                state,
+                activate: true,
+            },
+        )
+    }
+    pub fn managed_remove(app: &Path, command: &Path) -> Result<serde_json::Value> {
+        let prior = owned_payload(app, command, "system")?;
+        remove(app, command, "system", &prior)
+    }
     pub fn remove(
         app: &Path,
         command: &Path,
@@ -512,7 +566,10 @@ mod lifecycle {
     }
 }
 #[cfg(unix)]
-pub use lifecycle::{UpdateOptions, install, receipt_path, remove, update};
+pub use lifecycle::{
+    UpdateOptions, install, managed_install, managed_remove, owned_payload, receipt_path, remove,
+    update,
+};
 
 #[cfg(test)]
 mod tests {
@@ -651,6 +708,86 @@ mod tests {
         assert!(no_links(&bundle, Path::new("file")).is_err());
         assert_eq!(fs::read(outside).unwrap(), b"retain");
         assert!(destination(&bundle.join("file")).is_err());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn managed_maintenance_discovers_owned_payload_and_refuses_foreign_installations() {
+        use std::os::unix::fs::PermissionsExt;
+        let temp = tempfile::tempdir().unwrap();
+        let physical = fs::canonicalize(temp.path()).unwrap();
+        let source = physical.join("source");
+        let app = physical.join("Managed.app");
+        let command = physical.join("bin/local-media-gallery");
+        let p = payload();
+        for entry in &p.files {
+            let file = source.join(&entry.path);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            let bytes = if entry.path == p.binary {
+                b"binary".as_slice()
+            } else {
+                b"plist".as_slice()
+            };
+            fs::write(&file, bytes).unwrap();
+            fs::set_permissions(
+                file,
+                fs::Permissions::from_mode(u32::from_str_radix(&entry.mode, 8).unwrap()),
+            )
+            .unwrap();
+        }
+        // This case uses the same fixture bytes as the existing native lifecycle tests.
+        let mut p = p;
+        for entry in &mut p.files {
+            let bytes = fs::read(source.join(&entry.path)).unwrap();
+            entry.bytes = bytes.len().to_string();
+            entry.sha256 = hash(&bytes);
+        }
+        fs::create_dir(&app).unwrap();
+        fs::write(app.join("foreign"), b"recipient bytes").unwrap();
+        assert!(owned_payload(&app, &command, "system").is_err());
+        assert!(
+            managed_install(
+                &source,
+                &app,
+                &command,
+                &p,
+                &physical.join("transaction"),
+                &[],
+                std::ffi::OsStr::new("")
+            )
+            .is_err()
+        );
+        assert_eq!(fs::read(app.join("foreign")).unwrap(), b"recipient bytes");
+        fs::remove_file(app.join("foreign")).unwrap();
+        fs::remove_dir(&app).unwrap();
+        assert_eq!(
+            managed_install(
+                &source,
+                &app,
+                &command,
+                &p,
+                &physical.join("transaction"),
+                &[],
+                std::ffi::OsStr::new("")
+            )
+            .unwrap()["result"],
+            "installed"
+        );
+        assert_eq!(owned_payload(&app, &command, "system").unwrap(), p);
+        assert_eq!(
+            managed_install(
+                &source,
+                &app,
+                &command,
+                &p,
+                &physical.join("transaction"),
+                &[],
+                std::ffi::OsStr::new("")
+            )
+            .unwrap()["result"],
+            "already-installed"
+        );
+        assert_eq!(managed_remove(&app, &command).unwrap()["result"], "removed");
+        assert!(!command.exists());
     }
 }
 

@@ -23,3 +23,11 @@ test('Gate changes preserve immutable candidate while changed source/snapshot re
 test('Release JSON rejects duplicate members, invalid UTF8 and BOM bytes',()=>{const record=candidateFixture(),text=canonical(record)+'\n';assert.equal(parseReleaseRecord(text,{allowFixture:true}).candidateId,record.candidateId);assert.throws(()=>parseReleaseRecord(text.replace('{','{\"extra\":1,'),{allowFixture:true}));assert.throws(()=>parseReleaseRecord(Buffer.concat([Buffer.from([0xef,0xbb,0xbf]),Buffer.from(text)]),{allowFixture:true}));assert.throws(()=>parseReleaseRecord(Buffer.from([0xff]),{allowFixture:true}));});
 
 test('CI and execution elect the same predecessor for ordinary and repeat releases',async()=>{const {releasePredecessor}=await import('../scripts/release-record.mjs');assert.equal(releasePredecessor('1.0.1',{version:'1.0.0',previousVersion:'0.9.0'}),'1.0.0');assert.equal(releasePredecessor('1.0.1',{version:'1.0.1',previousVersion:'1.0.0'}),'1.0.0');assert.equal(releasePredecessor('1.0.0',null),null);});
+
+test('New release contract requires six direct product files and retains historical forms',()=>{
+ const record=candidateFixture({version:'0.2.0'});assert.equal(record.version,'0.2.0');assert.equal(record.artifacts.length,6);
+ assert.deepEqual(record.artifacts.filter(a=>a.role==='package').map(a=>a.format).sort(),['elf','exe','exe','mach-o','pkg','run'].sort());
+ for(const row of record.artifacts){assert.equal(row.inventory.files,1);assert.ok(!row.name.includes('candidate'));}
+ for(const mutate of [r=>r.artifacts[0].format='zip',r=>r.artifacts[0].inventory.files=2,r=>{const a=r.artifacts[0];a.name='candidate-'+a.name;a.url=a.url.replace(/[^/]+$/,a.name);}]){const r=structuredClone(record);mutate(r);r.candidateId=releaseDigest(r);assert.throws(()=>validateRelease(r,{allowFixture:true}));}
+ assert.equal(candidateFixture().artifacts.filter(a=>a.role==='package').every(a=>['zip','dmg','deb','tar.gz'].includes(a.format)),true);
+});

@@ -4,7 +4,13 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Development decisions (2026-11-02)
+
+- Replace the new-version product archive contract with direct native Lite files and one offline system Full installer per covered platform. Preserve historical release identities. Embed native installation/update components and dependency provenance, retain normal platform ownership/privilege handling, and qualify actual downloaded files on isolated hosts. Build the Full thumbnail helper from pinned corresponding source and distinguish runtime source assets from product choices.
+
 ### Added
+
+- Single-file Lite executables and offline system Full installers are in development for the covered Windows, Linux and macOS rows, with embedded notices, runtime dependencies and bundled video-thumbnail support.
 
 - Guided gallery preparation independently previews and applies portable presentation, thumbnails and verified published Lite recipient packages, with complete bundle retention, gallery-root launch copies, progress, cancellation, partial results and exact reuse.
 - Unreleased0.2.0 software, documentation and schema contracts retain every shipped0.1.0 snapshot. Prepared presentation remains readable by published0.1.0 recipients.

@@ -62,6 +62,40 @@ fn fixture(bytes: &[u8], entries: &[(&str, &[u8], u32)]) -> (Release, Artifact) 
     (release, artifact)
 }
 #[test]
+fn direct_lite_stages_only_one_application_file_and_refuses_tampered_metadata() {
+    let mut native = vec![0u8; 64];
+    native[..2].copy_from_slice(b"MZ");
+    let metadata = json!({"kind":"local-media-gallery-single-file","formatVersion":1,"product":"local-media-gallery","version":"0.2.0","edition":"lite","os":"windows","arch":"x86_64","generation":"fixture","source":{"sha256":"a".repeat(64),"files":1},"revision":"b".repeat(40),"notices":[{"path":"NOTICE","text":"Embedded notice"}],"prerequisites":[],"executableBytes":native.len(),"executableSha256":hash(&native)});
+    let mut json = serde_json::to_vec(&metadata).unwrap();
+    json.push(b'\n');
+    let mut bytes = native;
+    bytes.extend_from_slice(&json);
+    bytes.extend_from_slice(&(json.len() as u64).to_le_bytes());
+    bytes.extend_from_slice(&hex::decode(hash(&json)).unwrap());
+    bytes.extend_from_slice(b"LMG-SINGLE-FILE1\0");
+    let name = "local-media-gallery-0.2.0-lite-x86_64-windows.exe";
+    let (mut release, mut artifact) = fixture(&bytes, &[(name, &bytes, 0o755)]);
+    release.version = "0.2.0".into();
+    artifact.format = "exe".into();
+    artifact.name = name.into();
+    release.artifacts = vec![artifact.clone()];
+    let cancel = CancellationToken::new();
+    let gallery = tempfile::tempdir().unwrap();
+    let root =
+        cap_std::fs::Dir::open_ambient_dir(gallery.path(), cap_std::ambient_authority()).unwrap();
+    let mut p = Prepared::from_archive(&release, &artifact, &bytes, &cancel).unwrap();
+    p.commit(&root, &cancel, |_| {}).unwrap();
+    p.inspect(&root, &cancel).unwrap();
+    assert_eq!(p.preview.disposition, "reuse");
+    assert_eq!(std::fs::read(gallery.path().join(name)).unwrap(), bytes);
+    assert!(!gallery.path().join("LMG-windows-x86_64/bundle").exists());
+    let mut bad = bytes.clone();
+    bad[5] ^= 1;
+    artifact.bytes = bad.len().to_string();
+    artifact.sha256 = hash(&bad);
+    assert!(Prepared::from_archive(&release, &artifact, &bad, &cancel).is_err());
+}
+#[test]
 fn actual_published_record_has_native_publication_and_complete_recipient_matrix() {
     assert_eq!(
         hash(CANONICAL),

@@ -382,7 +382,12 @@ fn run_application(
     let service = Arc::new(gallery_core::thumbnail::PreparationService::new(
         engine.clone(),
         preparation::cache_root(),
-        None,
+        preparation::installed_helper().unwrap_or_else(|_| {
+            engine
+                .diagnostics()
+                .record(gallery_core::diagnostics::Event::HelperUnavailable);
+            None
+        }),
     ));
     engine.set_preparation(&service);
     let transport =

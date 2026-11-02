@@ -4,10 +4,12 @@ use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::{fs, path::Path};
 
+pub mod embedded;
 #[cfg(windows)]
 pub mod native;
 #[cfg(windows)]
 pub mod private;
+pub const INSTALLER_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/installer.bin"));
 pub const PAYLOAD: &str = include_str!(concat!(env!("OUT_DIR"), "/payload.json"));
 pub const SETUP: &str = include_str!(concat!(env!("OUT_DIR"), "/setup.json"));
 pub fn hash(bytes: &[u8]) -> String {
