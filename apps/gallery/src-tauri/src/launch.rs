@@ -551,8 +551,9 @@ Usage: local-media-gallery [DIRECTORY]
        local-media-gallery prepare [DIRECTORY] [--thumbnails | --clean-cache] [--cache local|portable] [--ffmpeg ABSOLUTE --ffmpeg-sha256 HEX] [--diagnostics] [--json]
        local-media-gallery diagnostics [--json]
        local-media-gallery install [--json]
+       local-media-gallery maintain replace|recover|rollback|status ABSOLUTE_OLD_EXECUTABLE [--json]
        local-media-gallery --help | --version [--json]
-Use -- before a dash-leading or reserved literal directory. Relative directories use the invoking working directory. Full without a directory opens selection; Lite opens its external containing gallery. Wait is default; detach acknowledges startup, not completed discovery. Bare prepare previews without writes; --thumbnails generates and --clean-cache cleans validated owned output. Video uses an explicitly selected helper. Installation is currently unavailable. Both editions share browsing and host-local/portable settings.
+Use -- before a dash-leading or reserved literal directory. Relative directories use the invoking working directory. Full without a directory opens selection; Lite opens its external containing gallery. Wait is default; detach acknowledges startup, not completed discovery. Bare prepare previews without writes; --thumbnails generates and --clean-cache cleans validated owned output. Video uses an explicitly selected helper. Installation uses the Full system installer. Lite maintenance runs from a separate downloaded replacement executable with the old application closed, retaining rollback/recovery privately without JSON or helper operands. Historical archive editions without embedded metadata use their documented maintenance path. Both editions share browsing and host-local/portable settings.
 ",env!("CARGO_PKG_VERSION"),edition(),target_triple())
 }
 pub fn finite(request: &Request, id: String, root: Option<&Path>) -> OperationResult {

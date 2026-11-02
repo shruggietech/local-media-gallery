@@ -13,6 +13,7 @@ native-tests = ["dep:tauri-plugin-wdio-webdriver", "gallery-core/discovery-tests
 tauri-build = { version = "=2.7.4", features = [] }
 
 [dependencies]
+gallery-update = { path = "../../../crates/gallery-update" }
 dirs = "=7.0.0"
 ctrlc = { version = "=3.5.2", features = ["termination"] }
 tokio-util = { version = "0.7", features = ["rt"] }

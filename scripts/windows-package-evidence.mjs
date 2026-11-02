@@ -10,8 +10,10 @@ export function validateSingleFileWindows(build,result){
  const direct=result.singleFile;assert.equal(direct.result,'pass');assert.equal(direct.products.length,2);
  for(const product of direct.products){const expected=build.products.find(p=>p.edition===product.edition);assert.deepEqual(product.artifact,expected.artifact);assert.equal(expected.artifact.format,'exe');assert.equal(expected.artifact.files.length,1);assert.deepEqual(product.recipientFiles,[expected.artifact.binary]);}
  assert.equal(direct.offline.result,'pass');assert.deepEqual(direct.offline.absent.executables,[]);assert.ok(direct.offline.absent.registration.every(r=>!r.version||r.version==='0.0.0.0'));assert.equal(direct.offline.firewall.action,'Block');assert.equal(direct.offline.firewall.enabled,'True');assert.equal(direct.offline.install.scope,'machine');assert.equal(direct.offline.install.runtimeAfter.scope,'machine');assert.ok([0,3010].includes(direct.offline.install.runtimeBootstrapperExit));assert.equal(direct.offline.removed.operation,'remove');
+ assert.equal(direct.publishedPredecessor.result,'pass');assert.equal(direct.publishedPredecessor.version,'0.1.0');assert.equal(direct.publishedPredecessor.upgrade.status,'complete');assert.equal(direct.publishedPredecessor.rollback.status,'restored');
  assert.equal(direct.features.result,'pass');assert.equal(direct.features.helperSha256,build.featureHelper.sha256);assert.equal(direct.features.job.completed,'1');assert.equal(direct.features.job.failed,'0');
  assert.equal(direct.maintenance.result,'pass');assert.equal(direct.maintenance.update.status,'complete');assert.equal(direct.maintenance.recovered.status,'already-current');assert.equal(direct.maintenance.rollback.status,'restored');
+ assert.equal(direct.liteMaintenance.result,'pass');assert.equal(direct.liteMaintenance.replace.status,'complete');assert.equal(direct.liteMaintenance.recover.status,'already-current');assert.equal(direct.liteMaintenance.rollback.status,'restored');
  for(const label of ['single-file-lite-in-place','single-file-lite-relocated'])assert.ok(direct.native.some(n=>n.label===label));
  return true;
 }

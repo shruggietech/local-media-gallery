@@ -6,6 +6,7 @@ mod gallery_state;
 mod guided;
 mod history;
 mod launch;
+mod maintenance;
 mod portable;
 mod preparation;
 #[cfg(feature = "native-tests")]
@@ -562,6 +563,9 @@ fn output(result: &launch::OperationResult, machine: bool) -> i32 {
 }
 fn main() {
     use launch::{Mode, Operation, OperationResult, Status};
+    if let Some(code) = maintenance::intercept() {
+        std::process::exit(code);
+    }
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     if args.first().is_some_and(|a| a == "state-compatibility") {
         let (value, code) = match compatibility::probe(&args[1..]) {

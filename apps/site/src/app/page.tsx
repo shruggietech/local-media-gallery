@@ -149,8 +149,9 @@ export default function Home() {
             <ul>
               {model.release.artifacts.map((a) => (
                 <li key={a.url}>
-                  <a href={a.url}>
+                  <a href={a.url} data-delivery={a.delivery}>
                     Download {a.edition} for {a.platform} ({a.architecture})
+                    {' - '}{a.delivery}
                   </a>
                   <code>SHA-256 {a.sha256}</code>
                 </li>

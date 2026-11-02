@@ -8,13 +8,16 @@ import {encodeSingleFile,decodeSingleFile,writeLiteArtifact} from '../scripts/si
 
 const metadata={version:'0.2.0',edition:'lite',os:'linux',arch:'x86_64',generation:'unit-test',source:{sha256:'a'.repeat(64),files:1},revision:'b'.repeat(40),notices:[{path:'NOTICE',text:'Application notice\n'}],prerequisites:['Declared host runtime']};
 const elf=Buffer.concat([Buffer.from([0x7f,0x45,0x4c,0x46,2,1]),Buffer.alloc(58)]);
+elf.writeUInt16LE(62,18);
 test('single-file metadata binds executable and preserves native bytes',()=>{
- const file=encodeSingleFile(elf,metadata),read=decodeSingleFile(file);
+ const file=encodeSingleFile(elf,{...metadata,source:{...metadata.source,exclusions:['specs/internal-evidence.md']}}),read=decodeSingleFile(file);
  assert.deepEqual(read.executable,elf);assert.equal(read.metadata.version,'0.2.0');assert.equal(read.metadata.notices[0].text,'Application notice\n');assert.equal(read.metadata.os,'linux');
+ assert.deepEqual(read.metadata.source,metadata.source,'Public embedded source contract excludes private tracking/exclusion paths');
 });
 test('single-file decoder rejects corruption, truncation and platform mismatch',()=>{
  const file=encodeSingleFile(elf,metadata);for(const index of [10,64,file.length-1]){const bad=Buffer.from(file);bad[index]^=1;assert.throws(()=>decodeSingleFile(bad));}
  assert.throws(()=>decodeSingleFile(file.subarray(0,-1)));assert.throws(()=>encodeSingleFile(elf,{...metadata,os:'windows'}));assert.throws(()=>encodeSingleFile(file,metadata),'Nested executable metadata refused');
+ assert.throws(()=>encodeSingleFile(elf,{...metadata,arch:'aarch64'}));
  assert.throws(()=>encodeSingleFile(elf,{...metadata,notices:[{path:'../NOTICE',text:'wrong'}]}));
 });
 test('direct Lite artifact inventory describes only final downloaded file',async()=>{

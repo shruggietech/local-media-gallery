@@ -29,9 +29,9 @@
       "baseline": "Windows 10 22H2 or Windows 11",
       "runtime": "Shared Evergreen WebView2 Runtime (MSVC native artifact)",
       "display": "Interactive Windows desktop",
-      "proof": "windows-2025 native CLI archives and isolated WebView2 rendered/media/UIA/NVDA election",
-      "full": "Per-user installer by default; machine scope explicitly elected; shared WebView provisioning; MSI permitted",
-      "lite": "Extracted executable ZIP with declared host runtime",
+      "proof": "windows-2025 isolated native package/runtime campaigns; client OS behavior requires exact host receipts",
+      "full": "One system-scope setup EXE with embedded machine MSI, complete offline Evergreen WebView2 and FFmpeg; ownership-aware managed maintenance",
+      "lite": "One direct native EXE with embedded notices/maintenance metadata and shared host WebView2 prerequisite",
       "signing": "Project signing not performed by policy; actual host assessments reported separately",
       "qualification": "Exact host/artifact receipts required; other client versions not yet tested"
     },
@@ -42,9 +42,9 @@
       "baseline": "Ubuntu 24.04 GNU ABI (glibc 2.39 build baseline)",
       "runtime": "GTK3, WebKitGTK 4.1, libsoup3; distribution media plugins",
       "display": "Isolated X11/Xvfb desktop elected; Wayland has not been tested",
-      "proof": "ubuntu-24.04 native CLI archives, isolated WebKitGTK media/AT-SPI and ordinary Full .deb/Lite tar.gz recipient campaigns",
-      "full": "Candidate system Debian package with derived shared-library/media dependencies, exact ownership guards and selective package-manager removal",
-      "lite": "Candidate executable tar.gz with external preflight/adjacent ordinary ELF and declared host libraries; AppImage requires separate qualification",
+      "proof": "ubuntu-24.04 isolated native single-file Lite and offline Full recipient campaigns",
+      "full": "One native offline system installer carrying exact Ubuntu runtime deb closure, application and FFmpeg; native package ownership retained",
+      "lite": "One direct ELF with embedded notices/maintenance metadata and declared Ubuntu GTK/WebKit/GStreamer host prerequisites",
       "signing": "Project signing not performed by policy; actual host assessments reported separately",
       "qualification": "Exact per-edition CLI/runtime receipts required; Wayland, physical touch, Orca speech and older GNU ABI not yet tested"
     },
@@ -55,9 +55,9 @@
       "baseline": "macOS 15 initial proof baseline",
       "runtime": "OS-provided WKWebView; native Apple Silicon artifact",
       "display": "Interactive macOS desktop for GUI",
-      "proof": "macos-15 arm64 native CLI app-bundle archives and isolated WKWebView rendered/media/native AX election",
-      "full": "Candidate Full DMG with native user/system Applications installer and elected command integration; exact ownership and selective removal",
-      "lite": "Native app ZIP adjacent to gallery, preserving bundle/modes; explicit root for recognized translocation",
+      "proof": "macos-15 arm64 isolated single-file Mach-O and native system PKG campaigns",
+      "full": "One flat system-domain PKG with embedded ownership-aware application maintenance, FFmpeg/source/notices and native command integration",
+      "lite": "One direct Mach-O with embedded identity/notices/maintenance metadata, adjacent gallery and OS WKWebView",
       "signing": "Project signing/notarization/stapling not performed by policy; ordinary compiler/linker loader metadata preserved",
       "qualification": "Exact source-bound ordinary package and native runtime receipts required; VoiceOver speech, WebM media-element audio output, actual translocation and older OS require separate evidence"
     },
@@ -106,6 +106,6 @@
     "Actual receipts distinguish native CLI, rendered browsing, media and installation evidence.",
     "Older Linux compatibility requires an older ABI build and native proof; Ubuntu 22.04/Debian 12 are not qualified by Ubuntu 24.04 output.",
     "Host-local preferences/history may be shared by both editions; recipient state never requires sender state.",
-    "Missing Linux dynamic libraries can fail before main; archive prerequisite guidance covers that boundary."
+    "Missing Lite Linux host libraries may fail before main; direct executable prerequisite guidance identifies this boundary. Full bundles the exact redistributable runtime package closure."
   ]
 }

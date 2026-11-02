@@ -8,6 +8,10 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 - Replace the new-version product archive contract with direct native Lite files and one offline system Full installer per covered platform. Preserve historical release identities. Embed native installation/update components and dependency provenance, retain normal platform ownership/privilege handling, and qualify actual downloaded files on isolated hosts. Build the Full thumbnail helper from pinned corresponding source and distinguish runtime source assets from product choices.
 
+### Changed
+
+- New Full delivery installs at system scope and bundles redistributable runtimes and video-thumbnail support. New Lite delivery is one native executable with embedded notices and maintenance identity. Historical v0.1.0 archives remain unchanged; legacy Windows per-user installations use normal removal before adopting the new system edition.
+
 ### Added
 
 - Single-file Lite executables and offline system Full installers are in development for the covered Windows, Linux and macOS rows, with embedded notices, runtime dependencies and bundled video-thumbnail support.

@@ -1,4 +1,4 @@
-import {publishedView,validateRelease as validateCanonicalRelease} from './release-record.mjs';
+import {downloadProjection,publishedView,validateRelease as validateCanonicalRelease} from './release-record.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import { readFile, readdir, realpath } from 'node:fs/promises';
@@ -324,7 +324,7 @@ export async function createModel(base, suppliedManifest, {releaseRecord,allowFi
   if (releaseRecord!==undefined || manifest.releaseRecord) {
     if(releaseRecord===undefined)assert.equal(manifest.releaseRecord,'site/published-release.json');
     const record=releaseRecord??JSON.parse(await confinedRead(base,manifest.releaseRecord));
-    if(publicationProjection){validateCanonicalRelease(record,{allowFixture});assert.ok(record.publication&&record.gates.before,'Observed publication required for private projection');release={version:record.version,artifacts:record.artifacts.filter(a=>a.role==='package').map(a=>({edition:a.edition,platform:a.platform,architecture:a.architecture,filename:a.name,url:a.url,sha256:a.sha256}))};}
+    if(publicationProjection){validateCanonicalRelease(record,{allowFixture});assert.ok(record.publication&&record.gates.before,'Observed publication required for private projection');release=downloadProjection(record);}
     else release=validateRelease(record,{allowFixture});
     assert.equal(
       manifest.latest,

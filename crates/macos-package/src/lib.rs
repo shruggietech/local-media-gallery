@@ -86,6 +86,73 @@ impl Payload {
         Ok(())
     }
 }
+/// Parse the OS account database's single requested home attribute, preserving spaces.
+pub fn account_home(record: &str) -> Result<PathBuf> {
+    let value = record
+        .strip_prefix("NFSHomeDirectory:")
+        .ok_or("OS account home attribute unavailable")?;
+    let value = value.strip_prefix(' ').unwrap_or(value);
+    let value = value.strip_suffix('\n').unwrap_or(value);
+    if value.is_empty() || value.chars().any(char::is_control) {
+        return Err("OS account home attribute is invalid".into());
+    }
+    let home = PathBuf::from(value);
+    if !value.starts_with('/') || value.split('/').any(|part| part == ".." || part == ".") {
+        return Err("OS account home must be absolute".into());
+    }
+    Ok(home)
+}
+/// Observe supported profile operands without creating missing directories or following redirects.
+pub fn recipient_state(home: &Path) -> Result<Vec<gallery_update::StateOperand>> {
+    let home = fs::canonicalize(home)?;
+    if !fs::metadata(&home)?.is_dir() {
+        return Err("OS account home is not a directory".into());
+    }
+    let mut result = Vec::new();
+    for (kind, relative) in [
+        (
+            "settings",
+            "Library/Application Support/tech.shruggie.local-media-gallery/settings.json",
+        ),
+        (
+            "history",
+            "Library/Application Support/tech.shruggie.local-media-gallery/state/history.sqlite3",
+        ),
+    ] {
+        let path = home.join(relative);
+        let mut current = home.clone();
+        let components: Vec<_> = Path::new(relative).components().collect();
+        for (index, component) in components.iter().enumerate() {
+            current.push(component.as_os_str());
+            match fs::symlink_metadata(&current) {
+                Ok(metadata) => {
+                    if metadata.file_type().is_symlink()
+                        || (index + 1 < components.len() && !metadata.is_dir())
+                        || (index + 1 == components.len() && !metadata.is_file())
+                    {
+                        return Err(
+                            "Recipient state path is redirected or has an unsupported type".into(),
+                        );
+                    }
+                    #[cfg(unix)]
+                    if metadata.is_file() {
+                        use std::os::unix::fs::MetadataExt;
+                        if metadata.nlink() != 1 {
+                            return Err("Recipient state must not be hard-linked".into());
+                        }
+                    }
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+                Err(error) => return Err(error.into()),
+            }
+        }
+        result.push(gallery_update::StateOperand {
+            kind: kind.into(),
+            path,
+        });
+    }
+    Ok(result)
+}
 pub fn relative(value: &str) -> Result<()> {
     if value.is_empty()
         || value.contains(['\\', ':'])
@@ -602,6 +669,33 @@ mod tests {
         }
     }
     #[test]
+    fn account_database_home_and_absent_profile_observation_are_read_only() {
+        assert_eq!(
+            account_home("NFSHomeDirectory: /Volumes/Recipient homes/雪\n").unwrap(),
+            PathBuf::from("/Volumes/Recipient homes/雪")
+        );
+        for invalid in [
+            "NFSHomeDirectory: relative\n",
+            "Other: /Users/guess\n",
+            "NFSHomeDirectory: /Users/../other\n",
+            "NFSHomeDirectory: /Users/user\nextra",
+        ] {
+            assert!(account_home(invalid).is_err());
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let expected = fs::canonicalize(temp.path()).unwrap();
+        let state = recipient_state(temp.path()).unwrap();
+        assert_eq!(state.len(), 2);
+        assert!(state.iter().all(|s| s.path.starts_with(&expected)));
+        assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 0);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            symlink(temp.path(), temp.path().join("Library")).unwrap();
+            assert!(recipient_state(temp.path()).is_err());
+        }
+    }
+    #[test]
     fn rejects_traversal_duplicate_missing_bundle_assets_and_wrong_identity() {
         let good = payload();
         good.validate().unwrap();
@@ -718,7 +812,8 @@ mod tests {
         let source = physical.join("source");
         let app = physical.join("Managed.app");
         let command = physical.join("bin/local-media-gallery");
-        let p = payload();
+        let mut p = payload();
+        p.version = "0.1.0".into();
         for entry in &p.files {
             let file = source.join(&entry.path);
             fs::create_dir_all(file.parent().unwrap()).unwrap();

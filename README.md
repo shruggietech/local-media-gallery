@@ -12,7 +12,7 @@ The published product version is 0.1.0. Development targets unreleased 0.2.0. Pa
 - Focus an image or manually play/pause/seek a video. Inspect arbitrary JSON sidecars, nested fields and optional card summaries.
 - Save user, remembered-directory, portable gallery or temporary presentation choices; metadata and media originals remain unchanged by viewing.
 - Use explicit **Refresh** for additions, removals and changed observations. No background directory scanner runs.
-- Optionally generate validated still/video thumbnails, inspect progress/diagnostics or clean owned cache outputs. An external video helper must be selected explicitly; none is bundled.
+- Optionally generate validated still/video thumbnails, inspect progress/diagnostics or clean owned cache outputs. Unreleased Full automatically selects its verified bundled video helper; Lite supports an explicitly selected local helper. Published v0.1.0 retains its documented external-helper workflow.
 - Full supplies installed integration. Lite runs in place on its declared supported host without installing Full or depending on a sender profile.
 
 The elected package targets are Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 Apple Silicon. Runtime prerequisites, actual tested hosts and limits are explicit in [installation and distribution](docs/v0.1.0/installation-and-distribution.md). These are not universal clean-machine or every-architecture packages. Project signing and notarization are not performed.

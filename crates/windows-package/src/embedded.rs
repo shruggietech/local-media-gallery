@@ -67,49 +67,6 @@ impl<'a> Embedded<'a> {
             .ok_or_else(|| format!("Missing embedded member {name}"))
     }
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn pack(paths: &[&str]) -> Vec<u8> {
-        let files: Vec<_> = paths
-            .iter()
-            .map(|p| serde_json::json!({"path":p,"bytes":"1","sha256":hash(b"x")}))
-            .collect();
-        let index =
-            serde_json::to_vec(&serde_json::json!({"format_version":1,"files":files})).unwrap();
-        let mut b = (index.len() as u64).to_le_bytes().to_vec();
-        b.extend(index);
-        b.extend(vec![b'x'; paths.len()]);
-        b
-    }
-    #[test]
-    fn embedded_container_rejects_tampering_truncation_and_extra_bytes() {
-        let b = pack(&["application.msi"]);
-        assert!(Embedded::parse(&b).is_ok());
-        for n in [0, 7, b.len() - 1] {
-            assert!(Embedded::parse(&b[..n]).is_err())
-        }
-        let mut changed = b.clone();
-        *changed.last_mut().unwrap() = b'y';
-        assert!(Embedded::parse(&changed).is_err());
-        let mut extra = b;
-        extra.push(0);
-        assert!(Embedded::parse(&extra).is_err());
-    }
-    #[test]
-    fn embedded_container_rejects_aliases_traversal_and_duplicates() {
-        for paths in [
-            vec!["../setup.exe"],
-            vec!["CON"],
-            vec!["a.exe", "A.EXE"],
-            vec!["x:stream"],
-            vec!["/absolute"],
-        ] {
-            assert!(Embedded::parse(&pack(&paths)).is_err())
-        }
-    }
-}
-
 #[cfg(windows)]
 pub struct Retained {
     pub directory: std::path::PathBuf,
@@ -158,6 +115,88 @@ pub fn retain(machine: bool, input: &serde_json::Value) -> Result<Retained, Stri
         directory,
         _locks: locks,
     })
+}
+
+#[cfg(windows)]
+fn seed_published_predecessor(
+    bundle: &Retained,
+    input: &serde_json::Value,
+    directory: &std::path::Path,
+    registered: &str,
+) -> Result<Option<std::path::PathBuf>, String> {
+    use std::io::Write;
+    let predecessor = &input["predecessor"];
+    if predecessor["scope"] != "machine"
+        || predecessor["msi"]["packageCode"].as_str() != Some(registered)
+    {
+        return Ok(None);
+    }
+    let source = bundle.directory.join("predecessors/0.1.0");
+    let release_bytes = std::fs::read(source.join("release.json")).map_err(|e| e.to_string())?;
+    validate_published_release(&release_bytes)?;
+    let payload =
+        std::fs::read_to_string(source.join("payload.json")).map_err(|e| e.to_string())?;
+    // Never synthesize authority from observed installed bytes. The embedded,
+    // canonical published inventory must match registration and every owned file.
+    crate::native::verify_install_payload(directory, true, &payload, registered)?;
+    let setup = std::fs::read(source.join("setup.json")).map_err(|e| e.to_string())?;
+    let setup_value: serde_json::Value =
+        serde_json::from_slice(&setup).map_err(|e| e.to_string())?;
+    if setup_value != *predecessor {
+        return Err("Published predecessor receipt differs".into());
+    }
+    let root = crate::private::storage_root(true)?;
+    let retained = root.join(format!("package-{}", hash(&setup)));
+    let _pins = if retained.exists() {
+        crate::private::validate_directory(&retained, true)?
+    } else {
+        crate::private::create_directory(&retained, true)?
+    };
+    let msi = predecessor["msi"]["path"]
+        .as_str()
+        .ok_or("Invalid published MSI path")?;
+    if !portable(msi) || msi.contains('/') {
+        return Err("Invalid published MSI leaf".into());
+    }
+    for name in [
+        msi,
+        "update.json",
+        "payload.json",
+        "setup.json",
+        "release.json",
+    ] {
+        let data = std::fs::read(source.join(name)).map_err(|e| e.to_string())?;
+        let file = retained.join(name);
+        let record = FileRecord {
+            path: name.into(),
+            bytes: data.len().to_string(),
+            sha256: hash(&data),
+        };
+        if !file.exists() {
+            let mut output = crate::private::create_file(&file)?;
+            output
+                .write_all(&data)
+                .and_then(|_| output.sync_all())
+                .map_err(|e| e.to_string())?;
+        }
+        crate::private::validate_file(&file, true)?;
+        let _verified = crate::open_verified_input(&file, &record)?;
+    }
+    Ok(Some(retained))
+}
+#[cfg(any(windows, test))]
+fn validate_published_release(bytes: &[u8]) -> Result<(), String> {
+    if hash(bytes) != "079615f3ff8434b32c3c632190b544c6c32e17513fa125ec7e07f679a1c65f1f" {
+        return Err("Published predecessor release identity differs".into());
+    }
+    let record: serde_json::Value = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
+    if record["version"] != "0.1.0"
+        || record["state"] != "published"
+        || record["product"] != "local-media-gallery"
+    {
+        return Err("Published predecessor record is not the supported product release".into());
+    }
+    Ok(())
 }
 #[cfg(windows)]
 pub fn maintenance(
@@ -222,6 +261,9 @@ pub fn maintenance(
                 }
             }
         }
+        if prior.is_none() {
+            prior = seed_published_predecessor(bundle, input, directory, &package)?;
+        }
         let prior=prior.ok_or("Prior owned installer receipt is missing. Restore its managed recovery storage before updating")?;
         args.extend([
             "--directory".into(),
@@ -270,4 +312,61 @@ pub fn maintenance(
         .rev()
         .find_map(|line| serde_json::from_str(line).ok())
         .ok_or("Updater returned no terminal result".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn pack(paths: &[&str]) -> Vec<u8> {
+        let files: Vec<_> = paths
+            .iter()
+            .map(|p| serde_json::json!({"path":p,"bytes":"1","sha256":hash(b"x")}))
+            .collect();
+        let index =
+            serde_json::to_vec(&serde_json::json!({"format_version":1,"files":files})).unwrap();
+        let mut b = (index.len() as u64).to_le_bytes().to_vec();
+        b.extend(index);
+        b.extend(vec![b'x'; paths.len()]);
+        b
+    }
+    #[test]
+    fn only_the_exact_published_predecessor_record_can_seed_authority() {
+        let bytes = include_bytes!("../../gallery-preparation/tests/fixtures/release-0.1.0.json");
+        assert!(validate_published_release(bytes).is_ok());
+        let mut changed = bytes.to_vec();
+        changed.push(b' ');
+        assert!(validate_published_release(&changed).is_err());
+        assert!(
+            validate_published_release(
+                br#"{"product":"local-media-gallery","version":"0.1.0","state":"published"}"#
+            )
+            .is_err()
+        );
+    }
+    #[test]
+    fn embedded_container_rejects_tampering_truncation_and_extra_bytes() {
+        let b = pack(&["application.msi"]);
+        assert!(Embedded::parse(&b).is_ok());
+        for n in [0, 7, b.len() - 1] {
+            assert!(Embedded::parse(&b[..n]).is_err())
+        }
+        let mut changed = b.clone();
+        *changed.last_mut().unwrap() = b'y';
+        assert!(Embedded::parse(&changed).is_err());
+        let mut extra = b;
+        extra.push(0);
+        assert!(Embedded::parse(&extra).is_err());
+    }
+    #[test]
+    fn embedded_container_rejects_aliases_traversal_and_duplicates() {
+        for paths in [
+            vec!["../setup.exe"],
+            vec!["CON"],
+            vec!["a.exe", "A.EXE"],
+            vec!["x:stream"],
+            vec!["/absolute"],
+        ] {
+            assert!(Embedded::parse(&pack(&paths)).is_err())
+        }
+    }
 }

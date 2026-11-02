@@ -10,6 +10,9 @@ use std::io::{Read, Seek, SeekFrom};
 #[cfg(any(target_os = "linux", test))]
 use std::path::Path;
 
+#[cfg(target_os = "linux")]
+mod maintenance;
+
 const MAGIC: &[u8; 16] = b"LMG-LINUX-FULL1\0";
 const MAX_METADATA: u64 = 8 * 1024 * 1024;
 
@@ -21,6 +24,7 @@ struct Package {
     version: String,
     architecture: String,
     role: String,
+    source: serde_json::Value,
     offset: u64,
     bytes: u64,
     sha256: String,
@@ -38,6 +42,9 @@ struct Manifest {
     source: serde_json::Value,
     revision: String,
     native_bytes: u64,
+    application_descriptor: serde_json::Value,
+    #[serde(default)]
+    predecessor: Option<serde_json::Value>,
     packages: Vec<Package>,
 }
 
@@ -47,8 +54,16 @@ fn validate_manifest(m: &Manifest, metadata_start: u64) -> Result<(), String> {
         || m.os != "linux"
         || m.arch != "x86_64"
         || m.native_bytes < 4
+        || m.generation.len() != 32
+        || !m
+            .generation
+            .bytes()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
         || m.packages.is_empty()
         || m.packages.len() > 2048
+        || m.application_descriptor["version"] != m.version
+        || m.application_descriptor["generation"] != m.generation
+        || m.application_descriptor["source"]["sha256"] != m.source["sha256"]
     {
         return Err("Unsupported embedded installer identity or package inventory".into());
     }
@@ -69,7 +84,7 @@ fn validate_manifest(m: &Manifest, metadata_start: u64) -> Result<(), String> {
                 .bytes()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || b"+.-".contains(&c))
             || !matches!(p.architecture.as_str(), "amd64" | "all")
-            || !matches!(p.role.as_str(), "application" | "runtime")
+            || !matches!(p.role.as_str(), "application" | "runtime" | "predecessor")
             || p.offset != end
             || p.bytes == 0
             || p.sha256.len() != 64
@@ -78,7 +93,7 @@ fn validate_manifest(m: &Manifest, metadata_start: u64) -> Result<(), String> {
                 .bytes()
                 .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
             || !names.insert(&p.name)
-            || !identities.insert(&p.package)
+            || !identities.insert(format!("{}:{}", p.role, p.package))
         {
             return Err("Invalid or overlapping embedded package inventory".into());
         }
@@ -164,7 +179,7 @@ fn extract(
 }
 
 #[cfg(target_os = "linux")]
-fn install(executable: &Path, file: &mut File, m: &Manifest) -> Result<(), String> {
+fn install(executable: &Path, file: &mut File, m: &Manifest, action: &str) -> Result<(), String> {
     use std::process::Command;
     // Authentication remains in the ordinary user's existing graphical session.
     // No GUI environment, user-controlled PATH or library search path crosses it.
@@ -172,7 +187,9 @@ fn install(executable: &Path, file: &mut File, m: &Manifest) -> Result<(), Strin
         let status = Command::new("/usr/bin/pkexec")
             .arg("--disable-internal-agent")
             .arg(executable)
-            .arg("--install")
+            .arg(action)
+            .arg("--__profile")
+            .arg(maintenance::profile_context()?)
             .status()
             .map_err(|e| format!("System authorization unavailable: {e}"))?;
         return if status.success() {
@@ -193,11 +210,66 @@ fn install(executable: &Path, file: &mut File, m: &Manifest) -> Result<(), Strin
     {
         return Err("This installer requires Ubuntu 24.04 x86_64".into());
     }
+    maintenance::operate(executable, file, m, action)
+}
+
+#[cfg(target_os = "linux")]
+fn install_packages(
+    file: &mut File,
+    m: &Manifest,
+    include_application: bool,
+) -> Result<(), String> {
+    use std::process::Command;
     let work = tempfile::Builder::new()
         .prefix("local-media-gallery-install-")
         .tempdir_in("/var/tmp")
         .map_err(|e| e.to_string())?;
     let packages = extract(file, m, work.path())?;
+    let mut selected = Vec::new();
+    for (package, pathname) in m.packages.iter().zip(packages) {
+        if package.role == "predecessor" {
+            continue;
+        }
+        if package.role == "application" {
+            if include_application {
+                selected.push(pathname);
+            }
+            continue;
+        }
+        let registered = Command::new("/usr/bin/dpkg-query")
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .args([
+                "-W",
+                "--showformat=${db:Status-Status}|${Version}",
+                "--",
+                &package.package,
+            ])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let text = String::from_utf8_lossy(&registered.stdout);
+        let keep = if let Some(("installed", version)) = text.split_once('|') {
+            let status = Command::new("/usr/bin/dpkg")
+                .env_clear()
+                .env("PATH", "/usr/bin:/bin")
+                .args(["--compare-versions", version, "ge", &package.version])
+                .status()
+                .map_err(|e| e.to_string())?;
+            match status.code() {
+                Some(0) => true,
+                Some(1) => false,
+                _ => return Err("Installed runtime version comparison failed".into()),
+            }
+        } else {
+            false
+        };
+        if !keep {
+            selected.push(pathname);
+        }
+    }
+    if selected.is_empty() {
+        return Ok(());
+    }
     // The package manager, rather than this bootstrap, owns dependencies and their
     // lifecycle. Every installation operand is retained inside this executable.
     let mut command = Command::new("/usr/bin/apt-get");
@@ -220,13 +292,19 @@ fn install(executable: &Path, file: &mut File, m: &Manifest) -> Result<(), Strin
             "APT::Get::AllowUnauthenticated=false",
             "install",
         ])
-        .args(&packages);
+        .args(&selected);
     let status = command.status().map_err(|e| e.to_string())?;
     if !status.success() {
         return Err(format!(
             "Offline package installation failed ({status}); no network fallback was attempted"
         ));
     }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn verify_identity(m: &Manifest) -> Result<(), String> {
+    use std::process::Command;
     let result = Command::new("/usr/bin/local-media-gallery")
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
@@ -247,16 +325,26 @@ fn install(executable: &Path, file: &mut File, m: &Manifest) -> Result<(), Strin
 }
 
 fn run() -> Result<(), String> {
-    let arguments: Vec<_> = std::env::args_os().skip(1).collect();
+    #[allow(unused_mut)]
+    let mut arguments: Vec<_> = std::env::args_os().skip(1).collect();
+    #[cfg(target_os = "linux")]
+    if arguments.len() == 3 && arguments[1] == "--__profile" {
+        maintenance::receive_profile(arguments[2].to_str().ok_or("Profile context is not UTF8")?)?;
+        arguments.truncate(1);
+    }
     if arguments.as_slice() == ["--help"] {
         println!(
-            "Local Media Gallery Full installer. Launch this file to install or repair at system scope. Administrator authorization is requested when needed. All application/runtime payloads are bundled; installation never downloads packages. --inspect prints the embedded package inventory. Remove through your system package manager; galleries and settings are retained."
+            "Local Media Gallery Full installer. Launch this file to install or repair at system scope. Administrator authorization is requested when needed. All application/runtime payloads are bundled; installation never downloads packages. --inspect prints the embedded package inventory. --recover resumes the retained update; --rollback restores its predecessor; --remove removes the managed application while retaining galleries, settings, shared runtimes and recovery history. No JSON or directory operands are needed."
         );
         return Ok(());
     }
     if !arguments.is_empty()
         && arguments.as_slice() != ["--install"]
         && arguments.as_slice() != ["--inspect"]
+        && arguments.as_slice() != ["--recover"]
+        && arguments.as_slice() != ["--rollback"]
+        && arguments.as_slice() != ["--remove"]
+        && arguments.as_slice() != ["--__maintain"]
     {
         return Err("Launch without operands to install; use --help for usage".into());
     }
@@ -268,12 +356,36 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     #[cfg(target_os = "linux")]
-    return install(&executable, &mut file, &m);
+    return install(
+        &executable,
+        &mut file,
+        &m,
+        arguments
+            .first()
+            .and_then(|v| v.to_str())
+            .unwrap_or("--install"),
+    );
     #[cfg(not(target_os = "linux"))]
     Err("System installation is available only on Ubuntu 24.04 x86_64".into())
 }
 
 fn main() {
+    if std::env::args_os()
+        .nth(1)
+        .is_some_and(|s| s == "--__native-worker")
+    {
+        let result = std::env::args_os()
+            .nth(2)
+            .ok_or_else(|| "Missing native worker operand".to_string())
+            .and_then(|p| gallery_update::run_native_worker(std::path::Path::new(&p)));
+        match result {
+            Ok(code) => std::process::exit(code),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(2);
+            }
+        }
+    }
     if let Err(error) = run() {
         eprintln!("installation_unavailable: {error}");
         std::process::exit(1);
@@ -294,12 +406,15 @@ mod tests {
             source: serde_json::json!({"sha256":"b".repeat(64),"files":1}),
             revision: "c".repeat(40),
             native_bytes: 4,
+            application_descriptor: serde_json::json!({"version":"0.2.0","generation":"a".repeat(32),"source":{"sha256":"b".repeat(64)}}),
+            predecessor: None,
             packages: vec![Package {
                 name: "application.deb".into(),
                 package: "local-media-gallery".into(),
                 version: "0.2.0".into(),
                 architecture: "amd64".into(),
                 role: "application".into(),
+                source: serde_json::json!({"package":"local-media-gallery","version":"0.2.0"}),
                 offset: 4,
                 bytes: 3,
                 sha256: hex::encode(Sha256::digest(b"deb")),

@@ -9,7 +9,7 @@
 
 ## Phase 2: Foundation
 
-- [ ] T003 Define and test direct artifact identity/embedded metadata contracts in scripts/single-file.mjs and tests/single-file.test.mjs, including tamper/truncation/platform refusals.
+- [x] T003 Define and test direct artifact identity/embedded metadata contracts in scripts/single-file.mjs and tests/single-file.test.mjs, including tamper/truncation/platform refusals.
 - [ ] T004 Build deliberate pinned redistributable FFmpeg and retain source/configuration/notices in scripts/prepare-feature-helper.mjs.
 
 ## Phase 3: US1 single-file Lite
@@ -18,7 +18,7 @@
 
 **Independent test**: Copy only executable into fresh gallery; native launch, relocation and Refresh on isolated host.
 
-- [ ] T005 [US1] Embed notices and maintenance metadata in apps/gallery/src-tauri/build.rs and native product resources; retain CRT/system-only dependency audit.
+- [x] T005 [US1] Embed notices and maintenance metadata in apps/gallery/src-tauri/build.rs and native product resources; retain CRT/system-only dependency audit.
 - [ ] T006 [P] [US1] Produce direct Windows Lite file and copy-only launch checks in scripts/build-windows-packages.mjs and scripts/test-windows-packages.mjs.
 - [ ] T007 [P] [US1] Produce direct Linux ELF and copy-only relocation checks in scripts/build-linux-packages.mjs and scripts/test-linux-packages.mjs.
 - [ ] T008 [P] [US1] Prove bare Mach-O native launch, produce direct macOS Lite and relocation checks in scripts/build-macos-packages.mjs and scripts/test-macos-packages.mjs.
@@ -32,7 +32,7 @@
 - [ ] T009 [P] [US2] Add Windows embedded offline runtime/machine MSI installer and managed maintenance discovery in crates/windows-package/, preserving native ownership/refusal/rollback; add negative/unit tests first.
 - [ ] T010 [P] [US2] Add Linux native offline installer and clean Ubuntu dependency closure in scripts/build-linux-packages.mjs and native installer source; preserve existing deb/update guards and reject package downloads/removals/downgrades.
 - [ ] T011 [P] [US2] Add macOS flat system pkg and internal ownership-aware maintenance in crates/macos-package/ and scripts/build-macos-packages.mjs; prevent foreign overwrite.
-- [ ] T012 [US2] Automatically verify/select owned Full FFmpeg in apps/gallery/src-tauri/src/main.rs and preparation.rs, retaining explicit helper override and tests.
+- [x] T012 [US2] Automatically verify/select owned Full FFmpeg in apps/gallery/src-tauri/src/main.rs and preparation.rs, retaining explicit helper override and tests.
 - [ ] T013 [US2] Add clean offline prerequisite-absence/feature/lifecycle acceptance in scripts/test-*-packages.mjs and isolated .github/workflows/ci.yml paths; preserve all existing functional, integrity and provenance gates.
 
 ## Phase 5: US3 product selection and consumers
@@ -41,15 +41,15 @@
 
 **Independent test**: Contract negatives and source-bound actual-artifact readback, historical0.1 still readable.
 
-- [ ] T014 [US3] Add version-aware direct artifact formats and product inventories in schemas/v0.2.0/, scripts/release-record.mjs and scripts/release-assembly.mjs; update tests before implementation.
-- [ ] T015 [US3] Add atomic direct executable consumption/reuse/refusal in crates/gallery-preparation/src/lib.rs and scripts/prepared-recipients.mjs while retaining historical archive decoding.
-- [ ] T016 [US3] Adapt update acquisition/ordinary installer maintenance integration in crates/gallery-update/ and scripts/update-packages.mjs with integrity/refusal/recovery coverage.
-- [ ] T017 [US3] Present exactly two product choices per platform in apps/site/ and site/ projections; distinguish metadata/debug assets, final names omit candidate.
+- [x] T014 [US3] Add version-aware direct artifact formats and product inventories in schemas/v0.2.0/, scripts/release-record.mjs and scripts/release-assembly.mjs; update tests before implementation.
+- [x] T015 [US3] Add atomic direct executable consumption/reuse/refusal in crates/gallery-preparation/src/lib.rs and scripts/prepared-recipients.mjs while retaining historical archive decoding.
+- [x] T016 [US3] Adapt update acquisition/ordinary installer maintenance integration in crates/gallery-update/ and scripts/update-packages.mjs with integrity/refusal/recovery coverage.
+- [x] T017 [US3] Present exactly two product choices per platform in apps/site/ and site/ projections; distinguish metadata/debug assets, final names omit candidate.
 
 ## Phase 6: Cross-cutting verification and handoff
 
-- [ ] T018 Update docs/v0.2.0/ and CHANGELOG.md with actual dependency coverage, single-file usage, lifecycle behavior and dated architecture decisions; preserve historical snapshots.
-- [ ] T019 Run npm run check, npm test, affected app/site checks and UTF8/LF/mojibake validation; fix failures.
+- [x] T018 Update docs/v0.2.0/ and CHANGELOG.md with actual dependency coverage, single-file usage, lifecycle behavior and dated architecture decisions; preserve historical snapshots.
+- [x] T019 Run npm run check, npm test, affected app/site checks and UTF8/LF/mojibake validation; fix failures.
 - [ ] T020 Qualify actual six files on isolated native hosts under existing timing rules; retain independent inventory/hash/source/native evidence in .local/ and specs/025-single-file-editions/verification.md.
 - [ ] T021 Commit, automatically push and open official PR closing #80; move project tracking to review and verify exact-head applicable CI.
 - [ ] T022 Handle every review comment/thread with necessary changes and replies, at most two review rounds; final evidence goes in PR handoff without record-only matrix restarts. Ping owner for final review and merge, do not merge or publish release.
@@ -63,3 +63,7 @@ Parallel team examples: Windows T006/T009 owns Windows-specific files; Linux T00
 ## Implementation strategy
 
 Prove Lite first as an independently testable increment, then Full per platform, then shared consumers and complete native acceptance. MVP validation does not authorize declaring #80 complete early. Every requirement remains in scope.
+
+## Current verification status
+
+2026-11-02: Shared contracts, native installer implementations, ordinary maintenance, direct preparation consumption, new-version docs/download projections and local parity checks are implemented. Repository check passed; Node suite214 passed with one platform-specific skip; affected Rust unit/compile/clippy and website build/link/ten headless browser groups passed. Native literal artifact qualification remains pending. Initial hosted preparation failures are retained, diagnosed and corrected; no completed native package claim is made from those runs. GitHub PR/check/review receipts are the authoritative live tracking record.

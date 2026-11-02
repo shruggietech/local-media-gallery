@@ -78,7 +78,8 @@
               "package",
               "update-descriptor",
               "documentation",
-              "qualification"
+              "qualification",
+              "source"
             ]
           },
           "edition": {
@@ -114,7 +115,8 @@
               "elf",
               "mach-o",
               "pkg",
-              "run"
+              "run",
+              "tar.xz"
             ]
           },
           "bytes": {

@@ -4,7 +4,7 @@
 
 ## Summary
 
-Complete #80 with six directly delivered artifacts: native Lite executable and offline system Full installer on Windows x86_64, Ubuntu24.04 x86_64 and macOS15 arm64. Preserve native ownership/lifecycle logic internally, coordinate source/docs/schema0.2.0, release projections and gallery preparation, and qualify actual files.
+Complete #80 with six directly delivered artifacts: native Lite executable and offline system Full installer on Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 arm64. Preserve native ownership/lifecycle logic internally, coordinate source/docs/schema v0.2.0, release projections and gallery preparation, and qualify actual files.
 
 ## Technical Context
 
@@ -43,7 +43,7 @@ Post-design: PASS for design. Native feasibility and dependency inventory remain
 ## Implementation sequence
 
 1. Establish native Lite feasibility and single-file metadata/integrity contracts with negative tests.
-2. Deliver Lite and all consumer compatibility, preserving historical0.1 paths.
+2. Deliver Lite and all consumer compatibility, preserving historical v0.1 paths.
 3. Deliver each Full installer and its bundled dependency closure, then ordinary maintenance and automatic feature helper selection.
 4. Run repository/product/site parity and isolated native copy-only/offline lifecycle checks, resolve findings, push/open PR and handle no more than two review rounds.
 

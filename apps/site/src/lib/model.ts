@@ -18,6 +18,8 @@ type Artifact = {
   filename: string;
   url: string;
   sha256: string;
+  format: string;
+  delivery: 'archive' | 'installer' | 'executable';
 };
 export type SiteModel = {
   manifest: { latest: string; snapshots: Snapshot[] };

@@ -22,7 +22,7 @@ Apple distribution domains: https://developer.apple.com/library/archive/document
 
 ## Linux Full
 
-Decision: one native executable installer contains app.deb and exact Ubuntu runtime dependency deb closure, including feature helper. Offline apt uses only embedded local packages, prohibits downloads/unrelated removals/downgrades and retains package-managed shared dependencies after application removal. Construct closure against a clean Ubuntu24.04 baseline, not prepared runner state.
+Decision: one native executable installer contains app.deb and exact Ubuntu runtime dependency deb closure, including feature helper. Offline apt uses only embedded local packages, prohibits downloads/unrelated removals/downgrades and retains package-managed shared dependencies after application removal. Construct closure against a clean Ubuntu 24.04 baseline, not prepared runner state.
 
 Alternatives: a plain deb retains online dependency resolution; private WebKit copying is unreliable because subprocess relocation overrides are developer-build-only in upstream source. https://chromium.googlesource.com/external/github.com/WebKit/webkit/+/8e6f0e6498f75eabe2fd9d46e87d7469ecad25f0%5E%21/ . Offline apt: https://manpages.ubuntu.com/manpages/noble/man8/apt-get.8.html . Privilege handling: https://manpages.ubuntu.com/manpages/noble/man1/pkexec.1.html .
 
@@ -32,6 +32,6 @@ Decision: source/build a pinned LGPL-only FFmpeg CLI configuration with correspo
 
 ## Qualification and execution
 
-Decision: preserve existing functional/integrity/provenance/elected checks, add literal single-file and clean offline tests, use isolated hosted desktops only. Preparation includes tool/runtime downloads and builds; qualification retains660s advisory target,900s hard ceiling and15s reserve. Final receipts belong in PR handoff to avoid record-only commits retriggering the matrix. Native feasibility failures must not be renamed passing packaging evidence.
+Decision: preserve existing functional/integrity/provenance/elected checks, add literal single-file and clean offline tests, use isolated hosted desktops only. Preparation includes tool/runtime downloads and builds; qualification retains660s advisory target,900s hard ceiling and 15s reserve. Final receipts belong in PR handoff to avoid record-only commits retriggering the matrix. Native feasibility failures must not be renamed passing packaging evidence.
 
 No signing, notarization, release publication or attended gate is added.

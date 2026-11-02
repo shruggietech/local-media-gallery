@@ -62,6 +62,7 @@ export async function checkApp() {
   await cargo(['test', '--locked', '-p', 'gallery-preparation']);
   await cargo(['test', '--locked', '-p', 'gallery-windows-package']);
   await cargo(['test', '--locked', '-p', 'gallery-macos-package']);
+  await cargo(['test', '--locked', '-p', 'gallery-linux-package']);
   await cargo(['clippy', '--locked', '--workspace', '--all-targets', '--', '-D', 'warnings']);
   await node(path.join(root, 'node_modules/typescript/bin/tsc'), ['--project', path.join(app, 'tsconfig.json')]);
   await node(path.join(root, 'node_modules/eslint/bin/eslint.js'), ['src', '--config', 'eslint.config.mjs'], { cwd: app });

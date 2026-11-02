@@ -68,6 +68,9 @@ fn run() -> Result<serde_json::Value, String> {
             })
         });
     gallery_windows_package::check_path(&directory)?;
+    if machine && !remove && native::registered_package(false)?.is_some() {
+        return Err("An existing per-user Full installation must be removed through Windows Apps before system installation. Its gallery media and user settings remain independent. Automatic cross-scope migration is not implemented.".into());
+    }
     if let Some(operation) = maintenance {
         return gallery_windows_package::embedded::maintenance(
             &retained, &input, &directory, operation,

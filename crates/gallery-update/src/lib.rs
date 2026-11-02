@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Explicit offline candidate replacement. Native package owners retain their authority.
 mod native;
+pub mod ordinary;
 mod process;
 #[cfg(any(windows, target_os = "linux"))]
 mod worker;

@@ -410,6 +410,74 @@
           }
         }
       }
+    },
+    "singleFileMaintenanceResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formatVersion",
+        "product",
+        "version",
+        "operation",
+        "status"
+      ],
+      "properties": {
+        "formatVersion": {
+          "const": 1
+        },
+        "product": {
+          "const": "local-media-gallery"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "operation": {
+          "enum": [
+            "maintain-replace",
+            "maintain-recover",
+            "maintain-rollback",
+            "maintain-status",
+            "maintain-invalid"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "error": {
+          "type": "string"
+        },
+        "recovery": {
+          "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "outcome"
+          ],
+          "not": {
+            "required": [
+              "error"
+            ]
+          }
+        },
+        {
+          "required": [
+            "error",
+            "recovery"
+          ],
+          "not": {
+            "required": [
+              "outcome"
+            ]
+          }
+        }
+      ]
     }
   },
   "$comment": "Runtime validation additionally binds descriptor/native metadata and actual bytes, physical ownership, path aliases, archive identity, scope and integration. Direct update.json descriptors exclude their own hash; reading them binds their exact bytes as an owned file in the retained transaction. Hash identity is independent from signing. These are supplied unpublished candidates, not release records."

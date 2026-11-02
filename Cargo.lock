@@ -1182,6 +1182,7 @@ dependencies = [
 name = "gallery-linux-package"
 version = "0.2.0"
 dependencies = [
+ "gallery-update",
  "hex",
  "libc",
  "serde",
@@ -2263,6 +2264,7 @@ dependencies = [
  "dirs",
  "gallery-core",
  "gallery-preparation",
+ "gallery-update",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",

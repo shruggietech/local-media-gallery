@@ -107,7 +107,7 @@ fn run() -> gallery_macos_package::Result<()> {
     if !["user", "system"].contains(&scope) {
         return Err("Scope must be user or system".into());
     }
-    fn output(file: &str, args: &[&std::ffi::OsStr]) -> gallery_macos_package::Result<String> {
+    fn raw_output(file: &str, args: &[&std::ffi::OsStr]) -> gallery_macos_package::Result<String> {
         let result = Command::new(file)
             .args(args)
             .stdin(std::process::Stdio::null())
@@ -119,7 +119,10 @@ fn run() -> gallery_macos_package::Result<()> {
             )
             .into());
         }
-        Ok(String::from_utf8(result.stdout)?.trim().into())
+        Ok(String::from_utf8(result.stdout)?)
+    }
+    fn output(file: &str, args: &[&std::ffi::OsStr]) -> gallery_macos_package::Result<String> {
+        Ok(raw_output(file, args)?.trim().into())
     }
     if std::env::consts::ARCH != "aarch64" {
         return Err("Unsupported architecture; requires Apple Silicon".into());
@@ -243,22 +246,21 @@ fn run() -> gallery_macos_package::Result<()> {
             "/usr/bin/stat",
             &["-f".as_ref(), "%Su".as_ref(), "/dev/console".as_ref()],
         )?;
-        if user.is_empty() || user.contains('/') {
+        if user.is_empty() || user.contains('/') || user.chars().any(char::is_control) {
             return Err("Console recipient identity unavailable".into());
         }
-        let profile = PathBuf::from("/Users")
-            .join(&user)
-            .join("Library/Application Support/tech.shruggie.local-media-gallery");
-        let state = [
-            gallery_update::StateOperand {
-                kind: "settings".into(),
-                path: profile.join("settings.json"),
-            },
-            gallery_update::StateOperand {
-                kind: "history".into(),
-                path: profile.join("state/history.sqlite3"),
-            },
-        ];
+        let record = format!("/Users/{user}");
+        let account = raw_output(
+            "/usr/bin/dscl",
+            &[
+                ".".as_ref(),
+                "-read".as_ref(),
+                record.as_ref(),
+                "NFSHomeDirectory".as_ref(),
+            ],
+        )?;
+        let home = gallery_macos_package::account_home(&account)?;
+        let state = gallery_macos_package::recipient_state(&home)?;
         gallery_macos_package::managed_install(
             &source,
             &app,

@@ -9,9 +9,9 @@ const magic=Buffer.from('LMG-SINGLE-FILE1\0','ascii');
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const bound=16*1024*1024;
 export function nativeFormat(b){
- if(b.length>=64&&b.subarray(0,4).equals(Buffer.from([0x7f,0x45,0x4c,0x46])))return {format:'elf',os:'linux'};
- if(b.length>=64&&b.subarray(0,2).toString('ascii')==='MZ')return {format:'exe',os:'windows'};
- if(b.length>=32&&[0xfeedfacf,0xcffaedfe].includes(b.readUInt32LE(0)))return {format:'mach-o',os:'macos'};
+ if(b.length>=64&&b.subarray(0,4).equals(Buffer.from([0x7f,0x45,0x4c,0x46]))){assert.equal(b[4],2);assert.equal(b[5],1);const machine=b.readUInt16LE(18);assert.ok([62,183].includes(machine));return {format:'elf',os:'linux',arch:machine===62?'x86_64':'aarch64'};}
+ if(b.length>=64&&b.subarray(0,2).toString('ascii')==='MZ'){const pe=b.readUInt32LE(60);assert.ok(pe>=64&&pe+26<=b.length);assert.equal(b.readUInt32LE(pe),0x4550);const machine=b.readUInt16LE(pe+4);assert.ok([0x8664,0xaa64].includes(machine));assert.equal(b.readUInt16LE(pe+24),0x20b);return {format:'exe',os:'windows',arch:machine===0x8664?'x86_64':'aarch64'};}
+ if(b.length>=32&&b.readUInt32LE(0)===0xfeedfacf){const cpu=b.readUInt32LE(4);assert.ok([0x1000007,0x100000c].includes(cpu));return {format:'mach-o',os:'macos',arch:cpu===0x100000c?'aarch64':'x86_64'};}
  throw Error('Expected one native PE, ELF or Mach-O executable');
 }
 function validateMetadata(m){
@@ -22,8 +22,8 @@ function validateMetadata(m){
 }
 export function encodeSingleFile(executable,metadata){
  assert.ok(Buffer.isBuffer(executable));assert.ok(!executable.subarray(-magic.length).equals(magic),'Executable already contains single-file metadata');
- const native=nativeFormat(executable);assert.equal(native.os,metadata.os,'Native executable platform mismatch');
- const m={...metadata,kind:'local-media-gallery-single-file',formatVersion:1,product:'local-media-gallery',prerequisites:metadata.prerequisites??[],executableBytes:executable.length,executableSha256:hash(executable)};
+ const native=nativeFormat(executable);assert.equal(native.os,metadata.os,'Native executable platform mismatch');assert.equal(native.arch,metadata.arch,'Native executable architecture mismatch');
+ const m={...metadata,source:{sha256:metadata.source?.sha256,files:metadata.source?.files},kind:'local-media-gallery-single-file',formatVersion:1,product:'local-media-gallery',prerequisites:metadata.prerequisites??[],executableBytes:executable.length,executableSha256:hash(executable)};
  validateMetadata(m);const json=Buffer.from(JSON.stringify(m)+'\n','utf8');assert.ok(json.length<=bound,'Embedded metadata exceeds bound');
  const tail=Buffer.alloc(8+32+magic.length);tail.writeBigUInt64LE(BigInt(json.length));Buffer.from(hash(json),'hex').copy(tail,8);magic.copy(tail,40);
  return Buffer.concat([executable,json,tail]);
@@ -33,7 +33,7 @@ export function decodeSingleFile(bytes){
  const at=bytes.length-40-magic.length,length=bytes.readBigUInt64LE(at);assert.ok(length>0n&&length<=BigInt(bound)&&length<BigInt(at),'Invalid metadata size');
  const start=at-Number(length),json=bytes.subarray(start,at);assert.equal(hash(json),bytes.subarray(at+8,at+40).toString('hex'),'Embedded metadata digest mismatch');
  const text=new TextDecoder('utf-8',{fatal:true}).decode(json),m=JSON.parse(text);assert.equal(text,JSON.stringify(m)+'\n','Canonical embedded metadata required');validateMetadata(m);
- const executable=bytes.subarray(0,start);assert.equal(executable.length,m.executableBytes);assert.equal(hash(executable),m.executableSha256,'Embedded executable digest mismatch');assert.equal(nativeFormat(executable).os,m.os);
+ const executable=bytes.subarray(0,start);assert.equal(executable.length,m.executableBytes);assert.equal(hash(executable),m.executableSha256,'Embedded executable digest mismatch');const native=nativeFormat(executable);assert.equal(native.os,m.os);assert.equal(native.arch,m.arch);
  return {metadata:m,executable};
 }
 export async function readSingleFile(file){return decodeSingleFile(await readFile(file));}

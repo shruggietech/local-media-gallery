@@ -18,6 +18,9 @@ const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','
 await prepareCargoDependencies();await exportInterface();
 await execute('cargo',['build','--locked','--release','-p','gallery-preparation']);
 const featureHelper=await prepareFeatureHelper();
+const helperLoadOutput=(await capture('/usr/bin/otool',['-L',featureHelper.binary])).stdout;
+const helperLibraries=helperLoadOutput.split('\n').slice(1).map(s=>s.trim().split(/\s/)[0]).filter(Boolean);
+assert.ok(helperLibraries.length>0&&helperLibraries.every(s=>s.startsWith('/System/Library/')||s.startsWith('/usr/lib/')),'Bundled FFmpeg must depend only on OS facilities, never Homebrew or unbundled dylibs');
 const binaries={};for(const edition of ['full','lite']){await execute('cargo',['build','--locked','--release','-p','local-media-gallery',...(edition==='lite'?['--features','lite']:[])],{env:{...environment,MACOSX_DEPLOYMENT_TARGET:'15.0'}});binaries[edition]=path.join(directory,edition+'-compiled');await copyFile(path.join(root,'target/release/local-media-gallery'),binaries[edition]);await chmod(binaries[edition],0o755)}
 await node(path.join(root,'scripts/build-proof.mjs'),['--full',binaries.full,'--lite',binaries.lite,'--output',path.join(directory,'assembly.json')]);const assembly=JSON.parse(await readFile(path.join(directory,'assembly.json')));const records=[];
 for(const edition of ['full','lite']){
@@ -50,7 +53,7 @@ Project signing and notarization are not performed. Ordinary compiler/linker loa
 }
 
 // Actual product downloads are distinct from diagnostic containers used by the legacy lifecycle campaign.
-const fixtureTool=await prepareMediaTool(),featureFixture=path.join(directory,'bundled-feature-input.mp4');
+const fixtureTool=await prepareMediaTool({download:true}),featureFixture=path.join(directory,'bundled-feature-input.mp4');
 await capture(fixtureTool.binary,['-nostdin','-hide_banner','-loglevel','error','-f','lavfi','-i','color=red:size=160x96:rate=5:duration=1','-c:v','libx264','-threads','1','-pix_fmt','yuv420p','-movflags','+faststart',featureFixture]);
 const featureFixtureBytes=await readFile(featureFixture),fixtureRecord={path:path.relative(root,featureFixture),sha256:hash(featureFixtureBytes),bytes:String(featureFixtureBytes.length)};
 async function buildFullPkg(container,payload,output,tag){
@@ -75,7 +78,7 @@ for(const record of records){
   record.artifact=await writeLiteArtifact({binary:binaries.lite,output,metadata:{version,edition,os:'macos',arch:'aarch64',generation,source,revision,prerequisites:['macOS15 Apple Silicon','OS WKWebView and AppKit','OS media codecs','Executable permission for direct launch']},noticesDirectory:path.join(root,assembly.records.find(r=>r.edition==='lite').payloadDirectory,'licenses/dependencies')});
  }else{
   record.artifact=await buildFullPkg(path.join(directory,'full'),record.payload,output,'product');
-  record.dependencies={facilities:['macOS15 arm64','AppKit','WKWebView','system media codecs'],bundled:[{feature:'video thumbnails',binary:'Contents/MacOS/ffmpeg',sha256:featureHelper.sha256,bytes:featureHelper.bytes,source:{url:featureHelper.source.url,sha256:featureHelper.source.sha256,configuration:featureHelper.source.configuration}}],networkRequired:false};
+  record.dependencies={facilities:['macOS15 arm64','AppKit','WKWebView','system media codecs','OS zlib'],helperLibraries,bundled:[{feature:'video thumbnails',binary:'Contents/MacOS/ffmpeg',sha256:featureHelper.sha256,bytes:featureHelper.bytes,source:{url:featureHelper.source.url,sha256:featureHelper.source.sha256,configuration:featureHelper.source.configuration}}],networkRequired:false};
  }
  validateMacProduct(record.artifact,edition);
  products.push({edition,artifact:record.artifact,...(record.dependencies?{dependencies:record.dependencies}:{})});
@@ -86,7 +89,8 @@ for(const record of records){
  const edition=record.edition,container=path.join(directory,edition),nextContainer=path.join(directory,'replacement-'+edition);await cp(container,nextContainer,{recursive:true});const app=path.join(nextContainer,record.payload.bundle),nextGeneration=randomBytes(16).toString('hex');await writeFile(path.join(app,'Contents/Resources/package-generation.txt'),nextGeneration+'\n');const payload={...record.payload,generation:nextGeneration,files:await collectPayload(app)};validateMacPayload(payload);const payloadFile=path.join(directory,edition+'-replacement-payload.json');await writeFile(payloadFile,JSON.stringify(payload,null,2)+'\n');await writeFile(path.join(nextContainer,'candidate.json'),JSON.stringify(payload,null,2)+'\n');await execute('cargo',['build','--locked','--release','-p','gallery-macos-package','--bin','lmg-setup'],{env:{...environment,LMG_MACOS_PAYLOAD:payloadFile,MACOSX_DEPLOYMENT_TARGET:'15.0'}});await copyFile(path.join(root,'target/release/lmg-setup'),path.join(nextContainer,'lmg-setup'));await chmod(path.join(nextContainer,'lmg-setup'),0o755);
  const from=await writeUpdateDescriptor(path.join(directory,edition+'-prior.update.json'),record.payload,record.payload.files);const to=await writeUpdateDescriptor(path.join(directory,edition+'-next.update.json'),payload,payload.files);
  const archive=path.join(directory,'replacement-'+edition+(edition==='full'?'.dmg':'.zip'));if(edition==='full')await capture('/usr/bin/hdiutil',['create','-fs','HFS+','-volname','Local Media Gallery Full Update','-srcfolder',nextContainer,'-format','UDZO',archive]);else await capture('/usr/bin/ditto',['-c','-k','--norsrc','--noextattr',nextContainer,archive]);const bytes=await readFile(archive);const pair={edition,from:{...from,path:path.relative(root,from.path)},to:{...to,path:path.relative(root,to.path)},source:path.relative(root,app),helper:path.relative(root,path.join(nextContainer,'lmg-setup')),priorManifest:path.relative(root,path.join(container,'candidate.json')),archive:{path:path.relative(root,archive),bytes:String(bytes.length),sha256:hash(bytes),files:await collectPayload(nextContainer)},applicationSha256:record.payload.files.find(f=>f.path===record.payload.binary).sha256};
- if(edition==='full'){const output=path.join(directory,'replacement-full-product.pkg');record.productUpgrade={artifact:await buildFullPkg(nextContainer,payload,output,'replacement'),payload};}
+ if(edition==='lite')record.singleFileUpgrade=await writeLiteArtifact({binary:binaries.lite,output:path.join(directory,'replacement-lite-product-macos'),metadata:{version,edition,os:'macos',arch:'aarch64',generation:nextGeneration,source,revision,prerequisites:record.artifact.metadata.prerequisites},noticesDirectory:path.join(root,assembly.records.find(r=>r.edition==='lite').payloadDirectory,'licenses/dependencies')});
+ if(edition==='full'){const output=path.join(directory,'replacement-full-product.pkg');record.productUpgrade={artifact:await buildFullPkg(nextContainer,payload,output,'replacement'),payload,helperSha256:hash(await readFile(path.join(nextContainer,'lmg-setup')))};}
  if(edition==='full')for(const scope of ['user','system'])upgrades.pairs.push({...pair,scope});else upgrades.pairs.push(pair);
 }
 
