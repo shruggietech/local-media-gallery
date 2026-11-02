@@ -34,7 +34,7 @@
 ## Phase7: Qualification and handoff
 
 - [x] T014 Update authoritative unreleased docs/contracts and CHANGELOG.md; retain new snapshot and check UTF8/LF/mojibake (FR-012).
-- [ ] T015 Run npm run check, npm test, npm run check:docs, npm run check:app and affected site checks; retain terminal timing in specs/024-gallery-preparation/verification.md and measurements.json.
+- [x] T015 Run npm run check, npm test, npm run check:docs, npm run check:app and affected site checks; retain terminal timing in specs/024-gallery-preparation/verification.md and measurements.json.
 - [ ] T016 Push official PR closing #27/#79, verify exact-head CI and original candidate artifacts, resolve every finding within two review rounds, update Projects and hand off for owner final review/merge.
 
 ## Dependencies and execution
