@@ -4,7 +4,14 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Added
+
+- Guided gallery preparation independently previews and applies portable presentation, thumbnails and verified published Lite recipient packages, with complete bundle retention, gallery-root launch copies, progress, cancellation, partial results and exact reuse.
+- Unreleased0.2.0 software, documentation and schema contracts retain every shipped0.1.0 snapshot. Prepared presentation remains readable by published0.1.0 recipients.
+
 ### Fixed
+
+- Windows package startup waits for the expected portable presentation inside its existing deadline, retaining attributed root, settings identity and last UI observation on failure.
 
 - Release staging verifies temporary draft assets through authenticated API identities and exact content hashes, then requires final public URLs after publication. Bounded read-after-write observation reconciles delayed or lost acknowledgements without blindly replaying mutations.
 - Retain the exact candidate and publication static exports, inventories and matching gated records for independent readback, including candidate evidence when later publication fails.

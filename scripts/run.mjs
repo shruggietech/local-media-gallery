@@ -59,6 +59,7 @@ export async function buildEditions({ nativeTests = false } = {}) {
 export async function checkApp() {
   await cargo(['fmt', '--all', '--', '--check']);
   await cargo(['test', '--locked', '-p', 'gallery-core']);
+  await cargo(['test', '--locked', '-p', 'gallery-preparation']);
   await cargo(['test', '--locked', '-p', 'gallery-windows-package']);
   await cargo(['test', '--locked', '-p', 'gallery-macos-package']);
   await cargo(['clippy', '--locked', '--workspace', '--all-targets', '--', '-D', 'warnings']);

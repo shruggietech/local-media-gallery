@@ -1,10 +1,10 @@
 [workspace]
-members = ["crates/gallery-core", "crates/windows-package", "crates/macos-package", "crates/gallery-update", "apps/gallery/src-tauri"]
+members = ["crates/gallery-core", "crates/gallery-preparation", "crates/windows-package", "crates/macos-package", "crates/gallery-update", "apps/gallery/src-tauri"]
 resolver = "2"
 exclude = ["vendor/glib-0.18.5"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "Apache-2.0"
 rust-version = "1.96"
