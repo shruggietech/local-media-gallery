@@ -2,7 +2,7 @@
 // A root-only, bounded CI worker. All UI stays on the elected isolated desktop.
 import assert from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
-import {readFile,writeFile,mkdir,copyFile,chmod,chown,readlink,lstat,realpath,unlink} from 'node:fs/promises';
+import {readFile,writeFile,mkdir,copyFile,chmod,chown,readlink,lstat,realpath,unlink,rename} from 'node:fs/promises';
 import {createInterface} from 'node:readline';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -32,6 +32,14 @@ export async function stageRecipientInstaller({recipient,source,name}){
  if(uid!==undefined){assert.equal(present.uid,uid,'Ingress owner differs');assert.equal(present.gid,gid,'Ingress group differs');assert.equal(present.mode&0o777,0o755,'Ingress mode differs');}
  assert.deepEqual(await fingerprint(target),expected,'Existing recipient ingress bytes differ');
  return {target,reused,...expected};
+}
+
+export async function isolateRecipientProfile(directory,exercise){
+ assert.ok(path.isAbsolute(directory)&&path.resolve(directory)===directory,'Profile fixture must be absolute and normalized');const info=await lstat(directory);assert.ok(info.isDirectory()&&!info.isSymbolicLink());assert.equal(await realpath(directory),directory);
+ const saved=directory+'-retained-current',published=directory+'-published-predecessor';for(const target of [saved,published])await assert.rejects(lstat(target),{code:'ENOENT'});
+ await rename(directory,saved);
+ try{await mkdir(directory);return {value:await exercise({directory,saved,published}),publishedDirectory:published};}
+ finally{try{await rename(directory,published);}finally{await rename(saved,directory);}}
 }
 
 export async function startCleanRecipient({recipient,installer,capture,environment}){

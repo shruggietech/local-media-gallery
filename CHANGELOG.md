@@ -26,7 +26,7 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 - Retain exact configured Linux package identities before first installation so interrupted recovery can finish attributable system triggers while refusing unrelated unpacked or partially configured packages.
 
-- Preserve every Windows dependency notice in one indexed document with original paths, text and hashes, reducing repeated installation and update file operations. Retain independent source-bound readback of the complete notice inventory.
+- Preserve every Windows and Linux dependency notice in one indexed document with original paths, text and hashes, reducing repeated installation and update file operations. Retain independent source-bound readback of the complete notice inventory.
 - Remove only known empty directories left by direct candidate switching so macOS rollback followed by uninstall can remove the owned app without deleting foreign content.
 
 - Reused prepared presentation revalidates the actual settings document and reports external edits or deletion as a conflict. Prepared-gallery evidence archives preserve raw executable modes across CI transport.

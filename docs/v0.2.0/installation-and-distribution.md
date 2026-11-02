@@ -63,7 +63,7 @@ The interface, native core and SQLite are embedded. Full includes the matching f
 3. Launch from the installed integration or select a gallery. Video-thumbnail preparation automatically verifies and uses the installed FFmpeg helper; explicit helper override remains available.
 4. Run a replacement setup to update an owned system installation. Known published v0.1.0 system installations are adopted only after exact canonical predecessor, installed inventory and registration checks. A legacy per-user installation must be removed through its normal application-removal entry before installing the new system edition; cross-scope migration is not silently attempted. Retained internal inputs support recovery/rollback. Use the system application removal entry for uninstall. Media, settings and the shared runtime remain.
 
-Windows installed dependency notices are indexed in licenses/dependencies.json with each original path, complete text, byte length and hash. Project notices and bundled feature-helper source/notices remain separate managed files.
+Windows and Linux installed dependency notices are indexed in licenses/dependencies.json with each original path, complete text, byte length and hash. Project notices and bundled feature-helper source/notices remain separate managed files.
 
 Lite is the direct matching EXE beside gallery media. It requires the declared shared host WebView2 runtime and never installs Full. Native Windows Server qualification does not by itself establish Windows 10/11 client behavior; exact host receipts remain authoritative.
 
