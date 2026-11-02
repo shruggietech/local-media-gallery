@@ -826,6 +826,14 @@ impl Prepared {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => return Err(e.to_string()),
         }
+        // Validate private staging before creating any recipient file. A missing or
+        // damaged staged source must not leave an empty collision on the next run.
+        let bytes = fs::read(self.stage.path().join(&record.path)).map_err(|e| e.to_string())?;
+        require(
+            bytes.len().to_string() == record.bytes && hash(&bytes) == record.sha256,
+            "Prepared source changed",
+        )?;
+        checked(cancel)?;
         use cap_fs_ext::OpenOptionsFollowExt;
         let mut options = cap_std::fs::OpenOptions::new();
         options
@@ -835,7 +843,6 @@ impl Prepared {
         let mut out = parent
             .open_with(&name, &options)
             .map_err(|e| e.to_string())?;
-        let bytes = fs::read(self.stage.path().join(&record.path)).map_err(|e| e.to_string())?;
         if let Err(e) = out.write_all(&bytes).and_then(|()| out.sync_all()) {
             drop(out);
             let _ = parent.remove_file(&name);
@@ -984,4 +991,60 @@ fn inspect_tree(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn damaged_staging_never_creates_a_collision_and_can_be_retried() {
+        let stage = tempfile::tempdir().unwrap();
+        let target = tempfile::tempdir().unwrap();
+        let root = cap_std::fs::Dir::open_ambient_dir(target.path(), cap_std::ambient_authority())
+            .unwrap();
+        fs::write(target.path().join("media.jpg"), b"original").unwrap();
+        let prepared = Prepared {
+            stage,
+            files: vec![FileRecord {
+                path: "recipient.exe".into(),
+                bytes: "6".into(),
+                sha256: hash(b"native"),
+                mode: None,
+            }],
+            tops: vec!["recipient.exe".into()],
+            preview: Preview {
+                platform: "windows".into(),
+                architecture: "x86_64".into(),
+                release_version: "0.1.0".into(),
+                candidate_id: String::new(),
+                artifact_name: String::new(),
+                artifact_sha256: String::new(),
+                download_bytes: "0".into(),
+                extracted_bytes: "6".into(),
+                entrypoint_bytes: "6".into(),
+                storage_bytes: "6".into(),
+                destinations: vec!["recipient.exe".into()],
+                disposition: "new".into(),
+            },
+        };
+        let cancel = CancellationToken::new();
+        let source = prepared.stage.path().join("recipient.exe");
+        // Missing bytes and same-length corruption both fail before creation.
+        assert!(prepared.commit_file(&root, 0, &cancel).is_err());
+        assert!(!target.path().join("recipient.exe").exists());
+        fs::write(&source, b"broken").unwrap();
+        assert!(prepared.commit_file(&root, 0, &cancel).is_err());
+        assert!(!target.path().join("recipient.exe").exists());
+        fs::write(source, b"native").unwrap();
+        prepared.commit(&root, &cancel, |_| {}).unwrap();
+        assert_eq!(
+            fs::read(target.path().join("recipient.exe")).unwrap(),
+            b"native"
+        );
+        assert_eq!(
+            fs::read(target.path().join("media.jpg")).unwrap(),
+            b"original"
+        );
+    }
 }
