@@ -263,7 +263,44 @@ fn cache_package(
 }
 
 #[cfg(any(target_os = "linux", test))]
-fn verify_pending_packages(m: &Manifest, registrations: &str) -> Result<(), String> {
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct NativePackageIdentity {
+    package: String,
+    version: String,
+    architecture: String,
+}
+#[cfg(any(target_os = "linux", test))]
+fn installed_baseline(registrations: &str) -> Result<Vec<NativePackageIdentity>, String> {
+    let mut installed = Vec::new();
+    for line in registrations.lines() {
+        let fields: Vec<_> = line.split('|').collect();
+        if fields.len() != 4 {
+            return Err("Malformed native baseline inventory".into());
+        }
+        match fields[1] {
+            "installed" => installed.push(NativePackageIdentity {
+                package: fields[0].into(),
+                version: fields[2].into(),
+                architecture: fields[3].into(),
+            }),
+            "not-installed" | "config-files" => {}
+            _ => {
+                return Err(format!(
+                    "Native package was incomplete before installation: {}",
+                    fields[0]
+                ));
+            }
+        }
+    }
+    Ok(installed)
+}
+#[cfg(any(target_os = "linux", test))]
+fn verify_pending_packages(
+    m: &Manifest,
+    registrations: &str,
+    baseline: &[NativePackageIdentity],
+) -> Result<(), String> {
     for line in registrations.lines() {
         let fields: Vec<_> = line.split('|').collect();
         if fields.len() != 4 {
@@ -272,19 +309,25 @@ fn verify_pending_packages(m: &Manifest, registrations: &str) -> Result<(), Stri
         if matches!(fields[1], "installed" | "not-installed" | "config-files") {
             continue;
         }
-        if !matches!(
+        let trigger_only = matches!(fields[1], "triggers-awaited" | "triggers-pending");
+        let known_baseline = trigger_only
+            && baseline.iter().any(|p| {
+                p.package == fields[0] && p.version == fields[2] && p.architecture == fields[3]
+            });
+        let known_payload = matches!(
             fields[1],
             "half-installed"
                 | "unpacked"
                 | "half-configured"
                 | "triggers-awaited"
                 | "triggers-pending"
-        ) || !m.packages.iter().any(|p| {
+        ) && m.packages.iter().any(|p| {
             p.role != "predecessor"
                 && p.package == fields[0]
                 && p.version == fields[2]
                 && p.architecture == fields[3]
-        }) {
+        });
+        if !known_baseline && !known_payload {
             return Err(format!(
                 "Unattributed pending native package: {} ({}, {}, {})",
                 fields[0], fields[1], fields[2], fields[3]
@@ -650,6 +693,7 @@ mod tests {
         verify_pending_packages(
             &m,
             "unrelated|installed|9.0|amd64\nlocal-media-gallery|half-installed|0.2.0|amd64\n",
+            &[],
         )
         .unwrap();
         for pending in [
@@ -659,11 +703,46 @@ mod tests {
             "local-media-gallery|unknown|0.2.0|amd64",
             "malformed",
         ] {
-            assert!(verify_pending_packages(&m, pending).is_err(), "{pending}");
+            assert!(
+                verify_pending_packages(&m, pending, &[]).is_err(),
+                "{pending}"
+            );
         }
         let mut m = sample();
         m.packages[0].role = "predecessor".into();
-        assert!(verify_pending_packages(&m, "local-media-gallery|unpacked|0.2.0|amd64").is_err());
+        assert!(
+            verify_pending_packages(&m, "local-media-gallery|unpacked|0.2.0|amd64", &[]).is_err()
+        );
+    }
+    #[test]
+    fn queued_system_triggers_require_exact_pre_mutation_installed_baseline() {
+        let m = sample();
+        let baseline = installed_baseline("libc-bin|installed|2.39-0ubuntu8|amd64\n").unwrap();
+        for state in ["triggers-pending", "triggers-awaited"] {
+            verify_pending_packages(
+                &m,
+                &format!("libc-bin|{state}|2.39-0ubuntu8|amd64"),
+                &baseline,
+            )
+            .unwrap();
+        }
+        for pending in [
+            "libc-bin|unpacked|2.39-0ubuntu8|amd64",
+            "libc-bin|half-configured|2.39-0ubuntu8|amd64",
+            "libc-bin|triggers-pending|2.39-0ubuntu9|amd64",
+            "libc-bin|triggers-pending|2.39-0ubuntu8|arm64",
+            "foreign|triggers-pending|2.39-0ubuntu8|amd64",
+        ] {
+            assert!(
+                verify_pending_packages(&m, pending, &baseline).is_err(),
+                "{pending}"
+            );
+        }
+        assert!(installed_baseline("libc-bin|triggers-pending|2.39-0ubuntu8|amd64").is_err());
+        assert!(
+            verify_pending_packages(&m, "libc-bin|triggers-pending|2.39-0ubuntu8|amd64", &[])
+                .is_err()
+        );
     }
     #[test]
     fn refuses_missing_or_truncated_footer() {

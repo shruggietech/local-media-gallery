@@ -295,6 +295,30 @@ fn retain(
     Ok(name)
 }
 const FRESH_FILE: &str = "fresh-install.json";
+const FRESH_BASELINE: &str = "fresh-baseline.json";
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct FreshBaseline {
+    authority: super::fresh::Authority,
+    installed: Vec<super::NativePackageIdentity>,
+}
+fn native_registrations() -> Result<String, String> {
+    let result = Command::new("/usr/bin/dpkg-query")
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .env("LC_ALL", "C")
+        .args([
+            "-W",
+            "--showformat=${Package}|${db:Status-Status}|${Version}|${Architecture}\n",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !result.status.success() {
+        return Err("Native package inventory unavailable".into());
+    }
+    String::from_utf8(result.stdout).map_err(|e| e.to_string())
+}
+
 fn registration() -> Result<Option<super::fresh::Registration>, String> {
     let result = Command::new("/usr/bin/dpkg-query")
         .args([
@@ -556,6 +580,22 @@ fn finish_fresh(
         execution.cleanup()?;
         return Ok(());
     }
+    // Record configured system identities before the first package mutation.
+    // dpkg may legitimately queue triggers in these packages during unpack.
+    let baseline_path = Path::new(STORE).join(FRESH_BASELINE);
+    let baseline: FreshBaseline = if a.phase == super::fresh::Phase::Prepared {
+        let baseline = FreshBaseline {
+            authority: fresh_binding(&c.generation)?,
+            installed: super::installed_baseline(&native_registrations()?)?,
+        };
+        write(&baseline_path, &baseline)?;
+        baseline
+    } else {
+        read(&baseline_path)?
+    };
+    if !baseline.authority.same_inputs(a) {
+        return Err("Fresh baseline does not match retained installation authority".into());
+    }
     let repair_dependencies = a.phase == super::fresh::Phase::Applying;
     a.phase = super::fresh::Phase::Applying;
     write(&Path::new(STORE).join(FRESH_FILE), a)?;
@@ -571,24 +611,9 @@ fn finish_fresh(
         // APT refuses a nonempty dpkg status-update journal before it can plan
         // --fix-broken. Only dpkg may replay that journal. Re-unpack this one
         // authenticated app archive, without triggers or configure-all, after
-        // proving all incomplete registrations belong to this exact closure.
-        let pending = Command::new("/usr/bin/dpkg-query")
-            .env_clear()
-            .env("PATH", "/usr/bin:/bin")
-            .env("LC_ALL", "C")
-            .args([
-                "-W",
-                "--showformat=${Package}|${db:Status-Status}|${Version}|${Architecture}\n",
-            ])
-            .output()
-            .map_err(|e| e.to_string())?;
-        if !pending.status.success() {
-            return Err("Native pending package inventory unavailable".into());
-        }
-        super::verify_pending_packages(
-            m,
-            &String::from_utf8(pending.stdout).map_err(|e| e.to_string())?,
-        )?;
+        // admitting only exact closure registrations or trigger-only states in
+        // the exact configured system identities retained before mutation.
+        super::verify_pending_packages(m, &native_registrations()?, &baseline.installed)?;
         let application = generation(&c.generation)?.join("application.deb");
         let status = Command::new("/usr/bin/dpkg")
             .env_clear()
@@ -603,6 +628,7 @@ fn finish_fresh(
             return Err("Authenticated interrupted application unpack did not complete".into());
         }
         c.verify(Path::new("/"))?;
+        super::verify_pending_packages(m, &native_registrations()?, &baseline.installed)?;
     }
     super::install_packages(file, m, true, repair_dependencies)?;
     c.verify(Path::new("/"))?;
