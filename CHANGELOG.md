@@ -70,6 +70,8 @@ Publication availability and its timestamp are established by the matching verif
 
 - 2026-11-03: Check current documentation publication authority and version without requiring the historical v0.1.0 introduction sentence, so post-publication site acceptance covers v0.2.0 wording while retaining its canonical authority check.
 
+- 2026-11-03: Bind guided recipient acceptance to canonical release metadata, direct or retained archive delivery, and exact acquired hashes instead of a historical launcher filename. Wait for enabled rendered native controls within the existing action budget before clicking them.
+
 ## [0.1.0]
 
 First public product version. Actual publication and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce package availability.

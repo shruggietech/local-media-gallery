@@ -53,3 +53,5 @@ Deliver actual publication and independently verified public assets first, then 
 ## 2026-11-03: Post-publication CI follow-up
 
 - [x] T012 Correct the demonstrated version-specific current-documentation assertion in scripts/test-site.mjs, preserve canonical authority/version/package checks, record the failure in verification.md and chronological CHANGELOG.md, and pass the complete local repository/docs/site suite. Final exact-head CI remains covered by T010. (FR-007, FR-009)
+
+- [ ] T013 Correct post-publication guided recipient assertions in scripts/test-preparation.mjs, bind actual payload bytes to canonical metadata, wait for enabled rendered controls in scripts/test-native.mjs within existing budgets, audit related native expectations and validate all affected checks. Record evidence in verification.md and PR closeout. (FR-004, FR-007)

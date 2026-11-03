@@ -46,13 +46,13 @@ async function until(probe, message, timeout = 10000) {
   while (Date.now() < end) { try { last = await probe(); if (last) return last; } catch (error) { last = error.message; } await pause(100); }
   throw new Error(`${message}: ${typeof last === 'string' ? last : 'condition not reached'}`);
 }
-async function request(route, body, method = body === undefined ? 'GET' : 'POST') {
-  const response = await fetch(origin + route, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+async function request(route, body, method = body === undefined ? 'GET' : 'POST', timeoutMs = 15000) {
+  const response = await fetch(origin + route, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
   const result = await response.json();
   if (!response.ok || result.value?.error) throw new Error(result.value?.message ?? `Native driver HTTP ${response.status}`);
   return result.value;
 }
-const js = (script, args = []) => request(`/session/${session}/execute/sync`, { script, args });
+const js = (script, args = [], timeoutMs = 15000) => request(`/session/${session}/execute/sync`, { script, args }, 'POST', timeoutMs);
 const snapshot = () => js('return await window.__TAURI_INTERNALS__.invoke("snapshot")');
 async function openSettled(directory) {
   const ack = await js('return await window.__TAURI_INTERNALS__.invoke("open_gallery",{path:arguments[0]})',[directory]);
@@ -61,7 +61,12 @@ async function openSettled(directory) {
 }
 const visible = script => until(() => js(`return Boolean(${script})`), script);
 async function click(text) {
-  await js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b)throw Error("Missing button "+arguments[0]); b.click(); return true;', [text]);
+  const deadline=Date.now()+10000;
+  await until(() => {
+    const remaining=deadline-Date.now();
+    if(remaining<=0)return false;
+    return js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b||b.disabled||b.getClientRects().length===0)return false; b.click(); return true;', [text], remaining);
+  }, 'Enabled rendered button '+text);
   // Let React commit the action and finish queued viewer focus restoration.
   await js('return await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
 }

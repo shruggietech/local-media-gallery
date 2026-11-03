@@ -62,3 +62,7 @@ No constitutional violations or new architecture. Separate worktree is required 
 ## 2026-11-03: Demonstrated test correction
 
 Post-publication website CI exposed a version-specific prose assertion in scripts/test-site.mjs. Replace only that brittle sentence match with the shared canonical publication authority term, preserving version/title and package identity checks. This is an acceptance-only correction; accepted published source/assets remain immutable. Record the CI failure and passing rerun in verification.md/PR closeout.
+
+## 2026-11-03: Canonical recipient acceptance
+
+The unchanged native retry passed the missing inheritance-control step and exposed a deterministic old launcher-name assertion in test-preparation.mjs. Derive the expected root name from the preview, then independently bind its version, candidate, artifact, bytes and hash to retained published release.json and acquired payload. Preserve historical archive compatibility and the intentionally 0.1.0 portable settings format. Native click readiness now uses the existing 10-second until budget and requires an enabled rendered control before one click; no action or qualification deadline is increased. Runtime/product bytes and frozen documentation remain unchanged.
