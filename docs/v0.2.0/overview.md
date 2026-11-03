@@ -35,13 +35,13 @@ An installed user invokes the application with a directory, or chooses one throu
 
 ### Prepare and share a gallery
 
-A sender can independently elect gallery-local presentation, portable thumbnails and verified published Lite recipient launchers through the guided preparation flow. Complete packages and gallery-root launch copies remain together when sharing the media directory. A recipient extracts it and opens the appropriate launcher on a supported host. Relative gallery relationships and fresh discovery replace dependence on the sender's machine-local history.
+A sender can independently elect gallery-local presentation, portable thumbnails and verified published Lite recipient launchers through the guided preparation flow. For single-file releases, the matching Lite executable is staged at the gallery root. Historical archive releases retain their complete packages and root launch copies. Share the media directory with the required application files, then open the matching executable on a supported host. Relative gallery relationships and fresh discovery replace dependence on the sender's machine-local history.
 
 **OV-04:** Moving a gallery MUST NOT require manual regeneration of the media listing. The recipient MUST NOT need the sender's username, absolute directory path or remembered-location database. Adding or removing media MUST be reflected by opening or explicitly refreshing the gallery without rerunning a generator. [Gallery lifecycle](gallery-lifecycle.md) owns the detailed behavior.
 
 ### Install for continued use
 
-The user chooses Full installation when they want persistent user-level integration and dependency provisioning. The platform installer checks for relevant existing installations and collisions. MSI is an allowed Windows format. Installation and subsequent removal follow the preservation requirements in [installation and distribution](installation-and-distribution.md).
+The user chooses Full installation when they want system integration and bundled dependency provisioning, with per-user preferences and history. The single platform installer checks relevant existing installations and collisions. Windows MSI payloads remain internal to the Full setup executable. Installation and subsequent removal follow the preservation requirements in [installation and distribution](installation-and-distribution.md).
 
 ## Browsing scope
 

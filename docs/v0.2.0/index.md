@@ -1,6 +1,6 @@
 # Local Media Gallery 0.2.0 documentation
 
-This v0.2.0 documentation describes unreleased product contracts. Published downloads and their exact identities remain selected by the verified canonical release record; v0.1.0 is the published product and v0.0.0 remains the specification baseline.
+This documentation describes v0.2.0 product contracts. Published downloads, their exact identities and latest documentation are selected by the verified canonical release record; v0.0.0 remains the specification baseline.
 
 Local Media Gallery presents local images and videos through a Rust/Tauri application with a statically exported Next.js interface. Full installation provides system integration and persistent user state. Lite provides lightweight, on-demand directory browsing and gallery sharing on supported hosts. The product targets Windows, Linux and macOS.
 
