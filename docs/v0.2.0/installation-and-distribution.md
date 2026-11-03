@@ -4,7 +4,7 @@
 
 **DI-01:** Every product artifact identifies edition, application version, OS, CPU architecture, format and host prerequisites. A release has exactly one Lite executable and one Full installer for each covered platform. Source, documentation and schemas share the application version; brand-kit and feature-helper versions are separate identities.
 
-This chapter describes unreleased v0.2.0 contracts. Only a verified canonical published release record establishes actual download availability. Published v0.1.0 archives and their identities remain unchanged; their versioned documentation describes their older installation workflow.
+This chapter describes v0.2.0 installation and distribution contracts. Only a verified canonical published release record establishes actual download availability. Published v0.1.0 archives and their identities remain unchanged; their versioned documentation describes their older installation workflow.
 
 ## Full installation and Lite operation
 
@@ -119,6 +119,6 @@ Release publication is a separately authorized manual workflow on main. It indep
 
 ## Prepared recipient packages
 
-Guided preparation resolves the current canonical published Lite matrix, which remains v0.1.0 until a newer release is published. Sender v0.2.0 does not relabel those downloaded bytes. Historical archives retain their complete older payload and root-launch-copy behavior. New single-file releases instead stage only the matching executable as application delivery, plus preparation/release receipts as gallery metadata. Those receipts are not launch dependencies; copying the executable alone into a fresh gallery remains supported.
+Guided preparation resolves the current canonical published Lite matrix and preserves the actual published version and artifact identities. Sender v0.2.0 does not relabel downloaded bytes. Historical archives retain their complete older payload and root-launch-copy behavior. New single-file releases instead stage only the matching executable as application delivery, plus preparation/release receipts as gallery metadata. Those receipts are not launch dependencies; copying the executable alone into a fresh gallery remains supported.
 
 See [guided preparation](gallery-lifecycle.md#guided-preparation-and-recipient-outputs) for collision, cancellation, exact-reuse and relocation behavior.

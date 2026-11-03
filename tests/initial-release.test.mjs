@@ -18,3 +18,10 @@ test('Frontend metadata and initial settings share the native elected product ve
 test('Preparation diagnostics use the elected version schema, with no baseline fallback',async t=>{
  const base=await mkdtemp(path.join(root,'.local/preparation-schema-'));t.after(()=>rm(base,{recursive:true,force:true}));const version='1.2.3';const schema=JSON.parse(await readFile(path.join(root,'schemas/v0.0.0/local-media-gallery.schema.json'),'utf8'));schema.$id='urn:local-media-gallery:'+version;schema['x-release-version']=version;schema.properties.version.const=version;const directory=path.join(base,'schemas/v'+version);await mkdir(directory,{recursive:true});schema.$defs.diagnosticReport={type:'object',additionalProperties:false,required:['version'],properties:{version:{const:version}}};await writeFile(path.join(directory,'local-media-gallery.schema.json'),JSON.stringify(schema));const {validReport}=await preparationValidators({base,version});assert.ok(validReport({version}));assert.equal(validReport({version:'0.0.0'}),false);await assert.rejects(preparationValidators({base,version:'1.2.4'}),/ENOENT/);
 });
+
+test('Every published 0.1.0 document, schema, captured reference and retained identity remains unchanged',async()=>{
+ const expected=JSON.parse(await readFile(new URL('./fixtures/releases/v010-inventory.json',import.meta.url),'utf8'));const actual=[];
+ for(const dir of ['docs/v0.1.0','schemas/v0.1.0','site/snapshots/v0.1.0','site/retained/v0.1.0.json'])actual.push(...await fileInventory(root,dir));
+ actual.sort((a,b)=>a.path.localeCompare(b.path,'en'));assert.deepEqual(actual,expected.files);
+ const manifest=JSON.parse(await readFile(path.join(root,'site/versions.json'),'utf8'));assert.deepEqual(manifest.snapshots.find(s=>s.version==='v0.1.0'),expected.snapshot);
+});

@@ -4,8 +4,24 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-### Development decisions (2026-11-02)
+## [0.2.0]
 
+Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.
+
+### Highlights
+
+- Guided gallery preparation previews and applies portable presentation, thumbnails and verified published Lite recipient launchers, with progress, cancellation and exact reuse.
+- Each covered platform has one direct Lite executable and one offline system Full installer, with embedded maintenance identity and notices. Full bundles redistributable runtimes and video-thumbnail support.
+- Release recovery and documentation gates retain exact accepted exports and read back large native evidence and corresponding-source assets.
+
+### Migration and compatibility
+
+- Full installs at system scope. Remove a legacy Windows per-user installation through its normal application-removal entry before installing the new system edition. Media and user settings remain retained.
+- Lite is delivered directly for the covered Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 Apple Silicon rows. Historical v0.1.0 archive bytes and their versioned maintenance instructions remain unchanged.
+
+### Release preparation decisions (2026-11-02)
+
+- Finalize the v0.2.0 release descriptions and current documentation review while preserving historical snapshots and canonical published selection. Qualification, publication and final public readback remain separate observations; accepted product bytes are reused without rebuilding.
 - Replace the new-version product archive contract with direct native Lite files and one offline system Full installer per covered platform. Preserve historical release identities. Embed native installation/update components and dependency provenance, retain normal platform ownership/privilege handling, and qualify actual downloaded files on isolated hosts. Build the Full thumbnail helper from pinned corresponding source and distinguish runtime source assets from product choices.
 
 ### Changed
@@ -14,10 +30,10 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Added
 
-- Single-file Lite executables and offline system Full installers are in development for the covered Windows, Linux and macOS rows, with embedded notices, runtime dependencies and bundled video-thumbnail support.
+- Single-file Lite executables and offline system Full installers for the covered Windows, Linux and macOS rows, with embedded notices, runtime dependencies and bundled video-thumbnail support.
 
 - Guided gallery preparation independently previews and applies portable presentation, thumbnails and verified published Lite recipient packages, with complete bundle retention, gallery-root launch copies, progress, cancellation, partial results and exact reuse.
-- Unreleased0.2.0 software, documentation and schema contracts retain every shipped0.1.0 snapshot. Prepared presentation remains readable by published0.1.0 recipients.
+- Version 0.2.0 software, documentation and schema contracts retain every shipped v0.1.0 snapshot. Prepared presentation remains readable by published v0.1.0 recipients.
 
 ### Fixed
 

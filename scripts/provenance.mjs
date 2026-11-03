@@ -7,6 +7,9 @@ import path from 'node:path';
 import { root } from './run.mjs';
 
 export const evidenceExclusions = [
+  'specs/026-v020-release-publication/tasks.md',
+  'specs/026-v020-release-publication/verification.md',
+  'specs/026-v020-release-publication/measurements.md',
   'specs/025-single-file-editions/tasks.md',
   'specs/025-single-file-editions/verification.md',
   'specs/025-single-file-editions/measurements.md',
