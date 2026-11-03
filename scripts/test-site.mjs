@@ -327,7 +327,7 @@ try {
     const entry = await page.locator('.source-content').innerText();
     if (publicModel.release) {
       assert.equal(currentVersion, 'v' + publicModel.release.version);
-      assert.ok(entry.includes('actual package availability and download identities come from the matching canonical release record'));
+      assert.match(entry, /\bcanonical release record\b/, 'Current documentation identifies canonical publication authority');
       assert.ok(entry.includes('Local Media Gallery ' + publicModel.release.version + ' documentation'));
     } else {
       assert.ok(entry.includes('live website at https://localmedia.gallery'));

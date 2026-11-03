@@ -68,6 +68,8 @@ Publication availability and its timestamp are established by the matching verif
 
 - 2026-11-03: Publish v0.2.0 from the reviewed main source and its retained qualification artifacts, preserving accepted native package and corresponding-source bytes. Retain the exact candidate/publication exports and verify canonical downloads and deployed documentation independently.
 
+- 2026-11-03: Check current documentation publication authority and version without requiring the historical v0.1.0 introduction sentence, so post-publication site acceptance covers v0.2.0 wording while retaining its canonical authority check.
+
 ## [0.1.0]
 
 First public product version. Actual publication and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce package availability.

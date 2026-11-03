@@ -58,3 +58,7 @@ Existing `scripts/release.mjs`, `scripts/release-publication.mjs`, `scripts/rele
 ## Complexity Tracking
 
 No constitutional violations or new architecture. Separate worktree is required to avoid contaminating baseline source identity with audit files.
+
+## 2026-11-03: Demonstrated test correction
+
+Post-publication website CI exposed a version-specific prose assertion in scripts/test-site.mjs. Replace only that brittle sentence match with the shared canonical publication authority term, preserving version/title and package identity checks. This is an acceptance-only correction; accepted published source/assets remain immutable. Record the CI failure and passing rerun in verification.md/PR closeout.

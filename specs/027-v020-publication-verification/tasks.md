@@ -49,3 +49,7 @@ T001 -> T002 -> T003/T004 -> T005 -> T006 -> T007 -> T009 -> T008/T010 -> T011. 
 ## Implementation strategy
 
 Deliver actual publication and independently verified public assets first, then one complete audit commit and PR. Later CI/review receipts belong in PR comments, avoiding a record-only commit that restarts all native builds. Necessary review fixes still require fresh exact-head checks. No new product tests are elected without a demonstrated code defect; existing mandatory checks remain required.
+
+## 2026-11-03: Post-publication CI follow-up
+
+- [x] T012 Correct the demonstrated version-specific current-documentation assertion in scripts/test-site.mjs, preserve canonical authority/version/package checks, record the failure in verification.md and chronological CHANGELOG.md, and pass the complete local repository/docs/site suite. Final exact-head CI remains covered by T010. (FR-007, FR-009)
