@@ -26,8 +26,8 @@
 
 **Independent test**: Current receipt freshness, all nine qualification scopes and original-archive/native/site independent readback.
 
-- [ ] T006 [US2] Commit complete source A, confirm no canonicalv0.2.0, and use existing scripts/release.mjs snapshot into a disposable destination to refresh only site/retained/v0.2.0.json with ordinary glossary review and separate capture provenance; retain source A and receipt B in specs/026-v020-release-publication/verification.md.
-- [ ] T007 [US2] Run npm run check, npm test, npm run check:docs and affected production build/check/test:site plus actual candidate/control-publication gates; compare historical inventories and UTF8/LF/mojibake integrity, recording results in specs/026-v020-release-publication/verification.md.
+- [x] T006 [US2] Commit complete source A, confirm no canonicalv0.2.0, and use existing scripts/release.mjs snapshot into a disposable destination to refresh only site/retained/v0.2.0.json with ordinary glossary review and separate capture provenance; retain source A and receipt B in specs/026-v020-release-publication/verification.md.
+- [x] T007 [US2] Run npm run check, npm test, npm run check:docs and affected production build/check/test:site plus actual candidate/control-publication gates; compare historical inventories and UTF8/LF/mojibake integrity, recording results in specs/026-v020-release-publication/verification.md.
 - [ ] T008 [US2] Obtain all nine applicable final-head CI successes and complete independent source/revision, original archive, six products/source, native lifecycle/offline and site/docs readback; record receipts and separate clocks in specs/026-v020-release-publication/{verification,measurements}.md.
 
 ## Phase 5: US3 reviewed owner handoff
