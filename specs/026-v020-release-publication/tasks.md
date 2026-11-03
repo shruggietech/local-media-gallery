@@ -28,7 +28,7 @@
 
 - [x] T006 [US2] Commit complete source A, confirm no canonicalv0.2.0, and use existing scripts/release.mjs snapshot into a disposable destination to refresh only site/retained/v0.2.0.json with ordinary glossary review and separate capture provenance; retain source A and receipt B in specs/026-v020-release-publication/verification.md.
 - [x] T007 [US2] Run npm run check, npm test, npm run check:docs and affected production build/check/test:site plus actual candidate/control-publication gates; compare historical inventories and UTF8/LF/mojibake integrity, recording results in specs/026-v020-release-publication/verification.md.
-- [ ] T008 [US2] Obtain all nine applicable final-head CI successes and complete independent source/revision, original archive, six products/source, native lifecycle/offline and site/docs readback; record receipts and separate clocks in specs/026-v020-release-publication/{verification,measurements}.md.
+- [x] T008 [US2] Obtain all nine applicable final-head CI successes and complete independent source/revision, original archive, six products/source, native lifecycle/offline and site/docs readback; record receipts and separate clocks in specs/026-v020-release-publication/{verification,measurements}.md.
 
 ## Phase 5: US3 reviewed owner handoff
 
@@ -37,8 +37,8 @@
 **Independent test**: PR head/checks, every actual review thread, project state and explicit unpublished/publication handoff inspection.
 
 - [x] T009 [US3] Complete specs/026-v020-release-publication/contracts/publication-handoff.md and quickstart.md with final-main run selection, version0.2.0, predecessor0.1.0, exact retained bytes and public/download/site verification requirements, without executing publication.
-- [ ] T010 [US3] Commit final prepared source, automatically push codex/s026-v020-release-publication and open official PR closing #83; keep project in PR review and bind final head/evidence in specs/026-v020-release-publication/verification.md.
-- [ ] T011 [US3] Handle all findings and replies/resolutions within at most two review rounds, repeat affected verification after necessary fixes, then ping owner for final review/merge and retain handoff in specs/026-v020-release-publication/verification.md.
+- [x] T010 [US3] Commit final prepared source, automatically push codex/s026-v020-release-publication and open official PR closing #83; keep project in PR review and bind final head/evidence in specs/026-v020-release-publication/verification.md.
+- [x] T011 [US3] Handle all findings and replies/resolutions within at most two review rounds, repeat affected verification after necessary fixes, then ping owner for final review/merge and retain handoff in specs/026-v020-release-publication/verification.md.
 
 ## Dependencies and execution order
 
