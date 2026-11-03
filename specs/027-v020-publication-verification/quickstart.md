@@ -1,0 +1,9 @@
+# S027 validation guide
+
+1. From the pristine baseline, inspect run 41595557848 and require all nine jobs successful. Retain original ZIPs with the ignored s027-prefetch-until-terminal.mjs helper; after it exits, run s027-readback.mjs with the run and approved head. Expect pass for source identity, all producer clocks, literal packages, assembly and documentation/static exports.
+2. Retain predecessor release.json/API asset identities and historical documentation source inventories before dispatch. Use direct headless gh workflow run release.yml --ref main with explicit inputs from [publication contract](contracts/publication.md). Expect successful release and deploy-pages jobs; preserve original execution artifacts.
+3. Run ignored s027-published-readback.mjs with execution run, qualification run and approved head. Expect exact candidate/publication gate replay, canonical/latest source identity, all anonymous asset hashes and short release notes.
+4. Run s027-live-readback.mjs. Expect complete live inventory equal to retained export, three version routes/scoped search, latest0.2.0 and six actual package links without browser page errors. Recheck predecessor identity.
+5. Run npm run check and npm test in the audit worktree through its hidden launcher, push/open the official audit PR and inspect isolated post-publication native acquisition receipts. Expect canonical v0.2.0 and successful retained-archive replay. Handle all comments within at most two rounds, close issue85/M3 after evidence succeeds, and hand off final exact head with green CI for owner merge.
+
+Use only hidden noninteractive local execution. Native installation/launch/input occurs on isolated hosted CI. [Data model](data-model.md) defines identity and recovery transitions; no commands here rebuild the published products.
