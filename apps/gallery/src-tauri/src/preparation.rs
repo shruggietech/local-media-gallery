@@ -326,11 +326,14 @@ pub fn finite(
         } else {
             installed_helper()?
         };
-        let service = Arc::new(PreparationService::new(
-            engine.clone(),
-            cache_root()?,
-            bundled,
-        ));
+        // Portable preparation owns only its elected gallery cache. It must not
+        // resolve an unrelated private profile, including on minimal recipients.
+        let cache = if request.preparation.portable {
+            path.join(gallery_core::cache::PORTABLE)
+        } else {
+            cache_root()?
+        };
+        let service = Arc::new(PreparationService::new(engine.clone(), cache, bundled));
         let signal_service = service.clone();
         let signal_engine = engine.clone();
         launch::attach_terminal();

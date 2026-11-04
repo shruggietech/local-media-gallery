@@ -39,3 +39,7 @@ The first Codex review identified a Unix FIFO blocking-open regression in privat
 The follow-up also precreates administrative MSI extraction logs through the protected private-file API so their ACL matches the staged ownership contract instead of inherited ordinary-file ACLs.
 
 Hosted macOS package units exposed /var temporary-parent aliases in the new shared fixture. The fixture now elects its canonical physical Unix temporary parent before constructing owned state. Production physical-path validation remains unchanged. The failed job and artifacts remain diagnostic.
+
+Hosted extracted Windows proof exposed a finite portable-preview dependency on unavailable roaming profile roots. A headless minimal-profile reproduction returned state_unavailable before the fix. Finite portable preparation now supplies only its elected gallery cache and does not resolve unrelated private roots. The existing extracted proof remains the regression, and failure diagnostics now include the actual JSON result.
+
+The corrected ordinary Windows executable returned exit0, status success and phase ready in the same minimal-profile reproduction. The private profile directory remained empty. The full application unit suite passed again after this fix.
