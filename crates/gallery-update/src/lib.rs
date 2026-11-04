@@ -893,9 +893,44 @@ struct Journal {
     next: Candidate,
     phase: String,
     target_prior: bool,
-    state: Vec<StateOperand>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    storage_root: Option<PathBuf>,
+    state: StateContext,
+}
+/// Preserve the immutable MSI envelope. Published guards treat state as opaque JSON.
+/// Legacy journals keep their array; an elected context seals operands and root together.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum StateContext {
+    Selected(SelectedState),
+    Legacy(Vec<StateOperand>),
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SelectedState {
+    operands: Vec<StateOperand>,
+    storage_root: PathBuf,
+}
+impl StateContext {
+    fn new(operands: Vec<StateOperand>, root: Option<PathBuf>) -> Self {
+        match root {
+            Some(storage_root) => Self::Selected(SelectedState {
+                operands,
+                storage_root,
+            }),
+            None => Self::Legacy(operands),
+        }
+    }
+    fn operands(&self) -> &[StateOperand] {
+        match self {
+            Self::Selected(state) => &state.operands,
+            Self::Legacy(operands) => operands,
+        }
+    }
+    fn storage_root(&self) -> Option<&Path> {
+        match self {
+            Self::Selected(state) => Some(&state.storage_root),
+            Self::Legacy(_) => None,
+        }
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1129,11 +1164,14 @@ fn worker_storage(root: &Path) -> Result<()> {
     Ok(())
 }
 fn identity_record(journal: &Journal) -> serde_json::Value {
-    let mut value = serde_json::json!({"formatVersion":1,"transaction":journal.transaction,"directory":journal.directory,"prior":journal.prior,"next":journal.next,"state":journal.state});
-    if let Some(root) = &journal.storage_root {
-        value["storageRoot"] = serde_json::json!(root);
+    #[cfg(windows)]
+    {
+        gallery_windows_package::recovery_identity(&serde_json::json!(journal))
     }
-    value
+    #[cfg(not(windows))]
+    {
+        serde_json::json!({"formatVersion":1,"transaction":journal.transaction,"directory":journal.directory,"prior":journal.prior,"next":journal.next,"state":journal.state})
+    }
 }
 
 impl Transaction {
@@ -1290,8 +1328,7 @@ impl Transaction {
             next: next.clone(),
             phase: "preparing".into(),
             target_prior: false,
-            state: state.to_vec(),
-            storage_root,
+            state: StateContext::new(state.to_vec(), storage_root),
         };
         let mut op = Self {
             base: base.to_path_buf(),
@@ -1481,7 +1518,7 @@ impl Transaction {
         let destination_locked = destination_lock(
             &journal.directory,
             machine_scope(&journal.prior),
-            journal.storage_root.as_deref(),
+            journal.state.storage_root(),
         )?;
         if journal.prior.edition != journal.next.edition
             || std::mem::discriminant(&journal.prior.native)
@@ -1618,7 +1655,7 @@ impl Transaction {
                 &self.journal.prior
             },
             &self.base.join(if prior { "next" } else { "prior" }),
-            &self.journal.state,
+            self.journal.state.operands(),
         )?;
         Self::active(&self.journal.directory, &self.journal.prior)?;
         Self::active(&self.journal.directory, &self.journal.next)?;
@@ -2056,6 +2093,19 @@ mod lease_tests {
 }
 
 #[cfg(test)]
+mod state_context_tests {
+    use super::*;
+    #[test]
+    fn legacy_state_arrays_keep_their_wire_shape_and_have_no_elected_root() {
+        let wire = serde_json::json!([{"kind":"settings","path":"profile/settings.json"}]);
+        let state: StateContext = serde_json::from_value(wire.clone()).unwrap();
+        assert!(state.storage_root().is_none());
+        assert_eq!(state.operands().len(), 1);
+        assert_eq!(serde_json::to_value(state).unwrap(), wire);
+    }
+}
+
+#[cfg(test)]
 mod version_contract_tests {
     #[test]
     fn numeric_versions_are_canonical() {
@@ -2096,6 +2146,39 @@ mod preparation_tests {
             native: Native::Direct,
             integration: None,
         }
+    }
+    #[cfg(windows)]
+    #[test]
+    fn selected_storage_uses_the_published_msi_identity_layout_and_tampering_has_no_effects() {
+        let fixture = crate::test_support::Fixture::new();
+        let live = fixture.path().join("live");
+        let source = fixture.path().join("next");
+        let prior = candidate(&live, "a", b"old");
+        let next = candidate(&source, "b", b"new");
+        let base = fixture.path().join("transaction");
+        let op = fixture
+            .prepare(&base, &live, &prior, &next, &source, &[])
+            .unwrap();
+        let mut journal = serde_json::to_value(&op.journal).unwrap();
+        assert_eq!(
+            op.identity(),
+            gallery_windows_package::recovery_identity(&journal),
+            "Published MSI recovery guards must accept the immutable record"
+        );
+        assert_eq!(
+            journal["state"]["storageRoot"],
+            serde_json::json!(fixture.storage())
+        );
+        drop(op);
+        let foreign = fixture.path().join("must-not-be-created");
+        journal["state"]["storageRoot"] = serde_json::json!(foreign);
+        fs::write(
+            base.join("journal.json"),
+            serde_json::to_vec(&journal).unwrap(),
+        )
+        .unwrap();
+        assert!(Transaction::open(&base).err().unwrap().contains("identity"));
+        assert!(!foreign.exists());
     }
     #[test]
     fn platform_admission_refusal_precedes_recovery_effects() {

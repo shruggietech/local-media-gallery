@@ -14,6 +14,11 @@ pub mod scratch;
 pub const INSTALLER_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/installer.bin"));
 pub const PAYLOAD: &str = include_str!(concat!(env!("OUT_DIR"), "/payload.json"));
 pub const SETUP: &str = include_str!(concat!(env!("OUT_DIR"), "/setup.json"));
+/// Immutable journal layout consumed by current and published MSI recovery guards.
+/// The state value is opaque to the installer and carries the selected updater context.
+pub fn recovery_identity(journal: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({"formatVersion":1,"transaction":journal["transaction"],"directory":journal["directory"],"prior":journal["prior"],"next":journal["next"],"state":journal["state"]})
+}
 pub fn hash(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }

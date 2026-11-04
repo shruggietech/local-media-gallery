@@ -142,7 +142,7 @@ pub fn entry(path: &Path) -> Result<i32> {
     let _lease = native_lease(
         &job.directory,
         machine_scope(&journal.prior),
-        journal.storage_root.as_deref(),
+        journal.state.storage_root(),
     )?;
     receipt(base, path, false, None, None)?;
     let selected = if job.target_prior {
@@ -160,7 +160,7 @@ pub fn entry(path: &Path) -> Result<i32> {
         &base.join(if job.target_prior { "prior" } else { "next" }),
         other,
         &base.join(if job.target_prior { "next" } else { "prior" }),
-        &journal.state,
+        journal.state.operands(),
     )?;
     Transaction::active(&job.directory, &journal.prior)?;
     Transaction::active(&job.directory, &journal.next)?;
@@ -459,7 +459,7 @@ pub(super) fn cleanup(op: &Transaction) -> Result<()> {
     let _lease = native_lease(
         &op.journal.directory,
         machine_scope(&op.journal.prior),
-        op.journal.storage_root.as_deref(),
+        op.journal.state.storage_root(),
     )?;
     let receipt: serde_json::Value =
         serde_json::from_slice(&read_bounded(&op.base.join("native-process.json"), 16384)?)
