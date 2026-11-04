@@ -31,3 +31,7 @@ The headless site build, static site check and browser site acceptance all passe
 ## Delivery boundaries
 
 Ordinary exact-byte desktop, offline installer, interruption, native registration and package rollback acceptance belongs to disposable hosted CI profiles. Local unit/headless checks do not establish those outcomes. The PR must retain terminal applicable final-revision CI evidence and address every review thread with no more than two review rounds. Push/PR creation is authorized; final merge and actual publication remain owner-controlled.
+
+## First review follow-up
+
+The first Codex review identified a Unix FIFO blocking-open regression in private file validation. The fix rejects known nonregular leaves before opening, uses Unix nonblocking admission to bound leaf-substitution races, and retains opened-handle type/link validation. A child-process regression bounds actual settings/history FIFO reads to three seconds and is elected by Unix CI. Windows local units do not execute that Unix case. The same follow-up aligns the Linux tooling-feature path assertion and removes two legacy public recovery sentences that contradicted automatic private reset. The unpublished v0.2.1 documentation receipt is refreshed against the corrected source; shipped snapshots remain unchanged.

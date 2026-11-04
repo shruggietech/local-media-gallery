@@ -20,7 +20,7 @@ Ordinary browsing uses bundled application assets and selected media resources. 
 
 Any future editing operation must define its target, conflict handling and recovery/undo behavior before it is enabled. This preserves the current limited-editing scope while allowing later approved features. Permission errors must be reported as access failures, not used to infer that a user's media is ineligible.
 
-Staged output and atomic/recoverable replacement should keep valid prior state available until a replacement is complete. Concurrent writers require coordination. Exact locking and migration techniques are open, but silently truncating a settings file during an interrupted save is incompatible with the state contract.
+Staged output and atomic/recoverable replacement should keep valid prior state available until a replacement is complete. Concurrent writers require coordination. Private settings/history use the locked recovery policy in [configuration and state](configuration-and-state.md#corruption-migration-and-concurrency). An interrupted save must not deliberately truncate an otherwise valid settings file.
 
 ## Dependencies and executable artifacts
 
@@ -36,7 +36,7 @@ Optional platform launchers and media tools are executable dependencies. Their v
 
 Recoverable operations need a defined result after process termination. Examples include leaving a valid previous settings file, identifying abandoned staging files, rediscovering a collection after cache loss and preserving completed thumbnails after cancellation. Recovery should not automatically repeat a write with unknown prior outcome as though it were idempotent.
 
-A disconnected external location must remain distinguishable from deletion. Incomplete discovery retains unconfirmed observations as stale; it cannot infer deletion. Root identity checks compare held and currently named native directory identities, while actual media reads remain capability-relative and verify the opened file signature. Descendant hidden/system/reparse filtering uses capability-relative metadata. Cancellation and newer requests are rechecked before committing observations or revoking item grants. Persistent-store corruption must not trigger an unannounced reset that destroys deliberate preferences. Where in-memory/default behavior is possible, the application should offer continued browsing while clearly identifying what cannot be saved.
+A disconnected external location must remain distinguishable from deletion. Incomplete discovery retains unconfirmed observations as stale; it cannot infer deletion. Root identity checks compare held and currently named native directory identities, while actual media reads remain capability-relative and verify the opened file signature. Descendant hidden/system/reparse filtering uses capability-relative metadata. Cancellation and newer requests are rechecked before committing observations or revoking item grants. Invalid private convenience state automatically resets to usable defaults under the documented writer lock. Portable gallery documents, originals and external sidecars remain outside that reset policy. Actual access and contention failures leave browsing usable where possible and identify the affected file/action.
 
 ## Diagnostics
 

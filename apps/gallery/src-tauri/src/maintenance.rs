@@ -164,7 +164,7 @@ mod tests {
             selected,
             crate::history::location(Some(local_data.join(identifier)))
         );
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", not(feature = "tooling-state")))]
         if let Some(path) = selected {
             assert!(
                 !path.starts_with(&local_data),
