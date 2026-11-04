@@ -4,6 +4,10 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Fixed
+
+- Native verification skips HTTP-client-restricted loopback ports with bounded OS allocation and listener cleanup, preserving process ownership and readiness deadlines.
+
 ## [0.2.0] - 2026-11-03
 
 Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.

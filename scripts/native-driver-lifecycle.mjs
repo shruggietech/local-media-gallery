@@ -3,7 +3,34 @@ import {createServer} from 'node:net';
 export function settingsControlsReady(records,expected){
  return records.some(r=>(expected===undefined?['Hide controls','Show controls'].includes(r.name):r.name===(expected.controlsExpanded?'Hide controls':'Show controls'))&&r.enabled===true&&r.showing!==false&&r.offscreen!==true);
 }
-export async function availableLoopbackPort(){const s=createServer();await new Promise((resolve,reject)=>{s.once('error',reject);s.listen(0,'127.0.0.1',resolve);});const port=s.address().port;await new Promise((resolve,reject)=>s.close(e=>e?reject(e):resolve()));return port;}
+// HTTP Fetch rejects these ports before networking, even if the OS can bind them.
+// https://fetch.spec.whatwg.org/#port-blocking
+// Pinned Node 24.11.0: deps/undici/src/lib/web/fetch/constants.js (badPorts).
+const restrictedHttpPorts=new Set([
+ 1,7,9,11,13,15,17,19,20,21,22,23,25,37,42,43,53,69,77,79,
+ 87,95,101,102,103,104,109,110,111,113,115,117,119,123,135,137,139,143,161,179,
+ 389,427,465,512,513,514,515,526,530,531,532,540,548,554,556,563,587,601,636,989,
+ 990,993,995,1719,1720,1723,2049,3659,4045,4190,5060,5061,6000,6566,
+ 6665,6666,6667,6668,6669,6679,6697,10080,
+]);
+const allocationAttemptLimit=32;
+export async function availableLoopbackPort({serverFactory=createServer,maxAttempts=allocationAttemptLimit}={}){
+ if(!Number.isInteger(maxAttempts)||maxAttempts<1||maxAttempts>allocationAttemptLimit)throw new RangeError('Loopback port attempt limit must be an integer from 1 to '+allocationAttemptLimit);
+ if(typeof serverFactory!=='function')throw new TypeError('Loopback port server factory must be a function');
+ for(let attempt=0;attempt<maxAttempts;attempt++){
+  const server=serverFactory();
+  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',()=>{server.off('error',reject);resolve();});});
+  let port;
+  try{
+   port=server.address()?.port;
+   if(!Number.isInteger(port)||port<1||port>65535)throw new Error('Invalid allocated loopback port');
+  }finally{
+   await new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()));
+  }
+  if(!restrictedHttpPorts.has(port))return port;
+ }
+ throw new Error('Loopback port allocation exhausted after '+maxAttempts+' attempts (HTTP-restricted candidates)');
+}
 export function observeChild(child){
  let stdout='',stderr='',failure=null;
  child.stdout?.on('data',b=>stdout=(stdout+b).slice(-16384));child.stderr?.on('data',b=>stderr=(stderr+b).slice(-16384));child.once('error',e=>failure=e);
