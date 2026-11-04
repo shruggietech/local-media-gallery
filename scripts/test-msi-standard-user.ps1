@@ -6,7 +6,7 @@
     the MSI into its recipient directory, installs and removes without elevation,
     and observes the real token, native registration, feature choices and product.
     Credentials stay in memory. All children use redirected noninteractive I/O
-    and CreateNoWindow. An incomplete native client retains its account/context.
+    and hidden startup windows. An incomplete native client retains its account/context.
 .PARAMETER MsiFile
     Absolute source-bound Full MSI.
 .PARAMETER Sha256
@@ -24,7 +24,7 @@ $created=$false;$incomplete=$false;$removedSuccessfully=$false;$recipient=Join-P
 function Invoke-StandardProcess {
     param([string]$Executable,[string[]]$Arguments)
     $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=$Executable;$start.WorkingDirectory=$recipient
-    $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardInput=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+    $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden;$start.RedirectStandardInput=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
     $start.UserName=$account;$start.Domain=$env:COMPUTERNAME;$start.Password=$password;$start.LoadUserProfile=$true
     foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
     $child=[Diagnostics.Process]::new();$child.StartInfo=$start
@@ -53,6 +53,8 @@ $ErrorActionPreference='Stop'
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 $principal=[Security.Principal.WindowsPrincipal]::new($identity)
 $key=Get-ItemProperty -LiteralPath 'HKCU:\Software\ShruggieTech\LocalMediaGallery' -ErrorAction SilentlyContinue
+$engine=New-Object -ComObject WindowsInstaller.Installer
+$nativeState=$engine.ProductState('{6EC08037-6FA8-4AF3-916B-40D03DE0DAF9}')
 $observed=$null
 if ($key -and $key.ProductCode) {
     $engine=New-Object -ComObject WindowsInstaller.Installer
@@ -61,14 +63,18 @@ if ($key -and $key.ProductCode) {
     $version=(& $binary --version --json | ConvertFrom-Json)
     if ($LASTEXITCODE -ne 0) { throw 'Installed executable identity failed' }
     $observed.identity=$version
+    $payload=Get-Content -LiteralPath (Join-Path $key.InstallDir 'payload.json') -Raw | ConvertFrom-Json
+    $observed.owned=@($payload.files.path)+@('payload.json')
 }
-@{sid=$identity.User.Value;administrator=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);localAppData=[Environment]::GetFolderPath('LocalApplicationData');registered=$observed}|ConvertTo-Json -Depth 12 -Compress
+@{sid=$identity.User.Value;administrator=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);localAppData=[Environment]::GetFolderPath('LocalApplicationData');programs=[Environment]::GetFolderPath('Programs');shortcutExists=(Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('Programs')) 'Local Media Gallery.lnk'));userPath=[Environment]::GetEnvironmentVariable('Path','User');nativeState=$nativeState;registered=$observed}|ConvertTo-Json -Depth 12 -Compress
 '@
     $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($observe))
     $observation=Invoke-StandardProcess -Executable (Join-Path $PSHOME 'pwsh.exe') -Arguments @('-NoProfile','-NonInteractive','-EncodedCommand',$encoded)
     if ($observation.exitCode -ne 0) { throw ('Standard-user observation failed: '+$observation.stderr) }
     $installed=ConvertFrom-Json $observation.stdout -AsHashtable
     if ($installed.administrator -or $installed.sid -ne $user.SID.Value) { throw 'Observation did not run as the disposable standard user' }
+    if ($installed.nativeState -ne 5) { throw 'Windows Installer did not register the standard-user product' }
+    if (!$installed.shortcutExists) { throw 'Standard-user Start menu shortcut is missing' }
     if (!$installed.registered -or $installed.registered.startMenu -ne 3 -or $installed.registered.commandPath -ne 2) { throw 'Standard-user installation did not retain fresh defaults' }
     if (![IO.Path]::GetFullPath($installed.registered.directory).StartsWith([IO.Path]::GetFullPath($installed.localAppData),[StringComparison]::OrdinalIgnoreCase)) { throw 'Standard-user default directory is outside its actual LocalAppData' }
     $removeLog=Join-Path $recipient 'remove.log'
@@ -77,7 +83,14 @@ if ($key -and $key.ProductCode) {
     $observation=Invoke-StandardProcess -Executable (Join-Path $PSHOME 'pwsh.exe') -Arguments @('-NoProfile','-NonInteractive','-EncodedCommand',$encoded)
     if ($observation.exitCode -ne 0) { throw 'Standard-user removal readback failed' }
     $removed=ConvertFrom-Json $observation.stdout -AsHashtable
-    if ($removed.registered) { throw 'Standard-user removal left registration' }
+    if ($removed.registered -or $removed.nativeState -ne -1) { throw 'Standard-user removal left native registration' }
+    foreach ($relative in $installed.registered.owned) { if (Test-Path -LiteralPath (Join-Path $installed.registered.directory $relative)) { throw ('Standard-user removal left owned file '+$relative) } }
+    if ($removed.shortcutExists) { throw 'Standard-user removal left its shortcut' }
+    foreach ($observation in @($installed,$removed)) {
+        foreach ($segment in @($observation.userPath -split ';')) {
+            if ($segment -and [string]::Equals([Environment]::ExpandEnvironmentVariables($segment).TrimEnd('\'),$installed.registered.directory.TrimEnd('\'),[StringComparison]::OrdinalIgnoreCase)) { throw 'Default-off PATH integration created or retained its application segment' }
+        }
+    }
     $removedSuccessfully=$true
     @{result='pass';kind='disposable-standard-user';sid=$user.SID.Value;installed=$installed;removed=$removed;installExit=$install.exitCode;removeExit=$remove.exitCode;recipientInput=@('Full.msi');sha256=$Sha256;logs=@((Join-Path $EvidenceDirectory 'install.log'),(Join-Path $EvidenceDirectory 'remove.log'))}|ConvertTo-Json -Depth 16 -Compress
 } finally {

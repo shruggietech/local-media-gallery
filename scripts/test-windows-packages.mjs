@@ -63,7 +63,7 @@ async function msiProduct(file,scope,destination,{remove=false,startMenu=true,co
  assert.ok(observed.registered);const directory=observed.registered.location;const runtimeAfter=await installedRuntime(scope);
  return{result:'pass',operation:'install',scope,exitCode,log:path.relative(root,log),priorPackage:before.registered?.package??null,package:observed.registered.package.toUpperCase(),nativeDirectory:{encoding:'windows-utf16le',bytes:[...Buffer.from(directory.replace(/[\\/]$/,''),'utf16le')]},runtimeAfter};
 }
-async function setup(scope,destination,flags=[]){return msiProduct(path.join(full,'local-media-gallery-'+scope+'.msi'),scope,destination,{remove:flags.includes('--remove')});}
+async function setup(scope,destination,flags=[]){return msiProduct(path.join(full,build.bundle.packages.find(p=>p.scope===scope).path),scope,destination,{remove:flags.includes('--remove')});}
 const wizardEvidence=[];
 async function wizardInstall(file,{scope='machine',destination,startMenu=true,commandPath=true,cancelAt=null}={}){
  const log=path.join(work,'wizard-'+(++msiSequence)+'.log');const child=spawn(systemMsi,['/i',file,'/norestart','/L*v',log],{cwd:outside,env:environment,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});live.add(child);let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.once('error',e=>output+=e.message);

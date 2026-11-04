@@ -19,7 +19,7 @@ import {root,node,execute,python,environment,exportInterface} from './run.mjs';
 import {writeUpdateDescriptor} from './update-packages.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {collectPayload} from './proof.mjs';
-import {digest,validatePayload,verifyPayload,packageGuid,productCodes,dualProductCode,upgradeCodes,xml,validateNativeAudit,authorInstaller} from './windows-packages.mjs';
+import {digest,validatePayload,verifyPayload,productCodes,dualProductCode,validateNativeAudit,authorInstaller} from './windows-packages.mjs';
 assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');
 const call=promisify(execFile);
 const capture=async(file,args,options={})=>{const p=call(file,args,{cwd:root,env:environment,windowsHide:true,shell:false,timeout:180000,maxBuffer:16*1024*1024,...options});p.child.stdin.end();return p;};
@@ -75,23 +75,23 @@ const full=payloads.full;const payloadFile=path.join(full.directory,'payload.jso
 await support(['build','--locked','--release','-p','gallery-windows-package','--lib'],{LMG_PACKAGE_PAYLOAD:payloadFile,LMG_RUNTIME_INPUT:vendor,LMG_RUNTIME_SHA256:inputs.bootstrapper.sha256});
 const helper=path.join(directory,'ownership.dll');await copyFile(path.join(root,'target/x86_64-pc-windows-msvc/release/gallery_windows_package.dll'),helper);const helperAudit=await inspect(helper);validateNativeAudit(helperAudit);
 const bundle=path.join(directory,'full-bundle');await mkdir(bundle);await copyFile(path.join(full.directory,'PREREQUISITES.txt'),path.join(bundle,'PREREQUISITES.txt'));
-const msiRecords=[];const template=await readFile(path.join(root,'packaging/windows/installer.wxs'),'utf8');
-for(const scope of ['user','machine']){
- const machine=scope==='machine',files=await collectPayload(full.directory);const out=path.join(bundle,'local-media-gallery-'+scope+'.msi');const {wxs,code}=authorInstaller({scope,files,payloadDirectory:full.directory,helper,payloadSha,template});
- const sourceFile=path.join(directory,scope+'.wxs');await writeFile(sourceFile,wxs);const object=path.join(directory,scope+'.wixobj');await execute(path.join(wix,'candle.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-arch','x64','-out',object,sourceFile]);
- // ICE38: explicit file keypaths receive native ownership checks. ICE64: the
- // shared user Programs parent is retained. ICE43/57 cannot resolve the dual
- // HKMU + context-mapped ProgramMenuFolder relationship statically. Hosted
- // scope/integration readback verifies both contexts. Machine-only deferred
- // actions and Environment components are conditioned on resolved ALLUSERS.
- await execute(path.join(wix,'light.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-sice:ICE38','-sice:ICE64','-sice:ICE43','-sice:ICE57','-pdbout',path.join(directory,scope+'.wixpdb'),'-out',out,object]);
- if(machine)await copyFile(path.join(bundle,'local-media-gallery-user.msi'),out);
- const actual=await inspect(out);assert.equal(actual.productCode,dualProductCode);assert.equal(actual.packageCode.toUpperCase(),code);assert.equal(actual.version,version);assert.match(actual.template,/^x64;/);assert.equal(actual.allUsers??null,'2');const bytes=await readFile(out);msiRecords.push({actual,scope,productCode:dualProductCode,packageCode:code,path:path.basename(out),bytes:String(bytes.length),sha256:digest(bytes)});
- const setupMsi=msiRecords.at(-1);const setupDescriptor=await writeUpdateDescriptor(path.join(bundle,scope+'.msi.update.json'),full.manifest,await collectPayload(full.directory),{kind:'windows-msi',scope,productCode:dualProductCode,packageCode:setupMsi.packageCode,installer:{path:setupMsi.path,bytes:setupMsi.bytes,sha256:setupMsi.sha256}});
-
+const template=await readFile(path.join(root,'packaging/windows/installer.wxs'),'utf8');
+async function buildMsi(name,payloadDirectory,ownership,payloadSha,output){
+ const files=await collectPayload(payloadDirectory);const {wxs,code}=authorInstaller({files,payloadDirectory,helper:ownership,payloadSha,template});
+ const sourceFile=path.join(directory,name+'.wxs'),object=path.join(directory,name+'.wixobj');await writeFile(sourceFile,wxs);await execute(path.join(wix,'candle.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-arch','x64','-out',object,sourceFile]);
+ // Static ICE38/43/57/64 cannot resolve the context-dependent HKMU and
+ // ProgramMenuFolder relationship. Actual scoped ownership/integration is
+ // independently read back in both hosted campaigns. Deferred machine work
+ // and Environment components are conditioned on resolved ALLUSERS.
+ await execute(path.join(wix,'light.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-sice:ICE38','-sice:ICE43','-sice:ICE57','-sice:ICE64','-pdbout',path.join(directory,name+'.wixpdb'),'-out',output,object]);
+ const actual=await inspect(output);assert.equal(actual.productCode,dualProductCode);assert.equal(actual.packageCode.toUpperCase(),code);assert.equal(actual.version,version);assert.match(actual.template,/^x64;/);assert.equal(actual.allUsers,'2');const bytes=await readFile(output);
+ return{actual,productCode:dualProductCode,packageCode:code,path:path.basename(output),bytes:String(bytes.length),sha256:digest(bytes)};
 }
+const physicalMsi=await buildMsi('application',full.directory,helper,payloadSha,path.join(bundle,'application.msi'));
+const msiRecords=['user','machine'].map(scope=>({...physicalMsi,scope}));
+for(const row of msiRecords)await writeUpdateDescriptor(path.join(bundle,row.scope+'.msi.update.json'),full.manifest,await collectPayload(full.directory),{kind:'windows-msi',scope:row.scope,productCode:row.productCode,packageCode:row.packageCode,installer:{path:row.path,bytes:row.bytes,sha256:row.sha256}});
 const manifest={kind:'windows-full-bundle',formatVersion:1,version,publication:'candidate',source,revision,targetTriple:'x86_64-pc-windows-msvc',buildProfile:'release',payload:full.manifest,packages:msiRecords,bootstrapper:{...inputs.bootstrapper,audit:vendorAudit},helper:helperAudit,entrypoints:[]};
-manifest.entrypoints.push({path:'local-media-gallery-user.msi',sha256:msiRecords[0].sha256,audit:msiRecords[0].actual});
+manifest.entrypoints.push({path:'application.msi',sha256:msiRecords[0].sha256,audit:msiRecords[0].actual});
 await writeFile(path.join(bundle,'bundle.json'),JSON.stringify(manifest,null,2)+'\n');
 const upgrades={formatVersion:1,helper:path.relative(root,updater),pairs:[]};
 await copyFile(updater,path.join(bundle,'lmg-update.exe'));
@@ -99,18 +99,18 @@ const replacementDirectory=path.join(directory,'replacement-full-payload');await
 const replacementPayload={...full.manifest,generation:randomBytes(16).toString('hex')};const replacementPayloadFile=path.join(replacementDirectory,'payload.json');await writeFile(replacementPayloadFile,JSON.stringify(replacementPayload,null,2)+'\n');
 await support(['build','--locked','--release','-p','gallery-windows-package','--lib'],{LMG_PACKAGE_PAYLOAD:replacementPayloadFile,LMG_RUNTIME_INPUT:vendor,LMG_RUNTIME_SHA256:inputs.bootstrapper.sha256});
 const replacementHelper=path.join(directory,'replacement-ownership.dll');await copyFile(path.join(root,'target/x86_64-pc-windows-msvc/release/gallery_windows_package.dll'),replacementHelper);
+const replacementSetup=path.join(directory,'replacement-full.msi');
+const replacementMsi=await buildMsi('replacement',replacementDirectory,replacementHelper,digest(await readFile(replacementPayloadFile)),replacementSetup);
 for(const scope of ['user','machine']){
- const msi=path.join(directory,'replacement-'+scope+'.msi'),payloadSha=digest(await readFile(replacementPayloadFile));const files=await collectPayload(replacementDirectory);const {wxs,code}=authorInstaller({scope,files,payloadDirectory:replacementDirectory,helper:replacementHelper,payloadSha,template});const sourceFile=path.join(directory,'replacement-'+scope+'.wxs'),object=path.join(directory,'replacement-'+scope+'.wixobj');await writeFile(sourceFile,wxs);await execute(path.join(wix,'candle.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-arch','x64','-out',object,sourceFile]);await execute(path.join(wix,'light.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-sice:ICE38','-sice:ICE64','-sice:ICE43','-sice:ICE57','-out',msi,object]);if(scope==='machine')await copyFile(path.join(directory,'replacement-user.msi'),msi);const observed=await inspect(msi);assert.equal(observed.packageCode.toUpperCase(),code);const bytes=await readFile(msi);const old=msiRecords.find(r=>r.scope===scope);
- const native=(artifact,packageCode)=>({kind:'windows-msi',scope,productCode:dualProductCode,packageCode,installer:artifact});
+ const old=msiRecords.find(r=>r.scope===scope);const native=(artifact,packageCode)=>({kind:'windows-msi',scope,productCode:dualProductCode,packageCode,installer:artifact});
  const from=await writeUpdateDescriptor(path.join(bundle,scope+'.msi.update.json'),full.manifest,await collectPayload(full.directory),native({path:old.path,bytes:old.bytes,sha256:old.sha256},old.packageCode));
- const to=await writeUpdateDescriptor(path.join(directory,'replacement-'+scope+'.msi.update.json'),replacementPayload,files,native({path:path.basename(msi),bytes:String(bytes.length),sha256:digest(bytes)},code));
+ const to=await writeUpdateDescriptor(path.join(directory,'replacement-'+scope+'.msi.update.json'),replacementPayload,await collectPayload(replacementDirectory),native({path:replacementMsi.path,bytes:replacementMsi.bytes,sha256:replacementMsi.sha256},replacementMsi.packageCode));
  upgrades.pairs.push({edition:'full',scope,from:{...from,path:path.relative(root,from.path)},to:{...to,path:path.relative(root,to.path)},source:path.relative(root,replacementDirectory),priorSource:path.relative(root,full.directory),applicationSha256:full.manifest.files.find(f=>f.path===full.manifest.binary).sha256});
 }
 
 // The ordinary replacement is the same self-contained MSI used by both concrete scopes.
 const nextPair=upgrades.pairs.find(p=>p.edition==='full'&&p.scope==='machine');
-const nextMsi=path.resolve(root,path.dirname(nextPair.to.path),nextPair.to.descriptor.native.installer.path);
-const replacementSetup=path.join(directory,'replacement-full.msi');await copyFile(nextMsi,replacementSetup);
+
 
 const priorLite=payloads.lite;const replacementLite=path.join(directory,'replacement-lite');await cp(priorLite.directory,replacementLite,{recursive:true});const nextLitePayload={...priorLite.manifest,generation:randomBytes(16).toString('hex')};await writeFile(path.join(replacementLite,'payload.json'),JSON.stringify(nextLitePayload,null,2)+'\n');const nextLiteFiles=(await collectPayload(replacementLite)).filter(f=>f.path!=='update.json');const toLite=await writeUpdateDescriptor(path.join(replacementLite,'update.json'),nextLitePayload,nextLiteFiles);const fromLiteFile=path.join(priorLite.directory,'update.json'),fromLiteBytes=await readFile(fromLiteFile);upgrades.pairs.push({edition:'lite',from:{path:path.relative(root,fromLiteFile),sha256:digest(fromLiteBytes),bytes:String(fromLiteBytes.length),descriptor:JSON.parse(fromLiteBytes)},to:{...toLite,path:path.relative(root,toLite.path)},source:path.relative(root,replacementLite),priorSource:path.relative(root,priorLite.directory),applicationSha256:priorLite.manifest.files.find(f=>f.path===priorLite.manifest.binary).sha256});
 
@@ -120,5 +120,5 @@ const liteOutput=path.join(directory,'local-media-gallery-'+version+'-lite-x86_6
 const liteArtifact=await writeLiteArtifact({binary:binaries.lite,output:liteOutput,metadata:{version,edition:'lite',os:'windows',arch:'x86_64',generation,source,revision},noticesDirectory:path.join(root,assembly.records.find(r=>r.edition==='lite').payloadDirectory,'licenses/dependencies')});await readSingleFile(liteOutput);
 records.find(r=>r.edition==='lite').artifact=liteArtifact;products.push({edition:'lite',artifact:liteArtifact});
 const replacementLiteArtifact=await writeLiteArtifact({binary:binaries.lite,output:path.join(directory,'replacement-lite.exe'),metadata:{version,edition:'lite',os:'windows',arch:'x86_64',generation:nextLitePayload.generation,source,revision},noticesDirectory:path.join(root,assembly.records.find(r=>r.edition==='lite').payloadDirectory,'licenses/dependencies')});
-const fullOutput=path.join(directory,'local-media-gallery-'+version+'-full-x86_64-windows.msi');await copyFile(path.join(bundle,'local-media-gallery-user.msi'),fullOutput);const fullBytes=await readFile(fullOutput);const fullFile={path:path.basename(fullOutput),bytes:String(fullBytes.length),sha256:digest(fullBytes),mode:'755'};const fullArtifact={path:path.relative(root,fullOutput).replaceAll('\\','/'),bytes:fullFile.bytes,sha256:fullFile.sha256,format:'msi',binary:fullFile.path,files:[fullFile]};records.find(r=>r.edition==='full').artifact=fullArtifact;products.push({edition:'full',artifact:fullArtifact});
+const fullOutput=path.join(directory,'local-media-gallery-'+version+'-full-x86_64-windows.msi');await copyFile(path.join(bundle,'application.msi'),fullOutput);const fullBytes=await readFile(fullOutput);const fullFile={path:path.basename(fullOutput),bytes:String(fullBytes.length),sha256:digest(fullBytes),mode:'755'};const fullArtifact={path:path.relative(root,fullOutput).replaceAll('\\','/'),bytes:fullFile.bytes,sha256:fullFile.sha256,format:'msi',binary:fullFile.path,files:[fullFile]};records.find(r=>r.edition==='full').artifact=fullArtifact;products.push({edition:'full',artifact:fullArtifact});
 assert.deepEqual(await sourceIdentity(),source);const receipt={generation,formatVersion:1,source,revision,products,featureHelper,featureHelperAudit,publishedPredecessor,publishedPredecessors,ordinaryMaintenance:{replacementLiteArtifact,replacementSetup:path.relative(root,replacementSetup).replaceAll('\\','/'),priorPackageCode:nextPair.from.descriptor.native.packageCode,nextPackageCode:nextPair.to.descriptor.native.packageCode},helperBuild:{targetTriple:'x86_64-pc-windows-msvc',crt:'static',dllSearch:'System32 dependent imports'},upgrades,directory:path.relative(root,directory).replaceAll('\\','/'),inputs,bundle:manifest,records};await writeFile(path.join(root,'.local/windows-package-build.json'),JSON.stringify(receipt,null,2)+'\n');console.log('Built exact release Full/Lite candidate archives.');
