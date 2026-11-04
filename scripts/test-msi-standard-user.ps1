@@ -83,8 +83,11 @@ if ($key -and $key.ProductCode) {
 }
 @{sid=$identity.User.Value;administrator=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);localAppData=[Environment]::GetFolderPath('LocalApplicationData');programs=[Environment]::GetFolderPath('Programs');shortcutExists=(Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('Programs')) 'Local Media Gallery.lnk'));userPath=[Environment]::GetEnvironmentVariable('Path','User');nativeState=$nativeState;registered=$observed}|ConvertTo-Json -Depth 12 -Compress
 '@
-    $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($observe))
-    $observation=Invoke-StandardProcess -Executable (Join-Path $PSHOME 'pwsh.exe') -Arguments @('-NoProfile','-NonInteractive','-EncodedCommand',$encoded)
+    # The credentialed CreateProcessWithLogonW path has a 1024-character command
+    # line limit. Keep observation code in a fixture file, after the one-MSI install.
+    $observeFile=Join-Path $recipient 'observe.ps1'
+    [IO.File]::WriteAllText($observeFile,$observe,[Text.UTF8Encoding]::new($false))
+    $observation=Invoke-StandardProcess -Executable (Join-Path $PSHOME 'pwsh.exe') -Arguments @('-NoProfile','-NonInteractive','-File',$observeFile)
     if ($observation.exitCode -ne 0) { throw ('Standard-user observation failed: '+$observation.stderr) }
     $installed=ConvertFrom-Json $observation.stdout -AsHashtable
     if ($installed.administrator -or $installed.sid -ne $user.SID.Value) { throw 'Observation did not run as the disposable standard user' }
@@ -95,7 +98,7 @@ if ($key -and $key.ProductCode) {
     $removeLog=Join-Path $recipient 'remove.log'
     $remove=Invoke-StandardProcess -Executable (Join-Path $env:SystemRoot 'System32\msiexec.exe') -Arguments @('/x',$copy,'/qn','/norestart','/L*v',$removeLog,'ALLUSERS=2','MSIINSTALLPERUSER=1')
     if ($remove.exitCode -notin @(0,3010)) { throw ('Standard-user removal failed: '+$remove.exitCode+'; log '+$removeLog) }
-    $observation=Invoke-StandardProcess -Executable (Join-Path $PSHOME 'pwsh.exe') -Arguments @('-NoProfile','-NonInteractive','-EncodedCommand',$encoded)
+    $observation=Invoke-StandardProcess -Executable (Join-Path $PSHOME 'pwsh.exe') -Arguments @('-NoProfile','-NonInteractive','-File',$observeFile)
     if ($observation.exitCode -ne 0) { throw 'Standard-user removal readback failed' }
     $removed=ConvertFrom-Json $observation.stdout -AsHashtable
     if ($removed.registered -or $removed.nativeState -ne -1) { throw 'Standard-user removal left native registration' }
