@@ -147,6 +147,10 @@ fn verified_retention(
                 .ok_or("Non-Unicode retained member")?
                 .replace('\\', "/")
                 .to_lowercase();
+            if relative == ".stage-owner.json" {
+                crate::scratch::validate_published_marker(root, expected, machine)?;
+                continue;
+            }
             let kind = child.file_type().map_err(|e| e.to_string())?;
             if kind.is_dir() {
                 if !expected
@@ -610,6 +614,50 @@ mod tests {
             std::fs::read(retained.directory.join("source/input.bin")).unwrap(),
             b"complete retained input!"
         );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn published_payload_is_readable_during_marker_handoff_and_rejects_foreign_markers() {
+        use std::io::Write;
+        let (_temp, root) = retention_fixture();
+        let final_path = root.join("package");
+        let record = retained_test_record();
+        let entries = retained_test_entries(&record);
+        let mut marker_reader = None;
+        let retained = retain_complete_with(
+            &final_path,
+            false,
+            &entries,
+            |file, bytes| file.write_all(bytes),
+            |stage, directory| {
+                publish_directory(stage, directory)?;
+                let marker = directory.join(".stage-owner.json");
+                let original = std::fs::read(&marker).unwrap();
+                let owner: serde_json::Value = serde_json::from_slice(&original).unwrap();
+                for (key, value) in [
+                    ("purpose", serde_json::json!("foreign")),
+                    ("files", serde_json::json!(["unexpected.bin"])),
+                    ("path", serde_json::json!(root.join("foreign"))),
+                    ("trees", serde_json::json!(["source"])),
+                ] {
+                    let mut foreign = owner.clone();
+                    foreign[key] = value;
+                    let bytes = serde_json::to_vec(&foreign).unwrap();
+                    std::fs::write(&marker, &bytes).unwrap();
+                    assert!(verified_retention(directory, false, &entries).is_err());
+                    assert_eq!(std::fs::read(&marker).unwrap(), bytes);
+                }
+                std::fs::write(&marker, &original).unwrap();
+                drop(verified_retention(directory, false, &entries)?);
+                assert_eq!(std::fs::read(&marker).unwrap(), original);
+                marker_reader = Some(crate::private::read_file(&marker, false)?);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert!(!retained.directory.join(".stage-owner.json").exists());
+        drop(verified_retention(&final_path, false, &entries).unwrap());
+        drop(marker_reader);
     }
     #[cfg(windows)]
     #[test]

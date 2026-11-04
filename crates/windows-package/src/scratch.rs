@@ -57,6 +57,57 @@ fn owned(path: &Path, purpose: &str, machine: bool) -> Result<Owner, String> {
     inspect(path, path, &owner, machine, false)?;
     Ok(owner)
 }
+/// A complete directory can become visible before its publisher removes the
+/// staging marker. Only that exact owned manifest is permitted as metadata;
+/// payload completeness and hashes are still checked by the retention reader.
+pub(crate) fn validate_published_marker(
+    directory: &Path,
+    expected: &BTreeSet<String>,
+    machine: bool,
+) -> Result<(), String> {
+    let marker = directory.join(MARKER);
+    let file = match crate::private::read_file(&marker, machine) {
+        Ok(file) => file,
+        Err(error) => {
+            if fs::symlink_metadata(&marker)
+                .is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound)
+            {
+                return Ok(());
+            }
+            return Err(error);
+        }
+    };
+    let mut bytes = Vec::new();
+    file.take(1024 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    if bytes.len() > 1024 * 1024 {
+        return Err("Oversized published staging marker".into());
+    }
+    let owner: Owner = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    let stage_name = owner
+        .path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .and_then(|s| s.strip_prefix(".lmg-retaining-"));
+    if owner.format != 1
+        || owner.purpose != "embedded"
+        || owner.path.parent() != directory.parent()
+        || !stage_name.is_some_and(|s| s.len() == 32 && s.bytes().all(|c| c.is_ascii_hexdigit()))
+        || !owner.trees.is_empty()
+        || owner.files.len() != expected.len()
+        || owner.files.iter().any(|s| !crate::portable(s))
+        || owner
+            .files
+            .iter()
+            .map(|s| s.to_lowercase())
+            .collect::<BTreeSet<_>>()
+            != *expected
+    {
+        return Err("Foreign published staging marker".into());
+    }
+    Ok(())
+}
 fn inspect(
     root: &Path,
     at: &Path,

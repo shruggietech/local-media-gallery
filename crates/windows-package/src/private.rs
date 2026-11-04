@@ -219,11 +219,14 @@ fn descriptor(machine: bool, directory: bool) -> Result<Memory> {
     Ok(Memory(sd))
 }
 fn open(path: &Path, directory: bool) -> Result<File> {
+    open_handle(path, directory, 0x20000 | 0x80, 3)
+}
+fn open_handle(path: &Path, directory: bool, access: u32, share: u32) -> Result<File> {
     let h = unsafe {
         CreateFileW(
             wide(path).as_ptr(),
-            0x20000 | 0x80,
-            3,
+            access,
+            share,
             ptr::null(),
             3,
             0x00200000 | if directory { 0x02000000 } else { 0 },
@@ -250,6 +253,12 @@ fn open(path: &Path, directory: bool) -> Result<File> {
             return Err("Multiply linked updater authority".into());
         }
     }
+    Ok(file)
+}
+/// Read validated private metadata while allowing its publisher to remove it.
+pub(crate) fn read_file(path: &Path, machine: bool) -> Result<File> {
+    let file = open_handle(path, false, 0x80000000 | 0x20000 | 0x80, 7)?;
+    security(&file, machine, true, false)?;
     Ok(file)
 }
 /// Inspect ordinary single-link physical input without imposing a private ACL.
