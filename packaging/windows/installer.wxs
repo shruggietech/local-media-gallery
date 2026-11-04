@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
  <Product Id="@PRODUCT@" Name="Local Media Gallery" Language="1033" Version="@VERSION@" Manufacturer="ShruggieTech" UpgradeCode="@UPGRADE@">
-  <Package Id="@PACKAGE@" InstallerVersion="500" Compressed="yes" InstallPrivileges="limited" Platform="x64" Description="Local Media Gallery offline Full installer" />
+  <Package Id="@PACKAGE@" InstallerVersion="500" Compressed="yes" InstallPrivileges="elevated" Platform="x64" Description="Local Media Gallery offline Full installer" />
   <MediaTemplate EmbedCab="yes" />
   <Property Id="ALLUSERS" Value="2" Secure="yes" />
   <Property Id="MSIINSTALLPERUSER" Value="1" Secure="yes" />

@@ -154,11 +154,19 @@ fn save_result(machine: bool, code: u32) -> Result<(), String> {
     Ok(())
 }
 fn run_vendor(file: &Path, h: u32, log: &mut fs::File) -> Result<(u32, bool), String> {
-    let child = crate::effective_process::spawn(
+    let child = match crate::effective_process::spawn(
         file,
         &[OsString::from("/silent"), OsString::from("/install")],
         false,
-    )?;
+    ) {
+        Ok(child) => child,
+        Err(error) => {
+            // Creation failed before any vendor work existed. This is terminal,
+            // unlike a launched process whose eventual outcome is unknown.
+            receipt(log, None, true, None)?;
+            return Err(format!("Microsoft WebView2 could not be started: {error}"));
+        }
+    };
     receipt(log, Some(child.id()), false, None)?;
     let mut cancelled = false;
     let started = Instant::now();
@@ -329,6 +337,48 @@ pub extern "system" fn RuntimeResult(h: u32) -> u32 {
 
 #[cfg(test)]
 mod token_tests {
+    use super::*;
+    #[test]
+    fn confirmed_runtime_launch_failure_is_terminal_and_allows_fresh_staging() {
+        let temp = tempfile::tempdir().unwrap();
+        let storage = temp.path().join("storage");
+        private::ensure_storage_at(&storage, false).unwrap();
+        let path = storage.join(".lmg-runtime-launch-failure");
+        let stage = scratch::Stage::create(
+            &storage,
+            &path,
+            "embedded",
+            BTreeSet::from(["native-process.json".into(), "runtime.exe".into()]),
+            BTreeSet::new(),
+            false,
+        )
+        .unwrap();
+        let mut log = private::create_file(&path.join("native-process.json")).unwrap();
+        receipt(&mut log, None, false, None).unwrap();
+        // The unique missing input cannot launch a process or call MSI UI.
+        let error = run_vendor(&path.join("runtime.exe"), 0, &mut log).unwrap_err();
+        assert!(error.contains("could not be started"));
+        let record: serde_json::Value =
+            serde_json::from_slice(&fs::read(path.join("native-process.json")).unwrap()).unwrap();
+        assert_eq!(record["terminal"], true);
+        assert!(record["pid"].is_null());
+        assert!(record["code"].is_null());
+        drop(log);
+        drop(stage);
+        assert!(!path.exists());
+        let retry = scratch::Stage::create(
+            &storage,
+            &path,
+            "embedded",
+            BTreeSet::new(),
+            BTreeSet::new(),
+            false,
+        )
+        .unwrap();
+        drop(retry);
+        assert!(!path.exists());
+    }
+
     #[test]
     fn effective_token_can_read_native_known_folders_without_mutating_profiles() {
         for id in [

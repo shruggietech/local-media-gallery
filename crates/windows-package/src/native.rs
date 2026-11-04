@@ -1388,6 +1388,27 @@ pub fn inspect_package(file: &Path) -> Result<(String, String, bool, String), St
         Some("") | None => "user",
         _ => return Err("Unsupported MSI ALLUSERS scope".into()),
     };
+    if scope == "dual" {
+        let mut kind = 0;
+        let mut flags = 0;
+        let mut size = 0;
+        let r = unsafe {
+            MsiSummaryInfoGetPropertyW(
+                summary.0,
+                15,
+                &mut kind,
+                &mut flags,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                &mut size,
+            )
+        };
+        if r != 0 || kind != 3 || flags & 8 != 0 {
+            return Err(
+                "Dual-purpose MSI must allow native elevation for the all-users choice".into(),
+            );
+        }
+    }
     Ok((product, package, protocol, scope.into()))
 }
 
@@ -1698,6 +1719,7 @@ mod grouped_feature_tests {
         assert!(!pairs.is_empty());
         for pair in pairs {
             for file in pair {
+                assert_eq!(inspect_package(&file).unwrap().3, "dual");
                 let rows = reinstall_layout(&file).unwrap();
                 let features = rows
                     .iter()
@@ -1758,6 +1780,56 @@ mod grouped_feature_tests {
 #[cfg(test)]
 mod context_identity_tests {
     use super::*;
+    #[test]
+    #[ignore = "Requires actual current MSI; elected in isolated package CI"]
+    fn actual_native_dual_package_rejects_limited_privilege_summary() {
+        #[link(name = "msi")]
+        unsafe extern "system" {
+            fn MsiGetSummaryInformationW(
+                database: u32,
+                path: *const u16,
+                count: u32,
+                summary: *mut u32,
+            ) -> u32;
+            fn MsiSummaryInfoSetPropertyW(
+                summary: u32,
+                property: u32,
+                kind: u32,
+                integer: i32,
+                time: *const std::ffi::c_void,
+                value: *const u16,
+            ) -> u32;
+            fn MsiSummaryInfoPersist(summary: u32) -> u32;
+        }
+        let pairs: Vec<[PathBuf; 2]> = serde_json::from_str(
+            &std::env::var("GALLERY_MSI_LAYOUT_PAIRS").expect("Explicit actual MSI required"),
+        )
+        .unwrap();
+        let original = &pairs.first().unwrap()[0];
+        assert_eq!(inspect_package(original).unwrap().3, "dual");
+        let temp = tempfile::tempdir().unwrap();
+        let changed = temp.path().join("limited.msi");
+        fs::copy(original, &changed).unwrap();
+        let mut summary = 0;
+        assert_eq!(
+            unsafe { MsiGetSummaryInformationW(0, wide(&changed).as_ptr(), 1, &mut summary) },
+            0
+        );
+        // PID_WORDCOUNT: compressed cabinet plus the limited-privilege bit.
+        assert_eq!(
+            unsafe { MsiSummaryInfoSetPropertyW(summary, 15, 3, 10, ptr::null(), ptr::null()) },
+            0
+        );
+        assert_eq!(unsafe { MsiSummaryInfoPersist(summary) }, 0);
+        assert_eq!(unsafe { MsiCloseHandle(summary) }, 0);
+        assert!(
+            inspect_package(&changed)
+                .unwrap_err()
+                .contains("allow native elevation")
+        );
+        assert_eq!(inspect_package(original).unwrap().3, "dual");
+    }
+
     #[test]
     fn physical_dual_identity_is_shared_but_legacy_authority_stays_context_specific() {
         let bytes = b"retained exact input";
