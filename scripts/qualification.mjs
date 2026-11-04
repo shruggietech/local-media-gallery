@@ -11,7 +11,7 @@ export async function qualification({ identify = async () => undefined, prepare,
     if (prepared !== undefined) record.context = { ...record.context, ...prepared };
     ready = now(); record.readinessVerified = timestamp(ready); record.result = 'pass';
     const deadline = ready + (hardLimitSeconds - reserveSeconds) * 1000;
-    // The real process runner terminates the child tree before finalization reserve.
+    // The process runner bounds owned tree and direct-child termination attempts before finalization reserve.
     if (now === Date.now) setExecutionDeadline(deadline);
     for (const [index, step] of steps.entries()) {
       if (now() >= deadline) { record.result = 'timeout'; record.failure = 'Qualification finalization reserve reached'; break; }

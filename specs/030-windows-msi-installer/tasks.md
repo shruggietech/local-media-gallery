@@ -30,7 +30,7 @@
 
 - [x] T008 [US2] Author native wizard and separate optional StartMenu/CommandPath features in packaging/windows/installer.wxs (FR-003, FR-004).
 - [x] T009 [US2] Enforce elected integration conflicts only and retain actual feature choices in crates/windows-package/src/native.rs (FR-004, FR-006, FR-007).
-- [x] T010 [US2] Add isolated-only MSI dialog automation and matrix acceptance in scripts/windows-package-ui.ps1 and scripts/test-windows-packages.mjs (SC-002, FR-012).
+- [x] T010 [US2] Add isolated-only MSI dialog automation and matrix acceptance in scripts/windows-msi-ui.ps1 and scripts/test-windows-packages.mjs (SC-002, FR-012).
 
 ## Phase 5: User Story 3, progress and cancellation (P1)
 
@@ -55,7 +55,7 @@
 
 - [x] T016 Update version-aware MSI format, schemas and contract fixtures in scripts/release-record.mjs, schemas/v0.2.1/release-record.schema.json and affected tests (FR-010, FR-011).
 - [x] T017 Update current installation/system docs, CHANGELOG.md and site/retained/v0.2.1.json without changing published snapshots (FR-010, FR-011).
-- [ ] T018 Run hidden repository/unit/affected site checks and exact-head hosted campaigns; retain evidence in specs/030-windows-msi-installer/quickstart.md (FR-012, SC-001 through SC-004).
+- [ ] T018 Run hidden repository/unit/affected site checks and exact-head hosted campaigns; retain evidence in specs/030-windows-msi-installer/verification.md (FR-012, SC-001 through SC-004).
 - [ ] T019 Push, open official PR closing #89, handle every received finding within at most two rounds and record terminal CI/review evidence in specs/030-windows-msi-installer/tasks.md (FR-013, SC-005).
 
 ## Dependencies and opportunities

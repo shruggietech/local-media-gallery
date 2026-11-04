@@ -18,6 +18,22 @@ export const environment = {
 };
 let executionDeadline = null;
 export function setExecutionDeadline(value) { executionDeadline = value; }
+// Tree termination can fail or stall. Always bound that owned helper and then
+// use the original child handle for the final direct termination attempt.
+export function terminateWindowsChildTree(child,{launch=spawn,graceMilliseconds=3000}={}) {
+  if(!Number.isSafeInteger(child.pid)||child.pid<=0)throw new Error('Owned child PID required');
+  if(child.exitCode!==null||child.signalCode!==null)return;
+  let terminator,watchdog,finished=false;
+  const finish=()=>{
+    if(finished)return;finished=true;clearTimeout(watchdog);
+    if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');
+  };
+  try {
+    terminator=launch('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,shell:false,stdio:'ignore'});
+    terminator.once('error',finish);terminator.once('exit',finish);
+    watchdog=setTimeout(()=>{if(terminator.exitCode===null&&terminator.signalCode===null)terminator.kill('SIGKILL');finish();},graceMilliseconds);
+  } catch {finish();}
+}
 export function execute(file, args, options = {}) {
   return new Promise((resolve, reject) => {
     if (executionDeadline !== null && Date.now() >= executionDeadline) return reject(new Error('Qualification deadline reached before child admission'));
@@ -26,8 +42,7 @@ export function execute(file, args, options = {}) {
     const timer = executionDeadline === null ? null : setTimeout(() => {
       timedOut = true;
       if (process.platform === 'win32') {
-        const terminator = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, shell: false, stdio: 'ignore' });
-        terminator.once('error', () => child.kill());
+        terminateWindowsChildTree(child);
       } else { try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); } }
     }, Math.max(1, executionDeadline - Date.now()));
     child.once('error', error => { clearTimeout(timer); reject(error); });
