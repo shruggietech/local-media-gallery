@@ -1,5 +1,6 @@
-import {prepareWindowsDiagnosticFixtures} from './windows-package-fixtures.mjs';
 // SPDX-License-Identifier: Apache-2.0
+import {verifyMsiCommandReadiness} from './windows-msi-command.mjs';
+import {prepareWindowsDiagnosticFixtures} from './windows-package-fixtures.mjs';
 import {prepareCargoDependencies} from './cargo-readiness.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
@@ -13,10 +14,10 @@ import {sourceIdentity} from './provenance.mjs';
 import {qualification} from './qualification.mjs';
 import {validatePackageEvidence} from './windows-package-evidence.mjs';
 import {joinedChecks} from './joined-checks.mjs';
-await mkdir(path.join(root,'.local'),{recursive:true});let build,concurrentChecks,diagnosticFixtures;
+await mkdir(path.join(root,'.local'),{recursive:true});let build,concurrentChecks,diagnosticFixtures,msiCommandReadiness;
 const record=await qualification({
  identify:async()=>({scope:'windows-packages',source:await sourceIdentity(),revision:(await promisify(execFile)('git',['rev-parse','HEAD'],{cwd:root,windowsHide:true})).stdout.trim()}),
- prepare:async context=>{await prepareCargoDependencies();await cargo(['test','--locked','-p','gallery-windows-package','-p','gallery-update','--no-run']);await node(path.join(root,'scripts/build-windows-packages.mjs'));build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));assert.deepEqual(build.source,context.source);assert.equal(build.revision,context.revision);diagnosticFixtures=await prepareWindowsDiagnosticFixtures({root,build,extract:(archive,destination,inventory)=>execute(python,[path.join(root,'scripts/proof-archive.py'),'extract',archive,destination,inventory])});},
+ prepare:async context=>{msiCommandReadiness=await verifyMsiCommandReadiness({root,env:environment});await prepareCargoDependencies();await cargo(['test','--locked','-p','gallery-windows-package','-p','gallery-update','--no-run']);await node(path.join(root,'scripts/build-windows-packages.mjs'));build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));assert.deepEqual(build.source,context.source);assert.equal(build.revision,context.revision);diagnosticFixtures=await prepareWindowsDiagnosticFixtures({root,build,extract:(archive,destination,inventory)=>execute(python,[path.join(root,'scripts/proof-archive.py'),'extract',archive,destination,inventory])});},
  steps:[
   {name:'Joined Windows ownership units and actual ordinary package campaign',run:async()=>{
    // Units mutate unique disposable roots and MSI copies. Actual prepared MSIs
@@ -31,7 +32,7 @@ const record=await qualification({
   {name:'Independent exact-source package/native receipt and governed bytes read-back',run:async()=>{const result=JSON.parse(await readFile(path.join(root,'.local/windows-package-results.json')));await validatePackageEvidence(build,result,root);assert.deepEqual(await sourceIdentity(),recordContextSource());await node(path.join(root,'scripts/sync-brand-kit.mjs'),['--verify']);}},
  ]
 });
-record.concurrentChecks=concurrentChecks;record.diagnosticFixtureReadiness=diagnosticFixtures;
+record.msiCommandReadiness=msiCommandReadiness;record.concurrentChecks=concurrentChecks;record.diagnosticFixtureReadiness=diagnosticFixtures;
 function recordContextSource(){return build.source;}
 if(process.env.CI_PREPARATION_STARTED){const start=new Date(process.env.CI_PREPARATION_STARTED).getTime();assert.ok(start<=new Date(record.preparationStarted).getTime());record.preparationStarted=new Date(start).toISOString();record.preparationSeconds=((new Date(record.readinessVerified??record.terminalFinished).getTime())-start)/1000;record.combinedSeconds=(new Date(record.terminalFinished).getTime()-start)/1000;}
 if(record.result==='pass'){record.packages=JSON.parse(await readFile(path.join(root,'.local/windows-package-results.json')));record.artifacts=build.products.map(p=>p.artifact);record.internalCampaignArchives=build.records.map(r=>r.archive);}

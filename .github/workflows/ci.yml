@@ -179,6 +179,8 @@ jobs:
           name: windows-package-status-${{ github.sha }}
           path: |
             .local/ci-windows-packages.json
+            .local/windows-msi-command-readiness.json
+            .local/msi-command-ready-*/*.log
             .local/windows-package-failure.json
             .local/windows-package-test-*/*.log
             .local/windows-package-test-*/standard-user/*.log
@@ -191,6 +193,8 @@ jobs:
           name: windows-packages-evidence-${{ github.sha }}
           path: |
             .local/ci-windows-packages.json
+            .local/windows-msi-command-readiness.json
+            .local/msi-command-ready-*/*.log
             .local/windows-package-build.json
             .local/windows-package-results.json
             .local/windows-package-fixtures.json

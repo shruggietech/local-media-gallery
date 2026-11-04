@@ -6,7 +6,7 @@ PR #96 implements issue #89 on codex/s030-windows-msi-installer. Source version 
 
 ## Performed local checks
 
-Hidden repository checks, 274 passing Node tests with two platform skips, documentation validation, installer/update Rust units and strict Clippy passed. The affected site build, link and rendered accessibility checks passed. Read-only linked-MSI regressions reject the limited-privilege flag, same-GUID custom-action/Binary/CAB substitutions and source replacement after preflight. These authoring tests do not install the MSI.
+Hidden repository checks, 279 passing Node tests with two platform skips, documentation validation, installer/update Rust units and strict Clippy passed. The affected site build, link and rendered accessibility checks passed. Read-only linked-MSI regressions reject the limited-privilege flag, same-GUID custom-action/Binary/CAB substitutions and source replacement after preflight. These authoring tests do not install the MSI.
 
 ## Hosted observations
 
@@ -24,6 +24,8 @@ Hidden repository checks, 274 passing Node tests with two platform skips, docume
 - At 9f4b88a, repository, website, all three native platform checks and Linux packaging passed. Native artifact IDs are Windows 13365478791, Linux 13365951779 and macOS 13366595652. Linux package artifact 13368335511 records 1433.009 seconds of preparation and 355.820 seconds of qualification. Windows MSI was still active without a terminal receipt at this observation.
 - The macOS package attempt at 9f4b88a (artifact 13367651207) passed user/system lifecycle, update/rollback recovery, and collisions/retention. Its PKG interruption observer could not stop the discovered coordinator; the retained Installer output ends in successful installation. The intended interruption was not proved, so that case remains pending a fresh campaign. The failure is retained in its original artifact.
 - Inspection of deadline handling found an independent fallback gap: a nonzero or stalled taskkill process could leave the owned child alive after the qualification deadline. The runner now bounds its own termination helper to three seconds and attempts direct termination through the original child handle. Six targeted regressions include a real owned Node child and failed/stalled helper observations. Hidden repository checks, 274 applicable Node tests (2 platform skips) and documentation checks pass. This correction is not evidence of the active hosted job's root cause.
+
+- Run 41926323594 at c1eb260 passed the other seven scopes. Its Windows package artifact 13372700681 records preparation 1862.174 seconds and qualification 618.595 seconds. The wizard installed successfully, real native browsing and bundled thumbnails passed, then quiet repetition timed out after 240 seconds without creating its MSI log. Artifact 13372645867 retains the package bytes. The maintainer command formatter now leaves switches bare, preserves quoted empty/property values and source/log operands, and checks native command readiness on an intentionally absent MSI before compilation. Local format/refusal checks pass; full hosted maintenance acceptance is still pending.
 
 ## Reviews
 
