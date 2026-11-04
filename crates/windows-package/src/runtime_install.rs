@@ -143,14 +143,15 @@ impl Drop for Token {
         }
     }
 }
+// Known-folder APIs require QUERY | IMPERSONATE and may also require DUPLICATE.
 pub(crate) fn effective_token() -> Result<Token, String> {
     let mut h = ptr::null_mut();
-    let impersonated = unsafe { OpenThreadToken(GetCurrentThread(), 0xa, 1, &mut h) } != 0;
+    let impersonated = unsafe { OpenThreadToken(GetCurrentThread(), 0xe, 1, &mut h) } != 0;
     if !impersonated {
         if std::io::Error::last_os_error().raw_os_error() != Some(1008) {
             return Err(error());
         }
-        if unsafe { OpenProcessToken(GetCurrentProcess(), 0xa, &mut h) } == 0 {
+        if unsafe { OpenProcessToken(GetCurrentProcess(), 0xe, &mut h) } == 0 {
             return Err(error());
         }
     }
@@ -523,4 +524,20 @@ pub extern "system" fn RuntimeResult(h: u32) -> u32 {
         }
     })
     .unwrap_or(1603)
+}
+
+#[cfg(test)]
+mod token_tests {
+    #[test]
+    fn effective_token_can_read_native_known_folders_without_mutating_profiles() {
+        for id in [
+            &windows::Win32::UI::Shell::FOLDERID_LocalAppData,
+            &windows::Win32::UI::Shell::FOLDERID_ProgramData,
+        ] {
+            let folder = crate::native::known_folder(id)
+                .expect("Querying the effective user requires the documented token rights");
+            assert!(folder.is_absolute());
+            assert!(folder.is_dir());
+        }
+    }
 }
