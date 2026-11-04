@@ -26,7 +26,7 @@ Full workspace Rust units passed. Full, Lite and native-tests application config
 
 The app check passes formatting, affected Rust suites, warnings-denied Clippy, TypeScript, ESLint, governed CSS and brand recovery/glyph validation. Its initial local brand invocation lacked the proof Node at the reused checkout path; selecting the already-provisioned exact Node prerequisite resolved that failure without changing governed bytes.
 
-Headless site checks and hosted native/package acceptance are recorded below when terminal. Logs are retained under the workspace .local directory. Earlier failed observations remain diagnostic and are not acceptance evidence.
+The headless site build, static site check and browser site acceptance all passed. Current published selection remains v0.2.0; the new v0.2.1 snapshot is a source candidate. Hosted native/package acceptance will be recorded in the PR when terminal. Logs are retained under the workspace .local directory. Earlier failed observations remain diagnostic and are not acceptance evidence.
 
 ## Delivery boundaries
 

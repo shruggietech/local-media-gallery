@@ -49,8 +49,8 @@
 - [x] T020 Align VERSION, owned Cargo/npm package versions/locks, Tauri config and new docs/schema/site v0.2.1 trees without changing shipped inventories (FR-013).
 - [x] T021 Document explicit storage, automatic private reset, preflight dispositions and update lifetimes in docs/v0.2.1 and CHANGELOG.md (FR-012/FR-013).
 - [x] T022 Preserve shipped0.2.0 portable compatibility and add immutable v0.2.0 snapshot regression in apps/gallery/src-tauri/src/portable.rs, schemas/v0.2.1 and tests/initial-release.test.mjs (FR-008/FR-013).
-- [ ] T023 Run required local repository/unit/docs/app/site checks and record source-bound results in specs/029-private-state-storage/verification.md (FR-014).
-- [ ] T024 Commit finalized snapshot and retain new docs review/inventory using scripts/release-docs.mjs, then verify final text/version/integrity checks (FR-013/FR-014).
+- [x] T023 Run required local repository/unit/docs/app/site checks and record source-bound results in specs/029-private-state-storage/verification.md (FR-014).
+- [x] T024 Commit finalized snapshot and retain new docs review/inventory using scripts/release-docs.mjs, then verify final text/version/integrity checks (FR-013/FR-014).
 - [ ] T025 Push/open official PR closing all four issues and update GitHub Project 8 (FR-015).
 - [ ] T026 Verify all applicable final-revision CI, respond to every finding with at most two review rounds and hand off unmerged in the PR (FR-014/FR-015).
 
