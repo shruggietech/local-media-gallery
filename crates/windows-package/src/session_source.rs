@@ -264,7 +264,11 @@ fn identity(db: u32) -> Result<BTreeMap<String, String>, String> {
             },
             "summary field",
         )?;
-        let value = String::from_utf16(&buffer[..size as usize]).map_err(|e| e.to_string())?;
+        let value = if kind == 30 {
+            String::from_utf16(&buffer[..size as usize]).map_err(|e| e.to_string())?
+        } else {
+            String::new()
+        };
         identity.insert(
             format!("summary:{property}"),
             format!("{kind}:{integer}:{time}:{value}"),

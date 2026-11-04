@@ -393,16 +393,9 @@ fn select_scope(h: u32) -> Result<(), String> {
         "user" => false,
         _ => return Err("Choose a valid installation scope".into()),
     };
-    // New installations retain MSI 5 dual-purpose authoring until costing
-    // resolves the context. Installed products do not repeat that normalization.
-    let all_users = if text(h, "Installed")?.is_empty() {
-        "2"
-    } else if machine {
-        "1"
-    } else {
-        ""
-    };
-    set(h, "ALLUSERS", all_users)?;
+    // MSI resolves ALLUSERS before immediate configuration, including first
+    // quiet installs. Never put the unresolved value 2 back into that session.
+    set(h, "ALLUSERS", if machine { "1" } else { "" })?;
     set(h, "MSIINSTALLPERUSER", if machine { "" } else { "1" })?;
     let directory = get(h, "INSTALLDIR")?;
     if directory.is_empty()
