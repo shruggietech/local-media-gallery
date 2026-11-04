@@ -112,6 +112,7 @@
               "tar.gz",
               "json",
               "exe",
+            "msi",
               "elf",
               "mach-o",
               "pkg",

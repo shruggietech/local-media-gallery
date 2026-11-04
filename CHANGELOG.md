@@ -6,6 +6,7 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Changed
 
+- Replace the pending Windows Full setup EXE with one self-contained unsigned MSI. Its native wizard provides license acceptance, user/all-users scope, an editable location, independent Start menu/PATH choices, progress and cancellation. The complete offline WebView2 installer remains bundled; maintenance retains selected integrations and exact recovery inputs. Published v0.1.0/v0.2.0 artifacts are unchanged.
 - Target v0.2.1 software, documentation and schema contracts while retaining every published v0.2.0 byte and canonical release selection.
 - Windows Full/Lite share application-named roaming preferences and local history/cache/browser roots. User and machine updater state now use the matching local-media-gallery/updates directory. Existing paths are adopted directly without migration, backup or repeated legacy cleanup.
 - Private settings compatibility follows format and known values across release labels. Invalid or obsolete private settings/history reset automatically under writer locks to usable defaults. This intentionally discards invalid private convenience state. Portable gallery settings, media and sidecars retain their independent byte-preserving contracts. Real access, permission and contention failures identify the file/action.

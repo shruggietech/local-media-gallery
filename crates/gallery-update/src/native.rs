@@ -68,7 +68,7 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
         let actual = gallery_windows_package::native::inspect_package(&artifact_path(base, name))?;
         if !actual.0.eq_ignore_ascii_case(product_code)
             || !actual.1.eq_ignore_ascii_case(package_code)
-            || actual.3 != *scope
+            || (actual.3 != "dual" && actual.3 != *scope)
         {
             return Err("Native MSI ProductCode/PackageCode differs from descriptor".into());
         }
@@ -374,6 +374,7 @@ fn compatible_reinstall(
     selected_name: &str,
     current: &Candidate,
     selected: &Candidate,
+    directory: &Path,
 ) -> Result<bool> {
     let (
         Native::WindowsMsi {
@@ -420,7 +421,9 @@ fn compatible_reinstall(
         gallery_windows_package::native::reinstall_layout(&old_path),
         gallery_windows_package::native::reinstall_layout(&new_path),
     ) {
-        (Ok(old), Ok(new)) => Ok(old == new),
+        (Ok(old), Ok(new)) => {
+            Ok(old == new && grouped_reinstall_value(selected, &new, directory).is_ok())
+        }
         _ => {
             eprintln!(
                 "MSI layout cannot be proven unchanged; retaining native remove/install replacement"
@@ -482,12 +485,18 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                     let name = if which.0 == 0 { "prior" } else { "next" };
                     let same = which.1 == selected;
                     let selected_name = if prior { "prior" } else { "next" };
-                    let reinstall =
-                        compatible_reinstall(&op.base, name, selected_name, &which.1, &selected)?;
+                    let reinstall = compatible_reinstall(
+                        &op.base,
+                        name,
+                        selected_name,
+                        &which.1,
+                        &selected,
+                        &op.journal.directory,
+                    )?;
                     if !same {
                         verified(&which.1, &op.journal.directory)?;
                     }
-                    if !same && !reinstall {
+                    if !reinstall {
                         let out = worker::execute(
                             op,
                             name,
@@ -503,6 +512,14 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                         }
                         if gallery_windows_package::native::registered_package(machine)?.is_some() {
                             return Err("Native removal left registration".into());
+                        }
+                        for file in &which.1.files {
+                            if op.journal.directory.join(&file.path).exists() {
+                                return Err(format!(
+                                    "Native removal left owned file {}; retain recovery inputs",
+                                    file.path
+                                ));
+                            }
                         }
                     }
                 }
@@ -994,6 +1011,18 @@ fn grouped_reinstall_value(
         "Application".to_owned(),
         "Integration".to_owned(),
     ]]);
+    if rows.iter().any(|r| {
+        r.first().is_some_and(|t| t == "Feature") && r.get(1).is_some_and(|f| f == "StartMenu")
+    }) {
+        expected_features.extend(["StartMenu".into(), "CommandPath".into()]);
+        for (f, c) in [
+            ("StartMenu", "StartIntegration"),
+            ("CommandPath", "UserPathIntegration"),
+            ("CommandPath", "MachinePathIntegration"),
+        ] {
+            expected_members.insert(vec!["FeatureComponents".into(), f.into(), c.into()]);
+        }
+    }
     let mut expected_files = BTreeSet::new();
     for file in &candidate.files {
         let feature = group(&file.path).to_owned();
@@ -1022,10 +1051,9 @@ fn grouped_reinstall_value(
         .iter()
         .filter(|r| r.first().is_some_and(|t| t == "File"))
         .collect::<Vec<_>>();
-    if features
-        .iter()
-        .any(|r| r.len() != 9 || !r[2].is_empty() || r[6] != "1")
-        || features.len() != expected_features.len()
+    if features.iter().any(|r| {
+        r.len() != 9 || !r[2].is_empty() || (r[6] != "1" && !(r[1] == "CommandPath" && r[6] == "2"))
+    }) || features.len() != expected_features.len()
         || features
             .iter()
             .map(|r| r[1].clone())
@@ -1046,7 +1074,7 @@ fn grouped_reinstall_value(
             .collect::<BTreeSet<_>>()
             != expected_files
     {
-        return Ok("ALL".into());
+        return Err("Unrecognized MSI feature membership; retain the package before choosing a replacement strategy".into());
     }
     let mut selected = BTreeSet::from(["Application"]);
     let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
@@ -1168,22 +1196,13 @@ mod feature_tests {
             .iter_mut()
             .find(|r| r[0] == "FeatureComponents" && r[1] == "Notices")
             .unwrap()[1] = "Payload".into();
-        assert_eq!(
-            grouped_reinstall_value(&c, &wrong, root.path()).unwrap(),
-            "ALL"
-        );
+        assert!(grouped_reinstall_value(&c, &wrong, root.path()).is_err());
         let mut nested = rows.clone();
         nested
             .iter_mut()
             .find(|r| r[0] == "Feature" && r[1] == "Notices")
             .unwrap()[2] = "Payload".into();
-        assert_eq!(
-            grouped_reinstall_value(&c, &nested, root.path()).unwrap(),
-            "ALL"
-        );
-        assert_eq!(
-            grouped_reinstall_value(&c, &[], root.path()).unwrap(),
-            "ALL"
-        );
+        assert!(grouped_reinstall_value(&c, &nested, root.path()).is_err());
+        assert!(grouped_reinstall_value(&c, &[], root.path()).is_err());
     }
 }

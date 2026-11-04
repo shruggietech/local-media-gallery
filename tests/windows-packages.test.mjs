@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {validatePayload,verifyPayload,packageGuid,validateNativeAudit,authorInstaller,digest} from '../scripts/windows-packages.mjs';
+import {validatePayload,verifyPayload,packageGuid,validateNativeAudit,authorInstaller,digest,dualProductCode} from '../scripts/windows-packages.mjs';
 import Ajv from 'ajv/dist/2020.js';
 import {readFile} from 'node:fs/promises';
 const hash='a'.repeat(64);
@@ -41,3 +41,5 @@ test('Wide payload verification checks late changed files while missing-file rec
 });
 
 test('Future numeric product versions remain parseable; malformed versions refuse',()=>{const p=payload();p.version='1.2.3';assert.ok(validatePayload(p));for(const v of ['01.2.3','1.2.3-beta','1.2','x']){p.version=v;assert.throws(()=>validatePayload(p));}});
+
+test('One dual MSI keeps concrete descriptors without changing physical package identity',async()=>{const template=await readFile(new URL('../packaging/windows/installer.wxs',import.meta.url),'utf8');const input={files:[{path:'local-media-gallery.exe'},{path:'payload.json'}],payloadDirectory:'fixture',helper:'owned-helper.dll',payloadSha:hash,template};const user=authorInstaller({...input,scope:'user'}),machine=authorInstaller({...input,scope:'machine'});assert.deepEqual(user,machine);assert.equal(user.code,packageGuid('dual',hash));assert.notEqual(user.code,packageGuid('user',hash));assert.ok(user.wxs.includes('Product Id="'+dualProductCode+'"'));for(const name of ['StartMenu','CommandPath'])assert.match(user.wxs,new RegExp('<Feature Id="'+name+'"'));assert.match(user.wxs,/<Property Id="ALLUSERS" Value="2"/);assert.match(user.wxs,/<Property Id="MSIINSTALLPERUSER" Value="1"/);assert.ok(!user.wxs.includes('/qn'));});

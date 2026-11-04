@@ -1,0 +1,25 @@
+# S030 research decisions
+
+## 2026-11-04: package and prerequisite
+
+Adopt one dual-purpose MSI (ALLUSERS=2; MSIINSTALLPERUSER=1 initially), native custom WiX dialogs, editable location in both scopes, and independent StartMenu/CommandPath features. Resolve concrete scope after costing; never infer it solely from ProductCode. A canonical new identity coexists with recognition of both published legacy identities.
+
+Microsoft's official [WebView2 WiX custom-action sample](https://learn.microsoft.com/en-us/microsoft-edge/webview2/samples/wv2deploymentwixcustomactionsample) embeds the complete offline installer and executes it before InstallFinalize. This supports a real self-contained MSI. [Single-package authoring](https://learn.microsoft.com/en-us/windows/win32/msi/single-package-authoring) defines ALLUSERS/MSIINSTALLPERUSER context selection. The existing EXE wrapper and unmodified inner MSI were rejected because they do not satisfy the issue.
+
+Use a deferred custom action with embedded verified bytes. Machine provisioning runs without impersonation; user provisioning uses the invoking user's token and environment. CreateProcess does not inherit an impersonated thread token, so the user child must explicitly receive the caller token. All children hide consoles and disable interaction. Detect an adequate machine runtime for user installations; a user-only runtime cannot satisfy machine installation. Record actual runtime context.
+
+Report detect/stage/vendor-install/verify phases through Windows Installer messages and progress records. Vendor work has no documented granular progress or cancellation protocol. Poll for cancellation, wait for bounded vendor completion and return native cancellation with application rollback. Do not claim that terminating the bootstrapper proves its service has stopped. Shared runtime can remain after cancellation/removal. Preserve diagnostic receipts on incomplete work and propagate reboot-required outcomes.
+
+## 2026-11-04: ownership and compatibility
+
+Persist selected feature states in MSI and native registration. Missing legacy feature names mean both integrations were installed. Maintenance must explicitly carry selected features; ADDLOCAL=ALL is prohibited as a fallback. Optional integrations are checked only when selected, so an unrelated foreign shortcut/PATH entry does not block an install that does not request it.
+
+Native registration queries use actual ProductCode plus context. Same-context multiple recognized registrations are ambiguous. A physical dual MSI may have two concrete descriptors (user/machine) with identical hashes, ProductCode and PackageCode. Payload integrity, private root/lease and recovery journals remain concrete-scope authority.
+
+Published predecessor custom actions cannot interpret a mixed new/legacy journal. Recovery must validate and remove the new installation using modern authority, then restore the actual retained legacy candidate through a compatibility authorization accepted by that predecessor. Any derived compatibility authority must bind actual legacy bytes/identities and preserve the original journal; never invent a legacy identity for new bytes. Preserve independent extras and private state, including interrupted recovery.
+
+## 2026-11-04: contracts and qualification
+
+Current source is unpublished 0.2.1. Change its Full format to MSI in version-aware release tooling/schema/docs. Preserve 0.1.0 ZIP and 0.2.0 EXE published contracts. Public download availability remains tied to published canonical release metadata. Lite remains EXE.
+
+Use the existing isolated hosted Windows campaign for real wizard input, offline runtime provisioning, scope/location/integration matrix and lifecycle proof. Read actual MSI tables and terminal registration independently. Local verification uses hidden noninteractive commands only. Read upstream consumer contract and implementation guidance before native visual assets; use platform system typography and existing approved icon/identity, with renderer metadata documenting native constraints. Do not change governed kit bytes.

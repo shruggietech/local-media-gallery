@@ -1,0 +1,10 @@
+{
+  "renderer": "Windows Installer native controls",
+  "brandContract": "brand/kit/enforcement/consumer-contract.json",
+  "icon": "brand/kit/icons/windows/classic/app.ico",
+  "platformExceptions": {
+    "typography": "Windows Installer system-compatible Tahoma in dialog units",
+    "geometry": "Native MSI dialog units and standard system controls preserve platform keyboard, high-contrast and DPI behavior",
+    "colors": "Native Windows system colors and focus indicators; no custom palette"
+  }
+}

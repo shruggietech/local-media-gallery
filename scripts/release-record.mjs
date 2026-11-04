@@ -17,7 +17,7 @@ export function releaseDigest(record){const {state,candidateId,gates,publication
 export const artifactUrl=(repository,version,name)=>`https://github.com/${repository}/releases/download/v${version}/${name}`;
 export function productArtifactFormat(version,platform,edition){
  if(version==='0.1.0')return platform==='windows'?'zip':platform==='linux'?(edition==='full'?'deb':'tar.gz'):(edition==='full'?'dmg':'zip');
- return platform==='windows'?'exe':platform==='linux'?(edition==='full'?'run':'elf'):(edition==='full'?'pkg':'mach-o');
+ return platform==='windows'?(edition==='full'&&version!=='0.2.0'?'msi':'exe'):platform==='linux'?(edition==='full'?'run':'elf'):(edition==='full'?'pkg':'mach-o');
 }
 const ajv=new Ajv({allErrors:true,strict:true,ownProperties:true}).addKeyword('x-release-version');ajv.addFormat('date-time',value=>typeof value==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value)&&Number.isFinite(Date.parse(value)));
 const validate=ajv.compile(JSON.parse(await readFile(new URL('../schemas/v'+productVersion+'/release-record.schema.json',import.meta.url),'utf8')));
