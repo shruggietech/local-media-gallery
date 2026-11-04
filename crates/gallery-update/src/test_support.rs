@@ -8,7 +8,13 @@ pub struct Fixture {
 impl Fixture {
     pub fn new() -> Self {
         let temporary = tempfile::tempdir().unwrap();
-        let root = temporary.path().join("fixture");
+        // macOS temp paths commonly use /var, an alias of /private/var.
+        // Elect the physical temporary parent; production path validation stays strict.
+        #[cfg(unix)]
+        let parent = std::fs::canonicalize(temporary.path()).unwrap();
+        #[cfg(not(unix))]
+        let parent = temporary.path().to_path_buf();
+        let root = parent.join("fixture");
         #[cfg(windows)]
         gallery_windows_package::private::ensure_storage_at(&root, false).unwrap();
         #[cfg(not(windows))]
