@@ -5,6 +5,7 @@ import {spawn} from 'node:child_process';
 import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {createInterface} from 'node:readline';
+import {EventEmitter} from 'node:events';
 import {availableLoopbackPort,observeChild,readyDriver,stopOwnedChild,settingsControlsReady} from '../scripts/native-driver-lifecycle.mjs';
 const launch=(script,nonce)=>spawn(process.execPath,['-e',script],{windowsHide:true,shell:false,stdio:['ignore','pipe','pipe'],env:{...process.env,GALLERY_TEST_DRIVER_NONCE:nonce}});
 const fixture=port=>`require('node:http').createServer((q,r)=>{r.setHeader('content-type','application/json');r.end(JSON.stringify({value:q.url==='/status'?{ready:true}:q.url==='/session'?{sessionId:'owned'}:{pid:process.pid,nonce:process.env.GALLERY_TEST_DRIVER_NONCE,port:${port}}}));}).listen(${port},'127.0.0.1')`;
@@ -17,7 +18,7 @@ test('Failed driver retains separate bounded output, identity and early exit',as
  try{await assert.rejects(readyDriver(child,'http://127.0.0.1:'+await availableLoopbackPort(),state,5000,{nonce,context:{trial:3,edition:'full',source:'fixture'}}),e=>e.message.includes('fixture-driver-startup-failure')&&e.message.includes('17')&&e.message.includes('trial')&&e.message.includes('full'));assert.ok(Date.now()-started<4500);assert.ok(state().stdout.length<=16384);assert.ok(state().stderr.length<=16384);}finally{await stopOwnedChild(child);}
 });
 test('An unrelated answering listener cannot certify a live owned child',async()=>{
- const server=createServer((q,r)=>r.end(JSON.stringify({value:q.url==='/status'?{ready:true}:q.url==='/session'?{sessionId:'unrelated'}:{pid:process.pid,nonce:'unrelated'}})));await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port,nonce=randomUUID(),child=launch('setTimeout(()=>process.exit(19),1200)',nonce);
+ const server=createServer((q,r)=>r.end(JSON.stringify({value:q.url==='/status'?{ready:true}:q.url==='/session'?{sessionId:'unrelated'}:{pid:process.pid,nonce:'unrelated'}})));const port=await availableLoopbackPort();await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});const nonce=randomUUID(),child=launch('setTimeout(()=>process.exit(19),1200)',nonce);
  try{await assert.rejects(readyDriver(child,'http://127.0.0.1:'+port,observeChild(child),3000,{nonce}),/ownership mismatch/);assert.equal(child.exitCode,null);assert.ok(server.listening);}finally{await stopOwnedChild(child);await new Promise(r=>server.close(r));}
 });
 test('status false waits for a real ready response before creating any session',async()=>{
@@ -101,4 +102,91 @@ test('Expected presentation waits through default observations and rejects persi
  assert.equal(settingsControlsReady(observation('Show controls'),{controlsExpanded:false}),true);
  assert.equal(settingsControlsReady(observation('Hide controls'),{controlsExpanded:false}),false);
  assert.equal(settingsControlsReady([{name:'Hide controls',enabled:false}],{controlsExpanded:true}),false);
+});
+
+function portCandidates(candidates){
+ const state={created:0,closed:0,live:0,events:[]};
+ const serverFactory=()=>{
+  const candidate=candidates[state.created++];assert.notEqual(candidate,undefined,'Unexpected extra allocation');
+  const options=typeof candidate==='number'?{address:{port:candidate}}:candidate;
+  const server=new EventEmitter();
+  server.listen=(port,host,ready)=>{
+   assert.equal(port,0);assert.equal(host,'127.0.0.1');assert.equal(state.live,0,'Previous listener must close before retry');
+   state.events.push('listen');if(options.listenThrow)throw options.listenThrow;
+   queueMicrotask(()=>{if(options.bindError)server.emit('error',options.bindError);else{state.live++;ready();}});return server;
+  };
+  server.address=()=>{if(options.addressThrow)throw options.addressThrow;return options.address;};
+  server.close=done=>{state.closed++;state.live--;state.events.push('close');queueMicrotask(()=>done(options.closeError));};
+  return server;
+ };
+ return {state,serverFactory};
+}
+
+test('Port allocator skips every pinned restricted candidate after releasing it',async()=>{
+ // Independent contract fixture from Node v24.11.0 deps/undici/src/lib/web/fetch/constants.js.
+ const restricted=[1,7,9,11,13,15,17,19,20,21,22,23,25,37,42,43,53,69,77,79,87,95,101,102,103,104,109,110,111,113,115,117,119,123,135,137,139,143,161,179,389,427,465,512,513,514,515,526,530,531,532,540,548,554,556,563,587,601,636,989,990,993,995,1719,1720,1723,2049,3659,4045,4190,5060,5061,6000,6566,6665,6666,6667,6668,6669,6679,6697,10080];
+ for(const port of restricted){
+  const {state,serverFactory}=portCandidates([port,49152]);
+  assert.equal(await availableLoopbackPort({serverFactory}),49152,'Restricted '+port);
+  assert.deepEqual(state.events,['listen','close','listen','close']);assert.equal(state.live,0);
+ }
+});
+
+test('Port allocator preserves allowed boundaries and closes before return',async()=>{
+ for(const port of [2,80,443,6001,6664,6670,10081,49152,65535]){
+  const {state,serverFactory}=portCandidates([port]);
+  assert.equal(await availableLoopbackPort({serverFactory}),port);assert.equal(state.created,1);assert.equal(state.closed,1);assert.equal(state.live,0);
+ }
+});
+
+test('Port allocator exhaustion stops at the finite default or reduced attempt bound',async()=>{
+ for(const maxAttempts of [1,3,32]){
+  const {state,serverFactory}=portCandidates(Array(maxAttempts).fill(6669));
+  const options=maxAttempts===32?{serverFactory}:{serverFactory,maxAttempts};
+  await assert.rejects(availableLoopbackPort(options),new RegExp('allocation exhausted after '+maxAttempts+' attempts'));
+  assert.equal(state.created,maxAttempts);assert.equal(state.closed,maxAttempts);assert.equal(state.live,0);
+ }
+});
+
+test('Port allocator rejects invalid attempt controls before creating a listener',async()=>{
+ let created=0;const serverFactory=()=>{created++;throw Error('must not allocate');};
+ for(const maxAttempts of [0,-1,1.5,33,Infinity,NaN,'2',null])await assert.rejects(availableLoopbackPort({serverFactory,maxAttempts}),/attempt limit/);
+ assert.equal(created,0);
+ await assert.rejects(availableLoopbackPort({serverFactory:null}),/server factory/);
+});
+
+test('Port allocator refuses malformed addresses and still closes every bound listener',async()=>{
+ for(const address of [null,'pipe',{}, {port:0},{port:-1},{port:65536},{port:1.5},{port:'49152'}]){
+  const {state,serverFactory}=portCandidates([{address}]);
+  await assert.rejects(availableLoopbackPort({serverFactory}),/Invalid allocated loopback port/);
+  assert.equal(state.created,1);assert.equal(state.closed,1);assert.equal(state.live,0);
+ }
+ const error=Error('address lookup failed');const {state,serverFactory}=portCandidates([{addressThrow:error}]);
+ await assert.rejects(availableLoopbackPort({serverFactory}),e=>e===error);assert.equal(state.closed,1);assert.equal(state.live,0);
+});
+
+test('Port allocator propagates factory and bind failures without retrying unbound listeners',async()=>{
+ const error=Object.assign(Error('fixture bind denied'),{code:'EACCES'});
+ await assert.rejects(availableLoopbackPort({serverFactory:()=>{throw error;}}),e=>e===error);
+ for(const fault of [{bindError:error},{listenThrow:error}]){
+  const {state,serverFactory}=portCandidates([fault]);
+  await assert.rejects(availableLoopbackPort({serverFactory}),e=>e===error);
+  assert.equal(state.created,1);assert.equal(state.closed,0);assert.equal(state.live,0);
+ }
+});
+
+test('Port allocator close failures cannot return a port or begin a retry',async()=>{
+ for(const port of [49152,6669]){
+  const error=Error('fixture close failed');const {state,serverFactory}=portCandidates([{address:{port},closeError:error}]);
+  await assert.rejects(availableLoopbackPort({serverFactory}),e=>e===error);
+  assert.equal(state.created,1);assert.equal(state.closed,1);
+ }
+});
+
+test('Port allocator default OS candidate can be rebound by an owned HTTP fixture',async()=>{
+ const port=await availableLoopbackPort();assert.ok(Number.isInteger(port)&&port>=1&&port<=65535);
+ const server=createServer((q,r)=>r.end('owned fixture'));
+ await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
+ try{const response=await fetch('http://127.0.0.1:'+port,{signal:AbortSignal.timeout(2000)});assert.equal(response.status,200);assert.equal(await response.text(),'owned fixture');}
+ finally{await new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });
