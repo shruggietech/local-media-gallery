@@ -33,11 +33,8 @@ pub fn context() -> DiagnosticContext {
         runtime.as_deref(),
     )
 }
-pub fn cache_root() -> PathBuf {
-    dirs::cache_dir()
-        .unwrap_or_default()
-        .join(launch::identifier(launch::Edition::Full))
-        .join("thumbnails-v1")
+pub fn cache_root() -> Result<PathBuf, GalleryError> {
+    crate::storage::cache_root()
 }
 /// Full's installer owns this metadata and helper next to the executable.
 /// Lite never searches the sender profile or PATH for an automatic helper.
@@ -329,11 +326,14 @@ pub fn finite(
         } else {
             installed_helper()?
         };
-        let service = Arc::new(PreparationService::new(
-            engine.clone(),
-            cache_root(),
-            bundled,
-        ));
+        // Portable preparation owns only its elected gallery cache. It must not
+        // resolve an unrelated private profile, including on minimal recipients.
+        let cache = if request.preparation.portable {
+            path.join(gallery_core::cache::PORTABLE)
+        } else {
+            cache_root()?
+        };
+        let service = Arc::new(PreparationService::new(engine.clone(), cache, bundled));
         let signal_service = service.clone();
         let signal_engine = engine.clone();
         launch::attach_terminal();
@@ -592,9 +592,20 @@ mod tests {
         assert_eq!(std::fs::read(&path).unwrap(), before);
     }
     #[test]
-    fn invalid_and_future_settings_keep_typed_categories_and_original_bytes() {
+    fn reset_is_silent_and_io_diagnostics_exclude_private_paths() {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("PRIVATE_PATH.json");
-        for(bytes,event)in[(b"invalid PRIVATE_SENTINEL".to_vec(),"state_invalid"),(br#"{"version":"999.0.0","formatVersion":1,"pageSize":48,"cardSize":"medium","controlsExpanded":false,"scrollIndicator":"auto","metadataExpanded":false,"filter":"all","sort":"name","direction":"asc"}"#.to_vec(),"state_version")]{std::fs::write(&path,&bytes).unwrap();let store=crate::settings::SettingsStore::load(path.clone(),false);let engine=Engine::with_diagnostics(context());engine.diagnostics().record(store.diagnostic().unwrap());let report=serde_json::to_string(&engine.diagnostics().snapshot()).unwrap();assert!(report.contains(event));assert!(!report.contains("PRIVATE"));assert_eq!(std::fs::read(&path).unwrap(),bytes);}
+        std::fs::write(&path, b"invalid PRIVATE_SENTINEL").unwrap();
+        let store = crate::settings::SettingsStore::load(path.clone(), false);
+        assert!(store.diagnostic().is_none());
+        assert!(store.envelope().warning.is_none());
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        let store = crate::settings::SettingsStore::load(path, false);
+        let engine = Engine::with_diagnostics(context());
+        engine.diagnostics().record(store.diagnostic().unwrap());
+        let report = serde_json::to_string(&engine.diagnostics().snapshot()).unwrap();
+        assert!(report.contains("state_unavailable"));
+        assert!(!report.contains("PRIVATE"));
     }
 }

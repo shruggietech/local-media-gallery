@@ -63,13 +63,20 @@ pub fn probe(args: &[OsString]) -> Result<serde_json::Value, String> {
             "--history" => crate::history::compatibility(&path),
             _ => unreachable!(),
         };
-        results.push(serde_json::json!({"kind":kind.trim_start_matches("--"),"path":gallery_core::NativePath::from_path(&path),"compatible":result.is_ok(),"error":result.err().map(|e|e.to_string())}));
+        let reset = kind != "--portable"
+            && result.as_ref().is_err_and(|e| {
+                matches!(
+                    e.code.as_str(),
+                    "settings_invalid" | "settings_version" | "history_invalid" | "history_version"
+                )
+            });
+        results.push(serde_json::json!({"kind":kind.trim_start_matches("--"),"path":gallery_core::NativePath::from_path(&path),"compatible":result.is_ok(),"canStart":result.is_ok()||reset,"disposition":if reset{"reset-private-state"}else if result.is_ok(){"read"}else{"refuse"},"error":result.err().map(|e|e.to_string())}));
     }
     if !json || results.is_empty() {
         return Err("Supply --json and explicit selected recipient state operands; elevated HOME is not recipient authority".into());
     }
     Ok(
-        serde_json::json!({"product":"local-media-gallery","version":env!("CARGO_PKG_VERSION"),"formatVersion":1,"compatible":results.iter().all(|r|r["compatible"]==true),"states":results,"meaning":"Selected operands checked read-only; other profiles retain ordinary writer compatibility guards"}),
+        serde_json::json!({"product":"local-media-gallery","version":env!("CARGO_PKG_VERSION"),"formatVersion":1,"compatible":results.iter().all(|r|r["canStart"]==true),"states":results,"meaning":"Selected operands checked read-only; other profiles retain ordinary writer compatibility guards"}),
     )
 }
 #[cfg(test)]
@@ -89,7 +96,10 @@ mod tests {
         assert!(!settings.exists());
         for bytes in [b"{}".as_slice(), b"corrupt"] {
             std::fs::write(&settings, bytes).unwrap();
-            assert_eq!(probe(&args).unwrap()["compatible"], false);
+            let result = probe(&args).unwrap();
+            assert_eq!(result["compatible"], true);
+            assert_eq!(result["states"][0]["compatible"], false);
+            assert_eq!(result["states"][0]["disposition"], "reset-private-state");
             assert_eq!(std::fs::read(&settings).unwrap(), bytes);
         }
         let history = physical.join("history.sqlite3");

@@ -210,12 +210,10 @@ impl Settings {
                 format!("Preferences contain an invalid or missing field: {e}"),
             )
         })?;
-        if !["0.1.0", env!("CARGO_PKG_VERSION")].contains(&settings.version.as_str())
-            || settings.format_version != 1
-        {
+        if settings.format_version != 1 {
             return Err(GalleryError::new(
                 "settings_version",
-                "This settings release or format version is unsupported.",
+                "This settings format version is unsupported.",
             ));
         }
         settings.version = env!("CARGO_PKG_VERSION").into();
@@ -266,7 +264,7 @@ fn revision() -> String {
     uuid::Uuid::new_v4().simple().to_string()
 }
 fn read_document(path: &Path) -> std::io::Result<Option<Vec<u8>>> {
-    let file = match fs::File::open(path) {
+    let file = match crate::private_file::open(path, false, false) {
         Ok(file) => file,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(e),
@@ -310,34 +308,66 @@ impl SettingsStore {
             warning: None,
             test_page_size: test_page_size.then_some(4),
         };
-        let mut blocked = false;
-        let mut diagnostic = None;
-        let bytes = match read_document(&path) {
-            Ok(bytes) => bytes,
+        let loaded = (|| -> Result<(Option<Vec<u8>>, Settings), GalleryError> {
+            let parsed = |bytes: &[u8]| {
+                serde_json::from_slice::<Value>(bytes)
+                    .map_err(|_| GalleryError::new("settings_invalid", "Invalid settings JSON."))
+                    .and_then(|v| Settings::parse(v, test_page_size))
+            };
+            let read = read_document(&path);
+            match &read {
+                Ok(None) => return Ok((None, Settings::default())),
+                Ok(Some(bytes)) => {
+                    if let Ok(settings) = parsed(bytes) {
+                        return Ok((Some(bytes.clone()), settings));
+                    }
+                }
+                Err(e) if e.kind() != std::io::ErrorKind::InvalidData => {
+                    return Err(state_error(&path, "read", e));
+                }
+                _ => {}
+            }
+            // Recovery shares the writer lock and re-reads after acquiring it.
+            let parent = path
+                .parent()
+                .ok_or_else(|| state_error(&path, "reset", "Missing parent directory"))?;
+            let lock = crate::private_file::open(&parent.join("settings.lock"), true, true)
+                .map_err(|e| state_error(&path, "lock for reset", e))?;
+            let _guard = crate::state_lock::StateLock::try_acquire(lock)
+                .map_err(|e| state_error(&path, "lock for reset", e))?;
+            match read_document(&path) {
+                Ok(None) => return Ok((None, Settings::default())),
+                Ok(Some(bytes)) => {
+                    if let Ok(settings) = parsed(&bytes) {
+                        return Ok((Some(bytes), settings));
+                    }
+                }
+                Err(e) if e.kind() != std::io::ErrorKind::InvalidData => {
+                    return Err(state_error(&path, "read for reset", e));
+                }
+                _ => {}
+            }
+            let settings = Settings::default();
+            let mut bytes = serde_json::to_vec_pretty(&settings)
+                .map_err(|e| state_error(&path, "encode defaults", e))?;
+            bytes.push(b'\n');
+            replace(&path, &bytes).map_err(|e| state_error(&path, "reset", e))?;
+            Ok((Some(bytes), settings))
+        })();
+        let (bytes, blocked, diagnostic) = match loaded {
+            Ok((bytes, settings)) => {
+                envelope.settings = settings;
+                (bytes, false, None)
+            }
             Err(error) => {
-                envelope.warning = Some(format!(
-                    "Preferences could not be read: {error}. Defaults are active. Changes remain in memory; repair the settings file and restart to save."
-                ));
-                blocked = true;
-                diagnostic = Some(gallery_core::diagnostics::Event::StateUnavailable);
-                None
+                envelope.warning = Some(error.message.clone());
+                (
+                    None,
+                    true,
+                    Some(gallery_core::diagnostics::Event::StateUnavailable),
+                )
             }
         };
-        if let Some(bytes) = &bytes {
-            match serde_json::from_slice::<Value>(bytes)
-                .map_err(|_| GalleryError::new("settings_invalid", "Invalid settings JSON."))
-                .and_then(|value| Settings::parse(value, test_page_size))
-            {
-                Ok(settings) => envelope.settings = settings,
-                Err(error) => {
-                    diagnostic = Some(gallery_core::diagnostics::Event::from_code(&error.code));
-                    envelope.warning = Some(format!(
-                        "The settings file was preserved: {error} Defaults are active. Changes remain in memory; repair or remove the file and restart to save."
-                    ));
-                    blocked = true;
-                }
-            }
-        }
         Self {
             path,
             state: Mutex::new(Stored {
@@ -391,25 +421,23 @@ impl SettingsStore {
                 "The user settings directory is unavailable.",
             )
         })?;
-        fs::create_dir_all(parent).map_err(save_error)?;
+        fs::create_dir_all(parent)
+            .map_err(|e| state_error(&self.path, "create parent for save", e))?;
         // An OS file lock coordinates separate app instances. Keep the lock file;
         // deleting it could let another process lock a different file identity.
-        let lock = fs::OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(parent.join("settings.lock"))
-            .map_err(save_error)?;
+        let lock = crate::private_file::open(&parent.join("settings.lock"), true, true)
+            .map_err(|e| state_error(&self.path, "lock for save", e))?;
         let _lock =
             crate::state_lock::StateLock::try_acquire(lock).map_err(|error| match error {
                 fs::TryLockError::WouldBlock => GalleryError::new(
                     "settings_conflict",
-                    "Another application instance is saving preferences. Changes remain in memory.",
+                    format!("Another application instance is saving preferences at {}. Changes remain in memory. Retry after that save finishes.", self.path.display()),
                 ),
-                fs::TryLockError::Error(error) => save_error(error),
+                fs::TryLockError::Error(error) => state_error(&self.path, "lock for save", error),
             })?;
-        if read_document(&self.path).map_err(save_error)? != state.bytes {
+        if read_document(&self.path).map_err(|e| state_error(&self.path, "read before save", e))?
+            != state.bytes
+        {
             return Err(GalleryError::new(
                 "settings_conflict",
                 "Another application instance or editor changed settings.json. Changes remain in memory; restart to load it.",
@@ -431,21 +459,7 @@ impl SettingsStore {
             ));
         }
         let next_revision = revision();
-        let temporary = parent.join(format!("settings.{next_revision}.tmp"));
-        let written = (|| -> std::io::Result<()> {
-            let mut file = fs::OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(&temporary)?;
-            file.write_all(&bytes)?;
-            file.sync_all()?;
-            drop(file);
-            fs::rename(&temporary, &self.path)
-        })();
-        if let Err(error) = written {
-            let _ = fs::remove_file(&temporary);
-            return Err(save_error(error));
-        }
+        replace(&self.path, &bytes).map_err(|e| state_error(&self.path, "save", e))?;
         state.bytes = Some(bytes);
         state.envelope.settings = settings;
         state.envelope.revision = next_revision;
@@ -453,17 +467,45 @@ impl SettingsStore {
         Ok(state.envelope.clone())
     }
 }
-fn save_error(error: std::io::Error) -> GalleryError {
+fn replace(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let temporary = path.with_file_name(format!("settings.{}.tmp", revision()));
+    let result = (|| {
+        let mut file = fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&temporary)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temporary, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+fn state_error(path: &Path, action: &str, error: impl ToString) -> GalleryError {
     GalleryError::new(
         "settings_unavailable",
-        format!("Preferences could not be saved: {error}. Changes remain in memory."),
+        format!(
+            "Could not {action} preferences at {}: {}. Check file access, then reopen the gallery to retry.",
+            path.display(),
+            error.to_string()
+        ),
     )
 }
-
 /// Read-only format/choice validation without defaults, repair or lock creation.
 pub fn compatibility(path: &Path) -> Result<(), GalleryError> {
-    let bytes = read_document(path)
-        .map_err(|e| GalleryError::new("settings_unavailable", e.to_string()))?;
+    let bytes = read_document(path).map_err(|e| {
+        GalleryError::new(
+            if e.kind() == std::io::ErrorKind::InvalidData {
+                "settings_invalid"
+            } else {
+                "settings_unavailable"
+            },
+            e.to_string(),
+        )
+    })?;
     if let Some(bytes) = bytes {
         let value = serde_json::from_slice(&bytes)
             .map_err(|_| GalleryError::new("settings_invalid", "Invalid settings JSON"))?;
@@ -581,31 +623,26 @@ mod tests {
         }
     }
     #[test]
-    fn invalid_stored_font_scale_is_preserved_with_default_and_warning() {
+    fn invalid_stored_font_scale_resets_and_next_save_works() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("settings.json");
         let mut value = serde_json::to_value(Settings::default()).unwrap();
         value["fontScale"] = 95.into();
-        let bytes = serde_json::to_vec(&value).unwrap();
-        fs::write(&path, &bytes).unwrap();
+        fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
         let store = store(&dir);
         let loaded = store.envelope();
-        assert!(loaded.warning.is_some());
+        assert!(loaded.warning.is_none());
+        assert_eq!(loaded.settings.font_scale, 100);
+        let mut next = serde_json::to_value(&loaded.settings).unwrap();
+        next["fontScale"] = 90.into();
+        store.save(next, &loaded.revision).unwrap();
         assert_eq!(
-            serde_json::to_value(&loaded.settings).unwrap()["fontScale"],
-            100
+            SettingsStore::load(path, false)
+                .envelope()
+                .settings
+                .font_scale,
+            90
         );
-        assert_eq!(
-            store
-                .save(
-                    serde_json::to_value(&loaded.settings).unwrap(),
-                    &loaded.revision
-                )
-                .unwrap_err()
-                .code,
-            "settings_unavailable"
-        );
-        assert_eq!(fs::read(&path).unwrap(), bytes);
     }
     #[test]
     fn invalid_known_values_are_rejected_without_creating_a_file() {
@@ -616,7 +653,6 @@ mod tests {
             ("pageSize", serde_json::json!(1)),
             ("sort", serde_json::json!("random")),
             ("metadataExpanded", serde_json::json!("yes")),
-            ("version", serde_json::json!("99.0.0")),
             ("formatVersion", serde_json::json!(2)),
         ] {
             let mut value = serde_json::to_value(&before.settings).unwrap();
@@ -656,25 +692,24 @@ mod tests {
         );
     }
     #[test]
-    fn malformed_and_newer_files_are_preserved_with_visible_fallback() {
+    fn malformed_and_newer_private_formats_reset_without_warning() {
         let dir = TempDir::new().unwrap();
+        let path = dir.path().join("settings.json");
         let mut newer = serde_json::to_value(Settings::default()).unwrap();
         newer["formatVersion"] = 2.into();
         for bytes in [b"{broken".to_vec(), serde_json::to_vec(&newer).unwrap()] {
-            fs::write(dir.path().join("settings.json"), &bytes).unwrap();
+            fs::write(&path, &bytes).unwrap();
             let store = store(&dir);
-            let fallback = store.envelope();
-            assert_eq!(fallback.settings.page_size, 48);
-            assert!(fallback.warning.is_some());
-            assert!(
-                store
-                    .save(
-                        serde_json::to_value(&fallback.settings).unwrap(),
-                        &fallback.revision
-                    )
-                    .is_err()
-            );
-            assert_eq!(fs::read(dir.path().join("settings.json")).unwrap(), bytes);
+            let current = store.envelope();
+            assert!(current.warning.is_none());
+            assert_eq!(current.settings.page_size, 48);
+            store
+                .save(
+                    serde_json::to_value(current.settings).unwrap(),
+                    &current.revision,
+                )
+                .unwrap();
+            assert!(compatibility(&path).is_ok());
         }
     }
     #[test]
@@ -716,14 +751,19 @@ mod tests {
         let prior = fs::read(dir.path().join("settings.json")).unwrap();
         fs::remove_file(dir.path().join("settings.lock")).unwrap();
         fs::create_dir(dir.path().join("settings.lock")).unwrap();
+        let failure = store
+            .save(
+                serde_json::to_value(&saved.settings).unwrap(),
+                &saved.revision,
+            )
+            .unwrap_err();
         assert!(
-            store
-                .save(
-                    serde_json::to_value(&saved.settings).unwrap(),
-                    &saved.revision
-                )
-                .is_err()
+            failure
+                .message
+                .contains(&dir.path().join("settings.json").display().to_string())
         );
+        assert!(failure.message.contains("Check file access"));
+        assert!(failure.message.contains("reopen the gallery to retry"));
         assert_eq!(fs::read(dir.path().join("settings.json")).unwrap(), prior);
     }
     #[test]
@@ -739,20 +779,23 @@ mod tests {
             .unwrap();
         file.lock().unwrap();
         let current = store.envelope();
-        assert_eq!(
-            store
-                .save(
-                    serde_json::to_value(&current.settings).unwrap(),
-                    &current.revision
-                )
-                .unwrap_err()
-                .code,
-            "settings_conflict"
+        let failure = store
+            .save(
+                serde_json::to_value(&current.settings).unwrap(),
+                &current.revision,
+            )
+            .unwrap_err();
+        assert_eq!(failure.code, "settings_conflict");
+        assert!(
+            failure
+                .message
+                .contains(&dir.path().join("settings.json").display().to_string())
         );
+        assert!(failure.message.contains("Retry after that save finishes"));
         assert!(!dir.path().join("settings.json").exists());
     }
     #[test]
-    fn oversized_preferences_are_bounded_and_preserved() {
+    fn oversized_preferences_are_bounded_and_reset() {
         let dir = TempDir::new().unwrap();
         let store = store(&dir);
         let current = store.envelope();
@@ -764,16 +807,16 @@ mod tests {
         fs::write(dir.path().join("settings.json"), &bytes).unwrap();
         let reopened = SettingsStore::load(dir.path().join("settings.json"), false);
         let current = reopened.envelope();
-        assert!(current.warning.is_some());
+        assert!(current.warning.is_none());
+        reopened
+            .save(
+                serde_json::to_value(&current.settings).unwrap(),
+                &current.revision,
+            )
+            .unwrap();
         assert!(
-            reopened
-                .save(
-                    serde_json::to_value(&current.settings).unwrap(),
-                    &current.revision
-                )
-                .is_err()
+            fs::read(dir.path().join("settings.json")).unwrap().len() < MAX_SETTINGS_BYTES as usize
         );
-        assert_eq!(fs::read(dir.path().join("settings.json")).unwrap(), bytes);
     }
     #[test]
     fn page_four_is_private_and_only_accepted_in_elected_test_store() {
@@ -789,7 +832,7 @@ mod tests {
         assert!(elected.save(value, &initial.revision).is_ok());
     }
     #[test]
-    fn loading_mode_is_known_legacy_compatible_and_invalid_bytes_are_preserved() {
+    fn loading_mode_is_known_legacy_compatible_and_invalid_private_bytes_reset() {
         let base = serde_json::to_value(Settings::default()).unwrap();
         for mode in ["automatic", "conservative", "standard"] {
             let patch = serde_json::json!({"loadingMode":mode});
@@ -835,16 +878,14 @@ mod tests {
             fs::write(dir.path().join("settings.json"), &bytes).unwrap();
             let invalid = store(&dir);
             let current = invalid.envelope();
-            assert!(current.warning.is_some());
-            assert!(
-                invalid
-                    .save(
-                        serde_json::to_value(current.settings).unwrap(),
-                        &current.revision
-                    )
-                    .is_err()
-            );
-            assert_eq!(fs::read(dir.path().join("settings.json")).unwrap(), bytes);
+            assert!(current.warning.is_none());
+            invalid
+                .save(
+                    serde_json::to_value(current.settings).unwrap(),
+                    &current.revision,
+                )
+                .unwrap();
+            assert!(compatibility(&dir.path().join("settings.json")).is_ok());
         }
     }
     #[test]
@@ -894,6 +935,84 @@ mod tests {
         assert_eq!(
             serde_json::to_value(Settings::parse(old, false).unwrap()).unwrap()["summaryFields"],
             serde_json::json!([])
+        );
+    }
+    #[test]
+    fn release_labels_do_not_determine_private_format_compatibility() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("settings.json");
+        for version in ["0.0.0", "0.1.0", "0.2.0", "99.8.7"] {
+            let mut value = serde_json::to_value(Settings::default()).unwrap();
+            value["version"] = version.into();
+            value["pageSize"] = 24.into();
+            value["futureChoice"] = serde_json::json!({"keep":true});
+            let bytes = serde_json::to_vec(&value).unwrap();
+            fs::write(&path, &bytes).unwrap();
+            let store = store(&dir);
+            let loaded = store.envelope();
+            assert!(loaded.warning.is_none());
+            assert_eq!(loaded.settings.page_size, 24);
+            assert_eq!(fs::read(&path).unwrap(), bytes);
+            store
+                .save(
+                    serde_json::to_value(loaded.settings).unwrap(),
+                    &loaded.revision,
+                )
+                .unwrap();
+            let saved: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            assert_eq!(saved["futureChoice"], value["futureChoice"]);
+            assert_eq!(saved["version"], env!("CARGO_PKG_VERSION"));
+        }
+    }
+    #[test]
+    fn hardlinked_private_settings_are_not_reset_and_failure_names_file() {
+        let dir = TempDir::new().unwrap();
+        let external = dir.path().join("external.json");
+        let path = dir.path().join("settings.json");
+        fs::write(&external, b"broken").unwrap();
+        fs::hard_link(&external, &path).unwrap();
+        let store = SettingsStore::load(path.clone(), false);
+        let state = store.envelope();
+        assert!(
+            state
+                .warning
+                .as_ref()
+                .unwrap()
+                .contains(&path.display().to_string())
+        );
+        assert!(
+            store
+                .save(
+                    serde_json::to_value(state.settings).unwrap(),
+                    &state.revision
+                )
+                .is_err()
+        );
+        assert_eq!(fs::read(external).unwrap(), b"broken");
+    }
+    #[test]
+    fn reset_lock_contention_does_not_discard_bytes() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, b"broken").unwrap();
+        let lock =
+            crate::private_file::open(&dir.path().join("settings.lock"), true, true).unwrap();
+        lock.lock().unwrap();
+        let store = SettingsStore::load(path.clone(), false);
+        assert!(
+            store
+                .envelope()
+                .warning
+                .unwrap()
+                .contains(&path.display().to_string())
+        );
+        assert_eq!(fs::read(&path).unwrap(), b"broken");
+        drop(lock);
+        assert!(
+            SettingsStore::load(path, false)
+                .envelope()
+                .warning
+                .is_none()
         );
     }
 }

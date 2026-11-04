@@ -728,7 +728,7 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
     let identity = fs::read(base.join("identity.json")).map_err(|e| e.to_string())?;
     if v["binding"] != hash(&identity)
         || serde_json::from_slice::<serde_json::Value>(&identity).map_err(|e| e.to_string())?
-            != serde_json::json!({"formatVersion":1,"transaction":v["transaction"],"directory":v["directory"],"prior":v["prior"],"next":v["next"],"state":v["state"]})
+            != crate::recovery_identity(&v)
     {
         return Err("Recovery immutable identity changed".into());
     }

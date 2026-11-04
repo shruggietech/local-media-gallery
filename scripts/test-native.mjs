@@ -497,7 +497,7 @@ try {
     await writeFile(path.join(root, '.local/native-gallery.png'), Buffer.from(png, 'base64'));
     await unchanged();
   });
-  await test('all view preferences restore and invalid/write-failed state is observable',async()=>{
+  await test('all view preferences restore, invalid state resets silently and write failures remain observable',async()=>{
     if(await js('return !document.getElementById("media-filter")')) await click('Show controls');
     if(await js('return !document.getElementById("page-size")')) await click('Settings');
     await select('page-size','24');await select('card-size','small');await select('scroll-indicator','always');
@@ -513,12 +513,20 @@ try {
     await select('media-filter','all');await select('media-sort','name');await select('media-direction','asc');await select('page-size','48');await select('card-size','medium');await select('scroll-indicator','auto');
     await until(async()=>{const s=JSON.parse(await readFile(settingsFile));return s.filter==='all'&&s.sort==='name'&&s.direction==='asc'&&s.pageSize===48&&s.cardSize==='medium'&&s.scrollIndicator==='auto'&&s.controlsExpanded},'Restored normal test preferences');
     const valid=await readFile(settingsFile);
-    await stop();await writeFile(settingsFile,'{broken');child=launch([fixture.directory]);await connect();await visible('document.body.textContent.includes("settings file was preserved")');
-    await click('Show controls');await select('media-filter','image');await pause(200);
-    assert.equal(await readFile(settingsFile,'utf8'),'{broken');assert.equal(await js('return document.querySelectorAll(".media-card").length'),10);
+    await stop();await writeFile(settingsFile,'{broken');child=launch([fixture.directory]);await connect();
+    await visible('document.querySelectorAll(".media-card").length===12');
+    const reset=JSON.parse(await readFile(settingsFile,'utf8'));
+    assert.equal(reset.formatVersion,1);assert.equal(reset.filter,'all');assert.equal(reset.controlsExpanded,false);
+    assert.equal(await js('return Boolean(document.querySelector(".media-error"))'),false,'Invalid private preferences reset without a warning');
+    await click('Show controls');await select('media-filter','image');
+    await until(async()=>JSON.parse(await readFile(settingsFile,'utf8')).filter==='image','Reset preferences accept the next save');
+    await visible('document.querySelectorAll(".media-card").length===10');
     await stop();await writeFile(settingsFile,valid);await rm(path.join(settingsDirectory,'settings.lock'),{force:true});await mkdir(path.join(settingsDirectory,'settings.lock'));
     child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');await open('image2.jpg');await click('Information');
-    await visible('document.querySelector("dialog")?.textContent.includes("could not be saved")');assert.equal(await js('return Boolean(document.querySelector("dialog .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
+    await visible('document.querySelector("dialog .media-error")?.textContent.includes("Could not lock for save preferences at ")');
+    assert.ok(await js('return document.querySelector("dialog .media-error").textContent.includes(arguments[0])',[settingsFile]),'Write failure names the preferences file');
+    assert.ok(await js('return document.querySelector("dialog .media-error").textContent.includes("reopen the gallery to retry")'),'Write failure explains how to retry');
+    assert.equal(await js('return Boolean(document.querySelector("dialog .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
     await stop();await rm(path.join(settingsDirectory,'settings.lock'),{recursive:true});child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('folder choices, portable intent, provenance, inheritance and failed recents', async () => {

@@ -34,7 +34,7 @@ fn read_job(path: &Path) -> Result<(Job, Journal)> {
         serde_json::from_slice(&read_bounded(&base.join("journal.json"), 8 * 1024 * 1024)?)
             .map_err(|e| e.to_string())?;
     let identity = read_bounded(&base.join("identity.json"), 8 * 1024 * 1024)?;
-    let expected = serde_json::json!({"formatVersion":1,"transaction":base,"directory":journal.directory,"prior":journal.prior,"next":journal.next,"state":journal.state});
+    let expected = identity_record(&journal);
     if hash(&identity) != job.binding
         || journal.binding != job.binding
         || job.directory != journal.directory
@@ -131,7 +131,7 @@ fn reinstall_source(
     }
     durable_json(
         &path.with_extension("source.json"),
-        &serde_json::json!({"binding":job.binding,"side":job.side,"sourceName":name,"path":alias.strip_prefix(&job.transaction).map_err(|e|e.to_string())?,"bytes":record.bytes,"sha256":record.sha256}),
+        &serde_json::json!({"binding":job.binding,"side":job.side,"sourceName":name,"path":alias.strip_prefix(&job.transaction).map_err(|e|e.to_string())?.to_str().ok_or("Non-Unicode scratch source")?.replace('\\',"/"),"bytes":record.bytes,"sha256":record.sha256}),
     )?;
     Ok((alias, pins))
 }
@@ -139,7 +139,11 @@ fn reinstall_source(
 pub fn entry(path: &Path) -> Result<i32> {
     let (job, journal) = read_job(path)?;
     let base = &job.transaction;
-    let _lease = native_lease(&job.directory, machine_scope(&journal.prior))?;
+    let _lease = native_lease(
+        &job.directory,
+        machine_scope(&journal.prior),
+        journal.state.storage_root(),
+    )?;
     receipt(base, path, false, None, None)?;
     let selected = if job.target_prior {
         &journal.prior
@@ -156,7 +160,7 @@ pub fn entry(path: &Path) -> Result<i32> {
         &base.join(if job.target_prior { "prior" } else { "next" }),
         other,
         &base.join(if job.target_prior { "next" } else { "prior" }),
-        &journal.state,
+        journal.state.operands(),
     )?;
     Transaction::active(&job.directory, &journal.prior)?;
     Transaction::active(&job.directory, &journal.next)?;
@@ -281,14 +285,8 @@ pub fn entry(path: &Path) -> Result<i32> {
     let stderr_path = path.with_extension("stderr");
     physical(&stdout_path)?;
     physical(&stderr_path)?;
-    let stdout = io(OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&stdout_path))?;
-    let stderr = io(OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&stderr_path))?;
+    let stdout = create_scratch(&stdout_path)?;
+    let stderr = create_scratch(&stderr_path)?;
     let mut child = io(command
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout))
@@ -306,10 +304,20 @@ pub fn entry(path: &Path) -> Result<i32> {
     receipt(base, path, true, Some(code), Some(child.id()))?;
     Ok(code)
 }
+fn create_scratch(path: &Path) -> Result<File> {
+    #[cfg(windows)]
+    {
+        gallery_windows_package::private::create_file(path)
+    }
+    #[cfg(not(windows))]
+    {
+        io(OpenOptions::new().write(true).create_new(true).open(path))
+    }
+}
 fn supervisor_log(path: &Path, extension: &str) -> Result<File> {
     let file = path.with_extension(extension);
     physical(&file)?;
-    io(OpenOptions::new().write(true).create_new(true).open(file))
+    create_scratch(&file)
 }
 fn terminal_receipt(path: &Path, receipt: &Path, code: Option<i32>) -> Result<serde_json::Value> {
     let result = read_bounded(receipt, 16384).and_then(|bytes| {
@@ -442,6 +450,119 @@ pub(super) fn execute(
     })
 }
 
+/// Cleanup requires the native lease and a matching terminal receipt. Recovery inputs stay sealed.
+pub(super) fn cleanup(op: &Transaction) -> Result<()> {
+    process::active(&op.base.join("native-process.json"))?;
+    if !op.base.join("native-process.json").exists() {
+        return Ok(());
+    }
+    let _lease = native_lease(
+        &op.journal.directory,
+        machine_scope(&op.journal.prior),
+        op.journal.state.storage_root(),
+    )?;
+    let receipt: serde_json::Value =
+        serde_json::from_slice(&read_bounded(&op.base.join("native-process.json"), 16384)?)
+            .map_err(|e| e.to_string())?;
+    if receipt["terminal"] != true {
+        return Ok(());
+    }
+    let Some(current) = receipt["job"].as_str() else {
+        return Ok(());
+    };
+    for entry in io(fs::read_dir(&op.base))? {
+        let entry = io(entry)?;
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.starts_with("native-job-")
+            || path.extension().is_none_or(|e| e != "json")
+            || name.ends_with(".source.json")
+        {
+            continue;
+        }
+        let (job, _) = read_job(&path)?;
+        #[cfg(not(windows))]
+        let _ = &job;
+        #[cfg(windows)]
+        {
+            let source = path.with_extension("source");
+            let marker = path.with_extension("source.json");
+            if marker.exists() {
+                gallery_windows_package::private::validate_file(
+                    &marker,
+                    machine_scope(&op.journal.prior),
+                )?;
+                let metadata: serde_json::Value =
+                    serde_json::from_slice(&read_bounded(&marker, 16384)?)
+                        .map_err(|e| e.to_string())?;
+                let relative = metadata["path"]
+                    .as_str()
+                    .ok_or("Missing scratch source path")?;
+                if !gallery_windows_package::portable(relative)
+                    || metadata["binding"] != job.binding
+                {
+                    return Err("Foreign worker source retained".into());
+                }
+                let alias = op.base.join(relative);
+                if alias.parent() != Some(source.as_path()) {
+                    return Err("Worker source escaped its owned directory".into());
+                }
+                let pins = gallery_windows_package::private::validate_directory(
+                    &source,
+                    machine_scope(&op.journal.prior),
+                )?;
+                for child in io(fs::read_dir(&source))? {
+                    if io(child)?.path() != alias {
+                        return Err("Foreign worker source content retained".into());
+                    }
+                }
+                gallery_windows_package::private::validate_file(
+                    &alias,
+                    machine_scope(&op.journal.prior),
+                )?;
+                let selected = if job.side == "prior" {
+                    &op.journal.prior
+                } else {
+                    &op.journal.next
+                };
+                let artifact = selected
+                    .artifact()
+                    .ok_or("Missing sealed worker artifact")?;
+                verify_file(
+                    &alias,
+                    &FileRecord {
+                        path: "source".into(),
+                        bytes: artifact.bytes.clone(),
+                        sha256: artifact.sha256.clone(),
+                        mode: 644,
+                    },
+                )?;
+                io(fs::remove_file(&alias))?;
+                drop(pins);
+                io(fs::remove_dir(&source))?;
+                io(fs::remove_file(marker))?;
+            }
+        }
+        for extension in ["stdout", "stderr", "supervisor.stdout", "supervisor.stderr"] {
+            let scratch = path.with_extension(extension);
+            if scratch.try_exists().map_err(|e| e.to_string())? {
+                physical(&scratch)?;
+                #[cfg(windows)]
+                gallery_windows_package::private::validate_file(
+                    &scratch,
+                    machine_scope(&op.journal.prior),
+                )?;
+                io(fs::remove_file(scratch))?;
+            }
+        }
+        if path != Path::new(current) {
+            io(fs::remove_file(path))?;
+        }
+    }
+    Ok(())
+}
+
 pub fn run(path: &Path) -> Result<i32> {
     match entry(path) {
         Ok(code) => Ok(code),
@@ -467,6 +588,19 @@ pub fn run(path: &Path) -> Result<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    #[test]
+    fn worker_output_has_private_authority_and_is_cleanup_eligible() {
+        let fixture = crate::test_support::Fixture::new();
+        let path = fixture.path().join("native-job-fixture.json");
+        let output = supervisor_log(&path, "supervisor.stdout").unwrap();
+        drop(output);
+        gallery_windows_package::private::validate_file(
+            &path.with_extension("supervisor.stdout"),
+            false,
+        )
+        .unwrap();
+    }
     #[test]
     fn supervisor_failure_keeps_preparation_receipt_unaccepted_and_retains_reason() {
         let work = tempfile::tempdir().unwrap();

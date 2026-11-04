@@ -7,7 +7,8 @@ rust-version.workspace = true
 
 [features]
 lite = []
-native-tests = ["dep:tauri-plugin-wdio-webdriver", "gallery-core/discovery-tests", "dep:objc2", "dep:objc2-app-kit", "dep:objc2-foundation"]
+tooling-state = []
+native-tests = ["tooling-state", "dep:tauri-plugin-wdio-webdriver", "gallery-core/discovery-tests", "dep:objc2", "dep:objc2-app-kit", "dep:objc2-foundation"]
 
 [build-dependencies]
 tauri-build = { version = "=2.7.4", features = [] }

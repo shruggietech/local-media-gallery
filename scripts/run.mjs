@@ -35,7 +35,7 @@ export function execute(file, args, options = {}) {
   });
 }
 export const node = (script, args = [], options = {}) => execute(process.execPath, [script, ...args], options);
-export const cargo = (args) => execute('cargo', args);
+export const cargo = (args, options = {}) => execute('cargo', args, options);
 export async function exportInterface() {
   await node(path.join(root, 'scripts/stage-brand.mjs'));
   await node(path.join(root, 'node_modules/next/dist/bin/next'), ['build', '--webpack'], { cwd: app });
@@ -83,7 +83,7 @@ async function main(command, rest) {
       return node(path.join(root, 'scripts/test-native.mjs'));
     case 'app':
       await exportInterface();
-      return cargo(['run', '--locked', '-p', 'local-media-gallery', '--', ...rest]);
+      return cargo(['run', '--locked', '-p', 'local-media-gallery', '--features', 'tooling-state', '--', ...rest], { env: { ...environment, GALLERY_TOOLING_STATE_ROOT: path.join(root, '.local/development-state') } });
     default: throw new Error('Unknown maintainer command. Use check-app, export, build-app, test-native or app.');
   }
 }

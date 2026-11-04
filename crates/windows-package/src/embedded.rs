@@ -147,6 +147,10 @@ fn verified_retention(
                 .ok_or("Non-Unicode retained member")?
                 .replace('\\', "/")
                 .to_lowercase();
+            if relative == ".stage-owner.json" {
+                crate::scratch::validate_published_marker(root, expected, machine)?;
+                continue;
+            }
             let kind = child.file_type().map_err(|e| e.to_string())?;
             if kind.is_dir() {
                 if !expected
@@ -207,11 +211,26 @@ fn retain_complete_with(
     }
     let parent = directory.parent().ok_or("Missing retained parent")?;
     let _parent_pins = crate::private::validate_directory(parent, machine)?;
+    crate::scratch::Stage::reclaim(
+        parent,
+        parent,
+        ".lmg-retaining-",
+        "embedded",
+        machine,
+        |_| true,
+    )?;
     let id = unsafe { windows::Win32::System::Com::CoCreateGuid() }.map_err(|e| e.to_string())?;
     let stage = parent.join(format!(".lmg-retaining-{:032x}", id.to_u128()));
     // Incomplete stages are not authority. A terminated process can leave one;
     // retries create a distinct stage and never adopt or overwrite the orphan.
-    drop(crate::private::create_directory(&stage, machine)?);
+    let mut guard = crate::scratch::Stage::create(
+        parent,
+        &stage,
+        "embedded",
+        entries.iter().map(|(r, _)| r.path.clone()).collect(),
+        Default::default(),
+        machine,
+    )?;
     for (record, data) in entries {
         if !portable(&record.path) {
             return Err("Invalid retained member".into());
@@ -227,13 +246,20 @@ fn retain_complete_with(
             .map_err(|e| e.to_string())?;
     }
     // Release stage/file pins before the directory rename; they deny Windows deletion.
-    drop(verified_retention(&stage, machine, entries)?);
+    guard.validate("embedded")?;
+    for (record, _) in entries {
+        drop(crate::open_verified_input(
+            &stage.join(&record.path),
+            record,
+        )?);
+    }
     if let Err(error) = publish(&stage, directory) {
         if !present(directory)? {
             return Err(error);
         }
         return verified_retention(directory, machine, entries);
     }
+    guard.published(directory)?;
     verified_retention(directory, machine, entries)
 }
 
@@ -392,12 +418,12 @@ pub fn maintenance(
             (
                 "--state-settings",
                 "APPDATA",
-                "tech.shruggie.local-media-gallery/settings.json",
+                "local-media-gallery/settings.json",
             ),
             (
                 "--state-history",
                 "LOCALAPPDATA",
-                "tech.shruggie.local-media-gallery/state/history.sqlite3",
+                "local-media-gallery/state/history.sqlite3",
             ),
         ] {
             let base =
@@ -445,10 +471,9 @@ mod tests {
 
     #[cfg(windows)]
     fn retention_fixture() -> (tempfile::TempDir, std::path::PathBuf) {
-        let root = crate::private::storage_root(false).unwrap();
-        let temp = tempfile::tempdir_in(root).unwrap();
+        let temp = tempfile::tempdir().unwrap();
         let private = temp.path().join("authority");
-        drop(crate::private::create_directory(&private, false).unwrap());
+        crate::private::ensure_storage_at(&private, false).unwrap();
         (temp, private)
     }
     #[cfg(windows)]
@@ -556,9 +581,9 @@ mod tests {
             std::fs::read(retained.directory.join("source/input.bin")).unwrap(),
             b"complete retained input!"
         );
-        assert_eq!(
-            std::fs::read(orphans[0].join("source/input.bin")).unwrap(),
-            b"com"
+        assert!(
+            !orphans[0].exists(),
+            "Validated abandoned stage must be reclaimed on retry"
         );
     }
     #[cfg(windows)]
@@ -589,6 +614,50 @@ mod tests {
             std::fs::read(retained.directory.join("source/input.bin")).unwrap(),
             b"complete retained input!"
         );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn published_payload_is_readable_during_marker_handoff_and_rejects_foreign_markers() {
+        use std::io::Write;
+        let (_temp, root) = retention_fixture();
+        let final_path = root.join("package");
+        let record = retained_test_record();
+        let entries = retained_test_entries(&record);
+        let mut marker_reader = None;
+        let retained = retain_complete_with(
+            &final_path,
+            false,
+            &entries,
+            |file, bytes| file.write_all(bytes),
+            |stage, directory| {
+                publish_directory(stage, directory)?;
+                let marker = directory.join(".stage-owner.json");
+                let original = std::fs::read(&marker).unwrap();
+                let owner: serde_json::Value = serde_json::from_slice(&original).unwrap();
+                for (key, value) in [
+                    ("purpose", serde_json::json!("foreign")),
+                    ("files", serde_json::json!(["unexpected.bin"])),
+                    ("path", serde_json::json!(root.join("foreign"))),
+                    ("trees", serde_json::json!(["source"])),
+                ] {
+                    let mut foreign = owner.clone();
+                    foreign[key] = value;
+                    let bytes = serde_json::to_vec(&foreign).unwrap();
+                    std::fs::write(&marker, &bytes).unwrap();
+                    assert!(verified_retention(directory, false, &entries).is_err());
+                    assert_eq!(std::fs::read(&marker).unwrap(), bytes);
+                }
+                std::fs::write(&marker, &original).unwrap();
+                drop(verified_retention(directory, false, &entries)?);
+                assert_eq!(std::fs::read(&marker).unwrap(), original);
+                marker_reader = Some(crate::private::read_file(&marker, false)?);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert!(!retained.directory.join(".stage-owner.json").exists());
+        drop(verified_retention(&final_path, false, &entries).unwrap());
+        drop(marker_reader);
     }
     #[cfg(windows)]
     #[test]
