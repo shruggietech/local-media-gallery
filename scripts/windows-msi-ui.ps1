@@ -20,9 +20,14 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { 
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
-Add-Type @'
+Add-Type -AssemblyName Accessibility
+Add-Type -CompilerOptions '/nowarn:1701' -ReferencedAssemblies ([Accessibility.IAccessible].Assembly.Location) @'
 using System;using System.Runtime.InteropServices;
 public static class GalleryMsiWindow {
+ [DllImport("oleacc.dll")] static extern int AccessibleObjectFromWindow(IntPtr hwnd,uint objectId,ref Guid iid,[MarshalAs(UnmanagedType.Interface)] out Accessibility.IAccessible accessible);
+ static Accessibility.IAccessible Accessible(IntPtr hwnd) {if(hwnd==IntPtr.Zero)throw new Exception("MSI control has no native handle");Guid iid=new Guid("618736e0-3c3d-11cf-810c-00aa00389b71");Accessibility.IAccessible value;Marshal.ThrowExceptionForHR(AccessibleObjectFromWindow(hwnd,0xfffffffc,ref iid,out value));return value;}
+ public static object[] ReadLegacy(IntPtr hwnd) {if(hwnd==IntPtr.Zero)return null;Accessibility.IAccessible value=null;try {value=Accessible(hwnd);return new object[]{Convert.ToInt32(value.get_accRole(0)),Convert.ToInt32(value.get_accState(0)),value.get_accDefaultAction(0)??"",value.get_accValue(0)??""};}catch{return null;}finally{if(value!=null)Marshal.FinalReleaseComObject(value);}}
+ public static void LegacyAction(IntPtr hwnd,string input) {var value=Accessible(hwnd);try {int role=Convert.ToInt32(value.get_accRole(0));int state=Convert.ToInt32(value.get_accState(0));if(role==42)value.set_accValue(0,input);else if(role==44){if(((state&16)!=0)!=(input!="false"))value.accDoDefaultAction(0);}else if(role==45){if((state&18)==0)value.accDoDefaultAction(0);}else if(!String.IsNullOrEmpty(value.get_accDefaultAction(0)))value.accDoDefaultAction(0);else throw new Exception("MSI control has no accessible default action");}finally{Marshal.FinalReleaseComObject(value);}}
  [StructLayout(LayoutKind.Sequential)] public struct Rect {public int Left,Top,Right,Bottom;}
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -47,12 +52,20 @@ foreach ($window in $windows) {
     if ($elements.Count -gt 1024) { throw 'MSI accessibility bound exceeded' }
     foreach ($element in $elements) {
         $c=$element.Current
-        $toggle=$null;$selected=$null;$currentValue=$null;$probe=$null
+        $toggle=$null;$selected=$null;$currentValue=$null;$probe=$null;$legacyRole=$null;$legacyAction=$null;$providerRole=$c.ControlType.ProgrammaticName
         if ($element.TryGetCurrentPattern([Windows.Automation.TogglePattern]::Pattern,[ref]$probe)) { $toggle=[string]$probe.Current.ToggleState }
         if ($element.TryGetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern,[ref]$probe)) { $selected=$probe.Current.IsSelected }
         if ($element.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern,[ref]$probe)) { $currentValue=$probe.Current.Value }
-        $records.Add(@{name=$c.Name;toggle=$toggle;selected=$selected;value=$currentValue;id=$c.AutomationId;role=$c.ControlType.ProgrammaticName;enabled=$c.IsEnabled;offscreen=$c.IsOffscreen;processId=$c.ProcessId})
-        if ($Name -ne '' -and ($c.Name.Replace('&','').Replace('>','').Replace('<','').Trim() -eq $Name -or ($Name -eq '__location__' -and $c.ControlType -eq [Windows.Automation.ControlType]::Edit)) -and $c.IsEnabled -and !$c.IsOffscreen) { $targets.Add($element) }
+        $legacy=[GalleryMsiWindow]::ReadLegacy([IntPtr]$c.NativeWindowHandle)
+        if ($null -ne $legacy) {
+            $legacyRole=[int]$legacy[0];$legacyState=[int]$legacy[1];$legacyAction=[string]$legacy[2]
+            if ($null -eq $currentValue -and $legacyRole -eq 42) { $currentValue=[string]$legacy[3] }
+            if ($legacyRole -eq 44 -and $null -eq $toggle) { $toggle=if ($legacyState -band 16) {'On'}else{'Off'} }
+            if ($legacyRole -eq 45 -and $null -eq $selected) { $selected=[bool]($legacyState -band 18) }
+        }
+        $role=if ($legacyRole -eq 44) {'ControlType.CheckBox'}elseif($legacyRole -eq 45){'ControlType.RadioButton'}else{$providerRole}
+        $records.Add(@{name=$c.Name;providerRole=$providerRole;legacyRole=$legacyRole;legacyAction=$legacyAction;toggle=$toggle;selected=$selected;value=$currentValue;id=$c.AutomationId;role=$role;enabled=$c.IsEnabled;offscreen=$c.IsOffscreen;processId=$c.ProcessId})
+        if ($Name -ne '' -and ($c.Name.Replace('&','').Replace('>','').Replace('<','').Trim() -eq $Name -or ($Name -eq '__location__' -and ($c.ControlType -eq [Windows.Automation.ControlType]::Edit -or $legacyRole -eq 42))) -and $c.IsEnabled -and !$c.IsOffscreen) { $targets.Add($element) }
     }
 }
 $invoked=$false
@@ -69,7 +82,8 @@ if ($Name -eq '__tab__') {
     } elseif ($target.TryGetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern,[ref]$pattern)) { $pattern.Select() }
     elseif ($target.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern,[ref]$pattern)) { $pattern.SetValue($Value) }
     elseif ($target.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern,[ref]$pattern)) { $pattern.Invoke() }
-    else { throw 'MSI control has no usable native input pattern' }
+    elseif ($target.Current.NativeWindowHandle -ne 0) { [GalleryMsiWindow]::LegacyAction([IntPtr]$target.Current.NativeWindowHandle,$Value) }
+    else { throw ("MSI control has no native input pattern: "+$Name+" / "+$target.Current.ControlType.ProgrammaticName+" / "+(($target.GetSupportedPatterns() | ForEach-Object {$_.ProgrammaticName}) -join ',')) }
     $invoked=$true
 }
 $screen=$null

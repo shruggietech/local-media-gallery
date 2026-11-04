@@ -467,10 +467,8 @@ pub(crate) fn retain_native(
     payload.verify(installed, false)?;
     let expected =
         crate::native::package_code(crate::native::DUAL, machine, crate::PAYLOAD.as_bytes())?;
-    let (product, package, _, scope) = crate::native::inspect_package(source)?;
-    if product != crate::native::DUAL || package.to_uppercase() != expected || scope != "dual" {
-        return Err("The MSI maintenance source does not match the installed candidate".into());
-    }
+    let _source_namespace =
+        crate::private::pin_physical(source.parent().ok_or("Missing MSI source parent")?)?;
     crate::check_path(source)?;
     let bytes = std::fs::read(source).map_err(|e| e.to_string())?;
     let artifact = FileRecord {
@@ -479,6 +477,10 @@ pub(crate) fn retain_native(
         sha256: hash(&bytes),
     };
     let _input = crate::open_verified_input(source, &artifact)?;
+    let (product, package, _, scope) = crate::native::inspect_package(source)?;
+    if product != crate::native::DUAL || package.to_uppercase() != expected || scope != "dual" {
+        return Err("The MSI maintenance source does not match the installed candidate".into());
+    }
     let storage = if let Some(root) = storage_root {
         crate::private::validate_directory(root, machine)?;
         root.to_path_buf()
@@ -495,6 +497,13 @@ pub(crate) fn retain_native(
     files.push(serde_json::json!({"path":"payload.json","bytes":crate::PAYLOAD.len().to_string(),"sha256":hash(crate::PAYLOAD.as_bytes()),"mode":644}));
     files.sort_by_key(|f| f["path"].as_str().unwrap().to_owned());
     let descriptor = serde_json::json!({"formatVersion":1,"product":payload.product,"version":payload.version,"edition":payload.edition,"os":payload.os,"arch":payload.arch,"generation":payload.generation,"source":payload.source,"binary":payload.binary,"files":files,"native":{"kind":"windows-msi","scope":if machine {"machine"}else{"user"},"productCode":product,"packageCode":expected,"installer":{"path":artifact.path,"bytes":artifact.bytes,"sha256":artifact.sha256}},"integration":null});
+    let updater = payload
+        .files
+        .iter()
+        .find(|f| f.path == "lmg-update.exe")
+        .ok_or("Missing declared updater")?;
+    let _installed_namespace = crate::private::pin_physical(installed)?;
+    let _updater = crate::open_verified_input(&installed.join("lmg-update.exe"), updater)?;
     let mut owned = vec![(artifact, bytes)];
     for (name, bytes) in [
         ("setup.json", setup_bytes.clone()),
@@ -510,8 +519,16 @@ pub(crate) fn retain_native(
         owned.push((
             FileRecord {
                 path: name.into(),
-                bytes: bytes.len().to_string(),
-                sha256: hash(&bytes),
+                bytes: if name == "lmg-update.exe" {
+                    updater.bytes.clone()
+                } else {
+                    bytes.len().to_string()
+                },
+                sha256: if name == "lmg-update.exe" {
+                    updater.sha256.clone()
+                } else {
+                    hash(&bytes)
+                },
             },
             bytes,
         ));

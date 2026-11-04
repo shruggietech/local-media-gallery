@@ -14,7 +14,6 @@
   <Property Id="LMG_LAST_SCOPE" Secure="yes" />
   <Property Id="LMG_RECOVERY" Secure="yes" />
   <Property Id="LMG_RECOVERY_PROTOCOL" Value="1" />
-  <Property Id="REBOOT" Value="ReallySuppress" />
   <Property Id="INSTALLDIR" Secure="yes" />
   <Property Id="ARPPRODUCTICON" Value="ApplicationIcon" />
   <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
@@ -68,6 +67,7 @@
   <CustomAction Id="SetInstallLocation" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
   <CustomAction Id="ProvisionUserRuntime" BinaryKey="Ownership" DllEntry="ProvisionRuntime" Execute="deferred" Impersonate="yes" Return="check" />
   <CustomAction Id="ProvisionMachineRuntime" BinaryKey="Ownership" DllEntry="ProvisionRuntime" Execute="deferred" Impersonate="no" Return="check" />
+  <CustomAction Id="VerifyInstallingUserState" BinaryKey="Ownership" DllEntry="VerifyInstallingUserState" Execute="deferred" Impersonate="yes" Return="check" />
   <CustomAction Id="VerifyUserInstalled" BinaryKey="Ownership" DllEntry="VerifyInstalled" Execute="deferred" Impersonate="yes" Return="check" />
   <CustomAction Id="VerifyMachineInstalled" BinaryKey="Ownership" DllEntry="VerifyInstalled" Execute="deferred" Impersonate="no" Return="check" />
   <CustomAction Id="RuntimeResult" BinaryKey="Ownership" DllEntry="RuntimeResult" Execute="immediate" Return="check" />
@@ -84,6 +84,7 @@
    <RemoveExistingProducts After="InstallInitialize" />
    <Custom Action="ProvisionUserRuntime" After="RemoveExistingProducts">NOT REMOVE="ALL" AND NOT ALLUSERS</Custom>
    <Custom Action="ProvisionMachineRuntime" After="ProvisionUserRuntime">NOT REMOVE="ALL" AND ALLUSERS=1</Custom>
+   <Custom Action="VerifyInstallingUserState" Before="VerifyUserInstalled">NOT REMOVE="ALL"</Custom>
    <Custom Action="VerifyUserInstalled" Before="InstallFinalize">NOT REMOVE="ALL" AND NOT ALLUSERS</Custom>
    <Custom Action="VerifyMachineInstalled" After="VerifyUserInstalled">NOT REMOVE="ALL" AND ALLUSERS=1</Custom>
    <Custom Action="RuntimeResult" After="InstallFinalize">NOT REMOVE="ALL"</Custom>

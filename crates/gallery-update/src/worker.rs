@@ -291,7 +291,7 @@ pub fn entry(path: &Path) -> Result<i32> {
             }
             #[cfg(not(windows))]
             {
-                let _ = (scope, package_code);
+                let _ = (scope, package_code, product_code);
                 return Err("MSI worker requires Windows".into());
             }
         }

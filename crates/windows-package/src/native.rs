@@ -897,6 +897,7 @@ fn preflight(h: u32) -> Result<(), String> {
     for action in [
         "VerifyUserInstalled",
         "VerifyMachineInstalled",
+        "VerifyInstallingUserState",
         "ProvisionUserRuntime",
         "ProvisionMachineRuntime",
     ] {
@@ -1122,7 +1123,6 @@ pub extern "system" fn VerifyInstalled(h: u32) -> u32 {
                     &hash(PAYLOAD.as_bytes()),
                 )?;
                 scoped_runtime(data.machine)?;
-                verify_selected_writer(&data)?;
                 crate::embedded::retain_native(
                     data.machine,
                     &data.source_msi,
@@ -1496,63 +1496,51 @@ pub fn reinstall_layout(file: &Path) -> Result<Vec<Vec<String>>, String> {
 }
 
 fn verify_selected_writer(data: &DeferredContext) -> Result<(), String> {
-    use std::io::Read;
-    use std::os::windows::process::CommandExt;
-    use std::process::{Command, Stdio};
-    use std::time::{Duration, Instant};
     if data.state.is_empty() {
         return Ok(());
     }
-    let mut command = Command::new(data.directory.join("local-media-gallery.exe"));
-    command.args(["state-compatibility", "--json"]);
+    let payload: Payload = serde_json::from_str(PAYLOAD).map_err(|e| e.to_string())?;
+    let _parents = crate::private::pin_physical(&data.directory)?;
+    let binary = data.directory.join(&payload.binary);
+    let record = payload
+        .files
+        .iter()
+        .find(|f| f.path == payload.binary)
+        .ok_or("Missing writer identity")?;
+    let _binary = crate::open_verified_input(&binary, record)?;
+    let mut args = vec![
+        OsString::from("state-compatibility"),
+        OsString::from("--json"),
+    ];
     for operand in &data.state {
         if !matches!(operand.kind.as_str(), "settings" | "history" | "portable") {
             return Err("Invalid selected writer state operand".into());
         }
         check_path(&operand.path)?;
-        command
-            .arg(format!("--{}", operand.kind))
-            .arg(&operand.path);
+        args.push(OsString::from(format!("--{}", operand.kind)));
+        args.push(operand.path.clone().into_os_string());
     }
-    let mut child = command
-        .creation_flags(0x08000000)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("Cannot check installed writer: {e}"))?;
-    let started = Instant::now();
-    let status = loop {
-        if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
-            break status;
-        }
-        if started.elapsed() > Duration::from_secs(30) {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(
-                "Installed writer state check timed out; application installation is rolling back"
-                    .into(),
-            );
-        }
-        std::thread::sleep(Duration::from_millis(20));
-    };
-    let mut bytes = Vec::new();
-    child
-        .stdout
-        .take()
-        .ok_or("Missing state check output")?
-        .take(16385)
-        .read_to_end(&mut bytes)
-        .map_err(|e| e.to_string())?;
-    if bytes.len() > 16384 {
-        return Err("Oversized writer compatibility result".into());
-    }
+    let bytes = crate::effective_process::spawn(&binary, &args, true)?.probe()?;
     let result: serde_json::Value = serde_json::from_slice(&bytes)
         .map_err(|_| "Installed writer did not report state compatibility")?;
-    if !status.success() || result["compatible"] != true {
-        return Err("The installed writer cannot use the selected private state; installation is rolling back. Inspect the state compatibility diagnostic.".into());
+    if result["compatible"] != true {
+        return Err("The installed writer cannot use the selected private state; installation is rolling back".into());
     }
     Ok(())
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn VerifyInstallingUserState(h: u32) -> u32 {
+    std::panic::catch_unwind(|| {
+        report(
+            h,
+            (|| {
+                let data: DeferredContext = serde_json::from_str(&text(h, "CustomActionData")?)
+                    .map_err(|e| e.to_string())?;
+                verify_selected_writer(&data)
+            })(),
+        )
+    })
+    .unwrap_or(1603)
 }
 
 #[cfg(test)]

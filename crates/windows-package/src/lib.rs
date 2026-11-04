@@ -4,6 +4,8 @@ use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::{fs, path::Path};
 
+#[cfg(windows)]
+pub(crate) mod effective_process;
 pub mod embedded;
 #[cfg(windows)]
 pub mod native;

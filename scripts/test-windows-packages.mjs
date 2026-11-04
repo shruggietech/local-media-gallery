@@ -67,7 +67,7 @@ async function setup(scope,destination,flags=[]){return msiProduct(path.join(ful
 const wizardEvidence=[];
 async function wizardInstall(file,{scope='machine',destination,startMenu=true,commandPath=true,cancelAt=null}={}){
  const log=path.join(work,'wizard-'+(++msiSequence)+'.log');const child=spawn(systemMsi,['/i',file,'/norestart','/L*v',log],{cwd:outside,env:environment,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});live.add(child);let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.once('error',e=>output+=e.message);
- const screens=[];const read=()=>observer.request('msi');const input=(name,value='')=>observer.request('msi',{name,value});
+ const screens=[];const read=()=>observer.request('msi');const input=async(name,value='')=>{try{return await observer.request('msi',{name,value});}catch(e){throw Error('MSI input '+name+': '+e.message,{cause:e});}};
  const name=n=>n.replaceAll('&','').replaceAll('>','').replaceAll('<','').trim();
  const waitFor=(label)=>until(async()=>{if(child.exitCode!==null)throw Error('MSI wizard exited '+child.exitCode+': '+output);const r=await read();return r.records.some(n=>n.name.includes(label))?r:false;},'Actual MSI wizard '+label,30000);
  async function screen(label){const screenshot=path.join(work,'wizard-'+msiSequence+'-'+label+'.png');const r=await observer.request('msi',{screenshot});const b=await readFile(screenshot);screens.push({label,...r,screenshot:path.relative(root,screenshot),bytes:String(b.length),sha256:digest(b)});return r;}
@@ -82,9 +82,10 @@ async function wizardInstall(file,{scope='machine',destination,startMenu=true,co
   await input('Create a Start menu shortcut',String(startMenu));await input('Add the application to command PATH',String(commandPath));
   await input('Back');await waitFor('Choose who');await input('Next');let options=await waitFor('Choose location');if(destination)assert.ok(options.records.some(n=>n.value?.toLowerCase().replace(/[\\/]$/,'')===destination.toLowerCase().replace(/[\\/]$/,'')),'Back retains chosen path');
   await input('Next');await waitFor('Install');await input('Install');
-  let observedPhase=false,cancellationRequested=false;const end=Date.now()+240000;
+  let observedPhase=false,progressObserved=false,cancellationRequested=false;const end=Date.now()+240000;
   while(child.exitCode===null&&Date.now()<end){
    let r;try{r=await read();}catch{await pause(150);continue;}
+   if(r.records.some(n=>n.role==='ControlType.ProgressBar'&&!n.offscreen)){progressObserved=true;if(!screens.some(s=>s.label==='application-progress')&&r.windows.length===1)await screen('application-progress');}
    const phase=r.records.find(n=>/Checking Microsoft WebView2|Preparing bundled Microsoft WebView2|Installing bundled Microsoft WebView2|Verifying Microsoft WebView2/.test(n.name));
    if(phase){observedPhase=true;if(!screens.some(s=>s.label==='runtime-progress'))await screen('runtime-progress');}
    if(cancelAt==='runtime'&&phase&&!cancellationRequested){await input('Cancel');await until(async()=>{const r=await read();return r.records.some(n=>name(n.name)==='Yes')?r:false;},'Active native cancel confirmation');await input('Yes');cancellationRequested=true;}
@@ -93,9 +94,9 @@ async function wizardInstall(file,{scope='machine',destination,startMenu=true,co
   }
   await until(()=>child.exitCode!==null,'Native wizard terminal process result',30000);
   if(cancelAt==='runtime'){assert.equal(child.exitCode,1602);assert.equal((await state(scope)).registered,null);}else{assert.ok([0,3010].includes(child.exitCode),'Native wizard completed: '+child.exitCode);}
-  const observed=await state(scope);const result={kind:cancelAt==='runtime'?'runtime-cancel':'install',scope,exitCode:child.exitCode,observedPhase,screens,keyboard,log:path.relative(root,log),observed};wizardEvidence.push(result);
+  const observed=await state(scope);const result={kind:cancelAt==='runtime'?'runtime-cancel':'install',scope,exitCode:child.exitCode,observedPhase,progressObserved,screens,keyboard,log:path.relative(root,log),observed};wizardEvidence.push(result);
   if(cancelAt)return result;
-  assert.ok(observedPhase,'Actual runtime phase was represented in the native wizard');const directory=observed.registered.location;
+  assert.ok(progressObserved,'Actual native installer progress was represented in the wizard');const directory=observed.registered.location;
   return{...result,result:'pass',operation:'install',package:observed.registered.package.toUpperCase(),nativeDirectory:{encoding:'windows-utf16le',bytes:[...Buffer.from(directory.replace(/[\\/]$/,''),'utf16le')]},runtimeAfter:await installedRuntime(scope)};
  }catch(error){await writeFile(path.join(work,'wizard-'+msiSequence+'-failure.json'),JSON.stringify({error:error.stack,screens,output,exitCode:child.exitCode},null,2)+'\n');throw error;}finally{await stopOwnedChild(child);live.delete(child);}
 }

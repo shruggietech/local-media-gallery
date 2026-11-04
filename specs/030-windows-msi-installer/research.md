@@ -23,3 +23,9 @@ Published predecessor custom actions cannot interpret a mixed new/legacy journal
 Current source is unpublished 0.2.1. Change its Full format to MSI in version-aware release tooling/schema/docs. Preserve 0.1.0 ZIP and 0.2.0 EXE published contracts. Public download availability remains tied to published canonical release metadata. Lite remains EXE.
 
 Use the existing isolated hosted Windows campaign for real wizard input, offline runtime provisioning, scope/location/integration matrix and lifecycle proof. Read actual MSI tables and terminal registration independently. Local verification uses hidden noninteractive commands only. Read upstream consumer contract and implementation guidance before native visual assets; use platform system typography and existing approved icon/identity, with renderer metadata documenting native constraints. Do not change governed kit bytes.
+
+## 2026-11-04: first review corrections
+
+Explicit known-folder token handles require QUERY, IMPERSONATE and DUPLICATE rights, as documented by [SHGetKnownFolderPath](https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath). A read-only native-folder regression covers this access.
+
+The writer-state check runs in a separate deferred impersonating action for both scopes. Privileged machine verification reads and retains owned bytes without executing the installed application. A shared hidden child launcher captures the effective caller token, creates its primary-token child with the caller environment, restores impersonation after the service creates the child, and restricts captured standard handles to an explicit inheritance list. Ordinary process creation is used only when no thread impersonation exists. Executable and directory handles remain pinned through the writer check; retained root updater bytes use the declared payload identity.

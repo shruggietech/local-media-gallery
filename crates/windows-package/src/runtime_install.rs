@@ -3,7 +3,7 @@
 use crate::{hash, native, private, scratch};
 use std::{
     collections::BTreeSet,
-    ffi::{OsStr, c_void},
+    ffi::{OsStr, OsString, c_void},
     fs,
     io::{Seek, SeekFrom, Write},
     os::windows::ffi::OsStrExt,
@@ -11,75 +11,10 @@ use std::{
     ptr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use windows::Win32::Foundation::HANDLE;
 const RUNTIME: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/runtime.exe"));
 const RUNTIME_SHA: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.sha256"));
-#[repr(C)]
-struct Startup {
-    cb: u32,
-    reserved: *mut u16,
-    desktop: *mut u16,
-    title: *mut u16,
-    x: u32,
-    y: u32,
-    xsize: u32,
-    ysize: u32,
-    xchars: u32,
-    ychars: u32,
-    fill: u32,
-    flags: u32,
-    show: u16,
-    reserved2: u16,
-    reserved_ptr: *mut u8,
-    input: *mut c_void,
-    output: *mut c_void,
-    error: *mut c_void,
-}
-#[repr(C)]
-struct ProcessInfo {
-    process: *mut c_void,
-    thread: *mut c_void,
-    pid: u32,
-    tid: u32,
-}
-#[link(name = "kernel32")]
-unsafe extern "system" {
-    fn GetCurrentThread() -> *mut c_void;
-    fn GetCurrentProcess() -> *mut c_void;
-    fn CloseHandle(h: *mut c_void) -> i32;
-    fn WaitForSingleObject(h: *mut c_void, ms: u32) -> u32;
-    fn GetExitCodeProcess(h: *mut c_void, code: *mut u32) -> i32;
-}
 #[link(name = "advapi32")]
 unsafe extern "system" {
-    fn OpenThreadToken(
-        thread: *mut c_void,
-        access: u32,
-        self_: i32,
-        token: *mut *mut c_void,
-    ) -> i32;
-    fn OpenProcessToken(process: *mut c_void, access: u32, token: *mut *mut c_void) -> i32;
-    fn DuplicateTokenEx(
-        token: *mut c_void,
-        access: u32,
-        attributes: *const c_void,
-        level: i32,
-        kind: i32,
-        new: *mut *mut c_void,
-    ) -> i32;
-    fn CreateProcessAsUserW(
-        token: *mut c_void,
-        app: *const u16,
-        command: *mut u16,
-        pa: *const c_void,
-        ta: *const c_void,
-        inherit: i32,
-        flags: u32,
-        environment: *const c_void,
-        directory: *const u16,
-        startup: *const Startup,
-        info: *mut ProcessInfo,
-    ) -> i32;
     fn RegCreateKeyExW(
         root: isize,
         key: *const u16,
@@ -102,15 +37,6 @@ unsafe extern "system" {
     ) -> i32;
     fn RegCloseKey(key: isize) -> i32;
 }
-#[link(name = "userenv")]
-unsafe extern "system" {
-    fn CreateEnvironmentBlock(
-        environment: *mut *mut c_void,
-        token: *mut c_void,
-        inherit: i32,
-    ) -> i32;
-    fn DestroyEnvironmentBlock(environment: *mut c_void) -> i32;
-}
 #[link(name = "msi")]
 unsafe extern "system" {
     fn MsiGetPropertyW(h: u32, name: *const u16, value: *mut u16, n: *mut u32) -> u32;
@@ -124,42 +50,7 @@ unsafe extern "system" {
 fn wide(s: impl AsRef<OsStr>) -> Vec<u16> {
     s.as_ref().encode_wide().chain(Some(0)).collect()
 }
-fn error() -> String {
-    std::io::Error::last_os_error().to_string()
-}
-pub(crate) struct Token {
-    handle: *mut c_void,
-    impersonated: bool,
-}
-impl Token {
-    pub(crate) fn as_handle(&self) -> Option<HANDLE> {
-        Some(HANDLE(self.handle))
-    }
-}
-impl Drop for Token {
-    fn drop(&mut self) {
-        unsafe {
-            CloseHandle(self.handle);
-        }
-    }
-}
-// Known-folder APIs require QUERY | IMPERSONATE and may also require DUPLICATE.
-pub(crate) fn effective_token() -> Result<Token, String> {
-    let mut h = ptr::null_mut();
-    let impersonated = unsafe { OpenThreadToken(GetCurrentThread(), 0xe, 1, &mut h) } != 0;
-    if !impersonated {
-        if std::io::Error::last_os_error().raw_os_error() != Some(1008) {
-            return Err(error());
-        }
-        if unsafe { OpenProcessToken(GetCurrentProcess(), 0xe, &mut h) } == 0 {
-            return Err(error());
-        }
-    }
-    Ok(Token {
-        handle: h,
-        impersonated,
-    })
-}
+pub(crate) use crate::effective_process::effective_token;
 fn context(h: u32) -> Result<native::DeferredContext, String> {
     let mut b = vec![0u16; 32768];
     let mut n = b.len() as u32;
@@ -263,108 +154,18 @@ fn save_result(machine: bool, code: u32) -> Result<(), String> {
     Ok(())
 }
 fn run_vendor(file: &Path, h: u32, log: &mut fs::File) -> Result<(u32, bool), String> {
-    let token = effective_token()?;
+    let child = crate::effective_process::spawn(
+        file,
+        &[OsString::from("/silent"), OsString::from("/install")],
+        false,
+    )?;
+    receipt(log, Some(child.id()), false, None)?;
     let mut cancelled = false;
     let started = Instant::now();
-    if !token.impersonated {
-        use std::os::windows::process::CommandExt;
-        let mut child = std::process::Command::new(file)
-            .args(["/silent", "/install"])
-            .creation_flags(0x08000000)
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        receipt(log, Some(child.id()), false, None)?;
-        loop {
-            if let Some(code) = child.try_wait().map_err(|e| e.to_string())? {
-                let code = code
-                    .code()
-                    .ok_or("Runtime exited without a native status")?
-                    as u32;
-                receipt(log, Some(child.id()), true, Some(code))?;
-                return Ok((code, cancelled));
-            }
-            cancelled |= message(
-                h,
-                if cancelled {
-                    "Cancellation requested. Waiting for Microsoft WebView2 to finish before rolling back the application."
-                } else {
-                    "Installing bundled Microsoft WebView2. This can take a few minutes."
-                },
-            );
-            if started.elapsed() > Duration::from_secs(180) {
-                return Err(format!(
-                    "incomplete: Microsoft WebView2 installer {} is still running; retain its diagnostic receipt and wait before retrying",
-                    child.id()
-                ));
-            }
-            std::thread::sleep(Duration::from_millis(250));
-        }
-    }
-    let mut primary = ptr::null_mut();
-    if unsafe { DuplicateTokenEx(token.handle, 0x02000000, ptr::null(), 2, 1, &mut primary) } == 0 {
-        return Err(error());
-    }
-    let primary = Token {
-        handle: primary,
-        impersonated: false,
-    };
-    let mut env = ptr::null_mut();
-    if unsafe { CreateEnvironmentBlock(&mut env, primary.handle, 0) } == 0 {
-        return Err(error());
-    }
-    let mut command = wide(format!("\"{}\" /silent /install", file.display()));
-    let mut startup: Startup = unsafe { std::mem::zeroed() };
-    startup.cb = std::mem::size_of::<Startup>() as u32;
-    startup.flags = 1;
-    startup.show = 0;
-    let mut info: ProcessInfo = unsafe { std::mem::zeroed() };
-    let r = unsafe {
-        CreateProcessAsUserW(
-            primary.handle,
-            wide(file).as_ptr(),
-            command.as_mut_ptr(),
-            ptr::null(),
-            ptr::null(),
-            0,
-            0x08000000 | 0x400,
-            env,
-            wide(file.parent().ok_or("Missing runtime stage")?).as_ptr(),
-            &startup,
-            &mut info,
-        )
-    };
-    unsafe {
-        DestroyEnvironmentBlock(env);
-    }
-    if r == 0 {
-        return Err(format!(
-            "Cannot start the bundled runtime as the installing user: {}",
-            error()
-        ));
-    }
-    let process = Token {
-        handle: info.process,
-        impersonated: false,
-    };
-    unsafe {
-        CloseHandle(info.thread);
-    }
-    receipt(log, Some(info.pid), false, None)?;
     loop {
-        let wait = unsafe { WaitForSingleObject(process.handle, 250) };
-        if wait == 0 {
-            let mut code = 0;
-            if unsafe { GetExitCodeProcess(process.handle, &mut code) } == 0 {
-                return Err(error());
-            }
-            receipt(log, Some(info.pid), true, Some(code))?;
+        if let Some(code) = child.poll(250)? {
+            receipt(log, Some(child.id()), true, Some(code))?;
             return Ok((code, cancelled));
-        }
-        if wait != 258 {
-            return Err(error());
         }
         cancelled |= message(
             h,
@@ -377,7 +178,7 @@ fn run_vendor(file: &Path, h: u32, log: &mut fs::File) -> Result<(u32, bool), St
         if started.elapsed() > Duration::from_secs(180) {
             return Err(format!(
                 "incomplete: Microsoft WebView2 installer {} is still running; retain its receipt and wait before retrying",
-                info.pid
+                child.id()
             ));
         }
     }
