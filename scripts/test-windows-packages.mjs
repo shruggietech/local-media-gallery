@@ -85,19 +85,20 @@ async function wizardInstall(file,{scope='machine',destination,startMenu=true,co
   await input('Create a Start menu shortcut',String(startMenu));await input('Add the application to command PATH',String(commandPath));
   await input('Back');await waitFor('Choose who');await input('Next');let options=await waitFor('Choose location');if(destination)assert.ok(options.records.some(n=>n.value?.toLowerCase().replace(/[\\/]$/,'')===destination.toLowerCase().replace(/[\\/]$/,'')),'Back retains chosen path');
   await input('Next');await waitFor('Install');await input('Install');
-  let observedPhase=false,progressObserved=false,cancellationRequested=false;const end=Date.now()+240000;
+  let observedPhase=false,observedVendorPhase=false,progressObserved=false,cancellationRequested=false;const end=Date.now()+240000;
   while(child.exitCode===null&&Date.now()<end){
    let r;try{r=await read();}catch{await pause(150);continue;}
    if(r.records.some(n=>n.role==='ControlType.ProgressBar'&&!n.offscreen)){progressObserved=true;if(!screens.some(s=>s.label==='application-progress')&&r.windows.length===1)await screen('application-progress');}
    const phase=r.records.find(n=>/Checking Microsoft WebView2|Preparing bundled Microsoft WebView2|Installing bundled Microsoft WebView2|Verifying Microsoft WebView2/.test(n.name));
    if(phase){observedPhase=true;if(!screens.some(s=>s.label==='runtime-progress'))await screen('runtime-progress');}
-   if(cancelAt==='runtime'&&phase&&!cancellationRequested){await input('Cancel');await until(async()=>{const r=await read();return r.records.some(n=>name(n.name)==='Yes')?r:false;},'Active native cancel confirmation');await input('Yes');cancellationRequested=true;}
+   if(r.records.some(n=>n.name.includes('Installing bundled Microsoft WebView2')))observedVendorPhase=true;
+   if(cancelAt==='runtime'&&observedVendorPhase&&!cancellationRequested){await input('Cancel');await until(async()=>{const r=await read();return r.records.some(n=>name(n.name)==='Yes')?r:false;},'Active native cancel confirmation');await input('Yes');cancellationRequested=true;}
    if(r.records.some(n=>name(n.name)==='Finish'&&n.enabled)){await screen('terminal');await input('Finish');break;}
    await pause(100);
   }
   await until(()=>child.exitCode!==null,'Native wizard terminal process result',30000);
-  if(cancelAt==='runtime'){assert.equal(child.exitCode,1602);assert.equal((await state(scope)).registered,null);}else{assert.ok([0,3010].includes(child.exitCode),'Native wizard completed: '+child.exitCode);}
-  const observed=await state(scope);const result={kind:cancelAt==='runtime'?'runtime-cancel':'install',scope,exitCode:child.exitCode,observedPhase,progressObserved,screens,keyboard,log:path.relative(root,log),observed};wizardEvidence.push(result);
+  if(cancelAt==='runtime'){assert.ok(observedVendorPhase&&cancellationRequested,'Cancellation was requested while the vendor process was active');assert.equal(child.exitCode,1602);assert.equal((await state(scope)).registered,null);}else{assert.ok([0,3010].includes(child.exitCode),'Native wizard completed: '+child.exitCode);}
+  const observed=await state(scope);const result={kind:cancelAt==='runtime'?'runtime-cancel':'install',scope,exitCode:child.exitCode,observedPhase,observedVendorPhase,progressObserved,screens,keyboard,log:path.relative(root,log),observed};wizardEvidence.push(result);
   if(cancelAt)return result;
   assert.ok(progressObserved,'Actual native installer progress was represented in the wizard');const directory=observed.registered.location;
   return{...result,result:'pass',operation:'install',package:observed.registered.package.toUpperCase(),nativeDirectory:{encoding:'windows-utf16le',bytes:[...Buffer.from(directory.replace(/[\\/]$/,''),'utf16le')]},runtimeAfter:await installedRuntime(scope)};
