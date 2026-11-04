@@ -6,6 +6,7 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest import mock
 
 for name in ["api", "core", "globalPluginHandler", "speech", "speech.extensions", "versionInfo"]:
     sys.modules[name] = types.ModuleType(name)
@@ -41,6 +42,39 @@ class CapturePolicy(unittest.TestCase):
             self.assertEqual(plugin.capture_counts["unrecognizedSequence"], 1)
             plugin.observe(["Close folder", "button"])
             self.assertEqual(plugin.capture_counts["acceptedSpeech"], 1)
+
+    def test_transient_windows_reader_denial_still_publishes_complete_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            plugin = self.plugin(directory)
+            original = Path.replace
+            calls = []
+            denial = PermissionError("reader holds destination")
+            denial.winerror = 32
+
+            def replace(source, destination):
+                calls.append(source)
+                if len(calls) <= 3:
+                    raise denial
+                return original(source, destination)
+
+            with mock.patch.object(Path, "replace", replace), mock.patch.object(module.time, "sleep"):
+                plugin.append({"kind": "speech", "text": "Refresh"})
+            self.assertEqual(len(calls), 4)
+            self.assertEqual(module.json.loads(plugin.path.read_text(encoding="utf-8"))["records"], plugin.records)
+
+    def test_persistent_windows_denial_preserves_previous_capture_and_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            plugin = self.plugin(directory)
+            plugin.flush()
+            previous = plugin.path.read_bytes()
+            denial = PermissionError("persistent destination denial")
+            denial.winerror = 5
+            with mock.patch.object(Path, "replace", side_effect=denial) as replace, mock.patch.object(module.time, "sleep"):
+                with self.assertRaises(PermissionError):
+                    plugin.append({"kind": "speech", "text": "Refresh"})
+            self.assertEqual(replace.call_count, 8)
+            self.assertEqual(plugin.path.read_bytes(), previous)
+            self.assertTrue(plugin.path.with_suffix(".tmp").is_file())
 
     def test_record_and_byte_bounds_reject_before_storage(self):
         with tempfile.TemporaryDirectory() as directory:

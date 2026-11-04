@@ -118,7 +118,7 @@ jobs:
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
   windows-packages:
     concurrency:
-      group: qualification-${{ github.workflow }}-${{ github.ref }}-windows-packages
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}-windows-packages
       cancel-in-progress: false
     name: windows-packages
     runs-on: windows-2025
@@ -172,6 +172,19 @@ jobs:
       - name: Restore recipient firewall after interrupted campaign
         if: ${{ always() && hashFiles('scripts/windows-offline-firewall.mjs') != '' }}
         run: node scripts/windows-offline-firewall.mjs --restore
+      - name: Upload Windows package status before payloads
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-package-status-${{ github.sha }}
+          path: |
+            .local/ci-windows-packages.json
+            .local/windows-package-failure.json
+            .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/standard-user/*.log
+            .local/windows-package-test-*/wizard-*-failure.json
+          include-hidden-files: true
+          if-no-files-found: warn
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -200,6 +213,7 @@ jobs:
             .local/windows-package-test-*/single-file-offline*.json
             .local/tmp/local-media-gallery-*.log
           include-hidden-files: true
+          compression-level: 0
           if-no-files-found: error
       - name: Save Cargo cache after terminal evidence
         if: ${{ !cancelled() && steps.cargo-cache.outputs.cache-hit != 'true' }}

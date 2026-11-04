@@ -4,7 +4,7 @@ import {prepareCargoDependencies} from './cargo-readiness.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
 import assert from 'node:assert/strict';
-import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,lstat} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import path from 'node:path';
@@ -35,4 +35,10 @@ record.concurrentChecks=concurrentChecks;record.diagnosticFixtureReadiness=diagn
 function recordContextSource(){return build.source;}
 if(process.env.CI_PREPARATION_STARTED){const start=new Date(process.env.CI_PREPARATION_STARTED).getTime();assert.ok(start<=new Date(record.preparationStarted).getTime());record.preparationStarted=new Date(start).toISOString();record.preparationSeconds=((new Date(record.readinessVerified??record.terminalFinished).getTime())-start)/1000;record.combinedSeconds=(new Date(record.terminalFinished).getTime()-start)/1000;}
 if(record.result==='pass'){record.packages=JSON.parse(await readFile(path.join(root,'.local/windows-package-results.json')));record.artifacts=build.products.map(p=>p.artifact);record.internalCampaignArchives=build.records.map(r=>r.archive);}
+if(record.result!=='pass'){
+ let detail=record.failure??record.result;
+ try{const file=path.join(root,'.local/windows-package-failure.json');const entry=await lstat(file);if(entry.isFile()&&!entry.isSymbolicLink()&&entry.size<=1024*1024){const failed=JSON.parse(await readFile(file,'utf8'));detail+='\n'+String(failed.error??'').slice(0,3000);}}catch{}
+ const message=detail.slice(0,4096).replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
+ console.error('::error title=Windows package qualification::'+message);
+}
 await writeFile(path.join(root,'.local/ci-windows-packages.json'),JSON.stringify(record,null,2)+'\n');console.log(JSON.stringify(record,null,2));if(record.result!=='pass')process.exitCode=1;
