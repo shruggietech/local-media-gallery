@@ -193,6 +193,7 @@ jobs:
             .local/windows-packages-*/*-windows.exe
             .local/windows-packages-*/*-windows.msi
             .local/windows-packages-*/replacement-full.msi
+            .local/windows-package-test-*/standard-user/*.log
             .local/windows-package-test-*/wizard-*-failure.json
             .local/windows-package-test-*/*.png
             .local/windows-package-test-*/*.log
