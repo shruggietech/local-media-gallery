@@ -50,7 +50,7 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
   else await command('key',{key});
  };
  const click=text=>js('const scope=document.querySelector("dialog[open]")||document.querySelector("[role=dialog]")||document;const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0]);if(!b)throw Error("Missing button "+arguments[0]);b.click();return true;',[text]);
- const focus=text=>js('const scope=document.querySelector("dialog[open]")||document.querySelector("[role=dialog]")||document;const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0]);if(!b)throw Error("Missing button "+arguments[0]);b.scrollIntoView({block:"nearest"});b.focus();return true;',[text]);
+ const focus=text=>js('return (async()=>{const frame=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));await frame();const scope=document.querySelector("dialog[open]")||document.querySelector("[role=dialog]")||document;const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0]);if(!b||b.disabled)throw Error("Missing enabled button "+arguments[0]);b.scrollIntoView({block:"nearest"});b.focus();await frame();if(document.activeElement!==b)throw Error("Native input focus moved before key admission: "+arguments[0]);return true;})()',[text]);
  async function closeViewer(){
   const name=await js('return document.querySelector("dialog[open] h2")?.textContent');assert.ok(name);
   await click('Close viewer');
