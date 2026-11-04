@@ -246,7 +246,7 @@ pub fn entry(path: &Path) -> Result<i32> {
                     .raw_arg(format!("INSTALLDIR=\"{directory}\""))
                     .raw_arg(format!("LMG_RECOVERY=\"{journal}\""));
                 command.args(if scope == "machine" {
-                    vec!["ALLUSERS=1", "MSIINSTALLPERUSER="]
+                    vec!["ALLUSERS=1"]
                 } else {
                     vec!["ALLUSERS=2", "MSIINSTALLPERUSER=1"]
                 });

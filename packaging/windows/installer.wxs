@@ -119,7 +119,7 @@
     <Control Id="CommandPath" Type="CheckBox" X="20" Y="152" Width="330" Height="20" Property="LMG_PATH" CheckBoxValue="1" Text="Add the application to command &amp;PATH" />
     <Control Id="Runtime" Type="Text" X="20" Y="184" Width="330" Height="36" Text="Microsoft WebView2 is included and installed automatically when needed. No Internet connection is required." />
     <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back"><Publish Event="NewDialog" Value="ScopeDlg">1</Publish></Control>
-    <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next"><Publish Event="SetTargetPath" Value="INSTALLDIR" Order="1">1</Publish><Publish Event="NewDialog" Value="VerifyReadyDlg" Order="2">1</Publish></Control>
+    <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next"><Publish Event="SetTargetPath" Value="INSTALLDIR" Order="1">1</Publish><Publish Event="DoAction" Value="SelectFeatures" Order="2">1</Publish><Publish Event="NewDialog" Value="VerifyReadyDlg" Order="3">1</Publish></Control>
     <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel"><Publish Event="SpawnDialog" Value="CancelDlg">1</Publish></Control>
    </Dialog>
    <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>

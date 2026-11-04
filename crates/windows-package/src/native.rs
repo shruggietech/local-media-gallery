@@ -358,7 +358,7 @@ fn configure(h: u32) -> Result<(), String> {
         }
     }
     select_scope(h)?;
-    if text(h, "Installed")? == "1"
+    if !text(h, "Installed")?.is_empty()
         && text(h, "REMOVE")? != "ALL"
         && text(h, "REINSTALL")?.is_empty()
     {
@@ -373,7 +373,7 @@ fn configure(h: u32) -> Result<(), String> {
         set(h, "REINSTALL", features.join(","))?;
         set(h, "REINSTALLMODE", "vamus")?;
     }
-    if text(h, "Installed")? == "1" && text(h, "REMOVE")? != "ALL" {
+    if !text(h, "Installed")?.is_empty() && text(h, "REMOVE")? != "ALL" {
         let mode = text(h, "REINSTALLMODE")?;
         if mode.is_empty() {
             set(h, "REINSTALLMODE", "vamus")?;
@@ -390,7 +390,9 @@ fn select_scope(h: u32) -> Result<(), String> {
         "user" => false,
         _ => return Err("Choose a valid installation scope".into()),
     };
-    set(h, "ALLUSERS", "2")?;
+    // The concrete choice must stay resolved during maintenance; costing does not
+    // normalize ALLUSERS=2 again for an already installed product.
+    set(h, "ALLUSERS", if machine { "1" } else { "" })?;
     set(h, "MSIINSTALLPERUSER", if machine { "" } else { "1" })?;
     let directory = get(h, "INSTALLDIR")?;
     if directory.is_empty()
@@ -425,7 +427,7 @@ fn select_features(h: u32) -> Result<(), String> {
         }
     }
     // Recache same-ProductCode replacements with exactly the elected features.
-    if text(h, "Installed")? == "1" && text(h, "REINSTALL")?.is_empty() {
+    if !text(h, "Installed")?.is_empty() && text(h, "REINSTALL")?.is_empty() {
         let choices = selected_integrations(h)?;
         let mut features = vec!["Application", "Payload", "Notices"];
         if choices.start_menu {
