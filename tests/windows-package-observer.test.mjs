@@ -6,7 +6,7 @@ import {mkdtemp,writeFile,copyFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import {observerSession,openWindowsPackageObserver} from '../scripts/windows-package-observer.mjs';
+import {observerSession,openWindowsPackageObserver,msiControlLabel} from '../scripts/windows-package-observer.mjs';
 const sources={ui:'a'.repeat(64),inspect:'b'.repeat(64)};
 const launch=body=>spawn(process.execPath,['-e',`const send=x=>console.log(JSON.stringify(x));const sources=${JSON.stringify(sources)};${body}`],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
 const handshake="send({type:'ready',protocolVersion:1,pid:process.pid,sources});";
@@ -73,4 +73,12 @@ test('Real server reuses only unchanged child code and releases script scopes',{
    assert.deepEqual(await observer.request('ping'),{pong:true});
   }finally{await observer.close();}
  }finally{await rm(work,{recursive:true,force:true});}
+});
+
+test('Unnamed native progress records do not hide a later named phase or completion button',()=>{
+ const records=[{name:null,role:'ControlType.ProgressBar'},{name:undefined,role:'ControlType.Pane'},{name:'Installing bundled Microsoft WebView2',role:'ControlType.Text'},{name:'&Finish >',role:'ControlType.Button',enabled:true}];
+ assert.equal(records.some(n=>msiControlLabel(n.name).includes('Installing bundled Microsoft WebView2')),true);
+ assert.equal(records.some(n=>msiControlLabel(n.name)==='Finish'&&n.enabled),true);
+ assert.equal(records.slice(0,2).some(n=>msiControlLabel(n.name).includes('Installing')),false);
+ assert.throws(()=>msiControlLabel(42),/must be text or absent/);
 });

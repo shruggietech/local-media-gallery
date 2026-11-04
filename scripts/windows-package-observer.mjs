@@ -5,6 +5,13 @@ import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {stopOwnedChild} from './native-driver-lifecycle.mjs';
 
+// Native progress controls may have no accessible name while their text changes.
+export function msiControlLabel(value){
+ if(value===null||value===undefined)return '';
+ if(typeof value!=='string')throw new TypeError('MSI accessible label must be text or absent');
+ return value.replaceAll('&','').replaceAll('>','').replaceAll('<','').trim();
+}
+
 // Only code is retained between requests. Every native query still runs afresh.
 export async function observerSession(child,sources,{startupTimeout=20000,maxBytes=8*1024*1024}={}){
  let pending=null,buffer=Buffer.alloc(0),stderr='',failure=null,sequence=0,tail=Promise.resolve(),closing=false;

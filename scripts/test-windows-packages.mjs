@@ -19,7 +19,7 @@ import {root,environment} from './run.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {digest,verifyPayload,productCodes,dualProductCode} from './windows-packages.mjs';
 import {collectPayload,verifyPayload as verifyInventory} from './proof.mjs';
-import {openWindowsPackageObserver} from './windows-package-observer.mjs';
+import {openWindowsPackageObserver,msiControlLabel} from './windows-package-observer.mjs';
 import {stopOwnedChild,settingsControlsReady} from './native-driver-lifecycle.mjs';
 const call=promisify(execFile);const started=new Date().toISOString();const source=await sourceIdentity();
 const build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));assert.deepEqual(build.source,source);const diagnosticFixtures=JSON.parse(await readFile(path.join(root,'.local/windows-package-fixtures.json')));
@@ -74,16 +74,16 @@ const wizardEvidence=[];const cachedMaintenance=[];
 async function wizardInstall(file,{scope='machine',destination,startMenu=true,commandPath=true,cancelAt=null}={}){
  const log=path.join(work,'wizard-'+(++msiSequence)+'.log');const child=spawn(systemMsi,['/i',file,'/norestart','/L*v',log],{cwd:outside,env:environment,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});live.add(child);let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.once('error',e=>output+=e.message);
  const screens=[];const read=()=>observer.request('msi');const input=async(name,value='')=>{try{return await observer.request('msi',{name,value});}catch(e){throw Error('MSI input '+name+': '+e.message,{cause:e});}};
- const name=n=>n.replaceAll('&','').replaceAll('>','').replaceAll('<','').trim();
- const waitFor=(label)=>until(async()=>{if(child.exitCode!==null)throw Error('MSI wizard exited '+child.exitCode+': '+output);const r=await read();return r.records.some(n=>!n.offscreen&&(['Next','Install'].includes(label)?n.role==='ControlType.Button'&&name(n.name)===label&&n.enabled:n.name.includes(label)))?r:false;},'Actual MSI wizard '+label,30000);
+ const name=msiControlLabel;
+ const waitFor=(label)=>until(async()=>{if(child.exitCode!==null)throw Error('MSI wizard exited '+child.exitCode+': '+output);const r=await read();return r.records.some(n=>!n.offscreen&&(['Next','Install'].includes(label)?n.role==='ControlType.Button'&&name(n.name)===label&&n.enabled:name(n.name).includes(label)))?r:false;},'Actual MSI wizard '+label,30000);
  async function screen(label){const screenshot=path.join(work,'wizard-'+msiSequence+'-'+label+'.png');const r=await observer.request('msi',{screenshot});const b=await readFile(screenshot);screens.push({label,...r,screenshot:path.relative(root,screenshot),bytes:String(b.length),sha256:digest(b)});return r;}
  try{
   await waitFor('Next');await input('Next');let license=await waitFor('License Agreement');await screen('license');
   assert.ok(license.records.some(n=>name(n.name)==='Next'&&!n.enabled),'License acceptance is required before Next');
   const keyboard=await input('__tab__');assert.ok(keyboard.focused,'Native Tab has attributed keyboard focus');
   if(cancelAt==='license'){await input('Cancel');await until(async()=>{const r=await read();return r.records.some(n=>name(n.name)==='Yes')?r:false;},'Native cancel confirmation');await input('Yes');await until(()=>child.exitCode!==null,'MSI cancelled before mutation',15000);assert.equal(child.exitCode,1602);assert.equal((await state(scope)).registered,null);const result={kind:'license-cancel',exitCode:child.exitCode,screens,keyboard,log:path.relative(root,log)};wizardEvidence.push(result);return result;}
-  const accept=license.records.find(n=>n.role==='ControlType.CheckBox'&&n.name.includes('accept'));assert.ok(accept);await input(name(accept.name));await input('Next');let scopePage=await waitFor('Choose who');await screen('scope');assert.ok(scopePage.records.some(n=>n.name==='Only for me'&&n.selected===true),'New install defaults to current user');
-  await input(scope==='machine'?'For all users':'Only for me');await input('Next');await waitFor('Choose location');const defaults=await screen('options');assert.ok(defaults.records.some(n=>n.name.includes('Start menu')&&n.toggle==='On'));assert.ok(defaults.records.some(n=>n.name.includes('command PATH')&&n.toggle==='Off'));
+  const accept=license.records.find(n=>n.role==='ControlType.CheckBox'&&name(n.name).includes('accept'));assert.ok(accept);await input(name(accept.name));await input('Next');let scopePage=await waitFor('Choose who');await screen('scope');assert.ok(scopePage.records.some(n=>n.name==='Only for me'&&n.selected===true),'New install defaults to current user');
+  await input(scope==='machine'?'For all users':'Only for me');await input('Next');await waitFor('Choose location');const defaults=await screen('options');assert.ok(defaults.records.some(n=>name(n.name).includes('Start menu')&&n.toggle==='On'));assert.ok(defaults.records.some(n=>name(n.name).includes('command PATH')&&n.toggle==='Off'));
   if(destination)await input('__location__',destination);
   await input('Create a Start menu shortcut',String(startMenu));await input('Add the application to command PATH',String(commandPath));
   await input('Back');await waitFor('Choose who');await input('Next');let options=await waitFor('Choose location');if(destination)assert.ok(options.records.some(n=>n.value?.toLowerCase().replace(/[\\/]$/,'')===destination.toLowerCase().replace(/[\\/]$/,'')),'Back retains chosen path');
@@ -92,9 +92,9 @@ async function wizardInstall(file,{scope='machine',destination,startMenu=true,co
   while(child.exitCode===null&&Date.now()<end){
    let r;try{r=await read();}catch{await pause(150);continue;}
    if(r.records.some(n=>n.role==='ControlType.ProgressBar'&&!n.offscreen)){progressObserved=true;if(!screens.some(s=>s.label==='application-progress')&&r.windows.length===1)await screen('application-progress');}
-   const phase=r.records.find(n=>/Checking Microsoft WebView2|Preparing bundled Microsoft WebView2|Installing bundled Microsoft WebView2|Verifying Microsoft WebView2/.test(n.name));
+   const phase=r.records.find(n=>/Checking Microsoft WebView2|Preparing bundled Microsoft WebView2|Installing bundled Microsoft WebView2|Verifying Microsoft WebView2/.test(name(n.name)));
    if(phase){observedPhase=true;if(!screens.some(s=>s.label==='runtime-progress'))await screen('runtime-progress');}
-   if(r.records.some(n=>n.name.includes('Installing bundled Microsoft WebView2')))observedVendorPhase=true;
+   if(r.records.some(n=>name(n.name).includes('Installing bundled Microsoft WebView2')))observedVendorPhase=true;
    if(cancelAt==='runtime'&&observedVendorPhase&&!cancellationRequested){await input('Cancel');await until(async()=>{const r=await read();return r.records.some(n=>name(n.name)==='Yes')?r:false;},'Active native cancel confirmation');await input('Yes');cancellationRequested=true;}
    if(r.records.some(n=>name(n.name)==='Finish'&&n.enabled)){await screen('terminal');await input('Finish');break;}
    await pause(100);
