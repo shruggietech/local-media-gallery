@@ -229,6 +229,8 @@ fn msi(
             sha256: expected.sha256.clone(),
         },
     )?;
+    // MSI writes into an existing protected log so abandoned-stage reclamation can validate it.
+    drop(gallery_windows_package::private::create_file(log)?);
     let mut c = Command::new(system_msi()?);
     use std::os::windows::process::CommandExt;
     c.args([

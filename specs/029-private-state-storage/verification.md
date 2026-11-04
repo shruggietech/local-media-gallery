@@ -4,7 +4,7 @@
 
 S029 implements issues #90, #91, #92 and #93 on codex/s029-private-state-storage. The source candidate is v0.2.1. No release/tag/publication or merge is authorized by this slice. The owner retains final review and squash merge.
 
-The v0.2.1 documentation inventory is retained from commit 3b966c727c60807a660ef5e8fecd6c761001392f. Its inventory digest is e38785f7fd71882300b614cac2fccdcc3f43c7f1cc89c5da4c6a188212eab9fe. Published v0.0.0, v0.1.0 and v0.2.0 snapshot inventories remain unchanged; v0.2.0 remains the actual published release.
+The v0.2.1 documentation inventory is retained from commit 981be74c9ee52859878adda6ecc5591ac3598627. Its inventory digest is 6e5b40511724b6515414d9ced2b23c19a96a0d2b642fbe364abd491680161059. Published v0.0.0, v0.1.0 and v0.2.0 snapshot inventories remain unchanged; v0.2.0 remains the actual published release.
 
 ## Spec Kit gates
 
@@ -35,3 +35,5 @@ Ordinary exact-byte desktop, offline installer, interruption, native registratio
 ## First review follow-up
 
 The first Codex review identified a Unix FIFO blocking-open regression in private file validation. The fix rejects known nonregular leaves before opening, uses Unix nonblocking admission to bound leaf-substitution races, and retains opened-handle type/link validation. A child-process regression bounds actual settings/history FIFO reads to three seconds and is elected by Unix CI. Windows local units do not execute that Unix case. The same follow-up aligns the Linux tooling-feature path assertion and removes two legacy public recovery sentences that contradicted automatic private reset. The unpublished v0.2.1 documentation receipt is refreshed against the corrected source; shipped snapshots remain unchanged.
+
+The follow-up also precreates administrative MSI extraction logs through the protected private-file API so their ACL matches the staged ownership contract instead of inherited ordinary-file ACLs.
