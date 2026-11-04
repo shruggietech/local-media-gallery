@@ -1402,19 +1402,26 @@ pub fn inspect_package(file: &Path) -> Result<(String, String, bool, String), St
     if scope == "dual" {
         let mut kind = 0;
         let mut flags = 0;
-        let mut size = 0;
+        // Inside a custom action these handles may be marshalled through the
+        // installer service. Supply all output buffers for that API boundary.
+        let mut size = buffer.len() as u32;
         let r = unsafe {
             MsiSummaryInfoGetPropertyW(
                 summary.0,
                 15,
                 &mut kind,
                 &mut flags,
-                ptr::null_mut(),
-                ptr::null_mut(),
+                time.as_mut_ptr().cast(),
+                buffer.as_mut_ptr(),
                 &mut size,
             )
         };
-        if r != 0 || kind != 3 || flags & 8 != 0 {
+        if r != 0 {
+            return Err(format!(
+                "Cannot read native MSI privilege summary: {r} (type {kind}, flags {flags})"
+            ));
+        }
+        if kind != 3 || flags & 8 != 0 {
             return Err(
                 "Dual-purpose MSI must allow native elevation for the all-users choice".into(),
             );
