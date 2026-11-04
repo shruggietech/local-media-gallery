@@ -255,7 +255,7 @@ impl History {
     }
     fn context(&self, mut error: GalleryError, action: &str) -> GalleryError {
         error.message = format!(
-            "Could not {action} history at {}: {}",
+            "Could not {action} history at {}: {}. Check file access and other app instances, then reopen the gallery to retry.",
             self.path
                 .as_deref()
                 .unwrap_or_else(|| Path::new("<unavailable>"))
@@ -631,7 +631,10 @@ mod tests {
             .unwrap();
         db.execute_batch("BEGIN IMMEDIATE").unwrap();
         let start = std::time::Instant::now();
-        assert!(store.touch(temp.path(), 102).is_err());
+        let failure = store.touch(temp.path(), 102).unwrap_err();
+        assert!(failure.message.contains(&path.display().to_string()));
+        assert!(failure.message.contains("other app instances"));
+        assert!(failure.message.contains("reopen the gallery to retry"));
         assert!(start.elapsed() < Duration::from_secs(2));
         db.execute_batch("ROLLBACK").unwrap();
         let source: String = db
@@ -776,6 +779,7 @@ mod tests {
         let store = History::new(Some(path.clone()), false);
         let failure = store.list(100).err().unwrap();
         assert!(failure.message.contains(&path.display().to_string()));
+        assert!(failure.message.contains("reopen the gallery to retry"));
         assert_eq!(fs::read(source).unwrap(), b"broken");
     }
     #[test]

@@ -431,7 +431,7 @@ impl SettingsStore {
             crate::state_lock::StateLock::try_acquire(lock).map_err(|error| match error {
                 fs::TryLockError::WouldBlock => GalleryError::new(
                     "settings_conflict",
-                    "Another application instance is saving preferences. Changes remain in memory.",
+                    format!("Another application instance is saving preferences at {}. Changes remain in memory. Retry after that save finishes.", self.path.display()),
                 ),
                 fs::TryLockError::Error(error) => state_error(&self.path, "lock for save", error),
             })?;
@@ -488,7 +488,7 @@ fn state_error(path: &Path, action: &str, error: impl ToString) -> GalleryError 
     GalleryError::new(
         "settings_unavailable",
         format!(
-            "Could not {action} preferences at {}: {}",
+            "Could not {action} preferences at {}: {}. Check file access, then reopen the gallery to retry.",
             path.display(),
             error.to_string()
         ),
@@ -751,14 +751,19 @@ mod tests {
         let prior = fs::read(dir.path().join("settings.json")).unwrap();
         fs::remove_file(dir.path().join("settings.lock")).unwrap();
         fs::create_dir(dir.path().join("settings.lock")).unwrap();
+        let failure = store
+            .save(
+                serde_json::to_value(&saved.settings).unwrap(),
+                &saved.revision,
+            )
+            .unwrap_err();
         assert!(
-            store
-                .save(
-                    serde_json::to_value(&saved.settings).unwrap(),
-                    &saved.revision
-                )
-                .is_err()
+            failure
+                .message
+                .contains(&dir.path().join("settings.json").display().to_string())
         );
+        assert!(failure.message.contains("Check file access"));
+        assert!(failure.message.contains("reopen the gallery to retry"));
         assert_eq!(fs::read(dir.path().join("settings.json")).unwrap(), prior);
     }
     #[test]
@@ -774,16 +779,19 @@ mod tests {
             .unwrap();
         file.lock().unwrap();
         let current = store.envelope();
-        assert_eq!(
-            store
-                .save(
-                    serde_json::to_value(&current.settings).unwrap(),
-                    &current.revision
-                )
-                .unwrap_err()
-                .code,
-            "settings_conflict"
+        let failure = store
+            .save(
+                serde_json::to_value(&current.settings).unwrap(),
+                &current.revision,
+            )
+            .unwrap_err();
+        assert_eq!(failure.code, "settings_conflict");
+        assert!(
+            failure
+                .message
+                .contains(&dir.path().join("settings.json").display().to_string())
         );
+        assert!(failure.message.contains("Retry after that save finishes"));
         assert!(!dir.path().join("settings.json").exists());
     }
     #[test]

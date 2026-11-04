@@ -525,6 +525,7 @@ try {
     child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');await open('image2.jpg');await click('Information');
     await visible('document.querySelector("dialog .media-error")?.textContent.includes("Could not lock for save preferences at ")');
     assert.ok(await js('return document.querySelector("dialog .media-error").textContent.includes(arguments[0])',[settingsFile]),'Write failure names the preferences file');
+    assert.ok(await js('return document.querySelector("dialog .media-error").textContent.includes("reopen the gallery to retry")'),'Write failure explains how to retry');
     assert.equal(await js('return Boolean(document.querySelector("dialog .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
     await stop();await rm(path.join(settingsDirectory,'settings.lock'),{recursive:true});child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
   });
