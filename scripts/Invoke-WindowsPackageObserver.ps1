@@ -69,7 +69,7 @@ Param(
     [Console]::InputEncoding=[Text.UTF8Encoding]::new($false)
     [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
     try {
-        $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1')}
+        $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');input=(Join-Path $PSScriptRoot 'native-input.ps1')}
         $observerHashes=@{}
         foreach ($route in $observerScripts.Keys) { $observerHashes[$route]=(Get-FileHash -LiteralPath $observerScripts[$route] -Algorithm SHA256).Hash.ToLowerInvariant() }
         @{type='ready';protocolVersion=$ProtocolVersion;pid=$PID;sources=$observerHashes}|ConvertTo-Json -Compress
@@ -93,6 +93,13 @@ Param(
                         $parameters.AppProcessId=$request.processId
                         if ($request.ContainsKey('name')) { $parameters.Name=[string]$request.name }
                         if ($request.ContainsKey('screenshot')) { $parameters.Screenshot=[string]$request.screenshot }
+                    } elseif ($request.route -eq 'input') {
+                        if ($request.processId -isnot [long] -and $request.processId -isnot [int]) { throw 'Exact process ID required' }
+                        if ($request.processId -lt 1) { throw 'Positive process ID required' }
+                        if ($request.action -notin @('compile','scan-keys')) { throw 'Unknown native input action' }
+                        $parameters.AppProcessId=$request.processId
+                        $parameters.Action=$request.action
+                        if ($request.ContainsKey('key')) { $parameters.Keys=[string]$request.key }
                     } elseif ($request.route -eq 'msi') {
                         foreach ($key in @('name','value','screenshot')) { if ($request.ContainsKey($key)) { $parameters[$key]=[string]$request[$key] } }
                     } else {
@@ -101,7 +108,7 @@ Param(
                     }
                     # Child scope drops all native references; Add-Type alone is reused.
                     $raw=& $scriptFile @parameters
-                    $result=ConvertFrom-Json -InputObject ($raw -join [char]10) -AsHashtable
+                    $result=if ($request.route -eq 'input') { @{completed=$true;action=$request.action;targetPid=$request.processId} } else { ConvertFrom-Json -InputObject ($raw -join [char]10) -AsHashtable }
                 }
                 @{id=$requestId;pid=$PID;ok=$true;result=$result}|ConvertTo-Json -Depth 16 -Compress
             } catch {

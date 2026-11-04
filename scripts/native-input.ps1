@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 param(
     [Parameter(Mandatory)][int]$AppProcessId,
-    [ValidateSet('window', 'focus', 'keys', 'scan-keys', 'cancel-picker', 'select-picker', 'select-file', 'save-file')][string]$Action = 'keys',
+    [ValidateSet('compile', 'window', 'focus', 'keys', 'scan-keys', 'cancel-picker', 'select-picker', 'select-file', 'save-file')][string]$Action = 'keys',
     [string]$Keys,
     [string]$Directory
 )
@@ -16,6 +16,7 @@ function Write-InputStage {
     [Console]::Error.Flush()
 }
 Write-InputStage 'compile-win32-start'
+if (-not ('GalleryNativeInput' -as [type])) {
 Add-Type @'
 using System;
 using System.Text;
@@ -76,7 +77,9 @@ public static class GalleryNativeInput {
     }
 }
 '@
+}
 Write-InputStage 'compile-win32-complete'
+if ($Action -eq 'compile') { return }
 Write-InputStage 'application-window-start'
 $app = Get-Process -Id $AppProcessId
 if ($app.MainWindowHandle -eq [IntPtr]::Zero) { throw 'Application has no native window.' }

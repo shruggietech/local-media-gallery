@@ -9,6 +9,7 @@ import {root,environment} from './run.mjs';
 import {prepareScreenReader} from './prepare-screen-reader.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 import {availableLoopbackPort,observeChild,readyDriver} from './native-driver-lifecycle.mjs';
+import {openWindowsPackageObserver} from './windows-package-observer.mjs';
 export const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export async function until(probe,message,timeout=12000){const end=Date.now()+timeout;let last;while(Date.now()<end){try{last=await probe();if(last)return last;}catch(e){last=e.message;}await pause(100);}throw new Error(message+': '+JSON.stringify(last));}
 const call=promisify(execFile);
@@ -39,11 +40,12 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
  }
  const js=(script,args=[])=>request('/session/'+session+'/execute/sync',{script,args});
  const command=(action,extra={})=>js('return await window.__TAURI_INTERNALS__.invoke("test_native_qualification",arguments[0]);',[{action,...extra}]);
+ let inputObserver;
  const inputDiagnostics=[];
  const nativeKey=async key=>{
   // Input uses Win32 only, avoiding unrelated UIA provider calls. Never retry a
   // possibly admitted key; native assertions and the aggregate deadline remain.
-  if(process.platform==='win32'){assert.ok(['Tab','ShiftTab','Space','Escape','Enter'].includes(key));const started=performance.now();try{const result=await hidden('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File','scripts/native-input.ps1','-AppProcessId',String(child.pid),'-Action','scan-keys','-Keys',key],{timeout:30000});inputDiagnostics.push({key,targetPid:child.pid,result:'complete',elapsedMilliseconds:Math.round(performance.now()-started),stages:nativeInputStages(result.stderr)});}catch(error){inputDiagnostics.push({key,targetPid:child.pid,result:'failed',elapsedMilliseconds:Math.round(performance.now()-started),...subprocessFailure(error)});throw error;}}
+  if(process.platform==='win32'){assert.ok(['Tab','ShiftTab','Space','Escape','Enter'].includes(key));const started=performance.now();try{if(!inputObserver){inputObserver=await openWindowsPackageObserver(root,{cwd:root,env:environment});await inputObserver.request('input',{processId:child.pid,action:'compile'},60000);}const result=await inputObserver.request('input',{processId:child.pid,action:'scan-keys',key},20000);assert.equal(result.completed,true);inputDiagnostics.push({key,targetPid:child.pid,helperPid:inputObserver.identity.pid,result:'complete',elapsedMilliseconds:Math.round(performance.now()-started)});}catch(error){inputDiagnostics.push({key,targetPid:child.pid,result:'failed',elapsedMilliseconds:Math.round(performance.now()-started),...subprocessFailure(error)});throw error;}}
   else if(process.platform==='linux'){const found=await hidden('xdotool',['search','--onlyvisible','--pid',String(child.pid)]);const window=found.stdout.trim().split(/\s+/)[0];assert.match(window,/^[0-9]+$/);await hidden('xdotool',['windowfocus','--sync',window,'key','--clearmodifiers',({Tab:'Tab',ShiftTab:'shift+Tab',Space:'space',Escape:'Escape',Enter:'Return'})[key]]);}
   else await command('key',{key});
  };
@@ -73,5 +75,5 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
   try{await until(async()=>{const r=JSON.parse(await readFile(evidence));return r.ready?r:false;},'Isolated NVDA startup',20000);}catch(e){await stop(reader);throw new Error(e.message+'; '+await readFile(path.join(directory,'nvda.log'),'utf8').catch(()=>''));}
   return {read:async()=>{const b=await readFile(evidence);const r=JSON.parse(b);return {...r,bytes:String(b.length),speech:r.records.filter(x=>x.kind==='speech').map(x=>x.text),tool:{version:tool.version,download:tool.download,payloadBytes:tool.payloadBytes}};},stop:()=>stop(reader)};
  }
- return {directory,child,js,command,driverReadinessTimeline:readinessTimeline,nativeKey,nativeInputDiagnostics:()=>inputDiagnostics,click,focus,closeViewer,accessibility,screenReader,screenshot:async name=>{const pixels=await request('/session/'+session+'/screenshot');const file=path.join(directory,name+'.png');await writeFile(file,Buffer.from(pixels,'base64'));return file;},close:async()=>{try{await request('/session/'+session,undefined,'DELETE');}catch{}await stop(child);},output:()=>output};
+ return {directory,child,js,command,driverReadinessTimeline:readinessTimeline,nativeKey,nativeInputDiagnostics:()=>inputDiagnostics,click,focus,closeViewer,accessibility,screenReader,screenshot:async name=>{const pixels=await request('/session/'+session+'/screenshot');const file=path.join(directory,name+'.png');await writeFile(file,Buffer.from(pixels,'base64'));return file;},close:async()=>{try{await request('/session/'+session,undefined,'DELETE');}catch{}try{await inputObserver?.close();}finally{await stop(child);}},output:()=>output};
 }

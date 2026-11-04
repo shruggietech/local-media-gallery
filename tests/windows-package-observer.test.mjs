@@ -53,7 +53,7 @@ test('Observer bounds readiness and handles early exit without an unhandled pipe
 });
 test('Real PowerShell session pings, refuses unknown commands and joins cleanly without native calls',{skip:process.platform!=='win32'},async()=>{
  const root=path.resolve(import.meta.dirname,'..'),observer=await openWindowsPackageObserver(root,{env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:'0'}});
- try{assert.deepEqual(await observer.request('ping'),{pong:true});await assert.rejects(observer.request('arbitrary'),/Unknown observer route/);await assert.rejects(observer.request('ui',{processId:123}),/requires isolated CI/);await assert.rejects(observer.request('inspect',{file:'C:/unwanted.exe'}),/Absolute shortcut path required/);await assert.rejects(observer.request('msi'),/requires isolated CI/);assert.deepEqual(await observer.request('ping'),{pong:true});}finally{await observer.close();}
+ try{assert.deepEqual(await observer.request('ping'),{pong:true});await assert.rejects(observer.request('arbitrary'),/Unknown observer route/);await assert.rejects(observer.request('ui',{processId:123}),/requires isolated CI/);await assert.rejects(observer.request('inspect',{file:'C:/unwanted.exe'}),/Absolute shortcut path required/);await assert.rejects(observer.request('msi'),/requires isolated CI/);await assert.rejects(observer.request('input',{processId:123,action:'compile'}),/requires an explicitly isolated CI/);assert.deepEqual(await observer.request('ping'),{pong:true});}finally{await observer.close();}
 });
 test('Real server reuses only unchanged child code and releases script scopes',{skip:process.platform!=='win32'},async()=>{
  const work=await mkdtemp(path.join(os.tmpdir(),'gallery-observer-'));
@@ -62,8 +62,8 @@ test('Real server reuses only unchanged child code and releases script scopes',{
   // This fixture never invokes UI, COM, registry or native methods. An exit in
   // a child script must return to the server, and child variables must be fresh.
   const fixture="$ErrorActionPreference='Stop';if ($null -ne $fixtureOld) {throw 'Leaked child scope'};$fixtureOld='owned';@{fresh=$true}|ConvertTo-Json -Compress;exit 0\n";
-  for(const name of ['windows-package-ui.ps1','inspect-windows-package.ps1','windows-msi-ui.ps1'])await writeFile(path.join(work,name),fixture);
-  const hashes={msi:createHash('sha256').update(fixture).digest('hex'),ui:createHash('sha256').update(fixture).digest('hex'),inspect:createHash('sha256').update(fixture).digest('hex')};
+  for(const name of ['windows-package-ui.ps1','inspect-windows-package.ps1','windows-msi-ui.ps1','native-input.ps1'])await writeFile(path.join(work,name),fixture);
+  const hashes={input:createHash('sha256').update(fixture).digest('hex'),msi:createHash('sha256').update(fixture).digest('hex'),ui:createHash('sha256').update(fixture).digest('hex'),inspect:createHash('sha256').update(fixture).digest('hex')};
   const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(work,'server.ps1')],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
   const observer=await observerSession(child,hashes);
   try{
