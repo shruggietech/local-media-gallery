@@ -4,7 +4,7 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
-## [0.2.0]
+## [0.2.0] - 2026-11-03
 
 Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.
 
@@ -65,6 +65,12 @@ Publication availability and its timestamp are established by the matching verif
 - 2026-11-02: Keep Windows recipient networking denied while allowing only verified CI runner control-plane traffic and configured DNS. Retain firewall restoration intent before mutation and restore policy independently after forced test termination, before artifact upload. Keep offline prerequisite, functional and ownership checks. Serialize qualification per scope so a running package campaign retains its diagnostics without blocking independent corrected platform checks; release validation still joins one exact-source run.
 
 - 2026-11-02: Elect bounded 4 GiB streamed native evidence transfers and 5 GiB evidence expansion after measuring the actual Windows archive. Keep smaller build-input and normal API bounds. Separate thirty-minute preparation from unchanged qualification deadlines; allow fifty minutes for the complete publication workflow.
+
+- 2026-11-03: Publish v0.2.0 from the reviewed main source and its retained qualification artifacts, preserving accepted native package and corresponding-source bytes. Retain the exact candidate/publication exports and verify canonical downloads and deployed documentation independently.
+
+- 2026-11-03: Check current documentation publication authority and version without requiring the historical v0.1.0 introduction sentence, so post-publication site acceptance covers v0.2.0 wording while retaining its canonical authority check.
+
+- 2026-11-03: Bind guided recipient acceptance to canonical release metadata, direct or retained archive delivery, and exact acquired hashes instead of a historical launcher filename. Wait for enabled rendered native controls within the existing action budget before clicking them.
 
 ## [0.1.0]
 
