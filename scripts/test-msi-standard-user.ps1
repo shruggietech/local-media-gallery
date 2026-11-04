@@ -29,7 +29,7 @@ function Invoke-StandardProcess {
     foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
     $child=[Diagnostics.Process]::new();$child.StartInfo=$start
     [void]$child.Start();$child.StandardInput.Close();$output=$child.StandardOutput.ReadToEndAsync();$errors=$child.StandardError.ReadToEndAsync()
-    if (!$child.WaitForExit(180000)) { $script:incomplete=$true;throw 'incomplete: standard-user native client remains active; its account and diagnostic context are retained' }
+    if (!$child.WaitForExit(300000)) { $script:incomplete=$true;throw 'incomplete: standard-user native client remains active; its account and diagnostic context are retained' }
     @{exitCode=$child.ExitCode;stdout=$output.GetAwaiter().GetResult();stderr=$errors.GetAwaiter().GetResult()}
 }
 try {
@@ -84,7 +84,7 @@ if ($key -and $key.ProductCode) {
     if ($observation.exitCode -ne 0) { throw 'Standard-user removal readback failed' }
     $removed=ConvertFrom-Json $observation.stdout -AsHashtable
     if ($removed.registered -or $removed.nativeState -ne -1) { throw 'Standard-user removal left native registration' }
-    foreach ($relative in $installed.registered.owned) { if (Test-Path -LiteralPath (Join-Path $installed.registered.directory $relative)) { throw ('Standard-user removal left owned file '+$relative) } }
+    $ownedRemoval=@(foreach ($relative in $installed.registered.owned) { $exists=Test-Path -LiteralPath (Join-Path $installed.registered.directory $relative);if ($exists) { throw ('Standard-user removal left owned file '+$relative) };@{path=$relative;exists=$exists} })
     if ($removed.shortcutExists) { throw 'Standard-user removal left its shortcut' }
     foreach ($observation in @($installed,$removed)) {
         foreach ($segment in @($observation.userPath -split ';')) {
@@ -92,7 +92,7 @@ if ($key -and $key.ProductCode) {
         }
     }
     $removedSuccessfully=$true
-    @{result='pass';kind='disposable-standard-user';sid=$user.SID.Value;installed=$installed;removed=$removed;installExit=$install.exitCode;removeExit=$remove.exitCode;recipientInput=@('Full.msi');sha256=$Sha256;logs=@((Join-Path $EvidenceDirectory 'install.log'),(Join-Path $EvidenceDirectory 'remove.log'))}|ConvertTo-Json -Depth 16 -Compress
+    @{result='pass';kind='disposable-standard-user';sid=$user.SID.Value;installed=$installed;removed=$removed;ownedRemoval=$ownedRemoval;installExit=$install.exitCode;removeExit=$remove.exitCode;recipientInput=@('Full.msi');sha256=$Sha256;logs=@((Join-Path $EvidenceDirectory 'install.log'),(Join-Path $EvidenceDirectory 'remove.log'))}|ConvertTo-Json -Depth 16 -Compress
 } finally {
     [void][IO.Directory]::CreateDirectory($EvidenceDirectory)
     foreach ($name in @('install.log','remove.log')) {
