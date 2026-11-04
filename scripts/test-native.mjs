@@ -523,7 +523,9 @@ try {
     await visible('document.querySelectorAll(".media-card").length===10');
     await stop();await writeFile(settingsFile,valid);await rm(path.join(settingsDirectory,'settings.lock'),{force:true});await mkdir(path.join(settingsDirectory,'settings.lock'));
     child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');await open('image2.jpg');await click('Information');
-    await visible('document.querySelector("dialog")?.textContent.includes("could not be saved")');assert.equal(await js('return Boolean(document.querySelector("dialog .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
+    await visible('document.querySelector("dialog .media-error")?.textContent.includes("Could not lock for save preferences at ")');
+    assert.ok(await js('return document.querySelector("dialog .media-error").textContent.includes(arguments[0])',[settingsFile]),'Write failure names the preferences file');
+    assert.equal(await js('return Boolean(document.querySelector("dialog .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
     await stop();await rm(path.join(settingsDirectory,'settings.lock'),{recursive:true});child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('folder choices, portable intent, provenance, inheritance and failed recents', async () => {
