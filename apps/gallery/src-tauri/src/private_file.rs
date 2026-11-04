@@ -60,7 +60,6 @@ pub fn open(path: &Path, write: bool, create: bool) -> io::Result<File> {
 
 #[cfg(all(test, unix))]
 mod tests {
-    use super::*;
     use std::{
         process::{Command, Stdio},
         time::{Duration, Instant},
