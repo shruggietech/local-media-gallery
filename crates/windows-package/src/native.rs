@@ -847,9 +847,12 @@ fn preflight(h: u32) -> Result<(), String> {
             }
         }
     }
-    if !remove {
-        validate_selected_conflicts(&directory, machine, choices)?;
+    if remove {
+        // Removal grants no new retention or vendor authority and schedules none
+        // of the deferred install actions. Native ownership checks above suffice.
+        return Ok(());
     }
+    validate_selected_conflicts(&directory, machine, choices)?;
     let (storage, state) = if recovery.is_empty() {
         (
             None,

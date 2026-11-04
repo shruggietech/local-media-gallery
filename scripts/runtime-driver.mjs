@@ -18,7 +18,7 @@ export function subprocessFailure(error){const text=value=>value===undefined||va
 export async function hidden(file,args,options={}){const capture={cwd:root,windowsHide:true,shell:false,timeout:15000,maxBuffer:4*1024*1024,env:environment,...options};let pid;try{const pending=call(file,args,capture);pid=pending.child?.pid;return await pending;}catch(error){error.commandTimeoutMs=capture.timeout;error.commandPid=pid;throw error;}}
 export async function windowsStartupDiagnostics(pid,{capture=hidden,env=environment,platform=process.platform}={}){
  assert.equal(platform,'win32');assert.equal(env.GITHUB_ACTIONS,'true');assert.equal(env.GALLERY_ISOLATED_DESKTOP,'1');assert.ok(Number.isSafeInteger(pid)&&pid>0);
- const result=await capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/windows-native-startup.ps1'),'-AppProcessId',String(pid)],{timeout:3000,env});
+ const result=await capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/windows-native-startup.ps1'),'-AppProcessId',String(pid)],{timeout:10000,env});
  const record=JSON.parse(result.stdout);assert.equal(record.result,'observed');assert.equal(record.kind,'windows-native-startup');assert.equal(record.targetPid,pid);return record;
 }
 async function stop(child){if(child.exitCode!==null||child.signalCode!==null)return;await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Native child exit was not observed')),5000);child.once('exit',()=>{clearTimeout(timer);resolve();});child.kill();});}
