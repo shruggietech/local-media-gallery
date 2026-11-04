@@ -61,6 +61,7 @@ const binaries={};
 for(const edition of ['full','lite']){await cargo(['build','--locked','--release','-p','local-media-gallery',...(edition==='lite'?['--features','lite']:[])]);const file=path.join(directory,'compiled-'+edition+'.exe');await copyFile(path.join(root,'target/x86_64-pc-windows-msvc/release/local-media-gallery.exe'),file);binaries[edition]=file;}
 await node(path.join(root,'scripts/build-proof.mjs'),['--full',binaries.full,'--lite',binaries.lite,'--output',path.join(directory,'normal-assembly.json')]);
 await support(['build','--locked','--release','-p','gallery-update','--bin','lmg-update']);const updater=path.join(directory,'lmg-update.exe');await copyFile(path.join(root,'target/x86_64-pc-windows-msvc/release/lmg-update.exe'),updater);validateNativeAudit(await inspect(updater));
+await support(['build','--locked','--release','-p','gallery-windows-package','--bin','gallery-setup']);const msiAuthor=path.join(directory,'msi-author.exe');await copyFile(path.join(root,'target/x86_64-pc-windows-msvc/release/gallery-setup.exe'),msiAuthor);
 const assembly=JSON.parse(await readFile(path.join(directory,'normal-assembly.json')));const payloads={};const records=[];
 async function archive(payload,name){const files=await collectPayload(payload);const inventory=path.join(directory,name+'-inventory.json');await writeFile(inventory,JSON.stringify(files));const file=path.join(directory,name+'.zip');await execute(python,[path.join(root,'scripts/proof-archive.py'),'create',file,payload,inventory]);const bytes=await readFile(file);return {path:path.relative(root,file).replaceAll('\\','/'),bytes:String(bytes.length),sha256:digest(bytes),files};}
 for(const edition of ['full','lite']){
@@ -84,6 +85,7 @@ async function buildMsi(name,payloadDirectory,ownership,payloadSha,output){
  // independently read back in both hosted campaigns. Deferred machine work
  // and Environment components are conditioned on resolved ALLUSERS.
  await execute(path.join(wix,'light.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-sice:ICE38','-sice:ICE43','-sice:ICE57','-sice:ICE64','-pdbout',path.join(directory,name+'.wixpdb'),'-out',output,object]);
+ await capture(msiAuthor,['--seal-msi',output],{timeout:180000});
  const actual=await inspect(output);assert.equal(actual.productCode,dualProductCode);assert.equal(actual.packageCode.toUpperCase(),code);assert.equal(actual.version,version);assert.match(actual.template,/^x64;/);assert.equal(actual.allUsers,'2');const bytes=await readFile(output);
  return{actual,productCode:dualProductCode,packageCode:code,path:path.basename(output),bytes:String(bytes.length),sha256:digest(bytes)};
 }

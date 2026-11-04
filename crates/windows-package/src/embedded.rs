@@ -454,11 +454,13 @@ pub fn maintenance(
 }
 
 /// Retain the actual ordinary MSI and descriptor in the elected updater context.
-/// The source is read from the active native session, then pinned and inspected.
+/// The immediate action binds the source to the active authorized database; the
+/// deferred action pins and verifies that exact sealed input before publication.
 #[cfg(windows)]
 pub(crate) fn retain_native(
     machine: bool,
     source: &std::path::Path,
+    authenticated: &FileRecord,
     installed: &std::path::Path,
     storage_root: Option<&std::path::Path>,
 ) -> Result<Retained, String> {
@@ -470,13 +472,12 @@ pub(crate) fn retain_native(
     let _source_namespace =
         crate::private::pin_physical(source.parent().ok_or("Missing MSI source parent")?)?;
     crate::check_path(source)?;
+    if authenticated.path != "application.msi" {
+        return Err("Invalid authenticated MSI source record".into());
+    }
+    let _input = crate::open_verified_input(source, authenticated)?;
     let bytes = std::fs::read(source).map_err(|e| e.to_string())?;
-    let artifact = FileRecord {
-        path: "application.msi".into(),
-        bytes: bytes.len().to_string(),
-        sha256: hash(&bytes),
-    };
-    let _input = crate::open_verified_input(source, &artifact)?;
+    let artifact = authenticated.clone();
     let (product, package, _, scope) = crate::native::inspect_package(source)?;
     if product != crate::native::DUAL || package.to_uppercase() != expected || scope != "dual" {
         return Err("The MSI maintenance source does not match the installed candidate".into());

@@ -15,6 +15,8 @@ pub mod private;
 pub(crate) mod runtime_install;
 #[cfg(windows)]
 pub mod scratch;
+#[cfg(windows)]
+pub mod session_source;
 pub const INSTALLER_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/installer.bin"));
 pub const PAYLOAD: &str = include_str!(concat!(env!("OUT_DIR"), "/payload.json"));
 pub const SETUP: &str = include_str!(concat!(env!("OUT_DIR"), "/setup.json"));

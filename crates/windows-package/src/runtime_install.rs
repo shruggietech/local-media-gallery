@@ -154,25 +154,50 @@ fn save_result(machine: bool, code: u32) -> Result<(), String> {
     Ok(())
 }
 fn run_vendor(file: &Path, h: u32, log: &mut fs::File) -> Result<(u32, bool), String> {
-    let child = match crate::effective_process::spawn(
+    let (child, launch_failure) = match crate::effective_process::spawn_observed(
         file,
         &[OsString::from("/silent"), OsString::from("/install")],
         false,
     ) {
-        Ok(child) => child,
-        Err(error) => {
+        Ok(child) => (child, None),
+        Err(crate::effective_process::SpawnFailure::NotStarted(error)) => {
             // Creation failed before any vendor work existed. This is terminal,
             // unlike a launched process whose eventual outcome is unknown.
             receipt(log, None, true, None)?;
             return Err(format!("Microsoft WebView2 could not be started: {error}"));
         }
+        Err(crate::effective_process::SpawnFailure::Started {
+            child: Some(child),
+            error,
+            ..
+        }) => (child, Some(error)),
+        Err(crate::effective_process::SpawnFailure::Started { pid, error, .. }) => {
+            receipt(log, Some(pid), false, None)?;
+            return Err(format!(
+                "incomplete: WebView2 process {pid} started but observation is unavailable: {error}"
+            ));
+        }
     };
+    observe_vendor(child, h, log, launch_failure)
+}
+fn observe_vendor(
+    child: crate::effective_process::EffectiveChild,
+    h: u32,
+    log: &mut fs::File,
+    launch_failure: Option<String>,
+) -> Result<(u32, bool), String> {
     receipt(log, Some(child.id()), false, None)?;
     let mut cancelled = false;
     let started = Instant::now();
     loop {
         if let Some(code) = child.poll(250)? {
             receipt(log, Some(child.id()), true, Some(code))?;
+            if let Some(error) = launch_failure {
+                return Err(format!(
+                    "WebView2 process {} ended ({code}) after launch finalization failed: {error}",
+                    child.id()
+                ));
+            }
             return Ok((code, cancelled));
         }
         cancelled |= message(
@@ -379,6 +404,29 @@ mod token_tests {
         assert!(!path.exists());
     }
 
+    #[test]
+    fn post_start_failure_observes_real_pid_and_terminal_exit_without_false_no_start() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut log = fs::File::create(temp.path().join("receipt.json")).unwrap();
+        let file = std::path::PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+            .join("System32/whoami.exe");
+        let child = crate::effective_process::spawn_observed(&file, &[], false).unwrap();
+        let pid = child.id();
+        assert_eq!(child.poll(5000).unwrap(), Some(0));
+        let error = observe_vendor(
+            child,
+            0,
+            &mut log,
+            Some("injected token restoration failure after creation".into()),
+        )
+        .unwrap_err();
+        assert!(error.contains("launch finalization failed"));
+        let record: serde_json::Value =
+            serde_json::from_slice(&fs::read(temp.path().join("receipt.json")).unwrap()).unwrap();
+        assert_eq!(record["pid"], pid);
+        assert_eq!(record["terminal"], true);
+        assert_eq!(record["code"], 0);
+    }
     #[test]
     fn effective_token_can_read_native_known_folders_without_mutating_profiles() {
         for id in [

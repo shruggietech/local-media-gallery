@@ -343,11 +343,53 @@ impl EffectiveChild {
         }
     }
 }
+pub(crate) enum SpawnFailure {
+    NotStarted(String),
+    Started {
+        child: Option<EffectiveChild>,
+        pid: u32,
+        error: String,
+    },
+}
+impl From<String> for SpawnFailure {
+    fn from(error: String) -> Self {
+        Self::NotStarted(error)
+    }
+}
+impl From<&str> for SpawnFailure {
+    fn from(error: &str) -> Self {
+        Self::NotStarted(error.into())
+    }
+}
+impl std::fmt::Debug for SpawnFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotStarted(error) => write!(f, "NotStarted({error})"),
+            Self::Started { pid, error, .. } => write!(f, "Started({pid}, {error})"),
+        }
+    }
+}
+// Only disposable read-only probes may be terminated by this convenience path.
 pub(crate) fn spawn(
     file: &Path,
     args: &[OsString],
     capture: bool,
 ) -> Result<EffectiveChild, String> {
+    spawn_observed(file, args, capture).map_err(|failure| match failure {
+        SpawnFailure::NotStarted(error) => error,
+        SpawnFailure::Started { child, pid, error } => {
+            if capture && let Some(child) = child {
+                child.terminate_probe();
+            }
+            format!("Child {pid} started before launch finalization failed: {error}")
+        }
+    })
+}
+pub(crate) fn spawn_observed(
+    file: &Path,
+    args: &[OsString],
+    capture: bool,
+) -> Result<EffectiveChild, SpawnFailure> {
     let token = effective_token()?;
     if !token.impersonated {
         let mut child = Command::new(file)
@@ -365,7 +407,21 @@ pub(crate) fn spawn(
         // Transfer the owned pipe read handle into the bounded observer.
         let output = if capture {
             use std::os::windows::io::IntoRawHandle;
-            let pipe = child.stdout.take().ok_or("Missing child pipe")?;
+            let pipe = match child.stdout.take() {
+                Some(pipe) => pipe,
+                None => {
+                    let pid = child.id();
+                    return Err(SpawnFailure::Started {
+                        child: Some(EffectiveChild {
+                            inner: Inner::Standard(child),
+                            pid,
+                            output: None,
+                        }),
+                        pid,
+                        error: "Missing child pipe".into(),
+                    });
+                }
+            };
             Some(Handle(pipe.into_raw_handle()))
         } else {
             None
@@ -380,12 +436,12 @@ pub(crate) fn spawn(
     let mut primary = ptr::null_mut();
     if unsafe { DuplicateTokenEx(token.handle.0, 0x02000000, ptr::null(), 2, 1, &mut primary) } == 0
     {
-        return Err(error());
+        return Err(error().into());
     }
     let primary = Handle(primary);
     let mut env = ptr::null_mut();
     if unsafe { CreateEnvironmentBlock(&mut env, primary.0, 0) } == 0 {
-        return Err(error());
+        return Err(error().into());
     }
     let environment = Environment(env);
     let mut start: StartupEx = unsafe { std::mem::zeroed() };
@@ -406,12 +462,12 @@ pub(crate) fn spawn(
         };
         let (mut read, mut write) = (ptr::null_mut(), ptr::null_mut());
         if unsafe { CreatePipe(&mut read, &mut write, &security, 0) } == 0 {
-            return Err(error());
+            return Err(error().into());
         }
         output = Some(Handle(read));
         write_pipe = Some(Handle(write));
         if unsafe { SetHandleInformation(read, 1, 0) } == 0 {
-            return Err(error());
+            return Err(error().into());
         }
         let null = unsafe {
             CreateFileW(
@@ -425,7 +481,7 @@ pub(crate) fn spawn(
             )
         };
         if null as isize == -1 {
-            return Err(error());
+            return Err(error().into());
         }
         null_file = Some(Handle(null));
         let mut size = 0;
@@ -438,7 +494,7 @@ pub(crate) fn spawn(
         attribute_buffer.resize(size.div_ceil(std::mem::size_of::<usize>()), 0);
         let list = attribute_buffer.as_mut_ptr().cast();
         if unsafe { InitializeProcThreadAttributeList(list, 1, 0, &mut size) } == 0 {
-            return Err(error());
+            return Err(error().into());
         }
         attributes = Some(Attributes(list));
         inherited_handles.extend([write, null]);
@@ -454,7 +510,7 @@ pub(crate) fn spawn(
             )
         } == 0
         {
-            return Err(error());
+            return Err(error().into());
         }
         start.attributes = list;
         start.start.cb = std::mem::size_of::<StartupEx>() as u32;
@@ -470,7 +526,7 @@ pub(crate) fn spawn(
     // The service may use its process privileges to create the captured user's
     // primary-token child. Restore impersonation before any further file work.
     if unsafe { RevertToSelf() } == 0 {
-        return Err(error());
+        return Err(error().into());
     }
     let created = unsafe {
         CreateProcessAsUserW(
@@ -494,30 +550,26 @@ pub(crate) fn spawn(
             CloseHandle(info.thread);
         }
     }
-    if !restored {
-        if created != 0 {
-            unsafe {
-                TerminateProcess(info.process, 2);
-                WaitForSingleObject(info.process, 3000);
-                CloseHandle(info.process);
-            }
-        }
-        return Err("Could not restore installing-user impersonation after child creation".into());
-    }
     if created == 0 {
-        return Err(format!(
-            "Cannot launch as the installing user: {creation_error}"
-        ));
+        return Err(format!("Cannot launch as the installing user: {creation_error}").into());
     }
     drop(attributes);
     drop(attribute_buffer);
     drop(write_pipe);
     drop(null_file);
-    Ok(EffectiveChild {
+    let child = EffectiveChild {
         inner: Inner::AsUser(Handle(info.process)),
         pid: info.pid,
         output,
-    })
+    };
+    if !restored {
+        return Err(SpawnFailure::Started {
+            pid: info.pid,
+            child: Some(child),
+            error: "Could not restore installing-user impersonation after child creation".into(),
+        });
+    }
+    Ok(child)
 }
 #[cfg(test)]
 mod tests {

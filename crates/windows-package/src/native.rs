@@ -756,6 +756,7 @@ pub(crate) struct DeferredContext {
     pub machine: bool,
     pub choices: Integrations,
     pub source_msi: PathBuf,
+    pub source_msi_record: crate::FileRecord,
     pub storage: Option<PathBuf>,
     pub state: Vec<WriterOperand>,
 }
@@ -887,11 +888,14 @@ fn preflight(h: u32) -> Result<(), String> {
             serde_json::from_value::<Vec<WriterOperand>>(operands).map_err(|e| e.to_string())?,
         )
     };
+    let source_msi = PathBuf::from(get(h, "OriginalDatabase")?);
+    let source_msi_record = crate::session_source::authenticate(h, &source_msi)?;
     let data = serde_json::to_string(&DeferredContext {
         directory,
         machine,
         choices,
-        source_msi: PathBuf::from(get(h, "OriginalDatabase")?),
+        source_msi,
+        source_msi_record,
         storage,
         state,
     })
@@ -1128,6 +1132,7 @@ pub extern "system" fn VerifyInstalled(h: u32) -> u32 {
                 crate::embedded::retain_native(
                     data.machine,
                     &data.source_msi,
+                    &data.source_msi_record,
                     &data.directory,
                     data.storage.as_deref(),
                 )?;
