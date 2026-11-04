@@ -210,6 +210,24 @@ fn main() {
     #[cfg(windows)]
     {
         let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+        if args.first().is_some_and(|s| s == "--manifest-identity") {
+            match args
+                .get(1)
+                .filter(|_| args.len() == 2)
+                .ok_or_else(|| "--manifest-identity requires one MSI path".to_owned())
+                .and_then(|file| {
+                    gallery_windows_package::session_source::manifest_identity(
+                        std::path::Path::new(file),
+                    )
+                }) {
+                Ok(identity) => println!("{identity}"),
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            }
+            return;
+        }
         if args.first().is_some_and(|s| s == "--seal-msi") {
             let result = if args.len() == 2 {
                 gallery_windows_package::session_source::seal(std::path::Path::new(&args[1]))

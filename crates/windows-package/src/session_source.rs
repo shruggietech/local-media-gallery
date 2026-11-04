@@ -6,6 +6,7 @@ use std::{collections::BTreeMap, fs, os::windows::ffi::OsStrExt, path::Path, ptr
 #[link(name = "msi")]
 unsafe extern "system" {
     fn MsiGetActiveDatabase(session: u32) -> u32;
+    fn MsiDatabaseGetPrimaryKeysW(db: u32, table: *const u16, record: *mut u32) -> u32;
     fn MsiOpenDatabaseW(path: *const u16, persist: *const u16, out: *mut u32) -> u32;
     fn MsiCloseHandle(h: u32) -> u32;
     fn MsiCreateRecord(fields: u32) -> u32;
@@ -152,6 +153,19 @@ fn table_digest(db: u32, table: &str) -> Result<String, String> {
     let names = (1..=count)
         .map(|i| text(names.0, i))
         .collect::<Result<Vec<_>, _>>()?;
+    let keys = if matches!(table, "_Streams" | "_Storages") {
+        vec!["Name".to_owned()]
+    } else {
+        let mut record = 0;
+        checked(
+            unsafe { MsiDatabaseGetPrimaryKeysW(db, wide(table).as_ptr(), &mut record) },
+            "primary keys",
+        )?;
+        let record = Handle(record);
+        (1..=unsafe { MsiRecordGetFieldCount(record.0) })
+            .map(|field| text(record.0, field))
+            .collect::<Result<Vec<_>, _>>()?
+    };
     let mut rows = Vec::<[u8; 32]>::new();
     while let Some(record) = next(view.0)? {
         if table == "_Streams" && text(record.0, 1)? == MANIFEST_STREAM {
@@ -201,7 +215,7 @@ fn table_digest(db: u32, table: &str) -> Result<String, String> {
     }
     rows.sort();
     let mut digest = Sha256::new();
-    digest.update(serde_json::to_vec(&(names, types)).map_err(|e| e.to_string())?);
+    digest.update(serde_json::to_vec(&(names, types, keys)).map_err(|e| e.to_string())?);
     digest.update((rows.len() as u64).to_le_bytes());
     for row in rows {
         digest.update(row);
@@ -383,6 +397,12 @@ pub fn seal(source: &Path) -> Result<(), String> {
     drop(db);
     verify(database(source, false)?.0, &expected)
 }
+pub fn manifest_identity(source: &Path) -> Result<String, String> {
+    let db = database(source, false)?;
+    let expected = manifest(db.0)?;
+    verify(db.0, &expected)?;
+    Ok(hash(&expected))
+}
 /// Read expected authority from the database already executing, never from its
 /// potentially writable OriginalDatabase path. Seal exact source bytes only
 /// after canonical authored content and identical manifest have been verified.
@@ -395,13 +415,44 @@ pub(crate) fn authenticate(session: u32, source: &Path) -> Result<FileRecord, St
     let _parents =
         crate::private::pin_physical(source.parent().ok_or("Missing MSI source parent")?)?;
     crate::check_path(source)?;
-    let bytes = fs::read(source).map_err(|e| e.to_string())?;
+    use std::io::Read;
+    use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
+    let mut input = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(1)
+        .custom_flags(0x00200000)
+        .open(source)
+        .map_err(|e| e.to_string())?;
+    let metadata = input.metadata().map_err(|e| e.to_string())?;
+    if !metadata.is_file() || metadata.file_attributes() & 0x400 != 0 || metadata.len() > 1073741824
+    {
+        return Err("Invalid MSI source size/type".into());
+    }
+    let expected_size = metadata.len();
+    let mut digest = Sha256::new();
+    let mut total = 0u64;
+    let mut buffer = [0u8; 65536];
+    loop {
+        let size = input.read(&mut buffer).map_err(|e| e.to_string())?;
+        if size == 0 {
+            break;
+        }
+        total += size as u64;
+        if total > expected_size {
+            return Err("MSI source grew during authentication".into());
+        }
+        digest.update(&buffer[..size]);
+    }
+    if total != expected_size {
+        return Err("MSI source extent changed during authentication".into());
+    }
     let record = FileRecord {
         path: "application.msi".into(),
-        bytes: bytes.len().to_string(),
-        sha256: hash(&bytes),
+        bytes: total.to_string(),
+        sha256: hex::encode(digest.finalize()),
     };
-    let _input = crate::open_verified_input(source, &record)?;
+    // The original opened handle stays live, denying writes/deletes throughout
+    // database verification. No untrusted whole-file allocation is required.
     verify(database(source, false)?.0, &expected)?;
     Ok(record)
 }
@@ -437,6 +488,50 @@ mod tests {
         }
         assert_eq!(crate::native::inspect_package(&changed).unwrap(), before);
         assert!(verify(database(&changed, false).unwrap().0, &expected).is_err());
+        let stream = temp.path().join("substituted.bin");
+        fs::write(&stream, b"substituted stream bytes").unwrap();
+        for name in ["Binary.Ownership".to_owned(), {
+            let db = database(&changed, false).unwrap();
+            let media = view(db.0, "SELECT \x60Cabinet\x60 FROM \x60Media\x60").unwrap();
+            text(next(media.0).unwrap().unwrap().0, 1)
+                .unwrap()
+                .trim_start_matches('#')
+                .to_owned()
+        }] {
+            seal(&changed).unwrap();
+            let expected = manifest(database(&changed, false).unwrap().0).unwrap();
+            {
+                let db = database(&changed, true).unwrap();
+                let record = Handle(unsafe { MsiCreateRecord(1) });
+                checked(
+                    unsafe { MsiRecordSetStreamW(record.0, 1, wide(&stream).as_ptr()) },
+                    "substitution fixture",
+                )
+                .unwrap();
+                let query = format!(
+                    "UPDATE \x60_Streams\x60 SET \x60Data\x60=? WHERE \x60Name\x60='{}'",
+                    name.replace(char::from(39), "''")
+                );
+                let mut raw = 0;
+                checked(
+                    unsafe { MsiDatabaseOpenViewW(db.0, wide(query).as_ptr(), &mut raw) },
+                    "substitution view",
+                )
+                .unwrap();
+                let update = Handle(raw);
+                checked(
+                    unsafe { MsiViewExecute(update.0, record.0) },
+                    "substitution update",
+                )
+                .unwrap();
+                checked(unsafe { MsiDatabaseCommit(db.0) }, "substitution commit").unwrap();
+            }
+            assert!(
+                verify(database(&changed, false).unwrap().0, &expected).is_err(),
+                "{name}"
+            );
+            assert_eq!(crate::native::inspect_package(&changed).unwrap(), before);
+        }
         // A later source replacement after authentication also fails the sealed
         // complete-file hash, before deferred retention opens or publishes bytes.
         let bytes = fs::read(original).unwrap();

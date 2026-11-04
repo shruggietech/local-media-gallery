@@ -377,7 +377,10 @@ fn configure(h: u32) -> Result<(), String> {
         let mode = text(h, "REINSTALLMODE")?;
         if mode.is_empty() {
             set(h, "REINSTALLMODE", "vamus")?;
-        } else if !mode.to_ascii_lowercase().contains('v') {
+        } else if !mode.to_ascii_lowercase().contains('v')
+            && registered_package(text(h, "LMG_SCOPE")? == "machine")?.as_deref()
+                != Some(text(h, "PackageCode")?.as_str())
+        {
             set(h, "REINSTALLMODE", format!("v{mode}"))?;
         }
     }
