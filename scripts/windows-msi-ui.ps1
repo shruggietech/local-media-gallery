@@ -63,7 +63,7 @@ foreach ($window in $windows) {
             if ($legacyRole -eq 44 -and $null -eq $toggle) { $toggle=if ($legacyState -band 16) {'On'}else{'Off'} }
             if ($legacyRole -eq 45 -and $null -eq $selected) { $selected=[bool]($legacyState -band 18) }
         }
-        $role=if ($legacyRole -eq 44) {'ControlType.CheckBox'}elseif($legacyRole -eq 45){'ControlType.RadioButton'}else{$providerRole}
+        $role=if ($legacyRole -eq 44) {'ControlType.CheckBox'}elseif($legacyRole -eq 45){'ControlType.RadioButton'}elseif($legacyRole -eq 48){'ControlType.ProgressBar'}elseif($legacyRole -eq 43){'ControlType.Button'}elseif($legacyRole -eq 42){'ControlType.Edit'}else{$providerRole}
         $records.Add(@{name=$c.Name;providerRole=$providerRole;legacyRole=$legacyRole;legacyAction=$legacyAction;toggle=$toggle;selected=$selected;value=$currentValue;id=$c.AutomationId;role=$role;enabled=$c.IsEnabled;offscreen=$c.IsOffscreen;processId=$c.ProcessId})
         if ($Name -ne '' -and ($c.Name.Replace('&','').Replace('>','').Replace('<','').Trim() -eq $Name -or ($Name -eq '__location__' -and ($c.ControlType -eq [Windows.Automation.ControlType]::Edit -or $legacyRole -eq 42))) -and $c.IsEnabled -and !$c.IsOffscreen) { $targets.Add($element) }
     }
