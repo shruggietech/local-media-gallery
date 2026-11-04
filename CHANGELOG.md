@@ -4,6 +4,17 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Changed
+
+- Target v0.2.1 software, documentation and schema contracts while retaining every published v0.2.0 byte and canonical release selection.
+- Windows Full/Lite share application-named roaming preferences and local history/cache/browser roots. User and machine updater state now use the matching local-media-gallery/updates directory. Existing paths are adopted directly without migration, backup or repeated legacy cleanup.
+- Private settings compatibility follows format and known values across release labels. Invalid or obsolete private settings/history reset automatically under writer locks to usable defaults. This intentionally discards invalid private convenience state. Portable gallery settings, media and sidecars retain their independent byte-preserving contracts. Real access, permission and contention failures identify the file/action.
+
+### Maintenance
+
+- Isolate Rust fixtures, maintainer app runs, caches and updater campaigns in disposable tooling-owned storage, with no production-profile fallback. Ordinary binaries omit tooling redirection.
+- Reclaim validated abandoned Windows stages and disposable coordination after ownership ends, clean terminal native worker scratch, and retain sealed recovery/rollback inputs. Forward preflight follows the incoming writer; rollback still checks its selected writer.
+
 ### Fixed
 
 - Native verification skips HTTP-client-restricted loopback ports with bounded OS allocation and listener cleanup, preserving process ownership and readiness deadlines.

@@ -9,10 +9,12 @@ mod launch;
 mod maintenance;
 mod portable;
 mod preparation;
+mod private_file;
 #[cfg(feature = "native-tests")]
 mod qualification;
 mod settings;
 mod state_lock;
+mod storage;
 use discovery::DiscoveryWorker;
 use gallery_core::{Engine, GalleryError, MetadataRequest, MetadataResult, Snapshot};
 use gallery_state::{Envelope, GalleryState};
@@ -379,10 +381,11 @@ fn run_application(
     initial: Option<PathBuf>,
     startup_receipt: Arc<Mutex<Option<launch::ReceiptTarget>>>,
 ) -> Result<i32, GalleryError> {
+    let cache_root = storage::cache_root()?;
     let engine = Engine::with_diagnostics(preparation::context());
     let service = Arc::new(gallery_core::thumbnail::PreparationService::new(
         engine.clone(),
-        preparation::cache_root(),
+        cache_root,
         preparation::installed_helper().unwrap_or_else(|_| {
             engine
                 .diagnostics()
@@ -484,6 +487,7 @@ fn run_application(
     ]);
     let mut context = tauri::generate_context!();
     context.config_mut().identifier = launch::identifier(launch::edition()).into();
+    storage::configure(&mut context)?;
     let shutdown_service = service.clone();
     let guided_shutdown = Arc::new(OnceLock::<Arc<guided::Service>>::new());
     let setup_shutdown = guided_shutdown.clone();
@@ -506,7 +510,7 @@ fn run_application(
             app.state::<Arc<gallery_core::thumbnail::PreparationService>>().set_notify(Arc::new(move|status|{let _=handle.emit_to("main","preparation-changed",status);}));
             let settings = match app.path().app_config_dir().map(launch::shared_state_directory) {
                 Ok(directory) => {
-                    #[cfg(feature = "native-tests")]
+                    #[cfg(feature = "tooling-state")]
                     let directory = std::env::var_os("GALLERY_TEST_SETTINGS_DIR").map(PathBuf::from).unwrap_or(directory);
                     #[cfg(feature = "native-tests")]
                     let page_four = std::env::var("GALLERY_TEST_PAGE_SIZE").as_deref() == Ok("4");
@@ -517,7 +521,7 @@ fn run_application(
                 Err(error) => SettingsStore::unavailable(format!("The user settings directory is unavailable: {error}. Preferences remain in memory.")),
             };
             let history_path=history::location(app.path().app_local_data_dir().ok().map(launch::shared_state_directory));
-            #[cfg(feature="native-tests")]
+            # [cfg(feature="tooling-state")]
             let history_path=std::env::var_os("GALLERY_TEST_HISTORY_DIR").map(PathBuf::from).map(|p|p.join("history.sqlite3")).or(history_path);
             let engine=app.state::<Runtime>().engine.clone();
             let state = Arc::new(GalleryState::new(engine.clone(),settings,history::History::new(history_path,cfg!(feature="native-tests"))));

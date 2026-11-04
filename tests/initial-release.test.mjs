@@ -25,3 +25,10 @@ test('Every published 0.1.0 document, schema, captured reference and retained id
  actual.sort((a,b)=>a.path.localeCompare(b.path,'en'));assert.deepEqual(actual,expected.files);
  const manifest=JSON.parse(await readFile(path.join(root,'site/versions.json'),'utf8'));assert.deepEqual(manifest.snapshots.find(s=>s.version==='v0.1.0'),expected.snapshot);
 });
+
+test('Every published 0.2.0 document, schema, captured reference and retained identity remains unchanged',async()=>{
+ const expected=JSON.parse(await readFile(new URL('./fixtures/releases/v020-inventory.json',import.meta.url),'utf8'));const actual=[];
+ for(const dir of ['docs/v0.2.0','schemas/v0.2.0','site/snapshots/v0.2.0','site/retained/v0.2.0.json'])actual.push(...await fileInventory(root,dir));
+ actual.sort((a,b)=>a.path.localeCompare(b.path,'en'));assert.deepEqual(actual,expected.files);
+ const manifest=JSON.parse(await readFile(path.join(root,'site/versions.json'),'utf8'));assert.deepEqual(manifest.snapshots.find(s=>s.version==='v0.2.0'),expected.snapshot);
+});

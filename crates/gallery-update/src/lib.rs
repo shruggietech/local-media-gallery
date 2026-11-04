@@ -3,6 +3,8 @@
 mod native;
 pub mod ordinary;
 mod process;
+#[cfg(test)]
+mod test_support;
 #[cfg(any(windows, target_os = "linux"))]
 mod worker;
 #[doc(hidden)]
@@ -892,6 +894,8 @@ struct Journal {
     phase: String,
     target_prior: bool,
     state: Vec<StateOperand>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    storage_root: Option<PathBuf>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -991,17 +995,18 @@ fn canonical_identity(path: &Path) -> Result<PathBuf> {
     Ok(result)
 }
 #[cfg(any(windows, target_os = "linux"))]
-fn native_lease(directory: &Path, machine: bool) -> Result<Lease> {
+fn native_lease(directory: &Path, machine: bool, storage: Option<&Path>) -> Result<Lease> {
     let canonical = canonical_identity(directory)?;
     let key = hash(canonical.to_string_lossy().to_lowercase().as_bytes());
     #[cfg(windows)]
-    let file = gallery_windows_package::private::coordination_file(
+    let file = gallery_windows_package::private::coordination_lease_at(
+        &selected_storage(storage, machine)?.ok_or("Missing selected storage")?,
         &format!("native-{}.lock", &key[..24]),
         machine,
     )?;
     #[cfg(not(windows))]
     let file = {
-        let _ = machine;
+        let _ = (machine, storage);
         let parent = if directory == Path::new("/") {
             Path::new("/run")
         } else {
@@ -1031,21 +1036,23 @@ fn native_lease(directory: &Path, machine: bool) -> Result<Lease> {
         }
         file
     };
+    #[cfg(not(windows))]
     file.try_lock()
         .map_err(|e| format!("incomplete: A native supervisor still owns this destination: {e}"))?;
     Ok(Lease(file))
 }
-fn destination_lock(directory: &Path, machine: bool) -> Result<Lease> {
+fn destination_lock(directory: &Path, machine: bool, storage: Option<&Path>) -> Result<Lease> {
     let canonical = canonical_identity(directory)?;
     let key = hash(canonical.to_string_lossy().to_lowercase().as_bytes());
     #[cfg(windows)]
-    let f = gallery_windows_package::private::coordination_file(
+    let f = gallery_windows_package::private::coordination_lease_at(
+        &selected_storage(storage, machine)?.ok_or("Missing selected storage")?,
         &format!("destination-{}.lock", &key[..24]),
         machine,
     )?;
     #[cfg(not(windows))]
     let f = {
-        let _ = machine;
+        let _ = (machine, storage);
         let parent = if directory == Path::new("/") {
             Path::new("/run")
         } else {
@@ -1078,9 +1085,55 @@ fn destination_lock(directory: &Path, machine: bool) -> Result<Lease> {
         }
         f
     };
+    #[cfg(not(windows))]
     f.try_lock()
         .map_err(|e| format!("Another operation owns this destination: {e}"))?;
     Ok(Lease(f))
+}
+
+fn selected_storage(root: Option<&Path>, machine: bool) -> Result<Option<PathBuf>> {
+    #[cfg(windows)]
+    {
+        Ok(Some(match root {
+            Some(root) => gallery_windows_package::private::ensure_storage_at(root, machine)?,
+            None => gallery_windows_package::private::storage_root(machine)?,
+        }))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = machine;
+        if let Some(root) = root {
+            physical(root)?;
+            if !root.exists() {
+                use std::os::unix::fs::DirBuilderExt;
+                io(fs::DirBuilder::new().mode(0o700).create(root))?;
+            }
+            worker_storage(root)?;
+        }
+        Ok(root.map(Path::to_path_buf))
+    }
+}
+#[cfg(not(windows))]
+fn worker_storage(root: &Path) -> Result<()> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let metadata = io(fs::metadata(root))?;
+    unsafe extern "C" {
+        fn geteuid() -> u32;
+    }
+    if !metadata.is_dir()
+        || metadata.uid() != unsafe { geteuid() }
+        || metadata.permissions().mode() & 0o077 != 0
+    {
+        return Err("Explicit updater storage must be owner-only".into());
+    }
+    Ok(())
+}
+fn identity_record(journal: &Journal) -> serde_json::Value {
+    let mut value = serde_json::json!({"formatVersion":1,"transaction":journal.transaction,"directory":journal.directory,"prior":journal.prior,"next":journal.next,"state":journal.state});
+    if let Some(root) = &journal.storage_root {
+        value["storageRoot"] = serde_json::json!(root);
+    }
+    value
 }
 
 impl Transaction {
@@ -1091,6 +1144,19 @@ impl Transaction {
         next: &Candidate,
         source: &Path,
         state: &[StateOperand],
+    ) -> Result<Self> {
+        Self::prepare_in(base, directory, prior, next, source, state, None)
+    }
+    /// Explicit storage authority for maintainer fixtures and internal callers.
+    /// The selected root is sealed in retained identity and reused by workers.
+    pub fn prepare_in(
+        base: &Path,
+        directory: &Path,
+        prior: &Candidate,
+        next: &Candidate,
+        source: &Path,
+        state: &[StateOperand],
+        storage_root: Option<&Path>,
     ) -> Result<Self> {
         prior.validate()?;
         next.validate()?;
@@ -1120,10 +1186,12 @@ impl Transaction {
         {
             return Err("Transaction, source and live content must be separate".into());
         }
-        let destination_locked = destination_lock(directory, machine_scope(prior))?;
+        let storage_root = selected_storage(storage_root, machine_scope(prior))?;
+        let destination_locked =
+            destination_lock(directory, machine_scope(prior), storage_root.as_deref())?;
         #[cfg(any(windows, target_os = "linux"))]
         if !matches!(prior.native, Native::Direct) {
-            let _ready = native_lease(directory, machine_scope(prior))?;
+            let _ready = native_lease(directory, machine_scope(prior), storage_root.as_deref())?;
         }
         native::validate_predecessor(prior, directory)?;
         prior.verify(directory)?;
@@ -1132,16 +1200,6 @@ impl Transaction {
         }
         Self::verify_integration(prior, directory)?;
         Self::active(directory, prior)?;
-        // Refuse an incompatible currently installed writer before retaining inputs.
-        // Legacy 0.0.0 writers are still checked with the retained compatible writer below.
-        if let Err(error) = check_state(&directory.join(&prior.binary), state)
-            && !(error == "state_probe_unsupported"
-                && prior.version == "0.0.0"
-                && next.version == "0.0.0")
-        {
-            return Err(error);
-        }
-
         let old: BTreeSet<_> = prior.files.iter().map(|f| f.path.as_str()).collect();
         for f in &next.files {
             if !old.contains(f.path.as_str())
@@ -1168,8 +1226,46 @@ impl Transaction {
             .as_nanos();
         let staging = parent.join(format!(".lmg-preparing-{}-{nonce:x}", std::process::id()));
         #[cfg(windows)]
+        let mut stage_guard = {
+            let storage = storage_root
+                .as_deref()
+                .ok_or("Missing elected updater storage")?;
+            gallery_windows_package::scratch::Stage::reclaim(
+                storage,
+                parent,
+                ".lmg-preparing-",
+                "transaction",
+                machine_scope(prior),
+                |p| process::active(&p.join("native-process.json")).is_ok(),
+            )?;
+            let mut files: BTreeSet<String> = [
+                "operation.lock",
+                "identity.json",
+                "journal.json",
+                "native-process.json",
+                "prior-package.msi",
+                "next-package.msi",
+                "prior-extract.log",
+                "next-extract.log",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect();
+            for (side, c) in [("prior", prior), ("next", next)] {
+                files.extend(c.files.iter().map(|f| format!("{side}/{}", f.path)));
+            }
+            gallery_windows_package::scratch::Stage::create(
+                storage,
+                &staging,
+                "transaction",
+                files,
+                BTreeSet::new(),
+                machine_scope(prior),
+            )?
+        };
+        #[cfg(windows)]
         let mut namespace =
-            gallery_windows_package::private::create_directory(&staging, machine_scope(prior))?;
+            gallery_windows_package::private::validate_directory(&staging, machine_scope(prior))?;
         #[cfg(windows)]
         let staging_pin = namespace.len() - 1;
         #[cfg(unix)]
@@ -1195,6 +1291,7 @@ impl Transaction {
             phase: "preparing".into(),
             target_prior: false,
             state: state.to_vec(),
+            storage_root,
         };
         let mut op = Self {
             base: base.to_path_buf(),
@@ -1240,7 +1337,7 @@ impl Transaction {
             native::identity(next, &base.join("next"))?;
         }
         check_compatible_state(next, &base.join("next"), prior, &base.join("prior"), state)?;
-        check_compatible_state(prior, &base.join("prior"), next, &base.join("next"), state)?;
+        // Forward admission uses the incoming writer. Rollback rechecks its selected writer at execution.
         let identity = op.identity();
         durable_json(&base.join("identity.json"), &identity)?;
         op.journal.binding = hash(&read_bounded(&base.join("identity.json"), 8 * 1024 * 1024)?);
@@ -1263,6 +1360,8 @@ impl Transaction {
         #[cfg(windows)]
         drop(_namespace.remove(staging_pin));
         rename_exclusive(&staged, final_base)?;
+        #[cfg(windows)]
+        stage_guard.published(final_base)?;
         sync_directory(parent)?;
         #[cfg(windows)]
         _namespace.extend(gallery_windows_package::private::validate_directory(
@@ -1364,7 +1463,7 @@ impl Transaction {
         let identity = read_bounded(&base.join("identity.json"), 8 * 1024 * 1024)?;
         if hash(&identity) != journal.binding
             || serde_json::from_slice::<serde_json::Value>(&identity).map_err(|e| e.to_string())?
-                != serde_json::json!({"formatVersion":1,"transaction":base,"directory":journal.directory,"prior":journal.prior,"next":journal.next,"state":journal.state})
+                != identity_record(&journal)
         {
             return Err("Changed recovery identity record".into());
         }
@@ -1379,8 +1478,11 @@ impl Transaction {
                 &journal.directory,
             )?);
         }
-        let destination_locked =
-            destination_lock(&journal.directory, machine_scope(&journal.prior))?;
+        let destination_locked = destination_lock(
+            &journal.directory,
+            machine_scope(&journal.prior),
+            journal.storage_root.as_deref(),
+        )?;
         if journal.prior.edition != journal.next.edition
             || std::mem::discriminant(&journal.prior.native)
                 != std::mem::discriminant(&journal.next.native)
@@ -1399,7 +1501,7 @@ impl Transaction {
         Ok(op)
     }
     fn identity(&self) -> serde_json::Value {
-        serde_json::json!({"formatVersion":1,"transaction":self.journal.transaction,"directory":self.journal.directory,"prior":self.journal.prior,"next":self.journal.next,"state":self.journal.state})
+        identity_record(&self.journal)
     }
     fn save(&self) -> Result<()> {
         durable_json(&self.base.join("journal.json"), &self.journal)?;
@@ -1997,17 +2099,17 @@ mod preparation_tests {
     }
     #[test]
     fn platform_admission_refusal_precedes_recovery_effects() {
-        #[cfg(windows)]
-        let parent = gallery_windows_package::private::storage_root(false).unwrap();
-        #[cfg(not(windows))]
-        let parent = fs::canonicalize(std::env::temp_dir()).unwrap();
-        let temporary = tempfile::Builder::new().tempdir_in(parent).unwrap();
+        let temporary = crate::test_support::Fixture::new();
         let live = temporary.path().join("live");
         let source = temporary.path().join("next");
         let prior = candidate(&live, "a", b"old");
         let next = candidate(&source, "b", b"new");
         let base = temporary.path().join("transaction");
-        drop(Transaction::prepare(&base, &live, &prior, &next, &source, &[]).unwrap());
+        drop(
+            temporary
+                .prepare(&base, &live, &prior, &next, &source, &[])
+                .unwrap(),
+        );
         let result =
             Transaction::resume_admitted::<()>(&base, RecoveryCommand::Recover, |destination| {
                 assert_eq!(destination, live);
@@ -2041,13 +2143,14 @@ mod preparation_tests {
         let source = root.join("next");
         let prior = candidate(&live, "a", b"old");
         let next = candidate(&source, "b", b"new");
-        let result = Transaction::prepare(
+        let result = Transaction::prepare_in(
             &root.join("transaction"),
             &live,
             &prior,
             &next,
             &source,
             &[],
+            Some(&root.join("coordination")),
         );
         if std::env::var("LMG_UPDATE_TEST_INTERRUPT_PREPARATION").as_deref() == Ok("disk-full") {
             assert!(result.err().unwrap().contains("storage exhaustion"));
@@ -2058,11 +2161,7 @@ mod preparation_tests {
     #[test]
     fn interrupted_preparation_never_publishes_an_incomplete_transaction_and_retry_succeeds() {
         for fault in ["exit", "disk-full"] {
-            #[cfg(windows)]
-            let parent = gallery_windows_package::private::storage_root(false).unwrap();
-            #[cfg(not(windows))]
-            let parent = fs::canonicalize(std::env::temp_dir()).unwrap();
-            let temporary = tempfile::Builder::new().tempdir_in(parent).unwrap();
+            let temporary = crate::test_support::Fixture::new();
             let root = temporary.path();
             let mut child = Command::new(std::env::current_exe().unwrap());
             child
@@ -2104,17 +2203,24 @@ mod preparation_tests {
                         .starts_with(".lmg-preparing-")
                 })
                 .collect();
+            #[cfg(windows)]
+            assert_eq!(stages.len(), usize::from(fault == "exit"));
+            #[cfg(not(windows))]
             assert_eq!(stages.len(), 1);
-            assert_eq!(
-                fs::read(stages[0].join("prior/local-media-gallery")).unwrap(),
-                b"old"
-            );
-            assert!(!stages[0].join("journal.json").exists());
+            if let Some(stage) = stages.first() {
+                assert_eq!(
+                    fs::read(stage.join("prior/local-media-gallery")).unwrap(),
+                    b"old"
+                );
+                assert!(!stage.join("journal.json").exists());
+            }
             let live = root.join("live");
             let source = root.join("next");
             let prior = candidate(&live, "a", b"old");
             let next = candidate(&source, "b", b"new");
-            let op = Transaction::prepare(&base, &live, &prior, &next, &source, &[]).unwrap();
+            let op = temporary
+                .prepare(&base, &live, &prior, &next, &source, &[])
+                .unwrap();
             assert_eq!(op.status().unwrap().phase, "prepared");
             assert_eq!(op.journal.transaction, base);
             drop(op);
@@ -2122,7 +2228,14 @@ mod preparation_tests {
                 Transaction::open(&base).unwrap().status().unwrap().phase,
                 "prepared"
             );
-            assert!(Transaction::prepare(&base, &live, &prior, &next, &source, &[]).is_err());
+            assert!(
+                temporary
+                    .prepare(&base, &live, &prior, &next, &source, &[])
+                    .is_err()
+            );
+            #[cfg(windows)]
+            assert!(stages.iter().all(|p| !p.exists()));
+            #[cfg(not(windows))]
             assert_eq!(
                 fs::read(stages[0].join("prior/local-media-gallery")).unwrap(),
                 b"old"

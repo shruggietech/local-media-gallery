@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Finite Lite maintenance from the separate downloaded replacement executable.
-use std::{
-    ffi::OsString,
-    path::{Path, PathBuf},
-};
+#[cfg(any(not(feature = "tooling-state"), test))]
+use std::path::Path;
+use std::{ffi::OsString, path::PathBuf};
 fn arguments(args: &[OsString]) -> Result<(&str, PathBuf), String> {
     let usage = "Run the separate downloaded Lite executable: maintain replace|recover|rollback|status ABSOLUTE_OLD_EXECUTABLE [--json]. Close the old application first.";
     if args.len() < 3
@@ -23,6 +22,7 @@ fn arguments(args: &[OsString]) -> Result<(&str, PathBuf), String> {
     }
     Ok((operation, target))
 }
+#[cfg(any(not(feature = "tooling-state"), test))]
 fn state_operands(
     config: Option<PathBuf>,
     local_data: Option<PathBuf>,
@@ -30,7 +30,11 @@ fn state_operands(
 ) -> Result<Vec<gallery_update::StateOperand>, String> {
     // Share the writer's namespace and OS-specific history policy. In particular,
     // Linux history belongs to XDG_STATE_HOME, independently of XDG_DATA_HOME.
-    let identifier = crate::launch::identifier(crate::launch::Edition::Full);
+    let identifier = if cfg!(windows) {
+        "local-media-gallery"
+    } else {
+        crate::launch::identifier(crate::launch::Edition::Full)
+    };
     let mut state = Vec::new();
     if let Some(base) = config {
         state.push(gallery_update::StateOperand {
@@ -71,8 +75,49 @@ pub fn intercept() -> Option<i32> {
         }
         let (operation, target) = arguments(&args)?;
         let replacement = std::env::current_exe().map_err(|e| e.to_string())?;
+        #[cfg(not(feature = "tooling-state"))]
         let state = state_operands(dirs::config_dir(), dirs::data_local_dir(), &target)?;
-        gallery_update::ordinary::execute(operation, &target, &replacement, &state)
+        #[cfg(feature = "tooling-state")]
+        let state = {
+            let paths = crate::storage::paths()
+                .map_err(|e| e.to_string())?
+                .ok_or("Missing tooling storage")?;
+            vec![
+                gallery_update::StateOperand {
+                    kind: "settings".into(),
+                    path: paths.config.join("settings.json"),
+                },
+                gallery_update::StateOperand {
+                    kind: "history".into(),
+                    path: crate::history::location(Some(paths.local.clone()))
+                        .ok_or("Missing tooling history")?,
+                },
+                gallery_update::StateOperand {
+                    kind: "portable".into(),
+                    path: target
+                        .parent()
+                        .ok_or("Missing old executable parent")?
+                        .into(),
+                },
+            ]
+        };
+        #[cfg(feature = "tooling-state")]
+        {
+            let paths = crate::storage::paths()
+                .map_err(|e| e.to_string())?
+                .ok_or("Missing tooling storage")?;
+            gallery_update::ordinary::execute_in(
+                operation,
+                &target,
+                &replacement,
+                &state,
+                &paths.local.join("updates"),
+            )
+        }
+        #[cfg(not(feature = "tooling-state"))]
+        {
+            gallery_update::ordinary::execute(operation, &target, &replacement, &state)
+        }
     })();
     match result {
         Ok(outcome) => {
@@ -102,7 +147,11 @@ mod tests {
         let target = t.path().join("gallery/old-executable");
         let operands =
             state_operands(Some(config.clone()), Some(local_data.clone()), &target).unwrap();
-        let identifier = crate::launch::identifier(crate::launch::Edition::Full);
+        let identifier = if cfg!(windows) {
+            "local-media-gallery"
+        } else {
+            crate::launch::identifier(crate::launch::Edition::Full)
+        };
         assert_eq!(
             operands.iter().find(|p| p.kind == "settings").unwrap().path,
             config.join(identifier).join("settings.json")

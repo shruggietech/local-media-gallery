@@ -1,0 +1,111 @@
+{
+  "product": "local-media-gallery",
+  "version": "0.2.1",
+  "formatVersion": 1,
+  "publication": "verified-release-record-required",
+  "commonCapabilities": [
+    "browse",
+    "filter-sort-page",
+    "focused-viewer",
+    "metadata",
+    "user-remembered-portable-temporary-settings",
+    "manual-refresh",
+    "adaptive-loading",
+    "optional-thumbnail-jobs",
+    "process-diagnostics"
+  ],
+  "recipientTools": [],
+  "providers": {
+    "open": true,
+    "resolve": true,
+    "prepare": true,
+    "install": false
+  },
+  "rows": [
+    {
+      "id": "windows-x86_64",
+      "os": "windows",
+      "arch": "x86_64",
+      "baseline": "Windows 10 22H2 or Windows 11",
+      "runtime": "Shared Evergreen WebView2 Runtime (MSVC native artifact)",
+      "display": "Interactive Windows desktop",
+      "proof": "windows-2025 isolated native package/runtime campaigns; client OS behavior requires exact host receipts",
+      "full": "One system-scope setup EXE with embedded machine MSI, complete offline Evergreen WebView2 and FFmpeg; ownership-aware managed maintenance",
+      "lite": "One direct native EXE with embedded notices/maintenance metadata and shared host WebView2 prerequisite",
+      "signing": "Project signing not performed by policy; actual host assessments reported separately",
+      "qualification": "Exact host/artifact receipts required; other client versions not yet tested"
+    },
+    {
+      "id": "linux-x86_64",
+      "os": "linux",
+      "arch": "x86_64",
+      "baseline": "Ubuntu 24.04 GNU ABI (glibc 2.39 build baseline)",
+      "runtime": "GTK3, WebKitGTK 4.1, libsoup3; distribution media plugins",
+      "display": "Isolated X11/Xvfb desktop elected; Wayland has not been tested",
+      "proof": "ubuntu-24.04 isolated native single-file Lite and offline Full recipient campaigns",
+      "full": "One native offline system installer carrying exact Ubuntu runtime deb closure, application and FFmpeg; native package ownership retained",
+      "lite": "One direct ELF with embedded notices/maintenance metadata and declared Ubuntu GTK/WebKit/GStreamer host prerequisites",
+      "signing": "Project signing not performed by policy; actual host assessments reported separately",
+      "qualification": "Exact per-edition CLI/runtime receipts required; Wayland, physical touch, Orca speech and older GNU ABI not yet tested"
+    },
+    {
+      "id": "macos-aarch64",
+      "os": "macos",
+      "arch": "aarch64",
+      "baseline": "macOS 15 initial proof baseline",
+      "runtime": "OS-provided WKWebView; native Apple Silicon artifact",
+      "display": "Interactive macOS desktop for GUI",
+      "proof": "macos-15 arm64 isolated single-file Mach-O and native system PKG campaigns",
+      "full": "One flat system-domain PKG with embedded ownership-aware application maintenance, FFmpeg/source/notices and native command integration",
+      "lite": "One direct Mach-O with embedded identity/notices/maintenance metadata, adjacent gallery and OS WKWebView",
+      "signing": "Project signing/notarization/stapling not performed by policy; ordinary compiler/linker loader metadata preserved",
+      "qualification": "Exact source-bound ordinary package and native runtime receipts required; VoiceOver speech, WebM media-element audio output, actual translocation and older OS require separate evidence"
+    },
+    {
+      "id": "windows-aarch64",
+      "os": "windows",
+      "arch": "aarch64",
+      "baseline": "Windows 11 ARM64 intended native target",
+      "runtime": "Native ARM64 Evergreen WebView2",
+      "display": "Interactive desktop",
+      "proof": "not-elected",
+      "full": "Native ARM64 installer with separate integration/provisioning proof",
+      "lite": "Native ARM64 archive with declared host runtime",
+      "signing": "Project signing not performed by policy; actual host assessments reported separately",
+      "qualification": "Not yet built or tested; x64 emulation is not native ARM64 evidence"
+    },
+    {
+      "id": "linux-aarch64",
+      "os": "linux",
+      "arch": "aarch64",
+      "baseline": "Ubuntu 24.04 ARM64 intended native target",
+      "runtime": "Native GTK3/WebKitGTK 4.1/libsoup3 and GNU ABI",
+      "display": "X11 or Wayland requires qualification",
+      "proof": "not-elected",
+      "full": "Native distribution package",
+      "lite": "Native archive; portable packaging requires proof",
+      "signing": "Project signing not performed by policy; actual host assessments reported separately",
+      "qualification": "Not yet built or tested"
+    },
+    {
+      "id": "macos-x86_64",
+      "os": "macos",
+      "arch": "x86_64",
+      "baseline": "macOS 15 intended Intel target",
+      "runtime": "OS WKWebView; native Intel artifact",
+      "display": "Interactive desktop",
+      "proof": "not-elected",
+      "full": "Native Intel app bundle/DMG",
+      "lite": "Native Intel app bundle archive",
+      "signing": "Project signing/notarization/stapling not performed by policy; ordinary compiler/linker loader metadata preserved",
+      "qualification": "Not yet built or tested; arm64 or Rosetta results do not qualify native Intel"
+    }
+  ],
+  "limits": [
+    "Proof artifacts are not published product packages or final installers.",
+    "Actual receipts distinguish native CLI, rendered browsing, media and installation evidence.",
+    "Older Linux compatibility requires an older ABI build and native proof; Ubuntu 22.04/Debian 12 are not qualified by Ubuntu 24.04 output.",
+    "Host-local preferences/history may be shared by both editions; recipient state never requires sender state.",
+    "Missing Lite Linux host libraries may fail before main; direct executable prerequisite guidance identifies this boundary. Full bundles the exact redistributable runtime package closure."
+  ]
+}

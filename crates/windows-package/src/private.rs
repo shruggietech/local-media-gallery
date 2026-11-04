@@ -239,7 +239,22 @@ fn open(path: &Path, directory: bool) -> Result<File> {
     if m.file_attributes() & 0x400 != 0 || m.is_dir() != directory {
         return Err("Redirected or wrong-type updater authority".into());
     }
+    if !directory {
+        use windows::Win32::{
+            Foundation::HANDLE,
+            Storage::FileSystem::{BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle},
+        };
+        let mut info = BY_HANDLE_FILE_INFORMATION::default();
+        unsafe { GetFileInformationByHandle(HANDLE(h), &mut info) }.map_err(|e| e.to_string())?;
+        if info.nNumberOfLinks != 1 {
+            return Err("Multiply linked updater authority".into());
+        }
+    }
     Ok(file)
+}
+/// Inspect ordinary single-link physical input without imposing a private ACL.
+pub fn pin_file(path: &Path) -> Result<File> {
+    open(path, false)
 }
 fn security(file: &File, machine: bool, strict: bool, directory: bool) -> Result<()> {
     let (expected, allowed) = principals(machine)?;
@@ -368,7 +383,11 @@ fn create_one(path: &Path, machine: bool) -> Result<()> {
 }
 pub fn create_directory(path: &Path, machine: bool) -> Result<Vec<File>> {
     let parent = path.parent().ok_or("Missing updater storage parent")?;
-    let handles = parents(parent, machine)?;
+    let handles = if context(parent).ok() == Some(machine) {
+        validate_directory(parent, machine)?
+    } else {
+        parents(parent, machine)?
+    };
     create_one(path, machine)?;
     let file = open(path, true)?;
     security(&file, machine, true, true)?;
@@ -377,12 +396,15 @@ pub fn create_directory(path: &Path, machine: bool) -> Result<Vec<File>> {
     Ok(handles)
 }
 pub fn validate_directory(path: &Path, machine: bool) -> Result<Vec<File>> {
-    let mut handles = parents(path.parent().ok_or("Missing storage parent")?, machine)?;
+    // The selected protected updater directory is the authority boundary.
+    // OS/application ancestors retain normal ACLs and are pinned physically.
+    let mut handles = pin_physical(path.parent().ok_or("Missing storage parent")?)?;
     let file = open(path, true)?;
     security(&file, machine, true, true)?;
     handles.push(file);
     Ok(handles)
 }
+
 pub fn context(path: &Path) -> Result<bool> {
     let file = open(path, true)?;
     if security(&file, false, true, true).is_ok() {
@@ -452,33 +474,54 @@ impl FileValidator {
 pub fn validate_file(path: &Path, machine: bool) -> Result<()> {
     FileValidator::new(machine)?.validate(path)
 }
+pub fn storage_path(base: &Path) -> PathBuf {
+    base.join("local-media-gallery").join("updates")
+}
+/// Construct a protected update root at an explicitly selected location.
+/// Fixtures use this directly and never fall back to a production profile.
+pub fn ensure_storage_at(root: &Path, machine: bool) -> Result<PathBuf> {
+    let parent = root.parent().ok_or("Missing updater storage parent")?;
+    let _pins = pin_physical(parent)?;
+    if !root.try_exists().map_err(|e| e.to_string())?
+        && let Err(error) = create_one(root, machine)
+        && !root.try_exists().map_err(|e| e.to_string())?
+    {
+        return Err(error);
+    }
+    let file = open(root, true)?;
+    security(&file, machine, true, true)?;
+    Ok(root.to_path_buf())
+}
 pub fn storage_root(machine: bool) -> Result<PathBuf> {
     let base = crate::native::known_folder(if machine {
         &windows::Win32::UI::Shell::FOLDERID_ProgramData
     } else {
-        &windows::Win32::UI::Shell::FOLDERID_Profile
+        &windows::Win32::UI::Shell::FOLDERID_LocalAppData
     })?;
-    let handles = parents(&base, machine)?;
-    let root = base.join(if machine {
-        "LocalMediaGalleryUpdates"
-    } else {
-        ".local-media-gallery-updates"
-    });
-    if !root.exists()
-        && let Err(error) = create_one(&root, machine)
-        && !root.exists()
+    let root = storage_path(&base);
+    let application = root.parent().ok_or("Missing application storage parent")?;
+    let _pins = pin_physical(&base)?;
+    if !application.try_exists().map_err(|e| e.to_string())?
+        && let Err(error) = create_one(application, machine)
+        && !application.try_exists().map_err(|e| e.to_string())?
     {
         return Err(error);
     }
-    let file = open(&root, true)?;
-    security(&file, machine, true, true)?;
-    let _ = handles;
-    Ok(root)
+    ensure_storage_at(&root, machine)
 }
-pub fn coordination_file(key: &str, machine: bool) -> Result<File> {
-    let root = storage_root(machine)?;
+/// A validated, already locked coordination handle. Its final close deletes it.
+/// DELETE access with READ|WRITE sharing excludes another deleting opener.
+pub fn coordination_lease_at(root: &Path, key: &str, machine: bool) -> Result<File> {
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::Storage::FileSystem::{
+        BY_HANDLE_FILE_INFORMATION, FILE_DISPOSITION_INFO, FileDispositionInfo,
+        GetFileInformationByHandle, SetFileInformationByHandle,
+    };
+    if key.is_empty() || key.contains(['/', '\\', ':']) || key == "." || key == ".." {
+        return Err("Invalid coordination name".into());
+    }
     let path = root.join(key);
-    let _pins = validate_directory(&root, machine)?;
+    let _pins = validate_directory(root, machine)?;
     let sd = descriptor(machine, false)?;
     let attributes = Attributes {
         length: std::mem::size_of::<Attributes>() as u32,
@@ -488,7 +531,7 @@ pub fn coordination_file(key: &str, machine: bool) -> Result<File> {
     let h = unsafe {
         CreateFileW(
             wide(&path).as_ptr(),
-            0xc0020000,
+            0xc0030000,
             3,
             &attributes,
             4,
@@ -497,11 +540,45 @@ pub fn coordination_file(key: &str, machine: bool) -> Result<File> {
         )
     };
     if h as isize == -1 {
-        return Err(error());
+        let cause = std::io::Error::last_os_error();
+        return Err(format!(
+            "{}Coordination {}: {cause}",
+            if matches!(cause.raw_os_error(), Some(32 | 303)) {
+                "incomplete: "
+            } else {
+                ""
+            },
+            path.display()
+        ));
     }
     let file = unsafe { File::from_raw_handle(h) };
     security(&file, machine, true, false)?;
+    let mut info = BY_HANDLE_FILE_INFORMATION::default();
+    unsafe { GetFileInformationByHandle(HANDLE(h), &mut info) }.map_err(|e| e.to_string())?;
+    if info.dwFileAttributes & (0x400 | 0x10) != 0
+        || info.nNumberOfLinks != 1
+        || info.nFileSizeHigh != 0
+        || info.nFileSizeLow != 0
+    {
+        return Err("Coordination must be an empty, regular, single-link owned file".into());
+    }
+    file.try_lock()
+        .map_err(|e| format!("incomplete: Another operation owns {}: {e}", path.display()))?;
+    let disposition = FILE_DISPOSITION_INFO { DeleteFile: true };
+    // Validation precedes deletion disposition, so refusal preserves foreign bytes.
+    unsafe {
+        SetFileInformationByHandle(
+            HANDLE(h),
+            FileDispositionInfo,
+            (&disposition as *const FILE_DISPOSITION_INFO).cast(),
+            std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32,
+        )
+    }
+    .map_err(|e| e.to_string())?;
     Ok(file)
+}
+pub fn coordination_file(key: &str, machine: bool) -> Result<File> {
+    coordination_lease_at(&storage_root(machine)?, key, machine)
 }
 
 pub fn lock_file(path: &Path, machine: bool) -> Result<File> {
@@ -593,8 +670,7 @@ mod tests {
     use super::*;
     #[test]
     fn inventory_namespace_prevents_shared_parent_replacement_until_released() {
-        let root = storage_root(false).unwrap();
-        let temp = tempfile::Builder::new().tempdir_in(root).unwrap();
+        let temp = tempfile::tempdir().unwrap();
         let parent = temp.path().join("shared");
         let one = parent.join("one");
         let two = parent.join("two");
@@ -620,10 +696,9 @@ mod tests {
                 descriptor: *const c_void,
             ) -> i32;
         }
-        let root = storage_root(false).unwrap();
-        let temp = tempfile::Builder::new().tempdir_in(root).unwrap();
+        let temp = tempfile::tempdir().unwrap();
         let base = temp.path().join("private");
-        let _pins = create_directory(&base, false).unwrap();
+        let base = ensure_storage_at(&base, false).unwrap();
         let path = base.join("authority.json");
         {
             use std::io::Write;
@@ -653,5 +728,42 @@ mod tests {
         assert!(validator.validate(&path).is_err());
         assert_eq!(std::fs::read(&path).unwrap(), b"retained authority bytes");
         assert!(validate_file(&path, false).is_err());
+    }
+    #[test]
+    fn explicit_storage_coordination_is_disposable_and_exclusive() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = ensure_storage_at(&temp.path().join("updates"), false).unwrap();
+        let path = root.join("destination-fixture.lock");
+        let owner = coordination_lease_at(&root, "destination-fixture.lock", false).unwrap();
+        assert!(coordination_lease_at(&root, "destination-fixture.lock", false).is_err());
+        drop(owner);
+        assert!(!path.exists());
+        drop(coordination_lease_at(&root, "destination-fixture.lock", false).unwrap());
+        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 0);
+    }
+    #[test]
+    fn production_storage_paths_use_application_named_children() {
+        for base in [Path::new("C:/LocalAppData"), Path::new("C:/ProgramData")] {
+            assert_eq!(storage_path(base), base.join("local-media-gallery/updates"));
+        }
+    }
+    #[test]
+    fn disposable_coordination_refuses_nonempty_and_hardlinked_content() {
+        use std::io::Write;
+        let temp = tempfile::tempdir().unwrap();
+        let root = ensure_storage_at(&temp.path().join("updates"), false).unwrap();
+        let path = root.join("foreign.lock");
+        create_file(&path)
+            .unwrap()
+            .write_all(b"retained foreign bytes")
+            .unwrap();
+        assert!(coordination_lease_at(&root, "foreign.lock", false).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"retained foreign bytes");
+        let linked = root.join("linked.lock");
+        drop(create_file(&linked).unwrap());
+        let alias = temp.path().join("alias.lock");
+        std::fs::hard_link(&linked, &alias).unwrap();
+        assert!(coordination_lease_at(&root, "linked.lock", false).is_err());
+        assert!(linked.exists() && alias.exists());
     }
 }

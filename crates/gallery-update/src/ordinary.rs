@@ -270,13 +270,14 @@ pub fn prepare(
         fs::set_permissions(&source, fs::Permissions::from_mode(0o755))
             .map_err(|e| e.to_string())?;
     }
-    Transaction::prepare(
+    Transaction::prepare_in(
         &base,
         target.parent().ok_or("Missing executable parent")?,
         &a,
         &b,
         staging.path(),
         state,
+        Some(storage),
     )
 }
 /// Execute from a separate replacement Lite file; no helper or JSON is distributed.
@@ -286,6 +287,18 @@ pub fn execute(
     replacement: &Path,
     state: &[StateOperand],
 ) -> Result<Outcome> {
+    execute_in(operation, target, replacement, state, &storage_root()?)
+}
+/// Explicit internal storage election for tooling builds. No production fallback.
+pub fn execute_in(
+    operation: &str,
+    target: &Path,
+    replacement: &Path,
+    state: &[StateOperand],
+    storage: &Path,
+) -> Result<Outcome> {
+    let storage = crate::selected_storage(Some(storage), false)?
+        .ok_or("Missing elected maintenance storage")?;
     let next = SingleFile::read(replacement)?;
     physical(target)?;
     if crate::canonical_identity(target)? == crate::canonical_identity(replacement)? {
@@ -294,7 +307,6 @@ pub fn execute(
     if !matches!(operation, "replace" | "recover" | "rollback" | "status") {
         return Err("Use maintain replace, recover, rollback or status OLD_EXECUTABLE".into());
     }
-    let storage = storage_root()?;
     let base = transaction_path(&storage, target, &next)?;
     match operation {
         "replace" => {
@@ -416,13 +428,10 @@ process.stdout.write(encodeSingleFile(b,{version:'0.2.0',edition:'lite',os,arch,
         change(&mut value);
         append(bytes[..start].to_vec(), value)
     }
-    fn fixture() -> tempfile::TempDir {
-        #[cfg(windows)]
-        let parent = gallery_windows_package::private::storage_root(false).unwrap();
-        #[cfg(not(windows))]
-        let parent = fs::canonicalize(std::env::temp_dir()).unwrap();
-        tempfile::tempdir_in(parent).unwrap()
+    fn fixture() -> crate::test_support::Fixture {
+        crate::test_support::Fixture::new()
     }
+
     fn write(path: &Path, bytes: &[u8]) {
         fs::write(path, bytes).unwrap();
         #[cfg(unix)]

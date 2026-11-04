@@ -134,6 +134,8 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
                     .ok_or("Extracted MSI does not match complete expected payload")?;
                 exact_msi_image(c, &extract, &src)?;
                 copy_retained_inventory(c, &src, destination)?;
+                drop(namespace);
+                cleanup_administrative(&extract)?;
             }
             #[cfg(not(windows))]
             return Err("Windows MSI requires Windows".into());
@@ -142,6 +144,44 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
     };
     c.verify(destination)?;
     exact_files(c, destination)
+}
+#[cfg(windows)]
+fn cleanup_administrative(root: &Path) -> Result<()> {
+    // Called only after exact_msi_image and retained inventory verification.
+    // Pin every parent, inspect every leaf before deleting any byte, then remove empty directories.
+    fn visit(
+        at: &Path,
+        files: &mut Vec<PathBuf>,
+        dirs: &mut Vec<PathBuf>,
+        pins: &mut gallery_windows_package::private::PhysicalNamespace,
+    ) -> Result<()> {
+        pins.pin(at)?;
+        for entry in io(fs::read_dir(at))? {
+            let entry = io(entry)?;
+            let path = entry.path();
+            physical_in(&path, pins)?;
+            if io(entry.file_type())?.is_dir() {
+                visit(&path, files, dirs, pins)?;
+            } else {
+                drop(gallery_windows_package::private::pin_file(&path)?);
+                files.push(path);
+            }
+        }
+        dirs.push(at.into());
+        Ok(())
+    }
+    let mut files = vec![];
+    let mut dirs = vec![];
+    let mut pins = gallery_windows_package::private::PhysicalNamespace::default();
+    visit(root, &mut files, &mut dirs, &mut pins)?;
+    for file in files {
+        io(fs::remove_file(file))?;
+    }
+    drop(pins);
+    for dir in dirs {
+        io(fs::remove_dir(dir))?;
+    }
+    Ok(())
 }
 #[cfg(windows)]
 fn find_binary(
@@ -628,6 +668,9 @@ pub(super) fn linux_authority(journal: &Journal) -> Result<()> {
 
 #[cfg(any(windows, target_os = "linux"))]
 fn cleanup(op: &Transaction) -> Result<()> {
+    if !matches!(op.journal.prior.native, Native::Direct) {
+        worker::cleanup(op)?;
+    }
     #[cfg(target_os = "linux")]
     if matches!(op.journal.prior.native, Native::LinuxDeb { .. }) {
         let file = Path::new("/run/local-media-gallery-update/authority");
@@ -870,9 +913,7 @@ mod traversal_tests {
     use super::*;
     #[test]
     fn wide_administrative_image_rejects_extra_paths() {
-        let temp = tempfile::Builder::new()
-            .tempdir_in(gallery_windows_package::private::storage_root(false).unwrap())
-            .unwrap();
+        let temp = tempfile::tempdir().unwrap();
         let image = temp.path().join("image");
         let payload = image.join("Programs/Local Media Gallery");
         fs::create_dir_all(&payload).unwrap();

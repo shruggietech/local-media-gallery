@@ -39,7 +39,7 @@ fn run() -> Result<serde_json::Value, String> {
             });
         } else if !matches!(
             k.as_str(),
-            "--transaction" | "--directory" | "--from" | "--to" | "--source"
+            "--transaction" | "--directory" | "--from" | "--to" | "--source" | "--storage-root"
         ) || opts.insert(k, v).is_some()
         {
             return Err("Unknown or duplicate option".into());
@@ -56,13 +56,15 @@ fn run() -> Result<serde_json::Value, String> {
             }
             let prior = Candidate::read(&path("--from")?)?;
             let next = Candidate::read(&path("--to")?)?;
-            let mut op = Transaction::prepare(
+            let storage = opts.get("--storage-root").map(PathBuf::from);
+            let mut op = Transaction::prepare_in(
                 &base,
                 &path("--directory")?,
                 &prior,
                 &next,
                 &path("--source")?,
                 &state,
+                storage.as_deref(),
             )?;
             if operation == "prepare" {
                 op.status()?

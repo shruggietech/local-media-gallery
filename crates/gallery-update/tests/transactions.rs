@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 use gallery_update::*;
 use std::{fs, path::Path};
-fn fixture() -> tempfile::TempDir {
-    #[cfg(windows)]
-    let parent = gallery_windows_package::private::storage_root(false).unwrap();
-    #[cfg(not(windows))]
-    let parent = fs::canonicalize(std::env::temp_dir()).unwrap();
-    tempfile::Builder::new().tempdir_in(parent).unwrap()
+#[path = "../src/test_support.rs"]
+mod test_support;
+fn fixture() -> test_support::Fixture {
+    test_support::Fixture::new()
 }
 
 fn candidate(base: &Path, generation: &str, bytes: &[u8]) -> Candidate {
@@ -44,7 +42,7 @@ fn replacement_rollback_and_repeat() {
     let a = candidate(&live, "a", b"old");
     let b = candidate(&next, "b", b"new");
     let tx = t.path().join("transaction");
-    let mut op = Transaction::prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
+    let mut op = t.prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
     assert_eq!(op.apply(false).unwrap().status, "complete");
     assert_eq!(fs::read(live.join(&a.binary)).unwrap(), b"new");
     assert_eq!(op.apply(false).unwrap().status, "already-current");
@@ -73,8 +71,9 @@ fn direct_switch_prunes_only_known_unselected_empty_parents() {
     resource(&next, &mut b, "next-only/deep/notice.txt");
     resource(&next, &mut b, "retain-foreign/nested/notice.txt");
     resource(&next, &mut b, "retain-empty-extra/notice.txt");
-    let mut op =
-        Transaction::prepare(&t.path().join("transaction"), &live, &a, &b, &next, &[]).unwrap();
+    let mut op = t
+        .prepare(&t.path().join("transaction"), &live, &a, &b, &next, &[])
+        .unwrap();
     op.apply(false).unwrap();
     assert!(!live.join("prior-only").exists());
     fs::create_dir(live.join("unknown-empty")).unwrap();
@@ -103,7 +102,7 @@ fn unknown_live_bytes_and_tampered_backup_refuse() {
     let a = candidate(&live, "a", b"old");
     let b = candidate(&next, "b", b"new");
     let tx = t.path().join("transaction");
-    let mut op = Transaction::prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
+    let mut op = t.prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
     fs::write(live.join(&a.binary), b"foreign").unwrap();
     assert!(op.apply(false).is_err());
     assert_eq!(fs::read(live.join(&a.binary)).unwrap(), b"foreign");
@@ -135,7 +134,7 @@ fn missing_live_after_prepared_recovers_twice() {
     let b = candidate(&next, "b", b"new");
     let tx = t.path().join("transaction");
     {
-        let _op = Transaction::prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
+        let _op = t.prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
     }
     fs::remove_file(live.join(&a.binary)).unwrap();
     let mut op = Transaction::open(&tx).unwrap();
@@ -150,7 +149,7 @@ fn exclusive_operation_lock_and_foreign_destination() {
     let a = candidate(&live, "a", b"old");
     let mut b = candidate(&next, "b", b"new");
     let tx = t.path().join("transaction");
-    let _op = Transaction::prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
+    let _op = t.prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
     assert!(Transaction::open(&tx).is_err());
     b.files.push(FileRecord {
         path: "foreign.txt".into(),
@@ -160,7 +159,10 @@ fn exclusive_operation_lock_and_foreign_destination() {
     });
     fs::write(live.join("foreign.txt"), b"x").unwrap();
     fs::write(next.join("foreign.txt"), b"x").unwrap();
-    assert!(Transaction::prepare(&t.path().join("other"), &live, &a, &b, &next, &[]).is_err());
+    assert!(
+        t.prepare(&t.path().join("other"), &live, &a, &b, &next, &[])
+            .is_err()
+    );
 }
 
 #[test]
@@ -170,8 +172,13 @@ fn different_transactions_cannot_own_one_destination() {
     let next = t.path().join("next");
     let a = candidate(&live, "a", b"old");
     let b = candidate(&next, "b", b"new");
-    let _one = Transaction::prepare(&t.path().join("one"), &live, &a, &b, &next, &[]).unwrap();
-    assert!(Transaction::prepare(&t.path().join("two"), &live, &a, &b, &next, &[]).is_err());
+    let _one = t
+        .prepare(&t.path().join("one"), &live, &a, &b, &next, &[])
+        .unwrap();
+    assert!(
+        t.prepare(&t.path().join("two"), &live, &a, &b, &next, &[])
+            .is_err()
+    );
 }
 #[test]
 fn rename_before_journal_reconciles_but_unknown_displaced_bytes_block() {
@@ -182,7 +189,7 @@ fn rename_before_journal_reconciles_but_unknown_displaced_bytes_block() {
     let b = candidate(&next, "b", b"new");
     let tx = t.path().join("transaction");
     {
-        let _op = Transaction::prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
+        let _op = t.prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
     }
     use sha2::{Digest, Sha256};
     let journal: serde_json::Value =
@@ -227,7 +234,7 @@ fn changed_static_journal_identity_is_not_a_recovery_authority() {
     let b = candidate(&next, "b", b"new");
     let tx = t.path().join("transaction");
     {
-        let _op = Transaction::prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
+        let _op = t.prepare(&tx, &live, &a, &b, &next, &[]).unwrap();
     }
     let file = tx.join("journal.json");
     let mut v: serde_json::Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
@@ -247,7 +254,7 @@ fn failed_staging_collision_and_wrong_target_preserve_installation() {
     let tx = t.path().join("transaction");
     fs::create_dir(&tx).unwrap();
     fs::write(tx.join("foreign"), b"keep").unwrap();
-    assert!(Transaction::prepare(&tx, &live, &a, &b, &next, &[]).is_err());
+    assert!(t.prepare(&tx, &live, &a, &b, &next, &[]).is_err());
     assert_eq!(fs::read(tx.join("foreign")).unwrap(), b"keep");
     b.arch = if std::env::consts::ARCH == "x86_64" {
         "aarch64"
@@ -255,10 +262,16 @@ fn failed_staging_collision_and_wrong_target_preserve_installation() {
         "x86_64"
     }
     .into();
-    assert!(Transaction::prepare(&t.path().join("wrong"), &live, &a, &b, &next, &[]).is_err());
+    assert!(
+        t.prepare(&t.path().join("wrong"), &live, &a, &b, &next, &[])
+            .is_err()
+    );
     b.arch = a.arch.clone();
     b.edition = "full".into();
-    assert!(Transaction::prepare(&t.path().join("edition"), &live, &a, &b, &next, &[]).is_err());
+    assert!(
+        t.prepare(&t.path().join("edition"), &live, &a, &b, &next, &[])
+            .is_err()
+    );
     assert_eq!(fs::read(live.join(&a.binary)).unwrap(), b"old");
 }
 #[test]
@@ -292,7 +305,10 @@ fn active_executable_refuses_before_staging() {
             .share_mode(1)
             .open(live.join(&a.binary))
             .unwrap();
-        assert!(Transaction::prepare(&t.path().join("active"), &live, &a, &b, &next, &[]).is_err());
+        assert!(
+            t.prepare(&t.path().join("active"), &live, &a, &b, &next, &[])
+                .is_err()
+        );
     }
     #[cfg(unix)]
     {
@@ -304,8 +320,9 @@ fn active_executable_refuses_before_staging() {
             .spawn()
             .unwrap();
         std::thread::sleep(std::time::Duration::from_millis(50));
-        let refused =
-            Transaction::prepare(&t.path().join("active"), &live, &a, &b, &next, &[]).is_err();
+        let refused = t
+            .prepare(&t.path().join("active"), &live, &a, &b, &next, &[])
+            .is_err();
         let _ = child.kill();
         let _ = child.wait();
         assert!(refused);
@@ -323,7 +340,7 @@ fn replaced_live_parent_preserves_foreign_and_original_bytes() {
     let b = candidate(&source, "b", b"new");
     let tx = t.path().join("transaction");
     {
-        let _op = Transaction::prepare(&tx, &live, &a, &b, &source, &[]).unwrap();
+        let _op = t.prepare(&tx, &live, &a, &b, &source, &[]).unwrap();
     }
     let retired = t.path().join("retired");
     fs::rename(&live, &retired).unwrap();
@@ -347,7 +364,7 @@ fn linked_live_parent_is_not_recovery_authority() {
     candidate(&foreign, "foreign", b"keep");
     let tx = t.path().join("transaction");
     {
-        let _op = Transaction::prepare(&tx, &live, &a, &b, &source, &[]).unwrap();
+        let _op = t.prepare(&tx, &live, &a, &b, &source, &[]).unwrap();
     }
     fs::rename(&live, t.path().join("retired")).unwrap();
     symlink(&foreign, &live).unwrap();
@@ -378,8 +395,9 @@ fn wide_nested_inventory_checks_every_file_and_retains_changed_bytes() {
     let mut next = c.clone();
     next.generation = "b".into();
     let started = std::time::Instant::now();
-    let op =
-        Transaction::prepare(&t.path().join("transaction"), &base, &c, &next, &base, &[]).unwrap();
+    let op = t
+        .prepare(&t.path().join("transaction"), &base, &c, &next, &base, &[])
+        .unwrap();
     println!("wide inventory retention: {:?}", started.elapsed());
     drop(op);
     assert!(Transaction::resume(&t.path().join("transaction"), RecoveryCommand::Status).is_ok());
@@ -397,7 +415,7 @@ fn resumed_commands_verify_tampered_retained_bytes_before_effects() {
     let a = candidate(&live, "a", b"old");
     let b = candidate(&next, "b", b"new");
     let tx = t.path().join("transaction");
-    drop(Transaction::prepare(&tx, &live, &a, &b, &next, &[]).unwrap());
+    drop(t.prepare(&tx, &live, &a, &b, &next, &[]).unwrap());
     assert!(Transaction::resume(&tx, RecoveryCommand::Status).is_ok());
     fs::write(tx.join("prior").join(&a.binary), b"tampered").unwrap();
     for command in [
@@ -426,7 +444,7 @@ fn invalid_selected_state_refuses_before_retaining_candidates() {
         kind: "foreign".into(),
         path: t.path().join("state.json"),
     }];
-    assert!(Transaction::prepare(&tx, &live, &a, &b, &next, &state).is_err());
+    assert!(t.prepare(&tx, &live, &a, &b, &next, &state).is_err());
     assert!(
         !tx.exists(),
         "Invalid state must not incur candidate retention"
