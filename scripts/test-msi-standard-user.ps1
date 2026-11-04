@@ -20,6 +20,13 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { 
 if ((Get-FileHash -LiteralPath $MsiFile -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Sha256) { throw 'Source MSI identity differs' }
 $account='lmg'+[Guid]::NewGuid().ToString('N').Substring(0,12)
 $password=ConvertTo-SecureString ([Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(30))+'Aa9!') -AsPlainText -Force
+$policyKey='HKLM:\Software\Policies\Microsoft\Windows\Installer'
+$policyItem=Get-Item -LiteralPath $policyKey -ErrorAction SilentlyContinue
+$policyKeyPresent=$null -ne $policyItem
+$policyPresent=$policyKeyPresent -and ($policyItem.GetValueNames() -contains 'DisableMsi')
+$policyBefore=if($policyPresent){$policyItem.GetValue('DisableMsi')}else{$null}
+$policyKind=if($policyPresent){$policyItem.GetValueKind('DisableMsi').ToString()}else{$null}
+$policyChanged=$false;$result=$null
 $created=$false;$incomplete=$false;$removedSuccessfully=$false;$recipient=Join-Path ([Environment]::GetFolderPath('CommonDocuments')) $account
 function Invoke-StandardProcess {
     param([string]$Executable,[string[]]$Arguments)
@@ -33,6 +40,14 @@ function Invoke-StandardProcess {
     @{exitCode=$child.ExitCode;stdout=$output.GetAwaiter().GetResult();stderr=$errors.GetAwaiter().GetResult()}
 }
 try {
+    # Windows Server images disable unmanaged MSI installs by default. Permit
+    # them only on this disposable fixture; never grant elevated user installs.
+    foreach ($key in @($policyKey,'HKCU:\Software\Policies\Microsoft\Windows\Installer')) {
+        if ((Get-ItemPropertyValue -LiteralPath $key -Name AlwaysInstallElevated -ErrorAction SilentlyContinue) -eq 1) { throw 'Fixture unexpectedly permits elevated user MSI installation' }
+    }
+    $policyChanged=$true
+    if (!$policyKeyPresent) { [void](New-Item -Path $policyKey -Force) }
+    Set-ItemProperty -LiteralPath $policyKey -Name DisableMsi -Value 0 -Type DWord
     $user=New-LocalUser -Name $account -Password $password -AccountNeverExpires -PasswordNeverExpires -Description 'Disposable isolated MSI qualification'
     $created=$true
     $usersGroup=Get-LocalGroup -SID 'S-1-5-32-545'
@@ -92,8 +107,22 @@ if ($key -and $key.ProductCode) {
         }
     }
     $removedSuccessfully=$true
-    @{result='pass';kind='disposable-standard-user';sid=$user.SID.Value;installed=$installed;removed=$removed;ownedRemoval=$ownedRemoval;installExit=$install.exitCode;removeExit=$remove.exitCode;recipientInput=@('Full.msi');sha256=$Sha256;logs=@((Join-Path $EvidenceDirectory 'install.log'),(Join-Path $EvidenceDirectory 'remove.log'))}|ConvertTo-Json -Depth 16 -Compress
+    $result=@{policy=@{name='DisableMsi';before=$policyBefore;during=0;alwaysInstallElevated=$false;restored=$false};result='pass';kind='disposable-standard-user';sid=$user.SID.Value;installed=$installed;removed=$removed;ownedRemoval=$ownedRemoval;installExit=$install.exitCode;removeExit=$remove.exitCode;recipientInput=@('Full.msi');sha256=$Sha256;logs=@((Join-Path $EvidenceDirectory 'install.log'),(Join-Path $EvidenceDirectory 'remove.log'))}
 } finally {
+    if ($policyChanged) {
+        if ($policyPresent) { Set-ItemProperty -LiteralPath $policyKey -Name DisableMsi -Value $policyBefore -Type $policyKind }
+        else { Remove-ItemProperty -LiteralPath $policyKey -Name DisableMsi -ErrorAction Stop }
+        if (!$policyKeyPresent) {
+            $empty=Get-Item -LiteralPath $policyKey -ErrorAction Stop
+            if ($empty.GetValueNames().Count -ne 0 -or $empty.SubKeyCount -ne 0) { throw 'Fixture policy key changed unexpectedly; unrelated values retained' }
+            Remove-Item -LiteralPath $policyKey -ErrorAction Stop
+        }
+        $after=Get-Item -LiteralPath $policyKey -ErrorAction SilentlyContinue
+        if ($policyPresent) {
+            if (!$after -or $after.GetValue('DisableMsi') -ne $policyBefore -or $after.GetValueKind('DisableMsi').ToString() -ne $policyKind) { throw 'Original Windows Installer policy was not restored' }
+        } elseif ($after -and ($after.GetValueNames() -contains 'DisableMsi')) { throw 'Fixture policy value remains after restoration' }
+        if ($result) { $result.policy.restored=$true }
+    }
     [void][IO.Directory]::CreateDirectory($EvidenceDirectory)
     foreach ($name in @('install.log','remove.log')) {
         $file=Join-Path $recipient $name
@@ -108,3 +137,5 @@ if ($key -and $key.ProductCode) {
     # profile operation is permitted outside the isolated-CI guard above.
     $password.Dispose()
 }
+
+if ($result) { $result | ConvertTo-Json -Depth 16 -Compress }
