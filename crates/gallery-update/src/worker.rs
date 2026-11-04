@@ -131,7 +131,7 @@ fn reinstall_source(
     }
     durable_json(
         &path.with_extension("source.json"),
-        &serde_json::json!({"binding":job.binding,"side":job.side,"sourceName":name,"path":alias.strip_prefix(&job.transaction).map_err(|e|e.to_string())?,"bytes":record.bytes,"sha256":record.sha256}),
+        &serde_json::json!({"binding":job.binding,"side":job.side,"sourceName":name,"path":alias.strip_prefix(&job.transaction).map_err(|e|e.to_string())?.to_str().ok_or("Non-Unicode scratch source")?.replace('\\',"/"),"bytes":record.bytes,"sha256":record.sha256}),
     )?;
     Ok((alias, pins))
 }
@@ -285,14 +285,8 @@ pub fn entry(path: &Path) -> Result<i32> {
     let stderr_path = path.with_extension("stderr");
     physical(&stdout_path)?;
     physical(&stderr_path)?;
-    let stdout = io(OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&stdout_path))?;
-    let stderr = io(OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&stderr_path))?;
+    let stdout = create_scratch(&stdout_path)?;
+    let stderr = create_scratch(&stderr_path)?;
     let mut child = io(command
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout))
@@ -310,10 +304,20 @@ pub fn entry(path: &Path) -> Result<i32> {
     receipt(base, path, true, Some(code), Some(child.id()))?;
     Ok(code)
 }
+fn create_scratch(path: &Path) -> Result<File> {
+    #[cfg(windows)]
+    {
+        gallery_windows_package::private::create_file(path)
+    }
+    #[cfg(not(windows))]
+    {
+        io(OpenOptions::new().write(true).create_new(true).open(path))
+    }
+}
 fn supervisor_log(path: &Path, extension: &str) -> Result<File> {
     let file = path.with_extension(extension);
     physical(&file)?;
-    io(OpenOptions::new().write(true).create_new(true).open(file))
+    create_scratch(&file)
 }
 fn terminal_receipt(path: &Path, receipt: &Path, code: Option<i32>) -> Result<serde_json::Value> {
     let result = read_bounded(receipt, 16384).and_then(|bytes| {
@@ -584,6 +588,19 @@ pub fn run(path: &Path) -> Result<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    #[test]
+    fn worker_output_has_private_authority_and_is_cleanup_eligible() {
+        let fixture = crate::test_support::Fixture::new();
+        let path = fixture.path().join("native-job-fixture.json");
+        let output = supervisor_log(&path, "supervisor.stdout").unwrap();
+        drop(output);
+        gallery_windows_package::private::validate_file(
+            &path.with_extension("supervisor.stdout"),
+            false,
+        )
+        .unwrap();
+    }
     #[test]
     fn supervisor_failure_keeps_preparation_receipt_unaccepted_and_retains_reason() {
         let work = tempfile::tempdir().unwrap();
