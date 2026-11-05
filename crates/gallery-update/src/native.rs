@@ -109,35 +109,40 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
         Native::WindowsMsi { .. } => {
             #[cfg(windows)]
             {
-                let extract = base.join(format!("{name}-administrative"));
-                gallery_windows_package::private::child_directory(&extract)?;
+                let image = AdministrativeImage::create(base, c)?;
+                let extract = &image.path;
+                gallery_windows_package::private::child_directory(extract)?;
                 let out = msi(
                     &artifact_path(base, name),
                     a,
                     "/a",
-                    Some(&extract),
+                    Some(extract),
                     None,
                     false,
                     &base.join(format!("{name}-extract.log")),
                 )?;
                 if !out.status.success() {
-                    return Err(msi_failure(
-                        "administrative extraction before replacement",
-                        &out,
-                        &base.join(format!("{name}-extract.log")),
+                    return Err(format!(
+                        "{}; incomplete administrative image retained at {}",
+                        msi_failure(
+                            "administrative extraction before replacement",
+                            &out,
+                            &base.join(format!("{name}-extract.log")),
+                        ),
+                        extract.display()
                     ));
                 }
                 let mut roots = vec![];
                 let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
-                find_binary(&extract, &c.binary, &mut roots, &mut namespace)?;
+                find_binary(extract, &c.binary, &mut roots, &mut namespace)?;
                 let src = roots
                     .into_iter()
                     .find(|p| c.verify(p).is_ok())
                     .ok_or("Extracted MSI does not match complete expected payload")?;
-                exact_msi_image(c, &extract, &src)?;
+                exact_msi_image(c, extract, &src)?;
                 copy_retained_inventory(c, &src, destination)?;
                 drop(namespace);
-                cleanup_administrative(&extract)?;
+                cleanup_administrative(extract)?;
             }
             #[cfg(not(windows))]
             return Err("Windows MSI requires Windows".into());
@@ -174,6 +179,70 @@ pub(super) fn dual_msi_identity(candidate: &Candidate, payload_directory: &Path)
             &payload,
         )),
     )
+}
+
+// MSI administrative extraction still enforces MAX_PATH. Durable recovery roots
+// can be deeper, so only this disposable, untrusted image uses a short path.
+#[cfg(windows)]
+struct AdministrativeImage {
+    root: PathBuf,
+    path: PathBuf,
+    stage: Option<gallery_windows_package::scratch::Stage>,
+    pins: Vec<fs::File>,
+}
+#[cfg(windows)]
+impl AdministrativeImage {
+    fn create(storage: &Path, candidate: &Candidate) -> Result<Self> {
+        use std::os::windows::ffi::OsStrExt;
+        let machine = gallery_windows_package::private::context(storage)?;
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|error| error.to_string())?
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(".lmg-a-{:x}-{nonce:x}", std::process::id()));
+        let path = root.join("s").join("a");
+        let longest = candidate
+            .files
+            .iter()
+            .map(|file| file.path.encode_utf16().count())
+            .max()
+            .unwrap_or(0);
+        // Leave room for the MSI's product-directory prefix and terminating NUL.
+        // This guards our temporary path, not the owner's installation choice.
+        if !root.is_absolute() || path.as_os_str().encode_wide().count() + longest + 64 >= 260 {
+            return Err(
+                "MSI administrative extraction needs a shorter temporary directory (TEMP)".into(),
+            );
+        }
+        gallery_windows_package::private::ensure_storage_at(&root, machine)?;
+        let pins = gallery_windows_package::private::validate_directory(&root, machine)?;
+        let mut image = Self {
+            root,
+            path,
+            stage: None,
+            pins,
+        };
+        image.stage = Some(gallery_windows_package::scratch::Stage::create(
+            storage,
+            &image.root.join("s"),
+            "transaction",
+            Default::default(),
+            Default::default(),
+            machine,
+        )?);
+        // No image subtree is declared reclaimable. A failed/partial native
+        // extraction must be retained; only exact_msi_image authorizes cleanup.
+        Ok(image)
+    }
+}
+#[cfg(windows)]
+impl Drop for AdministrativeImage {
+    fn drop(&mut self) {
+        drop(self.stage.take());
+        self.pins.clear();
+        // Never recurse through unknown or partially extracted content.
+        let _ = fs::remove_dir(&self.root);
+    }
 }
 
 #[cfg(windows)]
@@ -1008,6 +1077,53 @@ pub(super) fn validate_predecessor(c: &Candidate, directory: &Path) -> Result<()
 #[cfg(all(test, windows))]
 mod traversal_tests {
     use super::*;
+    #[test]
+    fn administrative_scratch_reclaims_only_verified_empty_stage() {
+        let temp = tempfile::tempdir().unwrap();
+        let storage = temp.path().join("owned");
+        gallery_windows_package::private::ensure_storage_at(&storage, false).unwrap();
+        let candidate = Candidate {
+            format_version: 1,
+            product: "local-media-gallery".into(),
+            version: "0.0.0".into(),
+            edition: "full".into(),
+            os: "windows".into(),
+            arch: "x86_64".into(),
+            generation: "fixture".into(),
+            source: Source {
+                sha256: "a".repeat(64),
+                files: 1,
+            },
+            binary: "a".into(),
+            files: vec![FileRecord {
+                path: "a".into(),
+                bytes: "1".into(),
+                sha256: hash(b"a"),
+                mode: 644,
+            }],
+            native: Native::Direct,
+            integration: None,
+        };
+        let image = AdministrativeImage::create(&storage, &candidate).unwrap();
+        let empty = image.root.clone();
+        assert!(!empty.starts_with(&storage));
+        drop(image);
+        assert!(!empty.exists());
+        let image = AdministrativeImage::create(&storage, &candidate).unwrap();
+        let retained = image.root.clone();
+        gallery_windows_package::private::child_directory(&image.path).unwrap();
+        let foreign = image.path.join("unexpected");
+        fs::write(&foreign, b"retain").unwrap();
+        drop(image);
+        assert_eq!(fs::read(&foreign).unwrap(), b"retain");
+        // The test knows this sole fixture leaf. Production never recursively
+        // deletes a failed or unverified administrative image.
+        fs::remove_file(foreign).unwrap();
+        fs::remove_dir(retained.join("s/a")).unwrap();
+        fs::remove_file(retained.join("s/.stage-owner.json")).unwrap();
+        fs::remove_dir(retained.join("s")).unwrap();
+        fs::remove_dir(retained).unwrap();
+    }
     #[test]
     fn wide_administrative_image_rejects_extra_paths() {
         let temp = tempfile::tempdir().unwrap();
