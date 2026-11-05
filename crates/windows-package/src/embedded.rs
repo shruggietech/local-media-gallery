@@ -453,6 +453,118 @@ pub fn maintenance(
         .ok_or("Updater returned no terminal result".into())
 }
 
+/// Retain the actual ordinary MSI and descriptor in the elected updater context.
+/// The immediate action binds the source to the active authorized database; the
+/// deferred action pins and verifies that exact sealed input before publication.
+#[cfg(windows)]
+pub(crate) fn retain_native(
+    machine: bool,
+    source: &std::path::Path,
+    authenticated: &FileRecord,
+    installed: &std::path::Path,
+    storage_root: Option<&std::path::Path>,
+) -> Result<Retained, String> {
+    let payload: crate::Payload =
+        serde_json::from_str(crate::PAYLOAD).map_err(|e| e.to_string())?;
+    payload.verify(installed, false)?;
+    let expected_product = crate::native::dual_product_code(crate::PAYLOAD.as_bytes());
+    let expected =
+        crate::native::package_code(&expected_product, machine, crate::PAYLOAD.as_bytes())?;
+    let _source_namespace =
+        crate::private::pin_physical(source.parent().ok_or("Missing MSI source parent")?)?;
+    crate::check_path(source)?;
+    if authenticated.path != "application.msi" {
+        return Err("Invalid authenticated MSI source record".into());
+    }
+    let _input = crate::open_verified_input(source, authenticated)?;
+    let bytes = std::fs::read(source).map_err(|e| e.to_string())?;
+    let artifact = authenticated.clone();
+    let (product, package, _, scope) = crate::native::inspect_package(source)?;
+    if product != expected_product || package.to_uppercase() != expected || scope != "dual" {
+        return Err("The MSI maintenance source does not match the installed candidate".into());
+    }
+    let storage = if let Some(root) = storage_root {
+        crate::private::validate_directory(root, machine)?;
+        root.to_path_buf()
+    } else {
+        crate::private::storage_root(machine)?
+    };
+    let setup = serde_json::json!({"scope":if machine {"machine"}else{"user"},"msi":{"scope":if machine {"machine"}else{"user"},"productCode":product,"packageCode":expected,"path":artifact.path,"bytes":artifact.bytes,"sha256":artifact.sha256}});
+    let setup_bytes = serde_json::to_vec(&setup).map_err(|e| e.to_string())?;
+    let mut files = payload
+        .files
+        .iter()
+        .map(|f| serde_json::json!({"path":f.path,"bytes":f.bytes,"sha256":f.sha256,"mode":644}))
+        .collect::<Vec<_>>();
+    files.push(serde_json::json!({"path":"payload.json","bytes":crate::PAYLOAD.len().to_string(),"sha256":hash(crate::PAYLOAD.as_bytes()),"mode":644}));
+    files.sort_by_key(|f| f["path"].as_str().unwrap().to_owned());
+    let descriptor = serde_json::json!({"formatVersion":1,"product":payload.product,"version":payload.version,"edition":payload.edition,"os":payload.os,"arch":payload.arch,"generation":payload.generation,"source":payload.source,"binary":payload.binary,"files":files,"native":{"kind":"windows-msi","scope":if machine {"machine"}else{"user"},"productCode":product,"packageCode":expected,"installer":{"path":artifact.path,"bytes":artifact.bytes,"sha256":artifact.sha256}},"integration":null});
+    let updater = payload
+        .files
+        .iter()
+        .find(|f| f.path == "lmg-update.exe")
+        .ok_or("Missing declared updater")?;
+    let _installed_namespace = crate::private::pin_physical(installed)?;
+    let _updater = crate::open_verified_input(&installed.join("lmg-update.exe"), updater)?;
+    let mut owned = vec![(artifact, bytes)];
+    for (name, bytes) in [
+        ("setup.json", setup_bytes.clone()),
+        (
+            "update.json",
+            serde_json::to_vec_pretty(&descriptor).map_err(|e| e.to_string())?,
+        ),
+        (
+            "lmg-update.exe",
+            std::fs::read(installed.join("lmg-update.exe")).map_err(|e| e.to_string())?,
+        ),
+    ] {
+        owned.push((
+            FileRecord {
+                path: name.into(),
+                bytes: if name == "lmg-update.exe" {
+                    updater.bytes.clone()
+                } else {
+                    bytes.len().to_string()
+                },
+                sha256: if name == "lmg-update.exe" {
+                    updater.sha256.clone()
+                } else {
+                    hash(&bytes)
+                },
+            },
+            bytes,
+        ));
+    }
+    for f in &payload.files {
+        let bytes = std::fs::read(installed.join(&f.path)).map_err(|e| e.to_string())?;
+        owned.push((
+            FileRecord {
+                path: format!("source/{}", f.path),
+                bytes: f.bytes.clone(),
+                sha256: f.sha256.clone(),
+            },
+            bytes,
+        ));
+    }
+    owned.push((
+        FileRecord {
+            path: "source/payload.json".into(),
+            bytes: crate::PAYLOAD.len().to_string(),
+            sha256: hash(crate::PAYLOAD.as_bytes()),
+        },
+        crate::PAYLOAD.as_bytes().to_vec(),
+    ));
+    let entries = owned
+        .iter()
+        .map(|(r, b)| (r, b.as_slice()))
+        .collect::<Vec<_>>();
+    retain_complete(
+        &storage.join(format!("package-{}", hash(&setup_bytes))),
+        machine,
+        &entries,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -41,7 +41,7 @@ A sender can independently elect gallery-local presentation, portable thumbnails
 
 ### Install for continued use
 
-The user chooses Full installation when they want system integration and bundled dependency provisioning, with per-user preferences and history. The single platform installer checks relevant existing installations and collisions. Windows MSI payloads remain internal to the Full setup executable. Installation and subsequent removal follow the preservation requirements in [installation and distribution](installation-and-distribution.md).
+The user chooses Full installation when they want system integration and bundled dependency provisioning, with per-user preferences and history. The single platform installer checks relevant existing installations and collisions. Windows Full is one offline MSI with license, user/all-users scope, editable location and independent Start menu/PATH choices. Installation and subsequent removal follow the preservation requirements in [installation and distribution](installation-and-distribution.md).
 
 ## Browsing scope
 

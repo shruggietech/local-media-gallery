@@ -4,15 +4,15 @@
 
 **DI-01:** Every product artifact identifies edition, application version, OS, CPU architecture, format and host prerequisites. A release has exactly one Lite executable and one Full installer for each covered platform. Source, documentation and schemas share the application version; brand-kit and feature-helper versions are separate identities.
 
-This chapter describes v0.2.1 installation and distribution contracts. Only a verified canonical published release record establishes actual download availability. Published v0.1.0 archives and their identities remain unchanged; their versioned documentation describes their older installation workflow.
+This chapter describes v0.2.1 installation and distribution contracts. Only a verified canonical published release record establishes actual download availability. Published v0.1.0 archives and v0.2.0 installers remain unchanged; their versioned documentation describes their own workflows.
 
 ## Full installation and Lite operation
 
 | Property | Lite | Full |
 | --- | --- | --- |
 | Download | One native executable | One self-contained native installer |
-| Placement | Executable beside gallery media | System application installation |
-| Privileges | No elevation or Full installation | Normal system installation authorization |
+| Placement | Executable beside gallery media | Windows user/all-users choice; system installation on Linux/macOS |
+| Privileges | No elevation or Full installation | Windows current-user installation needs no administrator; machine operations use normal platform authorization |
 | Interface, application resources and notices | Embedded in executable | Included in installer/application payload |
 | Webview | Declared host runtime | Redistributable runtime bundled; OS facilities retained |
 | Video-thumbnail helper | Optional explicitly selected local FFmpeg | Bundled, verified and automatically selected FFmpeg |
@@ -20,7 +20,7 @@ This chapter describes v0.2.1 installation and distribution contracts. Only a ve
 
 **DI-02:** Lite runs without Full, a sender profile, maintainer tools or distributed application companions. It is downloaded directly, without an archive or unpacked application bundle. Its host OS/runtime prerequisites remain explicit. Required notices and maintenance identity travel within the executable. Generated gallery settings/caches are user data, not distributed application dependencies.
 
-Full carries application payloads, redistributable runtimes, implemented feature helpers and internal installation/update metadata in one file. Ordinary installation and maintenance do not ask the user to select an MSI, descriptor, payload directory or helper download. Full installs at system scope. It never uses an online dependency bootstrapper to satisfy its bundled-runtime contract.
+Full carries application payloads, redistributable runtimes, implemented feature helpers and internal installation/update metadata in one file. Ordinary installation and maintenance start from that downloaded installer without choosing internal packages, descriptors, payload directories or helper downloads. Windows Full is an MSI with current-user/all-users scope selection; Linux/macOS Full install at system scope. It never uses an online dependency bootstrapper to satisfy its bundled-runtime contract.
 
 ## Installation lifecycle and collisions
 
@@ -50,7 +50,7 @@ The [canonical matrix](../../schemas/v0.2.1/platform-matrix.json) separates cove
 
 | Covered platform | Lite file | Full file | OS facilities and bundled dependencies |
 | --- | --- | --- | --- |
-| Windows x86_64 | PE executable | Elevated setup EXE | Windows facilities; Full includes complete offline Evergreen WebView2 and FFmpeg |
+| Windows x86_64 | PE executable | Native MSI with scope/location choices | Windows facilities; Full includes complete offline Evergreen WebView2 and FFmpeg |
 | Ubuntu 24.04 x86_64 | ELF executable | Native executable installer | GNU OS facilities; Full includes exact GTK/WebKitGTK/libsoup/GStreamer dependency packages and FFmpeg |
 | macOS 15 aarch64 | Mach-O executable | System-domain flat PKG | OS AppKit/WKWebView and system codecs; Full includes FFmpeg |
 
@@ -58,10 +58,13 @@ The interface, native core and SQLite are embedded. Full includes the matching f
 
 ### Windows candidate operations
 
-1. Close running gallery processes and run the one Full setup EXE. Normal Windows authorization selects system installation under Program Files.
-2. Setup extracts verified embedded inputs into private machine-owned storage, provisions the complete bundled runtime if absent and validates native payload/registration/integration. No network payload acquisition is required.
-3. Launch from the installed integration or select a gallery. Video-thumbnail preparation automatically verifies and uses the installed FFmpeg helper; explicit helper override remains available.
-4. Run a replacement setup to update an owned system installation. Known published v0.1.0 system installations are adopted only after exact canonical predecessor, installed inventory and registration checks. A legacy per-user installation must be removed through its normal application-removal entry before installing the new system edition; cross-scope migration is not silently attempted. Retained internal inputs support recovery/rollback. Use the system application removal entry for uninstall. Media, settings and the shared runtime remain.
+1. Close running gallery processes and open the single Full MSI. Read and accept the license. Choose **Only for me** (the default) or **For all users**, then set the installation location. All-users installation uses Windows administrator authorization.
+2. Independently choose a Start menu shortcut (enabled by default) and command PATH integration (disabled by default). Existing installations retain scope, location and saved integration choices. Back retains selections; Cancel exits before mutation or requests rollback during installation.
+3. Continue to Install. Native progress identifies application work and WebView2 detection, bundled offline provision and verification. No network acquisition is required. Cancellation during vendor work waits for its bounded outcome before application rollback. A shared runtime may remain after cancellation or removal. A timeout remains incomplete and retains diagnostics; it does not prove the vendor service stopped.
+4. Launch from the chosen shortcut, the installed executable or selected command integration, and select a gallery. Full verifies and automatically selects its bundled FFmpeg for video thumbnails.
+5. Open a replacement MSI for an owned same-scope update. Recognized published predecessor ownership is checked before native replacement. Reopen the matching MSI to repair or remove it, or use Windows Apps for removal. Moving between scopes or locations requires an explicit removal/install operation; it is not a silent migration. Native rollback and retained verified maintenance inputs support recovery. Media, settings, foreign extras and shared runtime remain.
+
+For unattended administration, use msiexec /i FULL.msi /qn /norestart with /L*v ABSOLUTE_LOG_PATH. ALLUSERS=2 MSIINSTALLPERUSER=1 selects user scope; ALLUSERS=1 MSIINSTALLPERUSER= selects all users. INSTALLDIR supplies an absolute location. LMG_STARTMENU=1 or 0 and LMG_PATH=1 or 0 independently elect integrations. Omitted choices use fresh-install defaults or saved maintenance choices. Native MSI return codes include 0 (success), 1602 (cancelled), 1603 (failure) and 3010 (success with restart required); retain the log for the actual operation. Quiet use does not bypass ownership or dependency checks. Advanced explicit updater transactions retain their scoped journals and state compatibility checks.
 
 Windows and Linux installed dependency notices are indexed in licenses/dependencies.json with each original path, complete text, byte length and hash. Project notices and bundled feature-helper source/notices remain separate managed files.
 
@@ -126,6 +129,8 @@ See [guided preparation](gallery-lifecycle.md#guided-preparation-and-recipient-o
 ## Windows updater storage and retention
 
 User-scoped maintenance uses %LOCALAPPDATA%/local-media-gallery/updates. Machine-scoped maintenance uses %PROGRAMDATA%/local-media-gallery/updates. Native known folders, protected owner/ACL checks and physical path validation select these roots. Transactions, embedded installer inputs, scratch and coordination use the same elected scope. Existing legacy directories are not migrated or repeatedly deleted.
+
+Published legacy MSI recovery uses a compatibility journal and duplicate verified payload inventories in canonical scoped storage to satisfy that installer's ancestry checks. The selected transaction keeps its immutable identity and a bound reference to this copy. Legacy package bytes and registration are unchanged; the compatibility copy remains retained with recovery evidence.
 
 Coordination files are validated for owner, ACL, ordinary type, one link and empty content before an exclusive lease marks them for deletion. Last handle closure, including process termination, removes the transient coordination file. Active leases continue to exclude other transactions targeting the same installation.
 

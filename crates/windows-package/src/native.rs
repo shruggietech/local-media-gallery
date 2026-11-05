@@ -23,10 +23,25 @@ use windows::{
 };
 const USER: &str = "{2098F021-7630-4BF6-B7F8-2AC279022A42}";
 const MACHINE: &str = "{F81110E5-48A6-4096-B065-752E0D3B61C0}";
+pub const DUAL_UPGRADE: &str = "{788C188C-E8CE-48B6-95CC-134A6AFD4B20}";
 const KEY: &str = "Software\\ShruggieTech\\LocalMediaGallery";
 #[link(name = "msi")]
 unsafe extern "system" {
-    fn MsiSetTargetPathW(h: u32, directory: *const u16, path: *const u16) -> u32;
+    fn MsiGetFeatureStateW(h: u32, name: *const u16, installed: *mut i32, action: *mut i32) -> u32;
+    fn MsiEnumRelatedProductsW(
+        upgrade: *const u16,
+        reserved: u32,
+        index: u32,
+        product: *mut u16,
+    ) -> u32;
+    fn MsiSetFeatureStateW(h: u32, name: *const u16, state: i32) -> u32;
+    fn MsiQueryFeatureStateExW(
+        product: *const u16,
+        sid: *const u16,
+        context: u32,
+        feature: *const u16,
+        state: *mut i32,
+    ) -> u32;
     fn MsiGetPropertyW(h: u32, name: *const u16, value: *mut u16, length: *mut u32) -> u32;
     fn MsiSetPropertyW(h: u32, name: *const u16, value: *const u16) -> u32;
     fn MsiGetProductInfoExW(
@@ -62,6 +77,7 @@ unsafe extern "system" {
 }
 #[link(name = "advapi32")]
 unsafe extern "system" {
+    fn RegOpenCurrentUser(access: u32, result: *mut isize) -> i32;
     fn RegOpenKeyExW(
         key: isize,
         sub: *const u16,
@@ -98,12 +114,20 @@ fn text(h: u32, name: &str) -> Result<String, String> {
 }
 pub fn registry(machine: bool, key: &str, name: &str) -> Result<Option<OsString>, String> {
     let mut handle = 0;
+    // HKCU must follow the effective impersonated user in deferred MSI actions.
+    let mut user_hive = 0;
+    if !machine {
+        let r = unsafe { RegOpenCurrentUser(0x20019 | 0x100, &mut user_hive) };
+        if r != 0 {
+            return Err(format!("Effective registry user: {r}"));
+        }
+    }
     let r = unsafe {
         RegOpenKeyExW(
             if machine {
                 0x80000002u32 as i32 as isize
             } else {
-                0x80000001u32 as i32 as isize
+                user_hive
             },
             wide(key).as_ptr(),
             0,
@@ -111,6 +135,11 @@ pub fn registry(machine: bool, key: &str, name: &str) -> Result<Option<OsString>
             &mut handle,
         )
     };
+    if user_hive != 0 {
+        unsafe {
+            RegCloseKey(user_hive);
+        }
+    }
     if r == 2 {
         return Ok(None);
     }
@@ -164,12 +193,22 @@ fn guid(scope: &str, identity: &str) -> String {
 fn product(machine: bool) -> &'static str {
     if machine { MACHINE } else { USER }
 }
-fn registered(machine: bool, name: &str) -> Result<Option<OsString>, String> {
+pub fn is_legacy_product(code: &str, machine: bool) -> bool {
+    code.eq_ignore_ascii_case(product(machine))
+}
+/// One physical dual-context MSI per payload generation, with a stable upgrade family.
+pub fn dual_product_code(payload: &[u8]) -> String {
+    guid(
+        "dual",
+        &hash(format!("product:{}", hash(payload)).as_bytes()),
+    )
+}
+fn registered_for(code: &str, machine: bool, name: &str) -> Result<Option<OsString>, String> {
     let mut b = vec![0u16; 32768];
     let mut n = b.len() as u32;
     let r = unsafe {
         MsiGetProductInfoExW(
-            wide(product(machine)).as_ptr(),
+            wide(code).as_ptr(),
             ptr::null(),
             if machine { 4 } else { 2 },
             wide(name).as_ptr(),
@@ -181,9 +220,288 @@ fn registered(machine: bool, name: &str) -> Result<Option<OsString>, String> {
         return Ok(None);
     }
     if r != 0 {
-        return Err(format!("Registered installer identity {name}: {r}"));
+        return Err(format!("Registered installer {code}/{name}: {r}"));
     }
     Ok(Some(OsString::from_wide(&b[..n as usize])))
+}
+pub fn registered_product(machine: bool) -> Result<Option<String>, String> {
+    // Upgrade-family enumeration is discovery only. Callers must still verify
+    // the payload-derived ProductCode, native PackageCode and ownership markers.
+    // Never adopt a caller-writable registry ProductCode as native authority.
+    let mut candidates = std::collections::BTreeSet::from([product(machine).to_owned()]);
+    let upgrade = wide(DUAL_UPGRADE);
+    let mut index = 0;
+    loop {
+        let mut code = [0u16; 39];
+        let status =
+            unsafe { MsiEnumRelatedProductsW(upgrade.as_ptr(), 0, index, code.as_mut_ptr()) };
+        if status == 259 {
+            break;
+        }
+        if status != 0 {
+            return Err(format!("Related native installer enumeration: {status}"));
+        }
+        let end = code
+            .iter()
+            .position(|c| *c == 0)
+            .ok_or("Invalid related ProductCode")?;
+        candidates.insert(
+            String::from_utf16(&code[..end])
+                .map_err(|e| e.to_string())?
+                .to_uppercase(),
+        );
+        index += 1;
+    }
+    let mut found = None;
+    for code in candidates {
+        if registered_for(&code, machine, "PackageCode")?.is_some() {
+            if found.is_some() {
+                return Err("Multiple owned products in the same installation context; resolve the native registration before maintenance".into());
+            }
+            found = Some(code);
+        }
+    }
+    Ok(found)
+}
+fn registered(machine: bool, name: &str) -> Result<Option<OsString>, String> {
+    match registered_product(machine)? {
+        Some(code) => registered_for(&code, machine, name),
+        None => Ok(None),
+    }
+}
+pub fn package_code(product_code: &str, machine: bool, payload: &[u8]) -> Result<String, String> {
+    let scope = if product_code.eq_ignore_ascii_case(&dual_product_code(payload)) {
+        "dual"
+    } else if is_legacy_product(product_code, machine) {
+        if machine { "machine" } else { "user" }
+    } else {
+        return Err("Unrecognized product identity".into());
+    };
+    Ok(guid(scope, &hash(payload)))
+}
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Integrations {
+    pub start_menu: bool,
+    pub command_path: bool,
+}
+impl Default for Integrations {
+    fn default() -> Self {
+        Self {
+            start_menu: true,
+            command_path: false,
+        }
+    }
+}
+pub fn installed_integrations(machine: bool) -> Result<Integrations, String> {
+    let code = registered_product(machine)?.ok_or("No installed product for feature selection")?;
+    if is_legacy_product(&code, machine) {
+        return Ok(Integrations {
+            start_menu: true,
+            command_path: true,
+        });
+    }
+    let feature = |name: &str| -> Result<bool, String> {
+        let mut state = 0;
+        let r = unsafe {
+            MsiQueryFeatureStateExW(
+                wide(&code).as_ptr(),
+                ptr::null(),
+                if machine { 4 } else { 2 },
+                wide(name).as_ptr(),
+                &mut state,
+            )
+        };
+        if r != 0 || ![2, 3].contains(&state) {
+            return Err(format!(
+                "Cannot verify installed feature {name}: {r}/{state}"
+            ));
+        }
+        Ok(state == 3)
+    };
+    Ok(Integrations {
+        start_menu: feature("StartMenu")?,
+        command_path: feature("CommandPath")?,
+    })
+}
+fn selected_integrations(h: u32) -> Result<Integrations, String> {
+    let feature = |name: &str| -> Result<bool, String> {
+        let (mut installed, mut action) = (0, 0);
+        let r = unsafe { MsiGetFeatureStateW(h, wide(name).as_ptr(), &mut installed, &mut action) };
+        if r != 0 {
+            return Err(format!("Feature selection {name}: {r}"));
+        }
+        Ok(if action == 0 || action == -1 {
+            installed == 3
+        } else {
+            action == 3
+        })
+    };
+    Ok(Integrations {
+        start_menu: feature("StartMenu")?,
+        command_path: feature("CommandPath")?,
+    })
+}
+fn set(h: u32, name: &str, value: impl AsRef<std::ffi::OsStr>) -> Result<(), String> {
+    let r = unsafe { MsiSetPropertyW(h, wide(name).as_ptr(), wide(value).as_ptr()) };
+    if r == 0 {
+        Ok(())
+    } else {
+        Err(format!("Installer property {name}: {r}"))
+    }
+}
+fn configure(h: u32) -> Result<(), String> {
+    // Configure runs before costing in both client and execute sequences. An explicit
+    // recovery request already carries a concrete context and location.
+    if text(h, "LMG_CONFIGURED")? == "1" {
+        return Ok(());
+    }
+    if get(h, "LMG_RECOVERY")?.is_empty() {
+        let existing = [false, true]
+            .into_iter()
+            .map(|machine| registered_install_directory(machine).map(|p| p.map(|p| (machine, p))))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        if existing.len() > 1 {
+            return Err("Both user and all-users installations exist; maintain each with its matching native package before replacement".into());
+        }
+        if let Some((machine, path)) = existing.first() {
+            set(h, "LMG_EXISTING", "1")?;
+            set(h, "LMG_SCOPE", if *machine { "machine" } else { "user" })?;
+            set(h, "INSTALLDIR", path)?;
+            let choices = installed_integrations(*machine)?;
+            if text(h, "LMG_STARTMENU")?.is_empty() {
+                set(
+                    h,
+                    "LMG_STARTMENU",
+                    if choices.start_menu { "1" } else { "0" },
+                )?;
+            }
+            if text(h, "LMG_PATH")?.is_empty() {
+                set(h, "LMG_PATH", if choices.command_path { "1" } else { "0" })?;
+            }
+        }
+    }
+    // A replacement keeps its verified predecessor context. Initial MSI
+    // defaults must not turn an existing user installation into a machine one.
+    if text(h, "LMG_EXISTING")?.is_empty()
+        && (text(h, "ALLUSERS")? == "1" || text(h, "MSIINSTALLPERUSER")?.is_empty())
+    {
+        set(h, "LMG_SCOPE", "machine")?;
+    }
+    if text(h, "LMG_STARTMENU")?.is_empty() {
+        set(h, "LMG_STARTMENU", "1")?;
+    }
+    if text(h, "LMG_PATH")?.is_empty() {
+        set(h, "LMG_PATH", "0")?;
+    }
+    for name in ["LMG_STARTMENU", "LMG_PATH"] {
+        match text(h, name)?.as_str() {
+            "0" => set(h, name, "")?,
+            "" | "1" => {}
+            _ => return Err(format!("{name} must be 0 or 1")),
+        }
+    }
+    select_scope(h)?;
+    if !text(h, "Installed")?.is_empty()
+        && text(h, "REMOVE")? != "ALL"
+        && text(h, "REINSTALL")?.is_empty()
+    {
+        let choices = installed_integrations(text(h, "LMG_SCOPE")? == "machine")?;
+        let mut features = vec!["Application", "Payload", "Notices"];
+        if choices.start_menu {
+            features.push("StartMenu");
+        }
+        if choices.command_path {
+            features.push("CommandPath");
+        }
+        set(h, "REINSTALL", features.join(","))?;
+        set(h, "REINSTALLMODE", "vamus")?;
+    }
+    if !text(h, "Installed")?.is_empty() && text(h, "REMOVE")? != "ALL" {
+        let mode = text(h, "REINSTALLMODE")?;
+        if mode.is_empty() {
+            set(h, "REINSTALLMODE", "vamus")?;
+        } else if !mode.to_ascii_lowercase().contains('v')
+            && registered_package(text(h, "LMG_SCOPE")? == "machine")?.as_deref()
+                != Some(text(h, "PackageCode")?.as_str())
+        {
+            set(h, "REINSTALLMODE", format!("v{mode}"))?;
+        }
+    }
+    set(h, "LMG_CONFIGURED", "1")
+}
+fn select_scope(h: u32) -> Result<(), String> {
+    let scope = text(h, "LMG_SCOPE")?;
+    let machine = match scope.as_str() {
+        "machine" => true,
+        "user" => false,
+        _ => return Err("Choose a valid installation scope".into()),
+    };
+    // MSI resolves ALLUSERS before immediate configuration, including first
+    // quiet installs. Never put the unresolved value 2 back into that session.
+    set(h, "ALLUSERS", if machine { "1" } else { "" })?;
+    set(h, "MSIINSTALLPERUSER", if machine { "" } else { "1" })?;
+    let directory = get(h, "INSTALLDIR")?;
+    if directory.is_empty()
+        || (!text(h, "LMG_LAST_SCOPE")?.is_empty()
+            && text(h, "LMG_LAST_SCOPE")? != scope
+            && text(h, "LMG_EXISTING")?.is_empty())
+    {
+        let base = known_folder(if machine {
+            &windows::Win32::UI::Shell::FOLDERID_ProgramFilesX64
+        } else {
+            &windows::Win32::UI::Shell::FOLDERID_LocalAppData
+        })?;
+        let path = if machine { base } else { base.join("Programs") }.join("Local Media Gallery");
+        set(h, "INSTALLDIR", &path)?;
+    }
+    set(h, "LMG_LAST_SCOPE", scope)
+}
+fn select_features(h: u32) -> Result<(), String> {
+    // Explicit ADDLOCAL/REMOVE from administration or the sealed worker wins.
+    if text(h, "ADDLOCAL")?.is_empty() && text(h, "REMOVE")?.is_empty() {
+        for (feature, property) in [("StartMenu", "LMG_STARTMENU"), ("CommandPath", "LMG_PATH")] {
+            let r = unsafe {
+                MsiSetFeatureStateW(
+                    h,
+                    wide(feature).as_ptr(),
+                    if text(h, property)? == "1" { 3 } else { 2 },
+                )
+            };
+            if r != 0 {
+                return Err(format!("Cannot select {feature}: {r}"));
+            }
+        }
+    }
+    // Recache same-ProductCode replacements with exactly the elected features.
+    if !text(h, "Installed")?.is_empty() && text(h, "REINSTALL")?.is_empty() {
+        let choices = selected_integrations(h)?;
+        let mut features = vec!["Application", "Payload", "Notices"];
+        if choices.start_menu {
+            features.push("StartMenu");
+        }
+        if choices.command_path {
+            features.push("CommandPath");
+        }
+        set(h, "REINSTALL", features.join(","))?;
+        set(h, "REINSTALLMODE", "vamus")?;
+    }
+    Ok(())
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Configure(h: u32) -> u32 {
+    std::panic::catch_unwind(|| report(h, configure(h))).unwrap_or(1603)
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn SelectScope(h: u32) -> u32 {
+    std::panic::catch_unwind(|| report(h, select_scope(h))).unwrap_or(1603)
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn SelectFeatures(h: u32) -> u32 {
+    std::panic::catch_unwind(|| report(h, select_features(h))).unwrap_or(1603)
 }
 fn equal_path(a: &Path, b: &Path) -> bool {
     let norm = |p: &Path| {
@@ -210,7 +528,7 @@ fn shortcut(machine: bool) -> Result<PathBuf, String> {
                 &FOLDERID_Programs
             },
             KF_FLAG_DEFAULT,
-            None,
+            crate::runtime_install::effective_token()?.as_handle(),
         )
         .map_err(|e| e.to_string())?;
         let value = OsString::from_wide(p.as_wide());
@@ -283,7 +601,12 @@ pub struct RuntimeEvidence {
 }
 pub(crate) fn known_folder(id: &windows::core::GUID) -> Result<PathBuf, String> {
     unsafe {
-        let p = SHGetKnownFolderPath(id, KF_FLAG_DEFAULT, None).map_err(|e| e.to_string())?;
+        let p = SHGetKnownFolderPath(
+            id,
+            KF_FLAG_DEFAULT,
+            crate::runtime_install::effective_token()?.as_handle(),
+        )
+        .map_err(|e| e.to_string())?;
         let path = PathBuf::from(OsString::from_wide(p.as_wide()));
         CoTaskMemFree(Some(p.0.cast()));
         Ok(path)
@@ -352,7 +675,13 @@ fn verify_integrations_for(
     payload_sha: &str,
 ) -> Result<(), String> {
     let expected = [
-        ("ProductCode", OsString::from(product(machine))),
+        (
+            "ProductCode",
+            OsString::from(
+                registered_product(machine)?
+                    .unwrap_or_else(|| dual_product_code(PAYLOAD.as_bytes())),
+            ),
+        ),
         ("PackageCode", OsString::from(package)),
         ("InstallDir", directory.as_os_str().to_owned()),
         ("PayloadSha256", OsString::from(payload_sha)),
@@ -370,10 +699,15 @@ fn verify_integrations_for(
             }
         }
     }
+    let choices = if registered_product(machine)?.is_some() {
+        installed_integrations(machine)?
+    } else {
+        Integrations::default()
+    };
     let link = shortcut(machine)?;
-    if link.exists() {
+    if choices.start_menu && link.exists() {
         verify_shortcut(&link, &directory.join("local-media-gallery.exe"))?;
-    } else if complete {
+    } else if choices.start_menu && complete {
         return Err("Installed shortcut missing".into());
     }
     let key = if machine {
@@ -385,7 +719,7 @@ fn verify_integrations_for(
     let count = std::env::split_paths(&segments)
         .filter(|p| equal_path(p, directory))
         .count();
-    if count > 1 || (complete && count != 1) {
+    if choices.command_path && (count > 1 || (complete && count != 1)) {
         return Err("Installed command PATH segment is missing or duplicated".into());
     }
     Ok(())
@@ -430,8 +764,11 @@ pub fn verify_registered_payload(
     if fs::read(directory.join("payload.json")).map_err(|e| e.to_string())? != payload.as_bytes() {
         return Err("Installed manifest differs".into());
     }
-    let scope = if machine { "machine" } else { "user" };
-    if guid(scope, &hash(payload.as_bytes())) != package
+    if package_code(
+        &registered_product(machine)?.ok_or("Missing native product")?,
+        machine,
+        payload.as_bytes(),
+    )? != package
         || registered(machine, "PackageCode")? != Some(OsString::from(package))
     {
         return Err("Registered PackageCode differs".into());
@@ -453,68 +790,256 @@ pub fn verify_install(directory: &Path, machine: bool) -> Result<(), String> {
     let p: Payload = serde_json::from_str(PAYLOAD).map_err(|e| e.to_string())?;
     p.verify(directory, false)?;
     verify_manifest(directory, false)?;
-    let scope = if machine { "machine" } else { "user" };
-    let package = guid(scope, &hash(PAYLOAD.as_bytes()));
-    if registered(machine, "PackageCode")? != Some(OsString::from(&package)) {
+    let package = guid("dual", &hash(PAYLOAD.as_bytes()));
+    if registered_product(machine)?.as_deref()
+        != Some(dual_product_code(PAYLOAD.as_bytes()).as_str())
+        || registered(machine, "PackageCode")? != Some(OsString::from(&package))
+    {
         return Err("Registered package does not match candidate".into());
     }
     verify_integrations(machine, directory, &package, true)?;
     scoped_runtime(machine)?;
     Ok(())
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct WriterOperand {
+    kind: String,
+    path: PathBuf,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct DeferredContext {
+    pub directory: PathBuf,
+    pub machine: bool,
+    pub choices: Integrations,
+    pub source_msi: PathBuf,
+    pub source_msi_record: crate::FileRecord,
+    pub storage: Option<PathBuf>,
+    pub state: Vec<WriterOperand>,
+}
 fn preflight(h: u32) -> Result<(), String> {
-    let code = text(h, "ProductCode")?;
-    let machine = match code.as_str() {
-        MACHINE => true,
-        USER => false,
-        _ => return Err("Unknown product scope".into()),
-    };
+    if text(h, "ProductCode")? != dual_product_code(PAYLOAD.as_bytes()) {
+        return Err("Unknown installer product".into());
+    }
+    let machine = text(h, "ALLUSERS")? == "1";
     let directory = PathBuf::from(get(h, "INSTALLDIR")?);
-    if machine {
-        let link = shortcut(true)?;
-        let menu = link.parent().ok_or("Common Programs folder unavailable")?;
-        let status =
-            unsafe { MsiSetTargetPathW(h, wide("MachinePrograms").as_ptr(), wide(menu).as_ptr()) };
-        if status != 0 {
-            return Err(format!(
-                "Cannot bind actual machine common Programs directory: {status}"
-            ));
+    check_path(&directory)?;
+    let remove = text(h, "REMOVE")? == "ALL";
+    let choices = if remove {
+        installed_integrations(machine)?
+    } else {
+        selected_integrations(h)?
+    };
+    let recovery = get(h, "LMG_RECOVERY")?;
+    if !recovery.is_empty() && !remove {
+        recovery_destination(&directory, machine, Path::new(&recovery))?;
+    } else if registered_product(machine)?.is_some() {
+        let installed =
+            registered_install_directory(machine)?.ok_or("Missing installed location")?;
+        if !equal_path(&installed, &directory) {
+            return Err("The installed location is fixed during maintenance; remove it before moving the application".into());
+        }
+        let old =
+            match fs::read_to_string(directory.join("payload.json")) {
+                Ok(text) => text,
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::NotFound
+                        && registered_package(machine)?.as_deref()
+                            == Some(guid("dual", &hash(PAYLOAD.as_bytes())).as_str()) =>
+                {
+                    PAYLOAD.to_owned()
+                }
+                Err(_) => return Err(
+                    "Installed ownership manifest is missing; recover with its matching package"
+                        .into(),
+                ),
+            };
+        let old_payload: Payload = serde_json::from_str(&old).map_err(|e| e.to_string())?;
+        old_payload.validate()?;
+        old_payload.verify(&directory, true)?;
+        let code = registered_product(machine)?.ok_or("Missing installed ProductCode")?;
+        let package = package_code(&code, machine, old.as_bytes())?;
+        if registered_package(machine)?.as_deref() != Some(package.as_str()) {
+            return Err("Installed native identity and payload disagree".into());
+        }
+        verify_integrations_for(machine, &directory, &package, false, &hash(old.as_bytes()))?;
+        // Every distinct predecessor must be admitted by its corresponding
+        // Upgrade row, including same-version payload generations.
+        if code != dual_product_code(PAYLOAD.as_bytes())
+            && text(
+                h,
+                if !is_legacy_product(&code, machine) {
+                    "LMG_OLD_DUAL"
+                } else if machine {
+                    "LMG_OLD_MACHINE"
+                } else {
+                    "LMG_OLD_USER"
+                },
+            )?
+            .split(';')
+            .all(|c| c != code)
+        {
+            return Err(
+                "The predecessor cannot be replaced by this MSI; retain its matching package"
+                    .into(),
+            );
+        }
+    } else {
+        if remove {
+            return Err("No owned installation exists in the selected context".into());
+        }
+        if directory.exists()
+            && fs::read_dir(&directory)
+                .map_err(|e| e.to_string())?
+                .next()
+                .is_some()
+        {
+            return Err(
+                "Installation location is nonempty and unowned; choose an empty folder".into(),
+            );
+        }
+        for name in ["ProductCode", "PackageCode", "InstallDir", "PayloadSha256"] {
+            if registry(machine, KEY, name)?.is_some() {
+                return Err(
+                    "Unregistered application integration exists; preserve it before retrying"
+                        .into(),
+                );
+            }
         }
     }
-    let recovery = get(h, "LMG_RECOVERY")?;
-    if recovery.is_empty() || text(h, "REMOVE")? == "ALL" {
-        validate_destination(&directory, machine)?;
+    if remove {
+        // Removal grants no new retention or vendor authority and schedules none
+        // of the deferred install actions. Native ownership checks above suffice.
+        return Ok(());
+    }
+    validate_selected_conflicts(&directory, machine, choices)?;
+    let (storage, state) = if recovery.is_empty() {
+        (
+            None,
+            vec![
+                WriterOperand {
+                    kind: "settings".into(),
+                    path: known_folder(&windows::Win32::UI::Shell::FOLDERID_RoamingAppData)?
+                        .join("local-media-gallery/settings.json"),
+                },
+                WriterOperand {
+                    kind: "history".into(),
+                    path: known_folder(&windows::Win32::UI::Shell::FOLDERID_LocalAppData)?
+                        .join("local-media-gallery/state/history.sqlite3"),
+                },
+            ],
+        )
     } else {
-        recovery_destination(&directory, machine, Path::new(&recovery))?;
+        let journal: serde_json::Value =
+            serde_json::from_slice(&fs::read(Path::new(&recovery)).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+        let state = &journal["state"];
+        let operands = if state.is_array() {
+            state.clone()
+        } else {
+            state["operands"].clone()
+        };
+        let storage = state
+            .get("storageRoot")
+            .and_then(|s| s.as_str())
+            .map(PathBuf::from);
+        if let Some(root) = &storage {
+            crate::private::validate_directory(root, machine)?;
+        }
+        (
+            storage,
+            serde_json::from_value::<Vec<WriterOperand>>(operands).map_err(|e| e.to_string())?,
+        )
+    };
+    let source_msi = PathBuf::from(get(h, "OriginalDatabase")?);
+    let source_msi_record = crate::session_source::authenticate(h, &source_msi)?;
+    let data = serde_json::to_string(&DeferredContext {
+        directory,
+        machine,
+        choices,
+        source_msi,
+        source_msi_record,
+        storage,
+        state,
+    })
+    .map_err(|e| e.to_string())?;
+    for action in [
+        "VerifyUserInstalled",
+        "VerifyMachineInstalled",
+        "VerifyInstallingUserState",
+        "ProvisionUserRuntime",
+        "ProvisionMachineRuntime",
+    ] {
+        set(h, action, &data)?;
     }
-    if text(h, "REMOVE")? != "ALL" {
-        scoped_runtime(machine)?;
+    Ok(())
+}
+fn validate_selected_conflicts(
+    directory: &Path,
+    machine: bool,
+    choices: Integrations,
+) -> Result<(), String> {
+    let owned = if registered_product(machine)?.is_some() {
+        Some(installed_integrations(machine)?)
+    } else {
+        None
+    };
+    if choices.start_menu && shortcut(machine)?.exists() {
+        if !owned.is_some_and(|c| c.start_menu) {
+            return Err("An unrelated Start menu shortcut exists; disable that integration or preserve it before installation".into());
+        }
+        verify_shortcut(
+            &shortcut(machine)?,
+            &directory.join("local-media-gallery.exe"),
+        )?;
     }
-    let mut data = directory.as_os_str().to_owned();
-    data.push(if machine { "|machine" } else { "|user" });
-    let r = unsafe { MsiSetPropertyW(h, wide("VerifyInstalled").as_ptr(), wide(data).as_ptr()) };
-    if r != 0 {
-        return Err(format!("Cannot bind deferred verification: {r}"));
+    if choices.command_path {
+        for system in [false, true] {
+            let key = if system {
+                "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"
+            } else {
+                "Environment"
+            };
+            for at in std::env::split_paths(&registry(system, key, "Path")?.unwrap_or_default()) {
+                if equal_path(&at, directory)
+                    && !(system == machine && owned.is_some_and(|c| c.command_path))
+                {
+                    return Err("The chosen installation location is already an unowned PATH segment; disable PATH integration or preserve it before installation".into());
+                }
+                if at.join("local-media-gallery.exe").exists() && !equal_path(&at, directory) {
+                    return Err(format!(
+                        "Command collision at {}; disable PATH integration or preserve the existing command",
+                        at.display()
+                    ));
+                }
+            }
+        }
     }
     Ok(())
 }
 pub fn validate_destination(directory: &Path, machine: bool) -> Result<(), String> {
-    let scope = if machine { "machine" } else { "user" };
-    let package = guid(scope, &hash(PAYLOAD.as_bytes()));
+    let package = guid("dual", &hash(PAYLOAD.as_bytes()));
     check_path(directory)?;
     let p: Payload = serde_json::from_str(PAYLOAD).map_err(|e| e.to_string())?;
     p.validate()?;
     let installed = registered(machine, "PackageCode")?;
     if let Some(actual) = installed {
-        if actual != OsString::from(&package) {
+        if actual != OsString::from(&package)
+            || registered_product(machine)?.as_deref()
+                != Some(dual_product_code(PAYLOAD.as_bytes()).as_str())
+        {
             return Err("Another candidate/version is installed. Preserve it and use its matching uninstaller; cross-version upgrades belong to the upgrade contract".into());
         }
-        let marker = guid(scope, &hash(b"component:local-media-gallery.exe"));
+        let marker = guid("dual", &hash(b"component:local-media-gallery.exe"));
         let mut b = vec![0u16; 32768];
         let mut n = b.len() as u32;
         let state = unsafe {
             MsiGetComponentPathExW(
-                wide(product(machine)).as_ptr(),
+                wide(
+                    registered_product(machine)?
+                        .as_deref()
+                        .ok_or("Missing native product")?,
+                )
+                .as_ptr(),
                 wide(marker).as_ptr(),
                 ptr::null(),
                 if machine { 4 } else { 2 },
@@ -588,7 +1113,10 @@ pub fn registered_install_directory(machine: bool) -> Result<Option<PathBuf>, St
     let Some(package) = registered_package(machine)? else {
         return Ok(None);
     };
-    if registry(machine, KEY, "ProductCode")? != Some(OsString::from(product(machine)))
+    if registry(machine, KEY, "ProductCode")?
+        != Some(OsString::from(
+            registered_product(machine)?.ok_or("Missing registered product")?,
+        ))
         || registry(machine, KEY, "PackageCode")? != Some(OsString::from(&package))
     {
         return Err("Registered predecessor integration is foreign or changed; preserve it before maintenance".into());
@@ -608,11 +1136,19 @@ pub fn registered_install_directory(machine: bool) -> Result<Option<PathBuf>, St
     Ok(Some(directory))
 }
 pub fn installed_directory(machine: bool) -> Result<Option<PathBuf>, String> {
-    let scope = if machine { "machine" } else { "user" };
-    match registered(machine,"PackageCode")? {Some(code) if code==OsString::from(guid(scope,&hash(PAYLOAD.as_bytes())))=>Ok(registered(machine,"InstallLocation")?.map(PathBuf::from)),Some(_)=>Err("A different candidate is registered; use its matching removal package before replacement".into()),None=>Ok(None)}
+    let Some(code) = registered_product(machine)? else {
+        return Ok(None);
+    };
+    if code != dual_product_code(PAYLOAD.as_bytes())
+        || registered_for(&code, machine, "PackageCode")?
+            != Some(OsString::from(guid("dual", &hash(PAYLOAD.as_bytes()))))
+    {
+        return Err("A different candidate is registered; use its matching removal package before replacement".into());
+    }
+    Ok(registered_for(&code, machine, "InstallLocation")?.map(PathBuf::from))
 }
 pub fn verify_removed(directory: &Path, machine: bool) -> Result<(), String> {
-    if registered(machine, "PackageCode")?.is_some() || shortcut(machine)?.exists() {
+    if registered(machine, "PackageCode")?.is_some() {
         return Err(
             "Removal left registered application integration; inspect installer log".into(),
         );
@@ -651,29 +1187,32 @@ pub extern "system" fn Preflight(h: u32) -> u32 {
 #[unsafe(no_mangle)]
 pub extern "system" fn VerifyInstalled(h: u32) -> u32 {
     std::panic::catch_unwind(|| {
-        let result = (|| {
-            let data = get(h, "CustomActionData")?;
-            let units = data.encode_wide().collect::<Vec<_>>();
-            let at = units
-                .iter()
-                .rposition(|&x| x == 124)
-                .ok_or("Invalid deferred verification context")?;
-            let directory = PathBuf::from(OsString::from_wide(&units[..at]));
-            let machine = OsString::from_wide(&units[at + 1..]) == "machine";
-            let p: Payload = serde_json::from_str(PAYLOAD).map_err(|e| e.to_string())?;
-            p.verify(&directory, false)?;
-            verify_manifest(&directory, false)?;
-            let scope = if machine { "machine" } else { "user" };
-            verify_integrations(
-                machine,
-                &directory,
-                &guid(scope, &hash(PAYLOAD.as_bytes())),
-                true,
-            )?;
-            scoped_runtime(machine)?;
-            Ok(())
-        })();
-        report(h, result)
+        report(
+            h,
+            (|| {
+                let data: DeferredContext = serde_json::from_str(&text(h, "CustomActionData")?)
+                    .map_err(|e| e.to_string())?;
+                let p: Payload = serde_json::from_str(PAYLOAD).map_err(|e| e.to_string())?;
+                p.verify(&data.directory, false)?;
+                verify_manifest(&data.directory, false)?;
+                verify_integrations_for(
+                    data.machine,
+                    &data.directory,
+                    &guid("dual", &hash(PAYLOAD.as_bytes())),
+                    true,
+                    &hash(PAYLOAD.as_bytes()),
+                )?;
+                scoped_runtime(data.machine)?;
+                crate::embedded::retain_native(
+                    data.machine,
+                    &data.source_msi,
+                    &data.source_msi_record,
+                    &data.directory,
+                    data.storage.as_deref(),
+                )?;
+                Ok(())
+            })(),
+        )
     })
     .unwrap_or(1603)
 }
@@ -756,14 +1295,17 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
         let payload: Payload = serde_json::from_str(&text).map_err(|e| e.to_string())?;
         payload.validate()?;
         payload.verify(&root, false)?;
-        let package = guid(scope, &hash(text.as_bytes()));
-        if v[side]["native"]["packageCode"] != package
-            || v[side]["native"]["productCode"] != product(machine)
-        {
+        let product_code = v[side]["native"]["productCode"]
+            .as_str()
+            .ok_or("Missing recovery ProductCode")?;
+        let package = package_code(product_code, machine, text.as_bytes())?;
+        if v[side]["native"]["packageCode"] != package {
             return Err("Recovery native identity differs".into());
         }
-        packages.push(package);
-        matching |= text == PAYLOAD && side == target;
+        packages.push((product_code.to_owned(), package));
+        matching |= text == PAYLOAD
+            && product_code == dual_product_code(PAYLOAD.as_bytes())
+            && side == target;
         for f in &payload.files {
             validator.validate(&root.join(&f.path))?;
         }
@@ -780,10 +1322,14 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
     if !matching {
         return Err("This MSI is outside the retained recovery operation".into());
     }
-    if let Some(registered) = registered(machine, "PackageCode")?
-        && !packages.iter().any(|p| registered == OsString::from(p))
-    {
-        return Err("Foreign registered package".into());
+    if let Some(code) = registered_product(machine)? {
+        let registered = registered_for(&code, machine, "PackageCode")?
+            .ok_or("Missing registered recovery PackageCode")?;
+        if !packages.iter().any(|(product, package)| {
+            code.eq_ignore_ascii_case(product) && registered == OsString::from(package)
+        }) {
+            return Err("Foreign registered package".into());
+        }
     }
     let mut namespace = crate::private::PhysicalNamespace::default();
     for (path, records) in allowed {
@@ -923,9 +1469,38 @@ pub fn inspect_package(file: &Path) -> Result<(String, String, bool, String), St
     let package = String::from_utf16(&buffer[..size as usize]).map_err(|e| e.to_string())?;
     let scope = match property("ALLUSERS")?.as_deref() {
         Some("1") => "machine",
+        Some("2") => "dual",
         Some("") | None => "user",
         _ => return Err("Unsupported MSI ALLUSERS scope".into()),
     };
+    if scope == "dual" {
+        let mut kind = 0;
+        let mut flags = 0;
+        // Inside a custom action these handles may be marshalled through the
+        // installer service. Supply all output buffers for that API boundary.
+        let mut size = buffer.len() as u32;
+        let r = unsafe {
+            MsiSummaryInfoGetPropertyW(
+                summary.0,
+                15,
+                &mut kind,
+                &mut flags,
+                time.as_mut_ptr().cast(),
+                buffer.as_mut_ptr(),
+                &mut size,
+            )
+        };
+        if r != 0 {
+            return Err(format!(
+                "Cannot read native MSI privilege summary: {r} (type {kind}, flags {flags})"
+            ));
+        }
+        if kind != 3 || flags & 8 != 0 {
+            return Err(
+                "Dual-purpose MSI must allow native elevation for the all-users choice".into(),
+            );
+        }
+    }
     Ok((product, package, protocol, scope.into()))
 }
 
@@ -1035,6 +1610,54 @@ pub fn reinstall_layout(file: &Path) -> Result<Vec<Vec<String>>, String> {
     Ok(rows)
 }
 
+fn verify_selected_writer(data: &DeferredContext) -> Result<(), String> {
+    if data.state.is_empty() {
+        return Ok(());
+    }
+    let payload: Payload = serde_json::from_str(PAYLOAD).map_err(|e| e.to_string())?;
+    let _parents = crate::private::pin_physical(&data.directory)?;
+    let binary = data.directory.join(&payload.binary);
+    let record = payload
+        .files
+        .iter()
+        .find(|f| f.path == payload.binary)
+        .ok_or("Missing writer identity")?;
+    let _binary = crate::open_verified_input(&binary, record)?;
+    let mut args = vec![
+        OsString::from("state-compatibility"),
+        OsString::from("--json"),
+    ];
+    for operand in &data.state {
+        if !matches!(operand.kind.as_str(), "settings" | "history" | "portable") {
+            return Err("Invalid selected writer state operand".into());
+        }
+        check_path(&operand.path)?;
+        args.push(OsString::from(format!("--{}", operand.kind)));
+        args.push(operand.path.clone().into_os_string());
+    }
+    let bytes = crate::effective_process::spawn(&binary, &args, true)?.probe()?;
+    let result: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|_| "Installed writer did not report state compatibility")?;
+    if result["compatible"] != true {
+        return Err("The installed writer cannot use the selected private state; installation is rolling back".into());
+    }
+    Ok(())
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn VerifyInstallingUserState(h: u32) -> u32 {
+    std::panic::catch_unwind(|| {
+        report(
+            h,
+            (|| {
+                let data: DeferredContext = serde_json::from_str(&text(h, "CustomActionData")?)
+                    .map_err(|e| e.to_string())?;
+                verify_selected_writer(&data)
+            })(),
+        )
+    })
+    .unwrap_or(1603)
+}
+
 #[cfg(test)]
 mod update_layout_tests {
     use super::*;
@@ -1130,7 +1753,12 @@ pub fn source_package_name(machine: bool) -> Result<String, String> {
     let mut length = buffer.len() as u32;
     let code = unsafe {
         MsiSourceListGetInfoW(
-            wide(product(machine)).as_ptr(),
+            wide(
+                registered_product(machine)?
+                    .as_deref()
+                    .ok_or("Missing registered product")?,
+            )
+            .as_ptr(),
             ptr::null(),
             if machine { 4 } else { 2 },
             0,
@@ -1183,6 +1811,7 @@ mod grouped_feature_tests {
         assert!(!pairs.is_empty());
         for pair in pairs {
             for file in pair {
+                assert_eq!(inspect_package(&file).unwrap().3, "dual");
                 let rows = reinstall_layout(&file).unwrap();
                 let features = rows
                     .iter()
@@ -1193,9 +1822,18 @@ mod grouped_feature_tests {
                         .iter()
                         .map(|r| r[1].as_str())
                         .collect::<BTreeSet<_>>(),
-                    BTreeSet::from(["Application", "Payload", "Notices"])
+                    BTreeSet::from([
+                        "Application",
+                        "Payload",
+                        "Notices",
+                        "StartMenu",
+                        "CommandPath"
+                    ])
                 );
-                assert!(features.iter().all(|r| r[2].is_empty() && r[6] == "1"));
+                assert!(
+                    features.iter().all(|r| r[2].is_empty()
+                        && (r[6] == "1" || r[1] == "CommandPath" && r[6] == "2"))
+                );
                 let members = rows
                     .iter()
                     .filter(|r| r[0] == "FeatureComponents")
@@ -1218,7 +1856,7 @@ mod grouped_feature_tests {
                     .collect::<BTreeSet<_>>();
                 let assigned = members
                     .iter()
-                    .filter(|r| r[1] != "Application")
+                    .filter(|r| matches!(r[1].as_str(), "Payload" | "Notices"))
                     .map(|r| r[2].as_str())
                     .collect::<Vec<_>>();
                 assert_eq!(assigned.len(), file_components.len());
@@ -1228,5 +1866,84 @@ mod grouped_feature_tests {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod context_identity_tests {
+    use super::*;
+    #[test]
+    #[ignore = "Requires actual current MSI; elected in isolated package CI"]
+    fn actual_native_dual_package_rejects_limited_privilege_summary() {
+        #[link(name = "msi")]
+        unsafe extern "system" {
+            fn MsiGetSummaryInformationW(
+                database: u32,
+                path: *const u16,
+                count: u32,
+                summary: *mut u32,
+            ) -> u32;
+            fn MsiSummaryInfoSetPropertyW(
+                summary: u32,
+                property: u32,
+                kind: u32,
+                integer: i32,
+                time: *const std::ffi::c_void,
+                value: *const u16,
+            ) -> u32;
+            fn MsiSummaryInfoPersist(summary: u32) -> u32;
+        }
+        let pairs: Vec<[PathBuf; 2]> = serde_json::from_str(
+            &std::env::var("GALLERY_MSI_LAYOUT_PAIRS").expect("Explicit actual MSI required"),
+        )
+        .unwrap();
+        let original = &pairs.first().unwrap()[0];
+        assert_eq!(inspect_package(original).unwrap().3, "dual");
+        let temp = tempfile::tempdir().unwrap();
+        let changed = temp.path().join("limited.msi");
+        fs::copy(original, &changed).unwrap();
+        let mut summary = 0;
+        assert_eq!(
+            unsafe { MsiGetSummaryInformationW(0, wide(&changed).as_ptr(), 1, &mut summary) },
+            0
+        );
+        // PID_WORDCOUNT: compressed cabinet plus the limited-privilege bit.
+        assert_eq!(
+            unsafe { MsiSummaryInfoSetPropertyW(summary, 15, 3, 10, ptr::null(), ptr::null()) },
+            0
+        );
+        assert_eq!(unsafe { MsiSummaryInfoPersist(summary) }, 0);
+        assert_eq!(unsafe { MsiCloseHandle(summary) }, 0);
+        assert!(
+            inspect_package(&changed)
+                .unwrap_err()
+                .contains("allow native elevation")
+        );
+        assert_eq!(inspect_package(original).unwrap().3, "dual");
+    }
+
+    #[test]
+    fn physical_dual_identity_is_shared_but_legacy_authority_stays_context_specific() {
+        let bytes = b"retained exact input";
+        assert_eq!(
+            dual_product_code(bytes),
+            "{B0FBA701-A146-59A0-AFB0-536A96D49F34}"
+        );
+        assert_eq!(
+            package_code(&dual_product_code(bytes), false, bytes).unwrap(),
+            package_code(&dual_product_code(bytes), true, bytes).unwrap()
+        );
+        assert_ne!(
+            package_code(USER, false, bytes).unwrap(),
+            package_code(MACHINE, true, bytes).unwrap()
+        );
+        assert!(package_code(USER, true, bytes).is_err());
+        assert!(package_code(MACHINE, false, bytes).is_err());
+        assert!(package_code("foreign", false, bytes).is_err());
+        assert!(package_code(&dual_product_code(b"another generation"), false, bytes).is_err());
+        assert_ne!(
+            dual_product_code(bytes),
+            dual_product_code(b"another generation")
+        );
     }
 }

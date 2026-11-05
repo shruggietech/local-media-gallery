@@ -5,8 +5,8 @@
     PowerShell 7+, UTF-8 JSON lines over redirected standard input and output.
     Reuses compiled helper declarations, never observations. Each request invokes
     an unchanged script in a fresh child scope after verifying its source hash.
-    UI operations retain the existing isolated-CI guard. Shortcut inspection is
-    read-only. No network, clipboard, installation or arbitrary command route.
+    UI operations retain the existing isolated-CI guard. Shortcut, registration
+    and runtime inspection are read-only. No network, clipboard, installation or arbitrary command route.
     EOF closes the session. Protocol or source failures return structured errors.
 .PARAMETER ProtocolVersion
     Supported pipe protocol version, currently 1. Default: 1. Alias: v.
@@ -69,7 +69,7 @@ Param(
     [Console]::InputEncoding=[Text.UTF8Encoding]::new($false)
     [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
     try {
-        $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1')}
+        $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');input=(Join-Path $PSScriptRoot 'native-input.ps1');state=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1');runtime=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1')}
         $observerHashes=@{}
         foreach ($route in $observerScripts.Keys) { $observerHashes[$route]=(Get-FileHash -LiteralPath $observerScripts[$route] -Algorithm SHA256).Hash.ToLowerInvariant() }
         @{type='ready';protocolVersion=$ProtocolVersion;pid=$PID;sources=$observerHashes}|ConvertTo-Json -Compress
@@ -87,19 +87,37 @@ Param(
                     $scriptFile=$observerScripts[$request.route]
                     if ((Get-FileHash -LiteralPath $scriptFile -Algorithm SHA256).Hash.ToLowerInvariant() -ne $observerHashes[$request.route]) { throw 'Observer source changed during session' }
                     $parameters=@{}
-                    if ($request.route -eq 'ui') {
+                    if ($request.route -in @('state','runtime')) {
+                        if ($request.scope -notin @('user','machine')) { throw 'Snapshot scope must be user or machine' }
+                        $parameters.Mode=$request.route
+                        $parameters.Scope=$request.scope
+                        if ($request.route -eq 'state') {
+                            if ($request.products -isnot [array] -or $request.products.Count -lt 1 -or $request.products.Count -gt 32) { throw 'Product GUID array required' }
+                            foreach ($product in $request.products) { if ($product -isnot [string] -or $product -notmatch '^\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}$') { throw 'Product GUID required' } }
+                            $parameters.Products=[string[]]$request.products
+                        }
+                    } elseif ($request.route -eq 'ui') {
                         if ($request.processId -isnot [long] -and $request.processId -isnot [int]) { throw 'Exact process ID required' }
                         if ($request.processId -lt 1) { throw 'Positive process ID required' }
                         $parameters.AppProcessId=$request.processId
                         if ($request.ContainsKey('name')) { $parameters.Name=[string]$request.name }
                         if ($request.ContainsKey('screenshot')) { $parameters.Screenshot=[string]$request.screenshot }
+                    } elseif ($request.route -eq 'input') {
+                        if ($request.processId -isnot [long] -and $request.processId -isnot [int]) { throw 'Exact process ID required' }
+                        if ($request.processId -lt 1) { throw 'Positive process ID required' }
+                        if ($request.action -notin @('compile','scan-keys')) { throw 'Unknown native input action' }
+                        $parameters.AppProcessId=$request.processId
+                        $parameters.Action=$request.action
+                        if ($request.ContainsKey('key')) { $parameters.Keys=[string]$request.key }
+                    } elseif ($request.route -eq 'msi') {
+                        foreach ($key in @('name','value','screenshot')) { if ($request.ContainsKey($key)) { $parameters[$key]=[string]$request[$key] } }
                     } else {
                         if ($request.file -isnot [string] -or [IO.Path]::GetExtension($request.file) -ne '.lnk' -or ![IO.Path]::IsPathFullyQualified($request.file)) { throw 'Absolute shortcut path required' }
                         $parameters.File=$request.file
                     }
                     # Child scope drops all native references; Add-Type alone is reused.
                     $raw=& $scriptFile @parameters
-                    $result=ConvertFrom-Json -InputObject ($raw -join [char]10) -AsHashtable
+                    $result=if ($request.route -eq 'input') { @{completed=$true;action=$request.action;targetPid=$request.processId} } else { ConvertFrom-Json -InputObject ($raw -join [char]10) -AsHashtable }
                 }
                 @{id=$requestId;pid=$PID;ok=$true;result=$result}|ConvertTo-Json -Depth 16 -Compress
             } catch {

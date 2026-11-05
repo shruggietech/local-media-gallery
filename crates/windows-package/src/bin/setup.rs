@@ -209,6 +209,38 @@ fn native_path(path: &std::path::Path) -> serde_json::Value {
 fn main() {
     #[cfg(windows)]
     {
+        let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+        if args.first().is_some_and(|s| s == "--manifest-identity") {
+            match args
+                .get(1)
+                .filter(|_| args.len() == 2)
+                .ok_or_else(|| "--manifest-identity requires one MSI path".to_owned())
+                .and_then(|file| {
+                    gallery_windows_package::session_source::manifest_identity(
+                        std::path::Path::new(file),
+                    )
+                }) {
+                Ok(identity) => println!("{identity}"),
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            }
+            return;
+        }
+        if args.first().is_some_and(|s| s == "--seal-msi") {
+            let result = if args.len() == 2 {
+                gallery_windows_package::session_source::seal(std::path::Path::new(&args[1]))
+            } else {
+                Err("--seal-msi requires one authored MSI path".into())
+            };
+            if let Err(error) = result {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+            println!("Authored MSI content manifest sealed and independently verified.");
+            return;
+        }
         let quiet = std::env::args_os().any(|a| a == "--quiet" || a == "--json");
         match run() {
             Ok(value) => {

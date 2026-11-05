@@ -116,44 +116,46 @@ jobs:
             ~/.cargo/git/db
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
-  windows-packages:
+  windows-package-inputs:
     concurrency:
-      group: qualification-${{ github.workflow }}-${{ github.ref }}-windows-packages
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}-windows-package-inputs
       cancel-in-progress: false
-    name: windows-packages
+    name: windows-package-inputs
     runs-on: windows-2025
     timeout-minutes: 90
     env:
       CARGO_BUILD_JOBS: 2
-      GALLERY_ISOLATED_DESKTOP: '1'
+      GALLERY_ISOLATED_DESKTOP: "1"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - &a1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.QUALIFIED_REVISION }}
           persist-credentials: false
       - name: Start preparation accounting
         shell: pwsh
         run: '"CI_PREPARATION_STARTED=$([DateTime]::UtcNow.ToString("o"))" >> $env:GITHUB_ENV'
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - &a2
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24.11.0
           cache: npm
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      - &a3
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Identify Cargo cache image and source
         run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
         id: cargo-cache
         continue-on-error: true
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with: &a5
           path: |
             ~/.cargo/registry
             ~/.cargo/git/db
             target/
           key: cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ env.CARGO_CACHE_SOURCE }}
-          # Fallbacks are build hints across source/image changes; Cargo validates compiler/dependency fingerprints.
           restore-keys: |
             cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-windows-packages-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
@@ -161,60 +163,192 @@ jobs:
       - name: Restore verified feature-helper build cache
         id: feature-helper-cache
         continue-on-error: true
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: .local/feature-helper-cache/
           key: feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/prepare-feature-helper.mjs') }}
           restore-keys: |
             feature-helper-v1-${{ runner.os }}-${{ runner.arch }}-
-      - run: npm ci
-      - run: npm run ci -- windows-packages
-      - name: Restore recipient firewall after interrupted campaign
-        if: ${{ always() && hashFiles('scripts/windows-offline-firewall.mjs') != '' }}
-        run: node scripts/windows-offline-firewall.mjs --restore
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - &a4
+        run: npm ci
+      - run: node scripts/ci-windows-package-cohort.mjs build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: windows-packages-evidence-${{ github.sha }}
-          path: |
-            .local/ci-windows-packages.json
+          name: windows-package-inputs-${{ github.sha }}
+          path: |-
+            .local/windows-package-inputs.json
             .local/windows-package-build.json
-            .local/windows-package-results.json
-            .local/windows-package-fixtures.json
-            .local/prepared-recipient-windows.json
-            .local/windows-package-test-*/prepared-recipient-*.zip
-            .local/windows-package-failure.json
-            .local/windows-packages-*/**/*.json
-            .local/windows-package-test-*/update-evidence-*/**
-            .local/windows-package-test-*/failed-update-*/**
-            .local/windows-packages-*/*-candidate.zip
-            .local/windows-packages-*/published-*.zip
-            .local/windows-packages-*/replacement-lite.exe
-            .local/windows-packages-*/*-windows.exe
-            .local/windows-packages-*/replacement-full.exe
-            .local/windows-package-test-*/*.png
-            .local/windows-package-test-*/*.log
-            .local/windows-package-test-*/single-file-offline*.json
-            .local/tmp/local-media-gallery-*.log
+            .local/windows-packages-*/**
           include-hidden-files: true
+          compression-level: 0
           if-no-files-found: error
-      - name: Save Cargo cache after terminal evidence
+      - name: Save Cargo cache after input preparation
         if: ${{ !cancelled() && steps.cargo-cache.outputs.cache-hit != 'true' }}
         continue-on-error: true
-        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git/db
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
-      - name: Save feature-helper cache after terminal evidence
+      - name: Save feature-helper cache after input preparation
         if: ${{ !cancelled() && steps.feature-helper-cache.outputs.cache-hit != 'true' && hashFiles('.local/feature-helper.json') != '' }}
         continue-on-error: true
-        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
           path: .local/feature-helper-cache/
           key: ${{ steps.feature-helper-cache.outputs.cache-primary-key }}
+  windows-package-campaign:
+    name: windows-${{ matrix.campaign }}
+    needs:
+      - windows-package-inputs
+    permissions:
+      contents: read
+      actions: read
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: 2
+      GALLERY_ISOLATED_DESKTOP: "1"
+    strategy:
+      fail-fast: false
+      matrix:
+        campaign:
+          - experience
+          - lifecycle
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}-windows-${{ matrix.campaign }}
+      cancel-in-progress: false
+    steps:
+      - *a1
+      - *a2
+      - *a3
+      - *a4
+      - name: Identify Cargo cache image and source
+        run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
+        if: matrix.campaign == 'lifecycle'
+      - name: Restore compiler-validated Cargo cache
+        id: cargo-cache
+        continue-on-error: true
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with: *a5
+        if: matrix.campaign == 'lifecycle'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: windows-package-inputs-${{ github.sha }}
+          path: .local
+      - run: node scripts/ci-windows-package-cohort.mjs prepare ${{ matrix.campaign }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: windows-${{ matrix.campaign }}-ready-${{ github.sha }}-${{ github.run_attempt }}
+          path: .local/windows-campaign-ready-${{ matrix.campaign }}.json
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - run: node scripts/ci-windows-package-cohort.mjs run ${{ matrix.campaign }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Restore recipient firewall after interrupted campaign
+        if: ${{ always() && hashFiles('scripts/windows-offline-firewall.mjs') != '' }}
+        run: node scripts/windows-offline-firewall.mjs --restore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: windows-${{ matrix.campaign }}-evidence-${{ github.sha }}
+          path: |-
+            .local/windows-campaign-*.json
+            .local/windows-package-fixtures-*.json
+            .local/windows-msi-command-readiness.json
+            .local/msi-command-ready-*/*.log
+            .local/prepared-recipient-windows.json
+            .local/windows-admin-retention-*.log
+            .local/windows-package-test-*/prepared-recipient-*.zip
+            .local/windows-package-test-*/update-evidence-*/**
+            .local/windows-package-test-*/failed-update-*/**
+            .local/windows-package-test-*/standard-user/*.log
+            .local/windows-package-test-*/wizard-*-failure.json
+            .local/windows-package-test-*/*.png
+            .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/legacy */*.log
+            .local/windows-package-test-*/legacy */storage/**/*.log
+            .local/windows-package-test-*/legacy */storage/**/*.json
+            .local/windows-package-test-*/legacy */storage/**/*.stdout
+            .local/windows-package-test-*/legacy */storage/**/*.stderr
+            .local/windows-package-test-*/single-file-offline*.json
+            .local/tmp/local-media-gallery-*.log
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+  windows-packages:
+    name: windows-packages
+    permissions:
+      contents: read
+      actions: read
+    needs:
+      - windows-package-inputs
+    concurrency:
+      group: qualification-${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}-windows-packages
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GALLERY_ISOLATED_DESKTOP: "1"
+    steps:
+      - *a1
+      - *a2
+      - *a3
+      - *a4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: windows-package-inputs-${{ github.sha }}
+          path: .local
+      - run: node scripts/ci-windows-package-cohort.mjs wait lifecycle
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: windows-lifecycle-evidence-${{ github.sha }}
+          path: .local
+      - run: node scripts/ci-windows-package-cohort.mjs wait experience
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: windows-experience-evidence-${{ github.sha }}
+          path: .local
+      - run: node scripts/ci-windows-package-cohort.mjs gate
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: windows-package-status-${{ github.sha }}
+          path: |-
+            .local/ci-windows-packages.json
+            .local/windows-campaign-*-qualification.json
+            .local/windows-campaign-clock-*.json
+            .local/windows-package-test-*/*.log
+            .local/windows-campaign-failure-*.json
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: windows-packages-evidence-${{ github.sha }}
+          path: |-
+            .local/ci-windows-packages.json
+            .local/windows-package-build.json
+            .local/windows-package-inputs.json
+            .local/windows-package-results.json
+            .local/windows-campaign-*.json
+            .local/windows-packages-*/**
+            .local/windows-package-test-*/*.png
+            .local/windows-package-test-*/*.log
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
 
   macos-packages:
     concurrency:
@@ -350,6 +484,13 @@ jobs:
           sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev zlib1g-dev debootstrap policykit-1 patchelf dpkg-dev desktop-file-utils shellcheck xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 gir1.2-gtk-3.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+      - name: Reclaim unused hosted Linux SDK space
+        if: runner.os == 'Linux'
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet
+          echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+          df -h "$GITHUB_WORKSPACE"
       - name: Identify Cargo cache image and source
         run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
@@ -367,6 +508,11 @@ jobs:
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-
+      - name: Discard restored incremental compiler scratch
+        if: runner.os == 'Linux'
+        run: |
+          rm -rf target/debug/incremental target/release/incremental
+          df -h "$GITHUB_WORKSPACE"
       - name: Restore verified feature-helper build cache
         id: feature-helper-cache
         continue-on-error: true
@@ -470,6 +616,13 @@ jobs:
           sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev patchelf xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+      - name: Reclaim unused hosted Linux SDK space
+        if: runner.os == 'Linux'
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet
+          echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+          df -h "$GITHUB_WORKSPACE"
       - name: Identify Cargo cache image and source
         run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
@@ -487,6 +640,11 @@ jobs:
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-
+      - name: Discard restored incremental compiler scratch
+        if: runner.os == 'Linux'
+        run: |
+          rm -rf target/debug/incremental target/release/incremental
+          df -h "$GITHUB_WORKSPACE"
       - run: npm ci
       - name: Run native qualification on isolated Linux display
         if: runner.os == 'Linux'

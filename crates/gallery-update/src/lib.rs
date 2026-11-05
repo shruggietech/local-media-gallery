@@ -905,9 +905,17 @@ enum StateContext {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct WindowsIntegrations {
+    start_menu: bool,
+    command_path: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct SelectedState {
     operands: Vec<StateOperand>,
     storage_root: PathBuf,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    windows_integrations: Option<WindowsIntegrations>,
 }
 impl StateContext {
     fn new(operands: Vec<StateOperand>, root: Option<PathBuf>) -> Self {
@@ -915,6 +923,7 @@ impl StateContext {
             Some(storage_root) => Self::Selected(SelectedState {
                 operands,
                 storage_root,
+                windows_integrations: None,
             }),
             None => Self::Legacy(operands),
         }
@@ -1319,6 +1328,22 @@ impl Transaction {
         if matches!(prior.native, Native::Direct) {
             namespace.extend(gallery_windows_package::private::pin_physical(directory)?);
         }
+        let selected_state = StateContext::new(state.to_vec(), storage_root);
+        #[cfg(windows)]
+        let selected_state = {
+            let mut selected_state = selected_state;
+            if matches!(prior.native, Native::WindowsMsi { .. }) {
+                let choices =
+                    gallery_windows_package::native::installed_integrations(machine_scope(prior))?;
+                if let StateContext::Selected(ref mut state) = selected_state {
+                    state.windows_integrations = Some(WindowsIntegrations {
+                        start_menu: choices.start_menu,
+                        command_path: choices.command_path,
+                    });
+                }
+            }
+            selected_state
+        };
         let journal = Journal {
             format_version: 1,
             binding: String::new(),
@@ -1328,7 +1353,7 @@ impl Transaction {
             next: next.clone(),
             phase: "preparing".into(),
             target_prior: false,
-            state: StateContext::new(state.to_vec(), storage_root),
+            state: selected_state,
         };
         let mut op = Self {
             base: base.to_path_buf(),

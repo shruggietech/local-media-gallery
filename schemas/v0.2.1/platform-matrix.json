@@ -30,7 +30,7 @@
       "runtime": "Shared Evergreen WebView2 Runtime (MSVC native artifact)",
       "display": "Interactive Windows desktop",
       "proof": "windows-2025 isolated native package/runtime campaigns; client OS behavior requires exact host receipts",
-      "full": "One system-scope setup EXE with embedded machine MSI, complete offline Evergreen WebView2 and FFmpeg; ownership-aware managed maintenance",
+      "full": "One native offline MSI with user/all-users scope, location and independent Start menu/PATH choices, complete bundled Evergreen WebView2 and FFmpeg; ownership-aware maintenance",
       "lite": "One direct native EXE with embedded notices/maintenance metadata and shared host WebView2 prerequisite",
       "signing": "Project signing not performed by policy; actual host assessments reported separately",
       "qualification": "Exact host/artifact receipts required; other client versions not yet tested"

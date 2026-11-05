@@ -68,7 +68,7 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
         let actual = gallery_windows_package::native::inspect_package(&artifact_path(base, name))?;
         if !actual.0.eq_ignore_ascii_case(product_code)
             || !actual.1.eq_ignore_ascii_case(package_code)
-            || actual.3 != *scope
+            || (actual.3 != "dual" && actual.3 != *scope)
         {
             return Err("Native MSI ProductCode/PackageCode differs from descriptor".into());
         }
@@ -109,33 +109,40 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
         Native::WindowsMsi { .. } => {
             #[cfg(windows)]
             {
-                let extract = base.join(format!("{name}-administrative"));
-                gallery_windows_package::private::child_directory(&extract)?;
+                let image = AdministrativeImage::create(base, c)?;
+                let extract = &image.path;
+                gallery_windows_package::private::child_directory(extract)?;
                 let out = msi(
                     &artifact_path(base, name),
                     a,
                     "/a",
-                    Some(&extract),
+                    Some(extract),
                     None,
                     false,
                     &base.join(format!("{name}-extract.log")),
                 )?;
                 if !out.status.success() {
-                    return Err(
-                        "Native MSI administrative extraction failed before replacement".into(),
-                    );
+                    return Err(format!(
+                        "{}; incomplete administrative image retained at {}",
+                        msi_failure(
+                            "administrative extraction before replacement",
+                            &out,
+                            &base.join(format!("{name}-extract.log")),
+                        ),
+                        extract.display()
+                    ));
                 }
                 let mut roots = vec![];
                 let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
-                find_binary(&extract, &c.binary, &mut roots, &mut namespace)?;
+                find_binary(extract, &c.binary, &mut roots, &mut namespace)?;
                 let src = roots
                     .into_iter()
                     .find(|p| c.verify(p).is_ok())
                     .ok_or("Extracted MSI does not match complete expected payload")?;
-                exact_msi_image(c, &extract, &src)?;
+                exact_msi_image(c, extract, &src)?;
                 copy_retained_inventory(c, &src, destination)?;
                 drop(namespace);
-                cleanup_administrative(&extract)?;
+                cleanup_administrative(extract)?;
             }
             #[cfg(not(windows))]
             return Err("Windows MSI requires Windows".into());
@@ -143,8 +150,101 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
         Native::Direct => unreachable!(),
     };
     c.verify(destination)?;
+    #[cfg(windows)]
+    if matches!(&c.native, Native::WindowsMsi { .. }) {
+        dual_msi_identity(c, destination)?;
+    }
     exact_files(c, destination)
 }
+#[cfg(windows)]
+pub(super) fn dual_msi_identity(candidate: &Candidate, payload_directory: &Path) -> Result<bool> {
+    let Native::WindowsMsi {
+        product_code,
+        package_code,
+        scope,
+        ..
+    } = &candidate.native
+    else {
+        return Err("MSI identity requires a Windows installer candidate".into());
+    };
+    let payload = read_bounded(&payload_directory.join("payload.json"), 8 * 1024 * 1024)?;
+    let machine = scope == "machine";
+    let expected_package =
+        gallery_windows_package::native::package_code(product_code, machine, &payload)?;
+    if !expected_package.eq_ignore_ascii_case(package_code) {
+        return Err("MSI package identity differs from its verified payload".into());
+    }
+    Ok(
+        product_code.eq_ignore_ascii_case(&gallery_windows_package::native::dual_product_code(
+            &payload,
+        )),
+    )
+}
+
+// MSI administrative extraction still enforces MAX_PATH. Durable recovery roots
+// can be deeper, so only this disposable, untrusted image uses a short path.
+#[cfg(windows)]
+struct AdministrativeImage {
+    root: PathBuf,
+    path: PathBuf,
+    stage: Option<gallery_windows_package::scratch::Stage>,
+    pins: Vec<fs::File>,
+}
+#[cfg(windows)]
+impl AdministrativeImage {
+    fn create(storage: &Path, candidate: &Candidate) -> Result<Self> {
+        use std::os::windows::ffi::OsStrExt;
+        let machine = gallery_windows_package::private::context(storage)?;
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|error| error.to_string())?
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(".lmg-a-{:x}-{nonce:x}", std::process::id()));
+        let path = root.join("s").join("a");
+        let longest = candidate
+            .files
+            .iter()
+            .map(|file| file.path.encode_utf16().count())
+            .max()
+            .unwrap_or(0);
+        // Leave room for the MSI's product-directory prefix and terminating NUL.
+        // This guards our temporary path, not the owner's installation choice.
+        if !root.is_absolute() || path.as_os_str().encode_wide().count() + longest + 64 >= 260 {
+            return Err(
+                "MSI administrative extraction needs a shorter temporary directory (TEMP)".into(),
+            );
+        }
+        gallery_windows_package::private::ensure_storage_at(&root, machine)?;
+        let pins = gallery_windows_package::private::validate_directory(&root, machine)?;
+        let mut image = Self {
+            root,
+            path,
+            stage: None,
+            pins,
+        };
+        image.stage = Some(gallery_windows_package::scratch::Stage::create(
+            storage,
+            &image.root.join("s"),
+            "transaction",
+            Default::default(),
+            Default::default(),
+            machine,
+        )?);
+        // No image subtree is declared reclaimable. A failed/partial native
+        // extraction must be retained; only exact_msi_image authorizes cleanup.
+        Ok(image)
+    }
+}
+#[cfg(windows)]
+impl Drop for AdministrativeImage {
+    fn drop(&mut self) {
+        drop(self.stage.take());
+        self.pins.clear();
+        // Never recurse through unknown or partially extracted content.
+        let _ = fs::remove_dir(&self.root);
+    }
+}
+
 #[cfg(windows)]
 fn cleanup_administrative(root: &Path) -> Result<()> {
     // Called only after exact_msi_image and retained inventory verification.
@@ -276,6 +376,74 @@ fn msi(
         ),
     )
 }
+
+#[cfg(windows)]
+fn msi_failure(operation: &str, output: &std::process::Output, log: &Path) -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    let excerpt = (|| -> std::io::Result<String> {
+        let mut file = fs::File::open(log)?;
+        let length = file.metadata()?.len();
+        let mut prefix = [0u8; 2];
+        let count = file.read(&mut prefix)?;
+        let utf16 = count == 2 && prefix == [0xff, 0xfe];
+        file.seek(SeekFrom::Start(0))?;
+        let mut initial = Vec::new();
+        std::io::Read::by_ref(&mut file)
+            .take(8 * 1024 * 1024)
+            .read_to_end(&mut initial)?;
+        let initial = if utf16 {
+            String::from_utf16_lossy(
+                &initial
+                    .chunks_exact(2)
+                    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            String::from_utf8_lossy(&initial).into_owned()
+        };
+        let messages = initial
+            .lines()
+            .filter(|line| {
+                line.contains("Local Media Gallery:")
+                    || line.contains("Error ")
+                    || line.contains("Return value 3")
+            })
+            .take(32)
+            .map(|line| line.chars().take(1024).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let mut start = length.saturating_sub(32768);
+        if utf16 {
+            start -= start % 2;
+        }
+        file.seek(SeekFrom::Start(start))?;
+        let mut bytes = Vec::new();
+        file.take(32768).read_to_end(&mut bytes)?;
+        let tail = if utf16 {
+            String::from_utf16_lossy(
+                &bytes
+                    .chunks_exact(2)
+                    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            String::from_utf8_lossy(&bytes).into_owned()
+        };
+        Ok(format!(
+            "Native failure messages (first 8 MiB scanned):\n{messages}\nFinal log excerpt:\n{tail}"
+        ))
+    })()
+    .unwrap_or_else(|error| format!("Native log could not be read: {error}"));
+    format!(
+        "Native MSI {operation} failed ({}). Native log {} (bounded final excerpt):\n{}\nstdout: {}\nstderr: {}",
+        output.status,
+        log.display(),
+        excerpt,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+}
+
 #[cfg(target_os = "linux")]
 fn linux_status() -> Result<String> {
     let out = command(
@@ -300,11 +468,19 @@ pub(super) fn verified(c: &Candidate, directory: &Path) -> Result<()> {
         Native::Direct => {}
         Native::WindowsMsi {
             scope,
+            product_code,
             package_code,
             ..
         } => {
             #[cfg(windows)]
             {
+                dual_msi_identity(c, directory)?;
+                if gallery_windows_package::native::registered_product(scope == "machine")?
+                    .as_deref()
+                    != Some(product_code)
+                {
+                    return Err("Installed MSI ProductCode differs from selected candidate".into());
+                }
                 let payload = io(fs::read_to_string(directory.join("payload.json")))?;
                 gallery_windows_package::native::verify_registered_payload(
                     directory,
@@ -315,7 +491,7 @@ pub(super) fn verified(c: &Candidate, directory: &Path) -> Result<()> {
             }
             #[cfg(not(windows))]
             {
-                let _ = (scope, package_code);
+                let _ = (scope, product_code, package_code);
                 return Err("MSI requires Windows".into());
             }
         }
@@ -374,6 +550,7 @@ fn compatible_reinstall(
     selected_name: &str,
     current: &Candidate,
     selected: &Candidate,
+    directory: &Path,
 ) -> Result<bool> {
     let (
         Native::WindowsMsi {
@@ -420,7 +597,9 @@ fn compatible_reinstall(
         gallery_windows_package::native::reinstall_layout(&old_path),
         gallery_windows_package::native::reinstall_layout(&new_path),
     ) {
-        (Ok(old), Ok(new)) => Ok(old == new),
+        (Ok(old), Ok(new)) => {
+            Ok(old == new && grouped_reinstall_value(selected, &new, directory).is_ok())
+        }
         _ => {
             eprintln!(
                 "MSI layout cannot be proven unchanged; retaining native remove/install replacement"
@@ -482,12 +661,18 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                     let name = if which.0 == 0 { "prior" } else { "next" };
                     let same = which.1 == selected;
                     let selected_name = if prior { "prior" } else { "next" };
-                    let reinstall =
-                        compatible_reinstall(&op.base, name, selected_name, &which.1, &selected)?;
+                    let reinstall = compatible_reinstall(
+                        &op.base,
+                        name,
+                        selected_name,
+                        &which.1,
+                        &selected,
+                        &op.journal.directory,
+                    )?;
                     if !same {
                         verified(&which.1, &op.journal.directory)?;
                     }
-                    if !same && !reinstall {
+                    if !reinstall {
                         let out = worker::execute(
                             op,
                             name,
@@ -496,13 +681,18 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                             &op.base.join("remove.log"),
                         )?;
                         if !matches!(out.status.code(), Some(0 | 3010)) {
-                            return Err(format!(
-                                "Native removal did not complete ({:?}); inspect retained log",
-                                out.status.code()
-                            ));
+                            return Err(msi_failure("removal", &out, &op.base.join("remove.log")));
                         }
                         if gallery_windows_package::native::registered_package(machine)?.is_some() {
                             return Err("Native removal left registration".into());
+                        }
+                        for file in &which.1.files {
+                            if op.journal.directory.join(&file.path).exists() {
+                                return Err(format!(
+                                    "Native removal left owned file {}; retain recovery inputs",
+                                    file.path
+                                ));
+                            }
                         }
                     }
                 }
@@ -515,9 +705,10 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                     &op.base.join("install.log"),
                 )?;
                 if !matches!(out.status.code(), Some(0 | 3010)) {
-                    return Err(format!(
-                        "Native install did not complete ({:?}); retained inputs allow recovery",
-                        out.status.code()
+                    return Err(msi_failure(
+                        "installation",
+                        &out,
+                        &op.base.join("install.log"),
                     ));
                 }
             }
@@ -914,6 +1105,53 @@ pub(super) fn validate_predecessor(c: &Candidate, directory: &Path) -> Result<()
 mod traversal_tests {
     use super::*;
     #[test]
+    fn administrative_scratch_reclaims_only_verified_empty_stage() {
+        let temp = tempfile::tempdir().unwrap();
+        let storage = temp.path().join("owned");
+        gallery_windows_package::private::ensure_storage_at(&storage, false).unwrap();
+        let candidate = Candidate {
+            format_version: 1,
+            product: "local-media-gallery".into(),
+            version: "0.0.0".into(),
+            edition: "full".into(),
+            os: "windows".into(),
+            arch: "x86_64".into(),
+            generation: "fixture".into(),
+            source: Source {
+                sha256: "a".repeat(64),
+                files: 1,
+            },
+            binary: "a".into(),
+            files: vec![FileRecord {
+                path: "a".into(),
+                bytes: "1".into(),
+                sha256: hash(b"a"),
+                mode: 644,
+            }],
+            native: Native::Direct,
+            integration: None,
+        };
+        let image = AdministrativeImage::create(&storage, &candidate).unwrap();
+        let empty = image.root.clone();
+        assert!(!empty.starts_with(&storage));
+        drop(image);
+        assert!(!empty.exists());
+        let image = AdministrativeImage::create(&storage, &candidate).unwrap();
+        let retained = image.root.clone();
+        gallery_windows_package::private::child_directory(&image.path).unwrap();
+        let foreign = image.path.join("unexpected");
+        fs::write(&foreign, b"retain").unwrap();
+        drop(image);
+        assert_eq!(fs::read(&foreign).unwrap(), b"retain");
+        // The test knows this sole fixture leaf. Production never recursively
+        // deletes a failed or unverified administrative image.
+        fs::remove_file(foreign).unwrap();
+        fs::remove_dir(retained.join("s/a")).unwrap();
+        fs::remove_file(retained.join("s/.stage-owner.json")).unwrap();
+        fs::remove_dir(retained.join("s")).unwrap();
+        fs::remove_dir(retained).unwrap();
+    }
+    #[test]
     fn wide_administrative_image_rejects_extra_paths() {
         let temp = tempfile::tempdir().unwrap();
         let image = temp.path().join("image");
@@ -994,6 +1232,18 @@ fn grouped_reinstall_value(
         "Application".to_owned(),
         "Integration".to_owned(),
     ]]);
+    if rows.iter().any(|r| {
+        r.first().is_some_and(|t| t == "Feature") && r.get(1).is_some_and(|f| f == "StartMenu")
+    }) {
+        expected_features.extend(["StartMenu".into(), "CommandPath".into()]);
+        for (f, c) in [
+            ("StartMenu", "StartIntegration"),
+            ("CommandPath", "UserPathIntegration"),
+            ("CommandPath", "MachinePathIntegration"),
+        ] {
+            expected_members.insert(vec!["FeatureComponents".into(), f.into(), c.into()]);
+        }
+    }
     let mut expected_files = BTreeSet::new();
     for file in &candidate.files {
         let feature = group(&file.path).to_owned();
@@ -1022,10 +1272,9 @@ fn grouped_reinstall_value(
         .iter()
         .filter(|r| r.first().is_some_and(|t| t == "File"))
         .collect::<Vec<_>>();
-    if features
-        .iter()
-        .any(|r| r.len() != 9 || !r[2].is_empty() || r[6] != "1")
-        || features.len() != expected_features.len()
+    if features.iter().any(|r| {
+        r.len() != 9 || !r[2].is_empty() || (r[6] != "1" && !(r[1] == "CommandPath" && r[6] == "2"))
+    }) || features.len() != expected_features.len()
         || features
             .iter()
             .map(|r| r[1].clone())
@@ -1046,7 +1295,7 @@ fn grouped_reinstall_value(
             .collect::<BTreeSet<_>>()
             != expected_files
     {
-        return Ok("ALL".into());
+        return Err("Unrecognized MSI feature membership; retain the package before choosing a replacement strategy".into());
     }
     let mut selected = BTreeSet::from(["Application"]);
     let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
@@ -1168,22 +1417,99 @@ mod feature_tests {
             .iter_mut()
             .find(|r| r[0] == "FeatureComponents" && r[1] == "Notices")
             .unwrap()[1] = "Payload".into();
-        assert_eq!(
-            grouped_reinstall_value(&c, &wrong, root.path()).unwrap(),
-            "ALL"
-        );
+        assert!(grouped_reinstall_value(&c, &wrong, root.path()).is_err());
         let mut nested = rows.clone();
         nested
             .iter_mut()
             .find(|r| r[0] == "Feature" && r[1] == "Notices")
             .unwrap()[2] = "Payload".into();
-        assert_eq!(
-            grouped_reinstall_value(&c, &nested, root.path()).unwrap(),
-            "ALL"
+        assert!(grouped_reinstall_value(&c, &nested, root.path()).is_err());
+        assert!(grouped_reinstall_value(&c, &[], root.path()).is_err());
+    }
+}
+
+#[cfg(all(test, windows))]
+mod administrative_retention_tests {
+    use super::*;
+    use std::os::windows::process::ExitStatusExt;
+
+    #[test]
+    fn native_msi_failure_retains_exit_and_bounded_utf16_diagnostic() {
+        let temp = tempfile::tempdir().unwrap();
+        let log = temp.path().join("native.log");
+        let text = format!(
+            "Local Media Gallery: original custom-action cause 雪\n{}\nError 2203: source 雪 could not be opened\n",
+            "earlier native output ".repeat(5000)
         );
-        assert_eq!(
-            grouped_reinstall_value(&c, &[], root.path()).unwrap(),
-            "ALL"
+        let mut bytes = vec![0xff, 0xfe];
+        bytes.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+        fs::write(&log, bytes).unwrap();
+        let output = std::process::Output {
+            status: std::process::ExitStatus::from_raw(1603),
+            stdout: Vec::new(),
+            stderr: b"native stderr".to_vec(),
+        };
+        let message = msi_failure("administrative extraction", &output, &log);
+        assert!(
+            message.contains("1603")
+                && message.contains("Error 2203")
+                && message.contains("source 雪")
+                && message.contains("native stderr")
+                && message.contains("original custom-action cause 雪")
         );
+        assert!(message.len() < 40000);
+        assert!(!message.contains('\u{fffd}'));
+        fs::remove_file(&log).unwrap();
+        assert!(
+            msi_failure("administrative extraction", &output, &log)
+                .contains("Native log could not be read")
+        );
+    }
+
+    #[test]
+    #[ignore = "Runs actual quiet administrative extraction only on an isolated Windows CI runner"]
+    fn actual_native_admin_retention_preserves_registration_and_exact_published_payload() {
+        assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
+        assert_eq!(
+            std::env::var("GALLERY_ISOLATED_DESKTOP").as_deref(),
+            Ok("1")
+        );
+        let candidate = Candidate::read(Path::new(
+            &std::env::var("GALLERY_MSI_ADMIN_DESCRIPTOR")
+                .expect("Explicit prepared descriptor required"),
+        ))
+        .unwrap();
+        let machine =
+            matches!(&candidate.native, Native::WindowsMsi { scope, .. } if scope == "machine");
+        let before = gallery_windows_package::native::registered_product(machine).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        use std::os::windows::ffi::OsStrExt;
+        let storage = temp.path().join("owned legacy image 雪");
+        gallery_windows_package::private::ensure_storage_at(&storage, machine).unwrap();
+        let padding = 160usize
+            .saturating_sub(storage.as_os_str().encode_wide().count() + 1)
+            .max(8);
+        for leaf in ["short".to_owned(), "d".repeat(padding)] {
+            let base = storage.join(leaf);
+            gallery_windows_package::private::child_directory(&base).unwrap();
+            let destination = base.join("prior");
+            gallery_windows_package::private::child_directory(&destination).unwrap();
+            if let Err(error) = retain(&candidate, &base, "prior", &destination) {
+                if let Ok(file) = std::env::var("GALLERY_MSI_ADMIN_FAILURE") {
+                    let _ = fs::write(file, error.replace("\r\n", "\n"));
+                }
+                if let Ok(file) = std::env::var("GALLERY_MSI_ADMIN_LOG") {
+                    let _ = fs::copy(base.join("prior-extract.log"), file);
+                }
+                panic!("{error}");
+            }
+            verify_retained(&candidate, &base, "prior").unwrap();
+            candidate.verify(&destination).unwrap();
+            assert_eq!(
+                gallery_windows_package::native::registered_product(machine).unwrap(),
+                before,
+                "Administrative extraction must not change installed registration"
+            );
+        }
     }
 }

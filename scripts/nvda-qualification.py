@@ -60,7 +60,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
             raise RuntimeError("NVDA qualification serialization exceeded its bound")
         temporary = self.path.with_suffix(".tmp")
         temporary.write_bytes(raw + b"\n")
-        temporary.replace(self.path)
+        # Windows readers and scanners can briefly deny atomic replacement.
+        for attempt in range(8):
+            try:
+                temporary.replace(self.path)
+                break
+            except PermissionError as error:
+                if getattr(error, "winerror", None) not in (5, 32, 33) or attempt == 7:
+                    raise
+                time.sleep(0.01)
 
     def append(self, record):
         if len(self.records) >= 256 or len(json.dumps(self.records + [record], ensure_ascii=False).encode("utf-8")) > 260000:

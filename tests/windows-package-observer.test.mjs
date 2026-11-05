@@ -6,7 +6,7 @@ import {mkdtemp,writeFile,copyFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import {observerSession,openWindowsPackageObserver} from '../scripts/windows-package-observer.mjs';
+import {observerSession,openWindowsPackageObserver,msiControlLabel} from '../scripts/windows-package-observer.mjs';
 const sources={ui:'a'.repeat(64),inspect:'b'.repeat(64)};
 const launch=body=>spawn(process.execPath,['-e',`const send=x=>console.log(JSON.stringify(x));const sources=${JSON.stringify(sources)};${body}`],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
 const handshake="send({type:'ready',protocolVersion:1,pid:process.pid,sources});";
@@ -53,7 +53,7 @@ test('Observer bounds readiness and handles early exit without an unhandled pipe
 });
 test('Real PowerShell session pings, refuses unknown commands and joins cleanly without native calls',{skip:process.platform!=='win32'},async()=>{
  const root=path.resolve(import.meta.dirname,'..'),observer=await openWindowsPackageObserver(root,{env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:'0'}});
- try{assert.deepEqual(await observer.request('ping'),{pong:true});await assert.rejects(observer.request('arbitrary'),/Unknown observer route/);await assert.rejects(observer.request('ui',{processId:123}),/requires isolated CI/);await assert.rejects(observer.request('inspect',{file:'C:/unwanted.exe'}),/Absolute shortcut path required/);assert.deepEqual(await observer.request('ping'),{pong:true});}finally{await observer.close();}
+ try{assert.deepEqual(await observer.request('ping'),{pong:true});await assert.rejects(observer.request('arbitrary'),/Unknown observer route/);await assert.rejects(observer.request('ui',{processId:123}),/requires isolated CI/);await assert.rejects(observer.request('inspect',{file:'C:/unwanted.exe'}),/Absolute shortcut path required/);await assert.rejects(observer.request('msi'),/requires isolated CI/);await assert.rejects(observer.request('input',{processId:123,action:'compile'}),/requires an explicitly isolated CI/);assert.deepEqual(await observer.request('ping'),{pong:true});}finally{await observer.close();}
 });
 test('Real server reuses only unchanged child code and releases script scopes',{skip:process.platform!=='win32'},async()=>{
  const work=await mkdtemp(path.join(os.tmpdir(),'gallery-observer-'));
@@ -62,15 +62,33 @@ test('Real server reuses only unchanged child code and releases script scopes',{
   // This fixture never invokes UI, COM, registry or native methods. An exit in
   // a child script must return to the server, and child variables must be fresh.
   const fixture="$ErrorActionPreference='Stop';if ($null -ne $fixtureOld) {throw 'Leaked child scope'};$fixtureOld='owned';@{fresh=$true}|ConvertTo-Json -Compress;exit 0\n";
-  for(const name of ['windows-package-ui.ps1','inspect-windows-package.ps1'])await writeFile(path.join(work,name),fixture);
-  const hashes={ui:createHash('sha256').update(fixture).digest('hex'),inspect:createHash('sha256').update(fixture).digest('hex')};
+  for(const name of ['windows-package-ui.ps1','inspect-windows-package.ps1','windows-msi-ui.ps1','native-input.ps1'])await writeFile(path.join(work,name),fixture);
+  const snapshot="Param([string]$Mode,[string]$Scope,[string[]]$Products=@());$ErrorActionPreference='Stop';if($null -ne $fixtureOld){throw 'Leaked child scope'};$fixtureOld='owned';@{mode=$Mode;scope=$Scope;products=@($Products);value=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'snapshot.txt'));pid=$PID}|ConvertTo-Json -Compress;exit 0\n";
+  await writeFile(path.join(work,'Get-WindowsPackageSnapshot.ps1'),snapshot);await writeFile(path.join(work,'snapshot.txt'),'before');
+  const hashes={input:createHash('sha256').update(fixture).digest('hex'),msi:createHash('sha256').update(fixture).digest('hex'),ui:createHash('sha256').update(fixture).digest('hex'),inspect:createHash('sha256').update(fixture).digest('hex'),state:createHash('sha256').update(snapshot).digest('hex'),runtime:createHash('sha256').update(snapshot).digest('hex')};
   const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(work,'server.ps1')],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
   const observer=await observerSession(child,hashes);
   try{
    assert.deepEqual(await observer.request('ui',{processId:123}),{fresh:true});assert.deepEqual(await observer.request('ui',{processId:123}),{fresh:true});
    assert.deepEqual(await observer.request('inspect',{file:path.join(work,'雪.lnk')}),{fresh:true});
+   const products=['{00000000-0000-0000-0000-000000000001}'];
+   assert.deepEqual(await observer.request('state',{scope:'user',products}),{mode:'state',scope:'user',products,value:'before',pid:child.pid});
+   await writeFile(path.join(work,'snapshot.txt'),'after');
+   assert.deepEqual(await observer.request('state',{scope:'machine',products}),{mode:'state',scope:'machine',products,value:'after',pid:child.pid});
+   assert.deepEqual(await observer.request('runtime',{scope:'user'}),{mode:'runtime',scope:'user',products:[],value:'after',pid:child.pid});
+   for(const parameters of [{scope:'foreign',products},{scope:'user',products:'not-an-array'},{scope:'user',products:['not-a-guid']},{scope:'user',products:[]}])await assert.rejects(observer.request('state',parameters),/Snapshot scope|Product GUID/);
+   await assert.rejects(observer.request('runtime',{scope:'foreign'}),/Snapshot scope/);
    await writeFile(path.join(work,'windows-package-ui.ps1'),fixture+'# changed\n');await assert.rejects(observer.request('ui',{processId:123}),/source changed/);
+   await writeFile(path.join(work,'Get-WindowsPackageSnapshot.ps1'),snapshot+'# changed\n');await assert.rejects(observer.request('state',{scope:'user',products}),/source changed/);await assert.rejects(observer.request('runtime',{scope:'user'}),/source changed/);
    assert.deepEqual(await observer.request('ping'),{pong:true});
   }finally{await observer.close();}
  }finally{await rm(work,{recursive:true,force:true});}
+});
+
+test('Unnamed native progress records do not hide a later named phase or completion button',()=>{
+ const records=[{name:null,role:'ControlType.ProgressBar'},{name:undefined,role:'ControlType.Pane'},{name:'Installing bundled Microsoft WebView2',role:'ControlType.Text'},{name:'&Finish >',role:'ControlType.Button',enabled:true}];
+ assert.equal(records.some(n=>msiControlLabel(n.name).includes('Installing bundled Microsoft WebView2')),true);
+ assert.equal(records.some(n=>msiControlLabel(n.name)==='Finish'&&n.enabled),true);
+ assert.equal(records.slice(0,2).some(n=>msiControlLabel(n.name).includes('Installing')),false);
+ assert.throws(()=>msiControlLabel(42),/must be text or absent/);
 });

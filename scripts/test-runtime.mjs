@@ -113,7 +113,9 @@ try{
   record.accessibility={...native,essentialNames};
   if(process.platform==='win32'){
    let focusAttempts=0;await until(async()=>{const r=await reader.read();if(r.speech.some(s=>/Close folder/i.test(s)))return r;focusAttempts++;await app.focus('Refresh');await app.nativeKey('Tab');return false;},'Actual NVDA control speech',20000);record.accessibility.readerFocusAttempts=focusAttempts;
-   await open('quadrants.png');await app.focus('Next');const before=(await reader.read()).records.length;await app.nativeKey('Space');const changed=await until(()=>js(()=>{const t=document.querySelector('dialog h2')?.textContent;return t&&t!=='quadrants.png'?t:false;}),'Viewer next item');
+   await open('quadrants.png');const focusStart=(await reader.read()).records.length;await app.focus('Next');let stableFocus=0,viewerFocusAttempts=0;
+   await until(async()=>{viewerFocusAttempts++;const r=await reader.read();const focus=r.records.slice(focusStart).filter(x=>x.kind==='focus').at(-1);const focused=await js(()=>document.activeElement?.textContent.trim()==='Next');if(!focused){stableFocus=0;await app.focus('Next');return false;}if(focus?.text!=='Next'){stableFocus=0;return false;}return ++stableFocus>=2;},'NVDA and DOM agree on stable viewer Next focus',20000);record.accessibility.viewerFocusAttempts=viewerFocusAttempts;
+   const before=(await reader.read()).records.length;await app.nativeKey('Space');const changed=await until(()=>js(()=>{const t=document.querySelector('dialog h2')?.textContent;return t&&t!=='quadrants.png'?t:false;}),'Viewer next item');
    await until(async()=>{const r=await reader.read();return r.records.slice(before).some(x=>x.kind==='speech'&&x.text.includes(changed))?r:false;},'NVDA announces changed viewer item');
    record.screenReader=await reader.read();assert.equal(record.screenReader.overflow,false);await close();await reader.stop();reader=null;
   }else record.screenReader={name:null,reason:process.platform==='darwin'?'Native provider exposure exercised; VoiceOver speech not elected.':'Actual AT-SPI client exercised; Orca speech not elected.'};

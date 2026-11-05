@@ -189,14 +189,18 @@ pub fn entry(path: &Path) -> Result<i32> {
     let _input;
     #[cfg(windows)]
     let _source_pins;
+    #[cfg(windows)]
+    let _legacy_context_pins;
     match &source.native {
         Native::WindowsMsi {
             scope,
             package_code,
+            product_code,
             ..
         } => {
             #[cfg(windows)]
             {
+                let dual_source = native::dual_msi_identity(source, &base.join(&job.side))?;
                 let (package, pins) = reinstall_source(path, &job, source, &package, &record)?;
                 _source_pins = pins;
                 _input = gallery_windows_package::open_verified_input(
@@ -211,9 +215,12 @@ pub fn entry(path: &Path) -> Result<i32> {
                     return Err("Invalid MSI worker operation".into());
                 }
                 if job.action == "remove"
-                    && gallery_windows_package::native::registered_package(scope == "machine")?
+                    && (gallery_windows_package::native::registered_package(scope == "machine")?
                         .as_deref()
                         != Some(package_code)
+                        || gallery_windows_package::native::registered_product(scope == "machine")?
+                            .as_deref()
+                            != Some(product_code))
                 {
                     return Err("Installed MSI changed before native removal".into());
                 }
@@ -226,7 +233,16 @@ pub fn entry(path: &Path) -> Result<i32> {
                     .arg(&job.log);
                 use std::os::windows::process::CommandExt;
                 let directory = job.directory.to_str().ok_or("Invalid MSI destination")?;
-                let journal = base.join("journal.json");
+                let integration_choices = match &journal.state {
+                    StateContext::Selected(s) => s.windows_integrations.clone(),
+                    StateContext::Legacy(_) => None,
+                };
+                let (journal, legacy_pins) = if job.action == "install" && !dual_source {
+                    legacy_install_context(&journal, &job.side)?
+                } else {
+                    (base.join("journal.json"), vec![])
+                };
+                _legacy_context_pins = legacy_pins;
                 let journal = journal.to_str().ok_or("Invalid MSI recovery path")?;
                 if directory.contains(['\"', '\r', '\n']) || journal.contains(['\"', '\r', '\n']) {
                     return Err("Invalid MSI property".into());
@@ -234,10 +250,43 @@ pub fn entry(path: &Path) -> Result<i32> {
                 command
                     .raw_arg(format!("INSTALLDIR=\"{directory}\""))
                     .raw_arg(format!("LMG_RECOVERY=\"{journal}\""));
+                command.args(if scope == "machine" {
+                    vec!["ALLUSERS=1"]
+                } else {
+                    vec!["ALLUSERS=2", "MSIINSTALLPERUSER=1"]
+                });
+                let mut elected = vec!["Application", "Payload", "Notices"];
+                let mut absent = Vec::new();
+                if job.action == "install" && dual_source {
+                    let choices =
+                        integration_choices.ok_or("Missing sealed Windows integration choices")?;
+                    for (feature, enabled) in [
+                        ("StartMenu", choices.start_menu),
+                        ("CommandPath", choices.command_path),
+                    ] {
+                        if enabled {
+                            elected.push(feature);
+                        } else {
+                            absent.push(feature);
+                        }
+                    }
+                    command.arg(format!("ADDLOCAL={}", elected.join(",")));
+                    if !absent.is_empty() {
+                        command.arg(format!("REMOVE={}", absent.join(",")));
+                    }
+                }
                 if job.reinstall {
-                    let features = native::reinstall_features(source, &package, &job.directory)?;
+                    let mut features =
+                        native::reinstall_features(source, &package, &job.directory)?;
+                    if dual_source {
+                        for f in elected
+                            .iter()
+                            .filter(|f| matches!(**f, "StartMenu" | "CommandPath"))
+                        {
+                            features.push_str(&format!(",{f}"));
+                        }
+                    }
                     command.args([
-                        format!("ADDLOCAL={features}"),
                         format!("REINSTALL={features}"),
                         "REINSTALLMODE=vamus".into(),
                     ]);
@@ -246,7 +295,7 @@ pub fn entry(path: &Path) -> Result<i32> {
             }
             #[cfg(not(windows))]
             {
-                let _ = (scope, package_code);
+                let _ = (scope, package_code, product_code);
                 return Err("MSI worker requires Windows".into());
             }
         }
@@ -583,6 +632,93 @@ pub fn run(path: &Path) -> Result<i32> {
             Err(error)
         }
     }
+}
+
+#[cfg(windows)]
+fn legacy_install_context(outer: &Journal, side: &str) -> Result<(PathBuf, Vec<File>)> {
+    let selected = if side == "prior" {
+        &outer.prior
+    } else {
+        &outer.next
+    };
+    let Native::WindowsMsi {
+        product_code,
+        scope,
+        ..
+    } = &selected.native
+    else {
+        return Err("Legacy adapter requires MSI".into());
+    };
+    if native::dual_msi_identity(selected, &outer.transaction.join(side))? {
+        return Ok((outer.transaction.join("journal.json"), vec![]));
+    }
+    let machine = scope == "machine";
+    if let Some(registered) = gallery_windows_package::native::registered_product(machine)? {
+        let Native::WindowsMsi { package_code, .. } = &selected.native else {
+            unreachable!()
+        };
+        if registered != *product_code
+            || gallery_windows_package::native::registered_package(machine)?.as_deref()
+                != Some(package_code.as_str())
+        {
+            return Err(
+                "Legacy restore requires completed removal of the other native product first"
+                    .into(),
+            );
+        }
+    }
+    // Each retry creates a fresh private context. A partially written adapter
+    // remains diagnostic evidence and is never adopted as recovery authority.
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    let (legacy_root, mut pins) = gallery_windows_package::private::legacy_storage_root(machine)?;
+    let base = legacy_root.join(format!(
+        "legacy-recovery-{side}-{}-{nonce:x}",
+        std::process::id()
+    ));
+    let adapter = Journal {
+        format_version: 1,
+        binding: String::new(),
+        directory: outer.directory.clone(),
+        transaction: base.clone(),
+        prior: selected.clone(),
+        next: selected.clone(),
+        phase: "restoring".into(),
+        target_prior: true,
+        state: outer.state.clone(),
+    };
+    let expected = identity_record(&adapter);
+    gallery_windows_package::private::child_directory(&base)?;
+    for name in ["prior", "next"] {
+        let root = base.join(name);
+        gallery_windows_package::private::child_directory(&root)?;
+        copy_retained_inventory(selected, &outer.transaction.join(side), &root)?;
+    }
+    durable_json(&base.join("identity.json"), &expected)?;
+    let mut adapter = adapter;
+    adapter.binding = hash(&read_bounded(&base.join("identity.json"), 8 * 1024 * 1024)?);
+    durable_json(&base.join("journal.json"), &adapter)?;
+    pins.extend(gallery_windows_package::private::validate_directory(
+        &base, machine,
+    )?);
+    durable_json(
+        &outer.transaction.join(format!(
+            "legacy-recovery-{side}-{}-{nonce:x}.json",
+            std::process::id()
+        )),
+        &serde_json::json!({
+            "formatVersion": 1,
+            "outerBinding": outer.binding,
+            "side": side,
+            "journal": base.join("journal.json"),
+            "binding": adapter.binding,
+            "identity": expected,
+            "context": adapter
+        }),
+    )?;
+    Ok((base.join("journal.json"), pins))
 }
 
 #[cfg(test)]
