@@ -11,6 +11,7 @@ import {root,node,execute,environment,python} from './run.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {collectPayload,verifyPayload} from './proof.mjs';
 import {prepareCargoDependencies} from './cargo-readiness.mjs';
+import {prepareMediaTool} from './prepare-media-tool.mjs';
 import {qualification} from './qualification.mjs';
 import {joinedChecks} from './joined-checks.mjs';
 import {verifyMsiCommandReadiness} from './windows-msi-command.mjs';
@@ -61,6 +62,7 @@ if(operation==='build'){
  await save('windows-package-inputs.json',{formatVersion:1,kind:'windows-package-inputs',result:'ready',source,revision:head,runId:process.env.GITHUB_RUN_ID,workspace:root,directory:build.directory,buildSha256:windowsBuildDigest(build),rawBuildSha256:hash(raw),preparationStarted,ready:new Date().toISOString(),inventory:await collectPayload(path.join(root,build.directory))});
 }else if(operation==='prepare'){
  const {build,context}=await inputs(true),msiCommandReadiness=await verifyMsiCommandReadiness({root,env:environment});
+ const mediaTool=campaign==='experience'?await prepareMediaTool({download:true}):null;
  await mkdir(path.join(root,'target/release'),{recursive:true});await copyFile(path.join(root,build.directory,'preparation-driver.exe'),path.join(root,'target/release/gallery-preparation.exe'));
  if(campaign==='lifecycle'){
   await prepareCargoDependencies();const env=runtimeEnvironment(build);
@@ -68,7 +70,7 @@ if(operation==='build'){
  }
  const fixtures=await prepareWindowsDiagnosticFixtures({root,build,extract:(archive,destination,inventory)=>execute(python,[path.join(root,'scripts/proof-archive.py'),'extract',archive,destination,inventory])});
  await save('windows-package-fixtures-'+campaign+'.json',fixtures);
- await save('windows-campaign-ready-'+campaign+'.json',{formatVersion:1,campaign,context,verifiedAt:new Date().toISOString(),msiCommandReadiness});
+ await save('windows-campaign-ready-'+campaign+'.json',{formatVersion:1,campaign,context,verifiedAt:new Date().toISOString(),msiCommandReadiness,mediaTool});
 }else if(operation==='run'){
  const {build,context}=await inputs(),ready=await json('windows-campaign-ready-'+campaign+'.json');assert.equal(ready.campaign,campaign);assert.deepEqual(ready.context,context);
  let clock,concurrentChecks;const env=runtimeEnvironment(build);
@@ -91,7 +93,7 @@ if(operation==='build'){
    assert.deepEqual(await sourceIdentity(),context.source);await node(path.join(root,'scripts/sync-brand-kit.mjs'),['--verify']);
   }}
  ]});
- record.clock=clock;record.concurrentChecks=concurrentChecks;record.msiCommandReadiness=ready.msiCommandReadiness;
+ record.clock=clock;record.concurrentChecks=concurrentChecks;record.msiCommandReadiness=ready.msiCommandReadiness;record.mediaTool=ready.mediaTool;
  try{await copyFile(path.join(local,'windows-package-failure.json'),path.join(local,'windows-campaign-failure-'+campaign+'.json'));}catch(error){if(error.code!=='ENOENT')throw error;}
  await save('windows-campaign-'+campaign+'-qualification.json',record);console.log(JSON.stringify(record,null,2));if(record.result!=='pass')process.exitCode=1;
 }else{
