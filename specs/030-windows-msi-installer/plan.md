@@ -58,3 +58,7 @@ No constitution exceptions. Two internal effective-context descriptors may point
 ## Qualification refinement (2026-11-05)
 
 Repeated closing-head campaigns exposed excessive unoptimized MSI hashing and repeated PowerShell startup. Keep basic debug units, run the same large native MSI checks with optimized binaries, and route fresh registration/runtime observations through the existing owned observer. Fixed routes retain bounded requests, scoped parameters, source-hash checks and fresh child scopes; they do not cache observed native state. The clock, mandatory cases and final integrity readback remain unchanged. Require the foreign-shortcut case to observe actual MSI exit 1603 and its preflight refusal log, rather than accepting a prior shortcut-inspection error.
+
+## Shared Windows campaign qualification (2026-11-05)
+
+Build one exact input set once, then run the unchanged experience and lifecycle groups on separate isolated Windows workers. Each worker verifies the shared input inventory before publishing a source/run/attempt-bound readiness marker. Both derive the same readiness epoch and absolute 885-second active deadline, retaining the 900-second hard limit and 15-second finalization reserve. The final gate includes worker execution, artifact transport, queueing and complete independent package readback in that same clock. Partial campaign fragments cannot grant acceptance; reconciliation rejects missing, mixed-source, mixed-build, mixed-attempt or mismatched-clock evidence. All original cases remain elected.
