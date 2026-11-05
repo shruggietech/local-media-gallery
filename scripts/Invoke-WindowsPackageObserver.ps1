@@ -5,8 +5,8 @@
     PowerShell 7+, UTF-8 JSON lines over redirected standard input and output.
     Reuses compiled helper declarations, never observations. Each request invokes
     an unchanged script in a fresh child scope after verifying its source hash.
-    UI operations retain the existing isolated-CI guard. Shortcut inspection is
-    read-only. No network, clipboard, installation or arbitrary command route.
+    UI operations retain the existing isolated-CI guard. Shortcut, registration
+    and runtime inspection are read-only. No network, clipboard, installation or arbitrary command route.
     EOF closes the session. Protocol or source failures return structured errors.
 .PARAMETER ProtocolVersion
     Supported pipe protocol version, currently 1. Default: 1. Alias: v.
@@ -69,7 +69,7 @@ Param(
     [Console]::InputEncoding=[Text.UTF8Encoding]::new($false)
     [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
     try {
-        $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');input=(Join-Path $PSScriptRoot 'native-input.ps1')}
+        $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');input=(Join-Path $PSScriptRoot 'native-input.ps1');state=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1');runtime=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1')}
         $observerHashes=@{}
         foreach ($route in $observerScripts.Keys) { $observerHashes[$route]=(Get-FileHash -LiteralPath $observerScripts[$route] -Algorithm SHA256).Hash.ToLowerInvariant() }
         @{type='ready';protocolVersion=$ProtocolVersion;pid=$PID;sources=$observerHashes}|ConvertTo-Json -Compress
@@ -87,7 +87,16 @@ Param(
                     $scriptFile=$observerScripts[$request.route]
                     if ((Get-FileHash -LiteralPath $scriptFile -Algorithm SHA256).Hash.ToLowerInvariant() -ne $observerHashes[$request.route]) { throw 'Observer source changed during session' }
                     $parameters=@{}
-                    if ($request.route -eq 'ui') {
+                    if ($request.route -in @('state','runtime')) {
+                        if ($request.scope -notin @('user','machine')) { throw 'Snapshot scope must be user or machine' }
+                        $parameters.Mode=$request.route
+                        $parameters.Scope=$request.scope
+                        if ($request.route -eq 'state') {
+                            if ($request.products -isnot [array] -or $request.products.Count -lt 1 -or $request.products.Count -gt 32) { throw 'Product GUID array required' }
+                            foreach ($product in $request.products) { if ($product -isnot [string] -or $product -notmatch '^\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}$') { throw 'Product GUID required' } }
+                            $parameters.Products=[string[]]$request.products
+                        }
+                    } elseif ($request.route -eq 'ui') {
                         if ($request.processId -isnot [long] -and $request.processId -isnot [int]) { throw 'Exact process ID required' }
                         if ($request.processId -lt 1) { throw 'Positive process ID required' }
                         $parameters.AppProcessId=$request.processId

@@ -13,6 +13,7 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Maintenance
 
+- Qualification decision (2026-11-05): use optimized binaries for large Windows MSI checks and one owned process for fresh registration/runtime snapshots, preserving assertions, actual installer coverage and timing limits.
 - Isolate Rust fixtures, maintainer app runs, caches and updater campaigns in disposable tooling-owned storage, with no production-profile fallback. Ordinary binaries omit tooling redirection.
 - Reclaim validated abandoned Windows stages and disposable coordination after ownership ends, clean terminal native worker scratch, and retain sealed recovery/rollback inputs. Forward preflight follows the incoming writer; rollback still checks its selected writer.
 

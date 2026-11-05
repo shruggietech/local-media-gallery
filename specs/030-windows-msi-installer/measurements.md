@@ -1,6 +1,6 @@
 # S030 measurements
 
-## Accepted implementation
+## Initial passing CI baseline
 
 Implementation revision: 5df79c3dad1ebe6a42e21060c1b5dbf5e11e7784. Source inventory: 6df7ea4e3a9205225d1b99d78d091a51b9d6a807b08f1bba707553933c4db857 (1627 files). [All nine CI jobs](https://github.com/shruggietech/local-media-gallery/actions/runs/41989184337) completed successfully. These are actual terminal receipts, with preparation and qualification accounted separately. The closing commit is checked independently; its final revision, run and artifact hashes belong in PR #96 to avoid a self-referencing commit.
 
@@ -23,6 +23,8 @@ The PR deployment job is expected to be skipped; no public Pages deployment or r
 The single unsigned Full recipient file is local-media-gallery-0.2.1-full-x86_64-windows.msi, 245469184 bytes, SHA-256 878ae93ea5873552de60371f180034128d21ef3e9437c84c6fa14efbc8d6c39a. Independent HTTP-range artifact readback hashed the entire MSI and checked its compound-file header. Fresh license, scope, options, success and cancellation screenshots were visually inspected. No installer or desktop input ran on the owner workstation.
 
 The passing hosted campaign includes 29 lifecycle/subprocess checks, all eight scope/integration choices, both cached repairs, absent-runtime offline provisioning, real standard-user install/removal, observed runtime cancellation, repeated installation/replacement/repair/rollback/removal, actual Full/Lite and prepared-recipient use, and exact published v0.1.0/v0.2.0 update/rollback/recovery. Legacy compatibility copies retain independent hash, identity and ownership readback.
+
+The subsequent verification review found that the foreign-shortcut case could pass on a prior observer inspection error. The closing candidate instead requires an actual MSI preflight refusal and retained native log. This table records the initial CI results; current complete acceptance must use the corrected final-head campaign and evidence in PR #96.
 
 ## Limits and deviations
 

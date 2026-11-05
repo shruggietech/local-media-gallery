@@ -54,3 +54,7 @@ Post-design: passed. Context-specific descriptors remain concrete even when the 
 ## Complexity Tracking
 
 No constitution exceptions. Two internal effective-context descriptors may point to identical MSI bytes; this retains concrete authority without duplicate public downloads.
+
+## Qualification refinement (2026-11-05)
+
+Repeated closing-head campaigns exposed excessive unoptimized MSI hashing and repeated PowerShell startup. Keep basic debug units, run the same large native MSI checks with optimized binaries, and route fresh registration/runtime observations through the existing owned observer. Fixed routes retain bounded requests, scoped parameters, source-hash checks and fresh child scopes; they do not cache observed native state. The clock, mandatory cases and final integrity readback remain unchanged. Require the foreign-shortcut case to observe actual MSI exit 1603 and its preflight refusal log, rather than accepting a prior shortcut-inspection error.

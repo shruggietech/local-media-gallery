@@ -63,13 +63,23 @@ test('Real server reuses only unchanged child code and releases script scopes',{
   // a child script must return to the server, and child variables must be fresh.
   const fixture="$ErrorActionPreference='Stop';if ($null -ne $fixtureOld) {throw 'Leaked child scope'};$fixtureOld='owned';@{fresh=$true}|ConvertTo-Json -Compress;exit 0\n";
   for(const name of ['windows-package-ui.ps1','inspect-windows-package.ps1','windows-msi-ui.ps1','native-input.ps1'])await writeFile(path.join(work,name),fixture);
-  const hashes={input:createHash('sha256').update(fixture).digest('hex'),msi:createHash('sha256').update(fixture).digest('hex'),ui:createHash('sha256').update(fixture).digest('hex'),inspect:createHash('sha256').update(fixture).digest('hex')};
+  const snapshot="Param([string]$Mode,[string]$Scope,[string[]]$Products=@());$ErrorActionPreference='Stop';if($null -ne $fixtureOld){throw 'Leaked child scope'};$fixtureOld='owned';@{mode=$Mode;scope=$Scope;products=@($Products);value=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'snapshot.txt'));pid=$PID}|ConvertTo-Json -Compress;exit 0\n";
+  await writeFile(path.join(work,'Get-WindowsPackageSnapshot.ps1'),snapshot);await writeFile(path.join(work,'snapshot.txt'),'before');
+  const hashes={input:createHash('sha256').update(fixture).digest('hex'),msi:createHash('sha256').update(fixture).digest('hex'),ui:createHash('sha256').update(fixture).digest('hex'),inspect:createHash('sha256').update(fixture).digest('hex'),state:createHash('sha256').update(snapshot).digest('hex'),runtime:createHash('sha256').update(snapshot).digest('hex')};
   const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(work,'server.ps1')],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
   const observer=await observerSession(child,hashes);
   try{
    assert.deepEqual(await observer.request('ui',{processId:123}),{fresh:true});assert.deepEqual(await observer.request('ui',{processId:123}),{fresh:true});
    assert.deepEqual(await observer.request('inspect',{file:path.join(work,'雪.lnk')}),{fresh:true});
+   const products=['{00000000-0000-0000-0000-000000000001}'];
+   assert.deepEqual(await observer.request('state',{scope:'user',products}),{mode:'state',scope:'user',products,value:'before',pid:child.pid});
+   await writeFile(path.join(work,'snapshot.txt'),'after');
+   assert.deepEqual(await observer.request('state',{scope:'machine',products}),{mode:'state',scope:'machine',products,value:'after',pid:child.pid});
+   assert.deepEqual(await observer.request('runtime',{scope:'user'}),{mode:'runtime',scope:'user',products:[],value:'after',pid:child.pid});
+   for(const parameters of [{scope:'foreign',products},{scope:'user',products:'not-an-array'},{scope:'user',products:['not-a-guid']},{scope:'user',products:[]}])await assert.rejects(observer.request('state',parameters),/Snapshot scope|Product GUID/);
+   await assert.rejects(observer.request('runtime',{scope:'foreign'}),/Snapshot scope/);
    await writeFile(path.join(work,'windows-package-ui.ps1'),fixture+'# changed\n');await assert.rejects(observer.request('ui',{processId:123}),/source changed/);
+   await writeFile(path.join(work,'Get-WindowsPackageSnapshot.ps1'),snapshot+'# changed\n');await assert.rejects(observer.request('state',{scope:'user',products}),/source changed/);await assert.rejects(observer.request('runtime',{scope:'user'}),/source changed/);
    assert.deepEqual(await observer.request('ping'),{pong:true});
   }finally{await observer.close();}
  }finally{await rm(work,{recursive:true,force:true});}
