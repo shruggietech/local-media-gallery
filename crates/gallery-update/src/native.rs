@@ -386,6 +386,32 @@ fn msi_failure(operation: &str, output: &std::process::Output, log: &Path) -> St
         let mut prefix = [0u8; 2];
         let count = file.read(&mut prefix)?;
         let utf16 = count == 2 && prefix == [0xff, 0xfe];
+        file.seek(SeekFrom::Start(0))?;
+        let mut initial = Vec::new();
+        std::io::Read::by_ref(&mut file)
+            .take(8 * 1024 * 1024)
+            .read_to_end(&mut initial)?;
+        let initial = if utf16 {
+            String::from_utf16_lossy(
+                &initial
+                    .chunks_exact(2)
+                    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            String::from_utf8_lossy(&initial).into_owned()
+        };
+        let messages = initial
+            .lines()
+            .filter(|line| {
+                line.contains("Local Media Gallery:")
+                    || line.contains("Error ")
+                    || line.contains("Return value 3")
+            })
+            .take(32)
+            .map(|line| line.chars().take(1024).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n");
         let mut start = length.saturating_sub(32768);
         if utf16 {
             start -= start % 2;
@@ -393,7 +419,7 @@ fn msi_failure(operation: &str, output: &std::process::Output, log: &Path) -> St
         file.seek(SeekFrom::Start(start))?;
         let mut bytes = Vec::new();
         file.take(32768).read_to_end(&mut bytes)?;
-        Ok(if utf16 {
+        let tail = if utf16 {
             String::from_utf16_lossy(
                 &bytes
                     .chunks_exact(2)
@@ -402,7 +428,10 @@ fn msi_failure(operation: &str, output: &std::process::Output, log: &Path) -> St
             )
         } else {
             String::from_utf8_lossy(&bytes).into_owned()
-        })
+        };
+        Ok(format!(
+            "Native failure messages (first 8 MiB scanned):\n{messages}\nFinal log excerpt:\n{tail}"
+        ))
     })()
     .unwrap_or_else(|error| format!("Native log could not be read: {error}"));
     format!(
@@ -652,10 +681,7 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                             &op.base.join("remove.log"),
                         )?;
                         if !matches!(out.status.code(), Some(0 | 3010)) {
-                            return Err(format!(
-                                "Native removal did not complete ({:?}); inspect retained log",
-                                out.status.code()
-                            ));
+                            return Err(msi_failure("removal", &out, &op.base.join("remove.log")));
                         }
                         if gallery_windows_package::native::registered_package(machine)?.is_some() {
                             return Err("Native removal left registration".into());
@@ -679,9 +705,10 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                     &op.base.join("install.log"),
                 )?;
                 if !matches!(out.status.code(), Some(0 | 3010)) {
-                    return Err(format!(
-                        "Native install did not complete ({:?}); retained inputs allow recovery",
-                        out.status.code()
+                    return Err(msi_failure(
+                        "installation",
+                        &out,
+                        &op.base.join("install.log"),
                     ));
                 }
             }
@@ -1411,7 +1438,7 @@ mod administrative_retention_tests {
         let temp = tempfile::tempdir().unwrap();
         let log = temp.path().join("native.log");
         let text = format!(
-            "{}\nError 2203: source 雪 could not be opened\n",
+            "Local Media Gallery: original custom-action cause 雪\n{}\nError 2203: source 雪 could not be opened\n",
             "earlier native output ".repeat(5000)
         );
         let mut bytes = vec![0xff, 0xfe];
@@ -1428,6 +1455,7 @@ mod administrative_retention_tests {
                 && message.contains("Error 2203")
                 && message.contains("source 雪")
                 && message.contains("native stderr")
+                && message.contains("original custom-action cause 雪")
         );
         assert!(message.len() < 40000);
         assert!(!message.contains('\u{fffd}'));

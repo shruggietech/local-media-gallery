@@ -203,6 +203,17 @@ async function singleFileCampaign(){
 
 try{
  observer=await openWindowsPackageObserver(root,{cwd:outside,env:environment});
+ if(process.argv.includes('--recovery-probe')){
+  // Targeted diagnostic is elected inside the same qualification clock.
+  // Provision through the ordinary MSI first, so the published predecessor
+  // sees an adequate runtime even on an initially empty hosted image.
+  const initial=path.join(work,'recovery runtime provision');
+  const installer=path.join(full,build.bundle.packages[0].path);
+  await msiProduct(installer,'machine',initial);
+  await msiProduct(installer,'machine',null,{remove:true});
+  const publishedRecovery=await publishedRecoveryCampaign();
+  await writeFile(path.join(root,'.local/windows-recovery-probe.json'),JSON.stringify({result:'pass',acceptance:false,kind:'targeted-diagnostic',source,revision:build.revision,publishedRecovery,started,terminalFinished:new Date().toISOString()},null,2)+'\n');
+ }else{
  singleFile=await singleFileCampaign();
  const publishedRecovery=await publishedRecoveryCampaign();
  const installerChoices=await choiceCampaign();
@@ -244,6 +255,7 @@ try{
  const preparedRecipient=await exercisePreparedRecipient({root,work,platform:'windows',capture,source,revision:build.revision,fixture:async dir=>{await mkdir(dir);await writeFile(path.join(dir,'red.png'),color('#dc1414'));await writeFile(path.join(dir,'red.png.json'),'{"retain":true}\n');await writeFile(path.join(dir,'settings.json'),JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:'0.1.0',formatVersion:1,choices:{controlsExpanded:true}})+'\n');},browse:async(dir,label,mutate,_inventory,options)=>{const count=native.length;await browse(path.join(dir,options?.direct?path.basename(options.artifact.name):'local-media-gallery.exe'),[],{edition:'lite',label,mutate,selectedRoot:dir});return native.splice(count)[0];}});
  const sharedRuntime={bytes:null,reason:'No complete attributable shared runtime directory inventory captured',basis:'Shared runtime is independent from application bytes'};const runtime=installations.find(i=>i.scope==='machine').operation.runtimeAfter;try{assert.equal(runtime.scope,'machine');assert.equal(runtime.nativeFolder.encoding,'windows-utf16le');const directory=Buffer.from(runtime.nativeFolder.bytes).toString('utf16le');sharedRuntime.bytes=String(await bytesUnder(directory));sharedRuntime.reason=null;sharedRuntime.basis='Logical bytes of the exact native-verified machine Evergreen version directory; shared, excludes OS files and marginal download/allocated size';sharedRuntime.observation=runtime;}catch(e){sharedRuntime.reason='Attributable runtime inventory unavailable: '+e.message;}
  assert.deepEqual(await sourceIdentity(),source);const receipt={formatVersion:1,result:'pass',acceptance:true,source,revision:build.revision,singleFile,installerChoices,wizardEvidence,cachedMaintenance,publishedRecovery,standardUser,diagnosticFixtureReadiness:diagnosticFixtures,started,terminalFinished:new Date().toISOString(),observer:observer.identity,host:{platform:process.platform,arch:process.arch,release:os.release(),version:os.version(),imageVersion:process.env.ImageVersion??null},checks,extracted,installations,native,preparedRecipient,updates:{result:'pass',source,transitions:updates},fixture:{files:originalGallery,sha256:digest(Buffer.from(JSON.stringify(originalGallery)))},footprints:build.records.map(r=>({edition:r.edition,downloadBytes:r.artifact.bytes,extractedBytes:r.edition==='lite'?r.artifact.bytes:r.payload.files.reduce((sum,f)=>sum+BigInt(f.bytes),0n).toString(),installedApplicationBytes:r.edition==='full'?installations.map(i=>({scope:i.scope,bytes:i.installedBytes})):null,installedReason:r.edition==='lite'?'Portable edition has no installed application directory':null,sharedRuntime,optionalPayload:r.edition==='full'?{bytes:build.featureHelper.bytes,sha256:build.featureHelper.sha256,reason:'Bundled FFmpeg helper, corresponding source and notices are managed application files'}:{bytes:'0',reason:'Lite uses declared host prerequisites and optional explicitly selected helper'}})),limits:['Hosted Windows Server observed; Windows client and trust prompts not qualified','Actual Evergreen absence and offline standalone provisioning observed on the isolated hosted image; Windows client baseline remains separate','Candidates unsigned and unpublished; shared runtime and retained data independent']};await validateUpdateEvidence(build,receipt.updates,root);await writeFile(path.join(root,'.local/windows-package-results.json'),JSON.stringify(receipt,null,2)+'\n');
+ }
 }catch(e){
  const logs=[];
  for(const file of [path.join(environment.TEMP,'msedge_installer.log'),path.join(process.env.SystemRoot,'Temp/msedge_installer.log'),path.join(process.env.ProgramData,'Microsoft/EdgeUpdate/Log/MicrosoftEdgeUpdate.log'),path.join(process.env.LOCALAPPDATA,'Microsoft/EdgeUpdate/Log/MicrosoftEdgeUpdate.log')]){

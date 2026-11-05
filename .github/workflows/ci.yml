@@ -182,8 +182,13 @@ jobs:
             .local/windows-msi-command-readiness.json
             .local/msi-command-ready-*/*.log
             .local/windows-package-failure.json
+            .local/windows-recovery-probe.json
             .local/windows-admin-retention-*.log
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/legacy */storage/**/*.log
+            .local/windows-package-test-*/legacy */storage/**/*.json
+            .local/windows-package-test-*/legacy */storage/**/*.stdout
+            .local/windows-package-test-*/legacy */storage/**/*.stderr
             .local/windows-package-test-*/standard-user/*.log
             .local/windows-package-test-*/wizard-*-failure.json
           include-hidden-files: true
@@ -202,6 +207,7 @@ jobs:
             .local/prepared-recipient-windows.json
             .local/windows-package-test-*/prepared-recipient-*.zip
             .local/windows-package-failure.json
+            .local/windows-recovery-probe.json
             .local/windows-admin-retention-*.log
             .local/windows-packages-*/**/*.json
             .local/windows-package-test-*/update-evidence-*/**
@@ -216,6 +222,10 @@ jobs:
             .local/windows-package-test-*/wizard-*-failure.json
             .local/windows-package-test-*/*.png
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/legacy */storage/**/*.log
+            .local/windows-package-test-*/legacy */storage/**/*.json
+            .local/windows-package-test-*/legacy */storage/**/*.stdout
+            .local/windows-package-test-*/legacy */storage/**/*.stderr
             .local/windows-package-test-*/single-file-offline*.json
             .local/tmp/local-media-gallery-*.log
           include-hidden-files: true
