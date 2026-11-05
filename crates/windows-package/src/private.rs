@@ -112,6 +112,36 @@ impl Drop for Handle {
 fn wide(s: impl AsRef<OsStr>) -> Vec<u16> {
     s.as_ref().encode_wide().chain(Some(0)).collect()
 }
+// Explicit extended-length filesystem names work independently of the host's
+// long-path policy and executable manifest. Keep logical paths unchanged.
+fn path_wide(path: &Path) -> Result<Vec<u16>> {
+    if !path.is_absolute()
+        || path
+            .components()
+            .any(|part| matches!(part, Component::ParentDir | Component::CurDir))
+    {
+        return Err("Use an absolute filesystem path without dot components".into());
+    }
+    let normalized: PathBuf = path.components().collect();
+    let value: Vec<u16> = normalized.as_os_str().encode_wide().collect();
+    if value.contains(&0) {
+        return Err("Embedded NUL in filesystem path".into());
+    }
+    let extended: Vec<u16> = r"\\?\".encode_utf16().collect();
+    let mut result = if value.starts_with(&extended) {
+        value
+    } else if value.starts_with(&r"\\".encode_utf16().collect::<Vec<_>>()) {
+        let mut result: Vec<u16> = r"\\?\UNC\".encode_utf16().collect();
+        result.extend_from_slice(&value[2..]);
+        result
+    } else {
+        let mut result = extended;
+        result.extend(value);
+        result
+    };
+    result.push(0);
+    Ok(result)
+}
 fn error() -> String {
     std::io::Error::last_os_error().to_string()
 }
@@ -224,7 +254,7 @@ fn open(path: &Path, directory: bool) -> Result<File> {
 fn open_handle(path: &Path, directory: bool, access: u32, share: u32) -> Result<File> {
     let h = unsafe {
         CreateFileW(
-            wide(path).as_ptr(),
+            path_wide(path)?.as_ptr(),
             access,
             share,
             ptr::null(),
@@ -385,7 +415,7 @@ fn create_one(path: &Path, machine: bool) -> Result<()> {
         descriptor: sd.0,
         inherit: 0,
     };
-    if unsafe { CreateDirectoryW(wide(path).as_ptr(), &attributes) } == 0 {
+    if unsafe { CreateDirectoryW(path_wide(path)?.as_ptr(), &attributes) } == 0 {
         return Err(error());
     }
     Ok(())
@@ -449,7 +479,7 @@ pub fn create_file(path: &Path) -> Result<File> {
     };
     let h = unsafe {
         CreateFileW(
-            wide(path).as_ptr(),
+            path_wide(path)?.as_ptr(),
             0xc0000000,
             7,
             &attributes,
@@ -539,7 +569,7 @@ pub fn coordination_lease_at(root: &Path, key: &str, machine: bool) -> Result<Fi
     };
     let h = unsafe {
         CreateFileW(
-            wide(&path).as_ptr(),
+            path_wide(&path)?.as_ptr(),
             0xc0030000,
             3,
             &attributes,
@@ -601,7 +631,7 @@ pub fn lock_file(path: &Path, machine: bool) -> Result<File> {
     };
     let h = unsafe {
         CreateFileW(
-            wide(path).as_ptr(),
+            path_wide(path)?.as_ptr(),
             0xc0020000,
             3,
             &attributes,
@@ -640,7 +670,7 @@ impl PhysicalNamespace {
             }
             let h = unsafe {
                 CreateFileW(
-                    wide(&at).as_ptr(),
+                    path_wide(&at)?.as_ptr(),
                     0x80,
                     3,
                     ptr::null(),
@@ -677,6 +707,43 @@ pub fn ensure_storage_root(machine: bool) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn filesystem_wide_names_preserve_drive_unc_and_verbatim_identity() {
+        let text = |path: &str| {
+            let bytes = path_wide(Path::new(path)).unwrap();
+            assert_eq!(bytes.last(), Some(&0));
+            String::from_utf16(&bytes[..bytes.len() - 1]).unwrap()
+        };
+        assert_eq!(text(r"C:\owned\雪.txt"), r"\\?\C:\owned\雪.txt");
+        assert_eq!(
+            text(r"\\host\share\owned\雪.txt"),
+            r"\\?\UNC\host\share\owned\雪.txt"
+        );
+        assert_eq!(text(r"\\?\C:\owned\雪.txt"), r"\\?\C:\owned\雪.txt");
+        assert!(path_wide(Path::new(r"relative\leaf")).is_err());
+        assert!(path_wide(Path::new(r"C:\owned\..\other")).is_err());
+        assert!(path_wide(Path::new("C:\\owned\\bad\0suffix")).is_err());
+    }
+    #[test]
+    fn protected_inventory_paths_exceeding_classic_max_path_remain_physical() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = ensure_storage_at(&temp.path().join("owned"), false).unwrap();
+        let mut at = root.clone();
+        while at.as_os_str().encode_wide().count() < 300 {
+            at = at.join("long-owned-inventory-directory");
+            child_directory(&at).unwrap();
+        }
+        let leaf = at.join("notice 雪.txt");
+        use std::io::Write;
+        let mut file = create_file(&leaf).unwrap();
+        file.write_all(b"owned notice").unwrap();
+        drop(file);
+        validate_file(&leaf, false).unwrap();
+        let pins = pin_physical(&at).unwrap();
+        assert!(pin_file(&leaf).is_ok());
+        assert_eq!(std::fs::read(&leaf).unwrap(), b"owned notice");
+        drop(pins);
+    }
     #[test]
     fn inventory_namespace_prevents_shared_parent_replacement_until_released() {
         let temp = tempfile::tempdir().unwrap();
@@ -731,7 +798,7 @@ mod tests {
         );
         let changed = Memory(raw);
         assert_ne!(
-            unsafe { SetFileSecurityW(wide(&path).as_ptr(), 0x80000004, changed.0) },
+            unsafe { SetFileSecurityW(path_wide(&path).unwrap().as_ptr(), 0x80000004, changed.0) },
             0
         );
         assert!(validator.validate(&path).is_err());
