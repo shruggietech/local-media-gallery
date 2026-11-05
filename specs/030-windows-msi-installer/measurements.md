@@ -2,7 +2,7 @@
 
 ## Accepted implementation
 
-Implementation revision: 5df79c3dad1ebe6a42e21060c1b5dbf5e11e7784. Source inventory: 6df7ea4e3a9205225d1b99d78d091a51b9d6a807b08f1bba707553933c4db857 (1627 files). [All nine CI jobs](https://github.com/shruggietech/local-media-gallery/actions/runs/41989184337) completed successfully. These are actual terminal receipts, with preparation and qualification accounted separately. The closing documentation commit is checked independently; its final revision, run and artifact hashes belong in PR #96 to avoid a self-referencing commit.
+Implementation revision: 5df79c3dad1ebe6a42e21060c1b5dbf5e11e7784. Source inventory: 6df7ea4e3a9205225d1b99d78d091a51b9d6a807b08f1bba707553933c4db857 (1627 files). [All nine CI jobs](https://github.com/shruggietech/local-media-gallery/actions/runs/41989184337) completed successfully. These are actual terminal receipts, with preparation and qualification accounted separately. The closing commit is checked independently; its final revision, run and artifact hashes belong in PR #96 to avoid a self-referencing commit.
 
 | Scope | Artifact ID | Preparation seconds | Qualification seconds | Combined seconds |
 | --- | --- | ---: | ---: | ---: |
