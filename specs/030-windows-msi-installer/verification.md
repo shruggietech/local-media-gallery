@@ -62,6 +62,8 @@ Hidden repository checks, 280 passing Node tests with two platform skips, docume
 
 All five received findings have code fixes, replies and resolved GitHub review threads. The initial automatic review and requested second code review were followed by a security-specific request that the service routed to an additional code-review job. This exceeded the requested two-round limit and was disclosed to the owner. No further reviews will be triggered. Resolved findings do not imply approval of an unreviewed later commit.
 
-## Pending completion
+## Accepted implementation and closing-head handoff
 
-Final-head successful installer lifecycle, independent evidence readback, terminal applicable CI, final task closeout and owner handoff remain required.
+Run 41989184337 at 5df79c3dad1ebe6a42e21060c1b5dbf5e11e7784 passed all nine scopes, including complete MSI lifecycle and release aggregation. Independent downloaded receipts bind source 6df7ea4e3a9205225d1b99d78d091a51b9d6a807b08f1bba707553933c4db857 and revision, require every elected step to pass, and check terminal clock arithmetic. See [measurements](measurements.md) for actual per-scope timing and artifact IDs. The uploaded MSI bytes and current wizard screenshots were independently read back.
+
+This closeout changes planning evidence and the unpublished documentation source pointer. Its own terminal CI, final artifact readback, clean remote head and review-thread state must be verified in PR #96 before pinging the owner. Source 0.2.1 remains unpublished. SC-005 has the explicit review-cap exception recorded above; reviewer-owned checklist approval is unclaimed.

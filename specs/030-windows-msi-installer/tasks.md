@@ -55,8 +55,10 @@
 
 - [x] T016 Update version-aware MSI format, schemas and contract fixtures in scripts/release-record.mjs, schemas/v0.2.1/release-record.schema.json and affected tests (FR-010, FR-011).
 - [x] T017 Update current installation/system docs, CHANGELOG.md and site/retained/v0.2.1.json without changing published snapshots (FR-010, FR-011).
-- [ ] T018 Run hidden repository/unit/affected site checks and exact-head hosted campaigns; retain evidence in specs/030-windows-msi-installer/verification.md (FR-012, SC-001 through SC-004).
-- [ ] T019 Push, open official PR closing #89, handle every received finding within at most two rounds and record terminal CI/review evidence in specs/030-windows-msi-installer/tasks.md (FR-013, SC-005).
+- [x] T018 Run hidden repository/unit/affected site checks and exact-head hosted campaigns; retain evidence in specs/030-windows-msi-installer/verification.md (FR-012, SC-001 through SC-004).
+- [x] T019 Push, open official PR closing #89, handle every received finding within at most two rounds and record terminal CI/review evidence in specs/030-windows-msi-installer/tasks.md (FR-013, SC-005).
+
+T019 is closed with an explicit exception: the requested two-round review cap was exceeded (three actual rounds). SC-005 is not fully satisfied. All five findings are fixed, answered and resolved; no further reviews will be requested. Terminal implementation evidence is in measurements.md; final closing-head CI and artifact evidence are recorded in PR #96 before owner handoff.
 
 ## Dependencies and opportunities
 
