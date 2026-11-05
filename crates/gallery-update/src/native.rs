@@ -121,9 +121,11 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
                     &base.join(format!("{name}-extract.log")),
                 )?;
                 if !out.status.success() {
-                    return Err(
-                        "Native MSI administrative extraction failed before replacement".into(),
-                    );
+                    return Err(msi_failure(
+                        "administrative extraction before replacement",
+                        &out,
+                        &base.join(format!("{name}-extract.log")),
+                    ));
                 }
                 let mut roots = vec![];
                 let mut namespace = gallery_windows_package::private::PhysicalNamespace::default();
@@ -305,6 +307,45 @@ fn msi(
         ),
     )
 }
+
+#[cfg(windows)]
+fn msi_failure(operation: &str, output: &std::process::Output, log: &Path) -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    let excerpt = (|| -> std::io::Result<String> {
+        let mut file = fs::File::open(log)?;
+        let length = file.metadata()?.len();
+        let mut prefix = [0u8; 2];
+        let count = file.read(&mut prefix)?;
+        let utf16 = count == 2 && prefix == [0xff, 0xfe];
+        let mut start = length.saturating_sub(32768);
+        if utf16 {
+            start -= start % 2;
+        }
+        file.seek(SeekFrom::Start(start))?;
+        let mut bytes = Vec::new();
+        file.take(32768).read_to_end(&mut bytes)?;
+        Ok(if utf16 {
+            String::from_utf16_lossy(
+                &bytes
+                    .chunks_exact(2)
+                    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            String::from_utf8_lossy(&bytes).into_owned()
+        })
+    })()
+    .unwrap_or_else(|error| format!("Native log could not be read: {error}"));
+    format!(
+        "Native MSI {operation} failed ({}). Native log {} (bounded final excerpt):\n{}\nstdout: {}\nstderr: {}",
+        output.status,
+        log.display(),
+        excerpt,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+}
+
 #[cfg(target_os = "linux")]
 fn linux_status() -> Result<String> {
     let out = command(
@@ -1241,5 +1282,90 @@ mod feature_tests {
             .unwrap()[2] = "Payload".into();
         assert!(grouped_reinstall_value(&c, &nested, root.path()).is_err());
         assert!(grouped_reinstall_value(&c, &[], root.path()).is_err());
+    }
+}
+
+#[cfg(all(test, windows))]
+mod administrative_retention_tests {
+    use super::*;
+    use std::os::windows::process::ExitStatusExt;
+
+    #[test]
+    fn native_msi_failure_retains_exit_and_bounded_utf16_diagnostic() {
+        let temp = tempfile::tempdir().unwrap();
+        let log = temp.path().join("native.log");
+        let text = format!(
+            "{}\nError 2203: source 雪 could not be opened\n",
+            "earlier native output ".repeat(5000)
+        );
+        let mut bytes = vec![0xff, 0xfe];
+        bytes.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+        fs::write(&log, bytes).unwrap();
+        let output = std::process::Output {
+            status: std::process::ExitStatus::from_raw(1603),
+            stdout: Vec::new(),
+            stderr: b"native stderr".to_vec(),
+        };
+        let message = msi_failure("administrative extraction", &output, &log);
+        assert!(
+            message.contains("1603")
+                && message.contains("Error 2203")
+                && message.contains("source 雪")
+                && message.contains("native stderr")
+        );
+        assert!(message.len() < 40000);
+        assert!(!message.contains('\u{fffd}'));
+        fs::remove_file(&log).unwrap();
+        assert!(
+            msi_failure("administrative extraction", &output, &log)
+                .contains("Native log could not be read")
+        );
+    }
+
+    #[test]
+    #[ignore = "Runs actual quiet administrative extraction only on an isolated Windows CI runner"]
+    fn actual_native_admin_retention_preserves_registration_and_exact_published_payload() {
+        assert_eq!(std::env::var("GITHUB_ACTIONS").as_deref(), Ok("true"));
+        assert_eq!(
+            std::env::var("GALLERY_ISOLATED_DESKTOP").as_deref(),
+            Ok("1")
+        );
+        let candidate = Candidate::read(Path::new(
+            &std::env::var("GALLERY_MSI_ADMIN_DESCRIPTOR")
+                .expect("Explicit prepared descriptor required"),
+        ))
+        .unwrap();
+        let machine =
+            matches!(&candidate.native, Native::WindowsMsi { scope, .. } if scope == "machine");
+        let before = gallery_windows_package::native::registered_product(machine).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        use std::os::windows::ffi::OsStrExt;
+        let storage = temp.path().join("owned legacy image 雪");
+        gallery_windows_package::private::ensure_storage_at(&storage, machine).unwrap();
+        let padding = 160usize
+            .saturating_sub(storage.as_os_str().encode_wide().count() + 1)
+            .max(8);
+        for leaf in ["short".to_owned(), "d".repeat(padding)] {
+            let base = storage.join(leaf);
+            gallery_windows_package::private::child_directory(&base).unwrap();
+            let destination = base.join("prior");
+            gallery_windows_package::private::child_directory(&destination).unwrap();
+            if let Err(error) = retain(&candidate, &base, "prior", &destination) {
+                if let Ok(file) = std::env::var("GALLERY_MSI_ADMIN_FAILURE") {
+                    let _ = fs::write(file, error.replace("\r\n", "\n"));
+                }
+                if let Ok(file) = std::env::var("GALLERY_MSI_ADMIN_LOG") {
+                    let _ = fs::copy(base.join("prior-extract.log"), file);
+                }
+                panic!("{error}");
+            }
+            verify_retained(&candidate, &base, "prior").unwrap();
+            candidate.verify(&destination).unwrap();
+            assert_eq!(
+                gallery_windows_package::native::registered_product(machine).unwrap(),
+                before,
+                "Administrative extraction must not change installed registration"
+            );
+        }
     }
 }

@@ -11,7 +11,7 @@ use std::{
     ptr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-const RUNTIME: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/runtime.exe"));
+const RUNTIME_BYTES: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.bytes"));
 const RUNTIME_SHA: &str = include_str!(concat!(env!("OUT_DIR"), "/runtime.sha256"));
 #[link(name = "advapi32")]
 unsafe extern "system" {
@@ -229,7 +229,17 @@ fn provision(h: u32) -> Result<bool, String> {
         progress(h, 2, 3);
         return Ok(false);
     }
-    if RUNTIME.is_empty() || RUNTIME_SHA.len() != 64 || hash(RUNTIME) != RUNTIME_SHA {
+    let runtime_bytes = RUNTIME_BYTES
+        .parse::<u64>()
+        .map_err(|_| "Invalid bundled runtime size")?;
+    if runtime_bytes == 0
+        || runtime_bytes > 1073741824
+        || runtime_bytes.to_string() != RUNTIME_BYTES
+        || RUNTIME_SHA.len() != 64
+        || !RUNTIME_SHA
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    {
         return Err("The bundled offline WebView2 input is missing or changed; obtain the complete matching Full MSI".into());
     }
     let storage = if let Some(root) = &data.storage {
@@ -284,16 +294,18 @@ fn provision(h: u32) -> Result<bool, String> {
     )?;
     let file = stage.join("runtime.exe");
     let mut output = private::create_file(&file)?;
-    output
-        .write_all(RUNTIME)
-        .and_then(|_| output.sync_all())
-        .map_err(|e| e.to_string())?;
-    drop(output);
     let record = crate::FileRecord {
         path: "runtime.exe".into(),
-        bytes: RUNTIME.len().to_string(),
+        bytes: runtime_bytes.to_string(),
         sha256: RUNTIME_SHA.into(),
     };
+    crate::session_source::extract_runtime(
+        &data.source_msi,
+        &data.source_msi_record,
+        &mut output,
+        &record,
+    )?;
+    drop(output);
     let _verified = crate::open_verified_input(&file, &record)?;
     if message(h, "Preparing bundled Microsoft WebView2") {
         return Ok(true);

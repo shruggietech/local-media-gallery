@@ -204,9 +204,9 @@ async function singleFileCampaign(){
 try{
  observer=await openWindowsPackageObserver(root,{cwd:outside,env:environment});
  singleFile=await singleFileCampaign();
+ const publishedRecovery=await publishedRecoveryCampaign();
  const installerChoices=await choiceCampaign();
  const standardUser=singleFile.standardUser;
- const publishedRecovery=await publishedRecoveryCampaign();
  await test('Independent hash-bound Full/Lite extraction and release identity',async()=>{await extract('full',full);await extract('lite',lite);for(const edition of ['full','lite']){const r=build.records.find(r=>r.edition===edition);assert.equal(r.payload.buildProfile,'release');if(edition==='lite')await verifyPayload(lite,r.payload);}});
  await mkdir(profile,{recursive:true});await writeFile(path.join(profile,'retained-owner-note.txt'),'User state is retained by application removal.\n');
  await test('Full MSI rejects a corrupt native container before application installation',async()=>{const corrupt=path.join(work,'changed Full.msi');const bytes=await readFile(path.join(root,build.products.find(p=>p.edition==='full').artifact.path));bytes.fill(0,0,8);await writeFile(corrupt,bytes);await assert.rejects(msiProduct(corrupt,'user',path.join(work,'corrupt target')));assert.equal((await state('user')).registered,null);});

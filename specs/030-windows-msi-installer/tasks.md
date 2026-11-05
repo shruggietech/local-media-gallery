@@ -18,7 +18,7 @@
 
 **Independent test**: Isolated absent-runtime installation and native product readback from only the MSI.
 
-- [x] T005 [US1] Embed pinned complete runtime bytes/hash and implement context-correct hidden provisioning in crates/windows-package/build.rs and src/native.rs (FR-001, FR-002).
+- [x] T005 [US1] Package the pinned complete runtime stream and compile its hash/size for context-correct hidden provisioning in packaging/windows/installer.wxs and crates/windows-package/src/runtime_install.rs (FR-001, FR-002).
 - [x] T006 [US1] Build the single dual MSI and keep concrete internal descriptors in scripts/build-windows-packages.mjs and packaging/windows/installer.wxs (FR-001, FR-002).
 - [x] T007 [US1] Adapt isolated offline acceptance and embedded-input inspection in scripts/test-windows-packages.mjs and scripts/windows-package-evidence.mjs (SC-001, FR-012).
 

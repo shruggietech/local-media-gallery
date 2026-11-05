@@ -51,3 +51,11 @@ Decision: derive ProductCode separately for each payload generation and retain o
 Rationale: the hosted replacement attempt returned native error 1638 before custom actions because the newly authored package retained the installed ProductCode while changing PackageCode. Microsoft requires a new ProductCode when the MSI filename changes. An ordinary versioned replacement download must work through the MSI entrypoint. See [changing ProductCode](https://learn.microsoft.com/en-us/windows/win32/msi/changing-the-product-code) and [using UpgradeCode](https://learn.microsoft.com/en-us/windows/win32/msi/using-an-upgradecode).
 
 Alternatives considered: supplying `REINSTALL=ALL` on the qualification command line would bypass the ordinary entrypoint requirement. Defaulting REINSTALL in a fresh package is unsuitable because [REINSTALL does not install an absent product](https://learn.microsoft.com/en-us/windows/win32/msi/reinstall). Same-package repair continues to use the installed product identity and elected features.
+
+## Runtime resource and cancellation wording
+
+Decision: keep the complete pinned SDK in a separate embedded MSI Binary stream and the ownership DLL small. Deferred provisioning pins and re-verifies the whole source authenticated by Preflight, then streams only the fixed SDK row into its protected stage with the compiled size/hash before execution. Runtime detection, scope, receipts, cancellation and source-authentication authority stay in the same transaction.
+
+Rationale: actual native logs show repeated DLL extraction/loading, including about 1.4 seconds for no-op actions. The 880-second campaign failed before the remaining lifecycle cases, leaving insufficient time for the unchanged mandatory checks. SDK installation and cancellation remain functional qualification work. A new isolated administrative-retention regression runs first inside the qualification clock and preserves native failures before temporary cleanup.
+
+The standard cancellation and failure descriptions incorrectly claim no system change, although an already completed shared-runtime installation is deliberately retained. Override those descriptions through [WiX localization](https://docs.firegiant.com/wix3/wixui/wixui_customizations/) to describe the retained shared runtime and user data, preserving the normal completion-page Finish action.

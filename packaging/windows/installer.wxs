@@ -66,6 +66,7 @@
   <Upgrade Id="{4A53AE01-FF50-4B42-AC2C-7D4EE30FD389}"><UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" Maximum="@VERSION@" IncludeMaximum="yes" Property="LMG_OLD_USER" /></Upgrade>
   <Upgrade Id="{0A757FF9-91A9-4A07-BA0B-4BD4286E6860}"><UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" Maximum="@VERSION@" IncludeMaximum="yes" Property="LMG_OLD_MACHINE" /></Upgrade>
   <Binary Id="Ownership" SourceFile="@HELPER@" />
+  <Binary Id="WebView2Runtime" SourceFile="@RUNTIME@" />
   <CustomAction Id="Configure" BinaryKey="Ownership" DllEntry="Configure" Execute="immediate" Return="check" />
   <CustomAction Id="SelectScope" BinaryKey="Ownership" DllEntry="SelectScope" Execute="immediate" Return="check" />
   <CustomAction Id="SelectFeatures" BinaryKey="Ownership" DllEntry="SelectFeatures" Execute="immediate" Return="check" />

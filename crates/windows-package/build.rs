@@ -24,13 +24,16 @@ fn main() {
             .unwrap_or_else(|| b"null".to_vec());
         fs::write(out.join(name), bytes).unwrap();
     }
-    let runtime = env::var_os("LMG_RUNTIME_INPUT")
+    let runtime_bytes = env::var_os("LMG_RUNTIME_INPUT")
         .map(|p| {
             println!("cargo:rerun-if-changed={}", PathBuf::from(&p).display());
-            fs::read(p).expect("offline runtime input")
+            let metadata = fs::metadata(p).expect("offline runtime metadata");
+            assert!(metadata.is_file() && metadata.len() > 0 && metadata.len() <= 1073741824);
+            metadata.len()
         })
         .unwrap_or_default();
-    fs::write(out.join("runtime.exe"), runtime).expect("embedded offline runtime");
+    fs::write(out.join("runtime.bytes"), runtime_bytes.to_string())
+        .expect("offline runtime length");
     fs::write(
         out.join("runtime.sha256"),
         env::var("LMG_RUNTIME_SHA256").unwrap_or_default(),

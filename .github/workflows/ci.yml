@@ -182,6 +182,7 @@ jobs:
             .local/windows-msi-command-readiness.json
             .local/msi-command-ready-*/*.log
             .local/windows-package-failure.json
+            .local/windows-admin-retention-*.log
             .local/windows-package-test-*/*.log
             .local/windows-package-test-*/standard-user/*.log
             .local/windows-package-test-*/wizard-*-failure.json
@@ -201,6 +202,7 @@ jobs:
             .local/prepared-recipient-windows.json
             .local/windows-package-test-*/prepared-recipient-*.zip
             .local/windows-package-failure.json
+            .local/windows-admin-retention-*.log
             .local/windows-packages-*/**/*.json
             .local/windows-package-test-*/update-evidence-*/**
             .local/windows-package-test-*/failed-update-*/**

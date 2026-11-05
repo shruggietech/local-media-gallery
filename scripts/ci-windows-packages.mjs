@@ -9,22 +9,23 @@ import {mkdir,readFile,writeFile,lstat} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import path from 'node:path';
-import {root,node,cargo,execute,environment,python} from './run.mjs';
+import {root,node,execute,environment,python} from './run.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {qualification} from './qualification.mjs';
 import {validatePackageEvidence} from './windows-package-evidence.mjs';
 import {joinedChecks} from './joined-checks.mjs';
-await mkdir(path.join(root,'.local'),{recursive:true});let build,concurrentChecks,diagnosticFixtures,msiCommandReadiness;
+await mkdir(path.join(root,'.local'),{recursive:true});let build,concurrentChecks,diagnosticFixtures,msiCommandReadiness,runtimeTestEnvironment;
 const record=await qualification({
  identify:async()=>({scope:'windows-packages',source:await sourceIdentity(),revision:(await promisify(execFile)('git',['rev-parse','HEAD'],{cwd:root,windowsHide:true})).stdout.trim()}),
- prepare:async context=>{msiCommandReadiness=await verifyMsiCommandReadiness({root,env:environment});await prepareCargoDependencies();await cargo(['test','--locked','-p','gallery-windows-package','-p','gallery-update','--no-run']);await node(path.join(root,'scripts/build-windows-packages.mjs'));build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));assert.deepEqual(build.source,context.source);assert.equal(build.revision,context.revision);diagnosticFixtures=await prepareWindowsDiagnosticFixtures({root,build,extract:(archive,destination,inventory)=>execute(python,[path.join(root,'scripts/proof-archive.py'),'extract',archive,destination,inventory])});},
+ prepare:async context=>{msiCommandReadiness=await verifyMsiCommandReadiness({root,env:environment});await prepareCargoDependencies();await node(path.join(root,'scripts/build-windows-packages.mjs'));build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));assert.deepEqual(build.source,context.source);assert.equal(build.revision,context.revision);runtimeTestEnvironment={...environment,LMG_RUNTIME_INPUT:path.resolve(root,build.runtimeInput.path),LMG_RUNTIME_SHA256:build.runtimeInput.sha256};await execute('cargo',['test','--locked','-p','gallery-windows-package','-p','gallery-update','--no-run'],{env:runtimeTestEnvironment});diagnosticFixtures=await prepareWindowsDiagnosticFixtures({root,build,extract:(archive,destination,inventory)=>execute(python,[path.join(root,'scripts/proof-archive.py'),'extract',archive,destination,inventory])});},
  steps:[
+  {name:'Exact published MSI administrative retention in isolated protected storage',run:()=>execute('cargo',['test','--locked','-p','gallery-update','actual_native_admin_retention','--','--ignored'],{env:{...runtimeTestEnvironment,GALLERY_MSI_ADMIN_DESCRIPTOR:path.join(root,build.publishedPredecessor.directory,'machine.msi.update.json'),GALLERY_MSI_ADMIN_FAILURE:path.join(root,'.local/windows-admin-retention-failure.log'),GALLERY_MSI_ADMIN_LOG:path.join(root,'.local/windows-admin-retention-native.log')}})},
   {name:'Joined Windows ownership units and actual ordinary package campaign',run:async()=>{
    // Units mutate unique disposable roots and MSI copies. Actual prepared MSIs
    // are read-only inputs; these units never install or share a native window.
    // Both branches retain the same absolute qualification process deadline.
    concurrentChecks=await joinedChecks([
-    {name:'Windows package native ownership units',run:async()=>{await cargo(['test','--locked','-p','gallery-windows-package','-p','gallery-update']);const physicalPairs=build.upgrades.pairs.filter(p=>p.edition==='full').map(p=>[path.resolve(root,path.dirname(p.from.path),p.from.descriptor.native.installer.path),path.resolve(root,path.dirname(p.to.path),p.to.descriptor.native.installer.path)]);const pairs=JSON.stringify([...new Map(physicalPairs.map(pair=>[JSON.stringify(pair),pair])).values()]);await execute('cargo',['test','--locked','-p','gallery-windows-package','actual_native_','--','--ignored'],{env:{...environment,GALLERY_MSI_LAYOUT_PAIRS:pairs}});}},
+    {name:'Windows package native ownership units',run:async()=>{await execute('cargo',['test','--locked','-p','gallery-windows-package','-p','gallery-update'],{env:runtimeTestEnvironment});const physicalPairs=build.upgrades.pairs.filter(p=>p.edition==='full').map(p=>[path.resolve(root,path.dirname(p.from.path),p.from.descriptor.native.installer.path),path.resolve(root,path.dirname(p.to.path),p.to.descriptor.native.installer.path)]);const pairs=JSON.stringify([...new Map(physicalPairs.map(pair=>[JSON.stringify(pair),pair])).values()]);await execute('cargo',['test','--locked','-p','gallery-windows-package','actual_native_','--','--ignored'],{env:{...runtimeTestEnvironment,GALLERY_MSI_LAYOUT_PAIRS:pairs}});}},
     {name:'Actual ordinary Full/Lite install, native use, collision and selective removal',run:()=>node(path.join(root,'scripts/test-windows-packages.mjs'))},
    ]);
    if(concurrentChecks.result!=='pass')throw Error(concurrentChecks.checks.filter(check=>check.result!=='pass').map(check=>check.name+': '+check.failure).join('; '));

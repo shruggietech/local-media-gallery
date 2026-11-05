@@ -461,6 +461,94 @@ pub(crate) fn authenticate(session: u32, source: &Path) -> Result<FileRecord, St
     Ok(record)
 }
 
+/// Extract only the pinned offline runtime from the exact source authenticated
+/// by the immediate action. Deferred MSI handles do not expose an active database.
+/// The caller supplies a new empty private Stage file and pins the verified leaf
+/// before launching vendor work; this helper never executes the extracted bytes.
+pub(crate) fn extract_runtime(
+    source: &Path,
+    source_record: &FileRecord,
+    destination: &mut fs::File,
+    expected: &FileRecord,
+) -> Result<(), String> {
+    use std::io::{Seek, SeekFrom, Write};
+    let expected_size = expected
+        .bytes
+        .parse::<u64>()
+        .map_err(|_| "Invalid runtime size")?;
+    if source_record.path != "application.msi"
+        || expected.path != "runtime.exe"
+        || expected_size == 0
+        || expected_size > 1073741824
+        || expected.bytes != expected_size.to_string()
+        || expected.sha256.len() != 64
+        || !expected
+            .sha256
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    {
+        return Err("Invalid pinned offline runtime identity".into());
+    }
+    let output_metadata = destination.metadata().map_err(|e| e.to_string())?;
+    if !output_metadata.is_file() || output_metadata.len() != 0 {
+        return Err("Runtime extraction requires a new empty staged file".into());
+    }
+    destination
+        .seek(SeekFrom::Start(0))
+        .map_err(|e| e.to_string())?;
+    let _parents = crate::private::pin_physical(
+        source
+            .parent()
+            .ok_or("Missing authenticated MSI source parent")?,
+    )?;
+    // Hold this no-write/no-delete-sharing handle through the last stream read.
+    let _input = crate::open_verified_input(source, source_record)?;
+    let db = database(source, false)?;
+    let rows = view(
+        db.0,
+        "SELECT \x60Data\x60 FROM \x60Binary\x60 WHERE \x60Name\x60='WebView2Runtime'",
+    )?;
+    let runtime = next(rows.0)?
+        .ok_or("The authenticated Full MSI has no bundled offline WebView2 runtime")?;
+    if unsafe { MsiRecordIsNull(runtime.0, 1) } != 0 {
+        return Err("The bundled offline WebView2 stream is empty".into());
+    }
+    let mut digest = Sha256::new();
+    let mut total = 0u64;
+    let mut buffer = [0u8; 65536];
+    loop {
+        let mut size = buffer.len() as u32;
+        checked(
+            unsafe { MsiRecordReadStream(runtime.0, 1, buffer.as_mut_ptr(), &mut size) },
+            "offline runtime stream",
+        )?;
+        if size as usize > buffer.len() {
+            return Err("Invalid offline runtime stream extent".into());
+        }
+        if size == 0 {
+            break;
+        }
+        total += u64::from(size);
+        if total > expected_size {
+            return Err("Bundled offline WebView2 exceeds its pinned size".into());
+        }
+        destination
+            .write_all(&buffer[..size as usize])
+            .map_err(|e| e.to_string())?;
+        digest.update(&buffer[..size as usize]);
+    }
+    if next(rows.0)?.is_some() {
+        return Err("Duplicate bundled offline WebView2 streams".into());
+    }
+    if total != expected_size || hex::encode(digest.finalize()) != expected.sha256 {
+        return Err("Bundled offline WebView2 differs from its pinned bytes".into());
+    }
+    destination
+        .flush()
+        .and_then(|_| destination.sync_all())
+        .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,6 +556,121 @@ mod tests {
         drop(view(db, sql).unwrap());
         checked(unsafe { MsiDatabaseCommit(db) }, "test commit").unwrap();
     }
+
+    #[test]
+    #[ignore = "Requires an actual authored MSI with separate WebView2Runtime and compile-pinned SDK metadata"]
+    fn actual_native_runtime_stream_checks_source_identity_and_same_size_sdk_tampering() {
+        use std::io::{Read, Seek, SeekFrom, Write};
+        fn record(file: &Path) -> FileRecord {
+            let mut input = fs::File::open(file).unwrap();
+            let mut digest = Sha256::new();
+            let mut total = 0u64;
+            let mut buffer = [0u8; 65536];
+            loop {
+                let size = input.read(&mut buffer).unwrap();
+                if size == 0 {
+                    break;
+                }
+                total += size as u64;
+                assert!(total <= 1073741824);
+                digest.update(&buffer[..size]);
+            }
+            FileRecord {
+                path: "application.msi".into(),
+                bytes: total.to_string(),
+                sha256: hex::encode(digest.finalize()),
+            }
+        }
+        let pairs: Vec<[std::path::PathBuf; 2]> = serde_json::from_str(
+            &std::env::var("GALLERY_MSI_LAYOUT_PAIRS").expect("Explicit actual MSI input required"),
+        )
+        .unwrap();
+        let source = &pairs.first().expect("Actual MSI pair required")[0];
+        let expected = FileRecord {
+            path: "runtime.exe".into(),
+            bytes: include_str!(concat!(env!("OUT_DIR"), "/runtime.bytes")).into(),
+            sha256: include_str!(concat!(env!("OUT_DIR"), "/runtime.sha256")).into(),
+        };
+        assert!(
+            expected
+                .bytes
+                .parse::<u64>()
+                .expect("Pinned SDK length required")
+                > 0
+        );
+        let authorized_source = record(source);
+        let temp = tempfile::tempdir().unwrap();
+        let sdk = temp.path().join("runtime.exe");
+        let mut output = fs::File::create(&sdk).unwrap();
+        extract_runtime(source, &authorized_source, &mut output, &expected).unwrap();
+        drop(output);
+        // Independent physical-file readback verifies the bytes that were written.
+        drop(crate::open_verified_input(&sdk, &expected).unwrap());
+        let mut tamper = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&sdk)
+            .unwrap();
+        let mut first = [0u8; 1];
+        tamper.read_exact(&mut first).unwrap();
+        tamper.seek(SeekFrom::Start(0)).unwrap();
+        tamper.write_all(&[first[0] ^ 1]).unwrap();
+        tamper.sync_all().unwrap();
+        drop(tamper);
+        assert_eq!(
+            fs::metadata(&sdk).unwrap().len().to_string(),
+            expected.bytes
+        );
+        let changed = temp.path().join("changed-runtime.msi");
+        fs::copy(source, &changed).unwrap();
+        {
+            let db = database(&changed, true).unwrap();
+            let row = Handle(unsafe { MsiCreateRecord(1) });
+            checked(
+                unsafe { MsiRecordSetStreamW(row.0, 1, wide(&sdk).as_ptr()) },
+                "runtime tamper fixture",
+            )
+            .unwrap();
+            let mut raw = 0;
+            checked(unsafe { MsiDatabaseOpenViewW(db.0, wide("UPDATE \x60Binary\x60 SET \x60Data\x60=? WHERE \x60Name\x60='WebView2Runtime'").as_ptr(), &mut raw) }, "runtime tamper view").unwrap();
+            let update = Handle(raw);
+            checked(
+                unsafe { MsiViewExecute(update.0, row.0) },
+                "runtime tamper update",
+            )
+            .unwrap();
+            checked(unsafe { MsiDatabaseCommit(db.0) }, "runtime tamper commit").unwrap();
+        }
+        let mut rejected = tempfile::tempfile().unwrap();
+        assert!(
+            extract_runtime(&changed, &authorized_source, &mut rejected, &expected).is_err(),
+            "Whole-source substitution must fail before extraction"
+        );
+        let changed_record = record(&changed);
+        let mut rejected = tempfile::tempfile().unwrap();
+        let error =
+            extract_runtime(&changed, &changed_record, &mut rejected, &expected).unwrap_err();
+        assert!(
+            error.contains("differs from its pinned bytes"),
+            "Same-size SDK mutation must fail its independent compiled hash: {error}"
+        );
+        {
+            let db = database(&changed, true).unwrap();
+            mutate(
+                db.0,
+                "DELETE FROM \x60Binary\x60 WHERE \x60Name\x60='WebView2Runtime'",
+            );
+        }
+        let missing_record = record(&changed);
+        let mut rejected = tempfile::tempfile().unwrap();
+        let error =
+            extract_runtime(&changed, &missing_record, &mut rejected, &expected).unwrap_err();
+        assert!(
+            error.contains("no bundled offline WebView2 runtime"),
+            "Missing SDK row must fail explicitly: {error}"
+        );
+    }
+
     #[test]
     #[ignore = "Requires an actual authored MSI; elected in native package CI"]
     fn actual_native_authorized_source_rejects_same_guid_database_substitution() {
