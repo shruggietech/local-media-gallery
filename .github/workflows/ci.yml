@@ -185,6 +185,7 @@ jobs:
             .local/windows-recovery-probe.json
             .local/windows-admin-retention-*.log
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/legacy */*.log
             .local/windows-package-test-*/legacy */storage/**/*.log
             .local/windows-package-test-*/legacy */storage/**/*.json
             .local/windows-package-test-*/legacy */storage/**/*.stdout
@@ -222,6 +223,7 @@ jobs:
             .local/windows-package-test-*/wizard-*-failure.json
             .local/windows-package-test-*/*.png
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/legacy */*.log
             .local/windows-package-test-*/legacy */storage/**/*.log
             .local/windows-package-test-*/legacy */storage/**/*.json
             .local/windows-package-test-*/legacy */storage/**/*.stdout

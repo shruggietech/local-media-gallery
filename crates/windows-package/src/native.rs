@@ -1135,6 +1135,73 @@ pub fn registered_install_directory(machine: bool) -> Result<Option<PathBuf>, St
     }
     Ok(Some(directory))
 }
+/// Resolve the published legacy guard's own registered component spelling.
+/// Native identities and physical directory identity are required; a caller
+/// path string or an unrelated registered component grants no authority.
+pub fn legacy_registered_directory(
+    product_code: &str,
+    package_code: &str,
+    directory: &Path,
+    machine: bool,
+) -> Result<(PathBuf, Vec<std::fs::File>), String> {
+    if !is_legacy_product(product_code, machine)
+        || registered_product(machine)?.as_deref() != Some(product_code)
+        || registered_package(machine)?.as_deref() != Some(package_code)
+    {
+        return Err("Legacy component registration differs from the verified candidate".into());
+    }
+    let scope = if machine { "machine" } else { "user" };
+    let marker = guid(scope, &hash(b"component:local-media-gallery.exe"));
+    let mut buffer = vec![0u16; 32768];
+    let mut length = buffer.len() as u32;
+    let state = unsafe {
+        MsiGetComponentPathExW(
+            wide(product_code).as_ptr(),
+            wide(&marker).as_ptr(),
+            ptr::null(),
+            if machine { 4 } else { 2 },
+            buffer.as_mut_ptr(),
+            &mut length,
+        )
+    };
+    if state != 3 || length == 0 || length as usize >= buffer.len() {
+        return Err(format!(
+            "Legacy registered component is not local (state {state}, length {length}, component {marker})"
+        ));
+    }
+    let binary = PathBuf::from(OsString::from_wide(&buffer[..length as usize]));
+    let actual = binary
+        .parent()
+        .ok_or("Legacy registered binary has no parent")?
+        .to_path_buf();
+    check_path(&binary)?;
+    let mut pins = crate::private::pin_physical(directory)?;
+    let actual_pins = crate::private::pin_physical(&actual)?;
+    if !crate::private::same_file_identity(
+        pins.last().ok_or("Missing selected directory pin")?,
+        actual_pins
+            .last()
+            .ok_or("Missing registered directory pin")?,
+    )? {
+        return Err(format!(
+            "Legacy registered component directory {} is physically different from selected {} (component {marker})",
+            actual.display(),
+            directory.display()
+        ));
+    }
+    // Preserve the legacy guard's expected long executable basename as well.
+    if binary.file_name().is_none_or(|name| {
+        !name.eq_ignore_ascii_case(std::ffi::OsStr::new("local-media-gallery.exe"))
+    }) {
+        return Err(format!(
+            "Legacy registered component filename differs: {}",
+            binary.display()
+        ));
+    }
+    pins.extend(actual_pins);
+    Ok((actual, pins))
+}
+
 pub fn installed_directory(machine: bool) -> Result<Option<PathBuf>, String> {
     let Some(code) = registered_product(machine)? else {
         return Ok(None);

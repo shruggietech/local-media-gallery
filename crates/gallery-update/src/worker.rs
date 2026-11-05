@@ -189,6 +189,8 @@ pub fn entry(path: &Path) -> Result<i32> {
     let _input;
     #[cfg(windows)]
     let _source_pins;
+    #[cfg(windows)]
+    let _registered_pins;
     match &source.native {
         Native::WindowsMsi {
             scope,
@@ -230,7 +232,25 @@ pub fn entry(path: &Path) -> Result<i32> {
                     .args(["/qn", "/norestart", "/L*v"])
                     .arg(&job.log);
                 use std::os::windows::process::CommandExt;
-                let directory = job.directory.to_str().ok_or("Invalid MSI destination")?;
+                let (native_directory, pins) = if job.action == "remove" && !dual_source {
+                    gallery_windows_package::native::legacy_registered_directory(
+                        product_code,
+                        package_code,
+                        &job.directory,
+                        scope == "machine",
+                    )?
+                } else {
+                    (job.directory.clone(), vec![])
+                };
+                if job.action == "remove" && !dual_source {
+                    eprintln!(
+                        "Legacy native component directory: {}; selected directory: {}",
+                        native_directory.display(),
+                        job.directory.display()
+                    );
+                }
+                _registered_pins = pins;
+                let directory = native_directory.to_str().ok_or("Invalid MSI destination")?;
                 let integration_choices = match &journal.state {
                     StateContext::Selected(s) => s.windows_integrations.clone(),
                     StateContext::Legacy(_) => None,
