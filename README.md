@@ -14,15 +14,16 @@ Current source contracts target the unpublished v0.2.1 candidate. Package availa
 - Use explicit **Refresh** for additions, removals and changed observations. No background directory scanner runs.
 - Optionally generate validated still/video thumbnails, inspect progress/diagnostics or clean owned cache outputs. Full automatically selects its verified bundled video helper; Lite supports an explicitly selected local helper. Published v0.1.0 retains its documented external-helper workflow.
 - Full supplies installed integration. Lite runs in place on its declared supported host without installing Full or depending on a sender profile.
+- The v0.2.1 Windows Full candidate uses one offline MSI with license acceptance, current-user/all-users scope, an editable location, independent Start menu/PATH choices, progress and cancellation. Its complete WebView2 installer is bundled.
 
 The elected package targets are Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 Apple Silicon. Runtime prerequisites, actual tested hosts and limits are explicit in the [current source installation contract](docs/v0.2.1/installation-and-distribution.md). Use the documentation matching a downloaded release for its installation workflow. These are not universal clean-machine or every-architecture packages. Project signing and notarization are not performed.
 
-Richer previews/autoplay/additional browsing criteria and media editing are deferred for 0.2.0. Guided preparation independently previews and applies gallery-local presentation, thumbnails and verified published Lite recipient launchers, with progress, cancellation and exact reuse. Moving a closed gallery and reopening or explicitly refreshing it does not require manifest regeneration.
+Richer previews/autoplay/additional browsing criteria and media editing are deferred for 0.2.1. Guided preparation independently previews and applies gallery-local presentation, thumbnails and verified published Lite recipient launchers, with progress, cancellation and exact reuse. Moving a closed gallery and reopening or explicitly refreshing it does not require manifest regeneration.
 
 ## Obtain and use a package
 
 1. Select an actually published Full or Lite artifact for the required OS/architecture from the verified release record. Compare the exact filename, size and SHA-256; a repository checkout or CI proof archive is not a published download.
-2. Read the installation guidance matching the downloaded version. The [v0.2.1 source contract](docs/v0.2.1/installation-and-distribution.md) describes single-file Lite and offline system Full delivery; [v0.1.0 guidance](docs/v0.1.0/installation-and-distribution.md) describes its historical archives. Lite uses the declared host facilities and retains the application files required by that release.
+2. Read the installation guidance matching the downloaded version. [v0.2.0 guidance](docs/v0.2.0/installation-and-distribution.md) describes its published single-file products; [v0.1.0 guidance](docs/v0.1.0/installation-and-distribution.md) describes its historical archives. The [v0.2.1 source contract](docs/v0.2.1/installation-and-distribution.md) adds the Windows MSI scope and integration choices. Lite uses the declared host facilities and retains the application files required by that release.
 3. Open the application with a directory. Full starts with a chooser when no directory is supplied; Lite uses its external containing gallery. Use **Close folder** before relocating an open gallery on Windows, then reopen it at its new location.
 
 Recipients need no Node, Python, Rust, FFmpeg executable or separate browser for ordinary browsing. Host libraries/webview/codecs remain the declared prerequisites.
