@@ -42,12 +42,12 @@
 
 - [x] T013 [US3] Add a memory/deadline-bounded upstream amplification and caller matching regression in tests/minimatch-security.test.mjs; timeout or abnormal exit is failure (FR-006).
 - [x] T014 [US3] Pin the narrow minimatch 11.0.1 override in package.json and regenerate package-lock.json, preserving parent versions and the verified glib backport (FR-006).
-- [ ] T015 [US3] Run advisory, affected app/site lint/type checks and full repository/documentation tests; compare historical/backport baselines in .local/s031-preservation.json (FR-003, FR-006, FR-007).
+- [x] T015 [US3] Run advisory, affected app/site lint/type checks and full repository/documentation tests; compare historical/backport baselines in .local/s031-preservation.json (FR-003, FR-006, FR-007).
 
 ## Phase 6: Polish and qualification
 
-- [ ] T016 Commit source A, perform ordinary vocabulary review, capture 0.2.1 into a fresh .local destination and replace only site/retained/v0.2.1.json; run historical preservation and current capture checks (FR-003, FR-009).
-- [ ] T017 Run complete local parity and affected production site checks; commit final source B with UTF-8/LF/corruption checks in specs/031-v021-release-preparation/verification.md (FR-007, FR-008).
+- [x] T016 Commit source A, perform ordinary vocabulary review, capture 0.2.1 into a fresh .local destination and replace only site/retained/v0.2.1.json; run historical preservation and current capture checks (FR-003, FR-009).
+- [x] T017 Run complete local parity and affected production site checks; commit final source B with UTF-8/LF/corruption checks in specs/031-v021-release-preparation/verification.md (FR-007, FR-008).
 - [ ] T018 Push and open the official #98-closing S031 PR; record the automatic initial Codex round and at most one follow-up request in .local/s031-review-ledger.json; reply to and resolve every received finding (FR-010).
 - [ ] T019 Verify all nine exact-final-head canonical scope receipts, all applicable terminal CI jobs and complete independent original artifact/documentation/recipient evidence in specs/031-v021-release-preparation/measurements.md or the PR (FR-007, FR-008, FR-009).
 - [ ] T020 Update #98/Project tracking and the concrete later publication procedure in specs/031-v021-release-preparation/contracts/publication-handoff.md, then ping the owner for final review/merge with no tag, release, promotion or merge performed (FR-010, FR-011, FR-012).

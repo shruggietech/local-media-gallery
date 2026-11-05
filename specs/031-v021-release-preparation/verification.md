@@ -19,3 +19,11 @@ All 23 elected transport, publisher-input, CLI and advisory tests pass, includin
 The new production functions also validated the original S030 accepted assembly against live run-scoped artifact metadata: exact experience artifact 13420057565 and lifecycle artifact 13419338031, with complete raw worker reconstruction matching accepted Windows package evidence. This historical PR packet is diagnostic validation, not current qualification or trusted-main publication authority. Retained details are in .local/s031-release-input-validation.json.
 
 Actual app verification passed Rust formatting, six crate test groups, workspace Clippy, TypeScript, ESLint, stylelint and brand checks. The initial full Node suite identified the expected stale current snapshot and an older-documentation rendering failure from a candidate-relative SECURITY link; the explicit current-source link was corrected before capture.
+
+## 2026-11-05: final local candidate
+
+Committed source A is d825477b5c4af57efb49c18381e4dd7fb9014989. Ordinary vocabulary review and fresh disposable snapshot capture produced current inventory df270b563b7ecd5f4c07e59496407a06af13ebcef99a8fdc3ff38ae9f4bf7cb8 (32 files). Only the unpublished current retained receipt was replaced. All 219 historical/backport baseline files and the absent baseline receipt remain unchanged. Source latest selection was not advanced.
+
+Final repository checks passed 803 authored/configuration text files, version alignment, Spec Kit integration and 572 governed brand files, including UTF-8 without BOM, LF and corruption checks. Node tests: 300 total, 298 passed, two expected platform skips, zero failures. Documentation checks: four versions, 282 requirements, 801 local links/fragments and 18 top-down diagram blocks. Clean npm audit reports zero vulnerabilities. Production site export and all ten rendered website groups passed; source, links, assets, accessibility and cold-load checks ran through the existing site suite. The app checks recorded above passed without local installation or desktop input.
+
+The prior main qualification run 42092074116 completed successfully. It is baseline evidence only; S031 still requires its own final-head hosted run and hosted review closeout. No release/tag/merge/publication was performed.
