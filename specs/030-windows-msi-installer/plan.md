@@ -6,7 +6,7 @@
 
 ## Summary
 
-Replace the ordinary Full EXE with one dual-purpose MSI. Author native WiX dialogs, independent integration features and context-aware ownership. Embed the complete pinned WebView2 standalone installer in the native helper; provision through deferred custom actions in the resolved installation context. Preserve sealed concrete-scope maintenance authority and exact published predecessor compatibility.
+Replace the ordinary Full EXE with one dual-purpose MSI. Author native WiX dialogs, independent integration features and context-aware ownership. Embed the complete pinned WebView2 standalone installer in the native helper; provision through deferred custom actions in the resolved installation context. Preserve sealed concrete-scope maintenance authority and exact published predecessor compatibility. Give each payload generation a distinct deterministic ProductCode under one stable UpgradeCode, so an ordinary replacement MSI enters the native major-upgrade transaction without requiring command-line reinstall flags.
 
 ## Technical Context
 

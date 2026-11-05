@@ -467,8 +467,9 @@ pub(crate) fn retain_native(
     let payload: crate::Payload =
         serde_json::from_str(crate::PAYLOAD).map_err(|e| e.to_string())?;
     payload.verify(installed, false)?;
+    let expected_product = crate::native::dual_product_code(crate::PAYLOAD.as_bytes());
     let expected =
-        crate::native::package_code(crate::native::DUAL, machine, crate::PAYLOAD.as_bytes())?;
+        crate::native::package_code(&expected_product, machine, crate::PAYLOAD.as_bytes())?;
     let _source_namespace =
         crate::private::pin_physical(source.parent().ok_or("Missing MSI source parent")?)?;
     crate::check_path(source)?;
@@ -479,7 +480,7 @@ pub(crate) fn retain_native(
     let bytes = std::fs::read(source).map_err(|e| e.to_string())?;
     let artifact = authenticated.clone();
     let (product, package, _, scope) = crate::native::inspect_package(source)?;
-    if product != crate::native::DUAL || package.to_uppercase() != expected || scope != "dual" {
+    if product != expected_product || package.to_uppercase() != expected || scope != "dual" {
         return Err("The MSI maintenance source does not match the installed candidate".into());
     }
     let storage = if let Some(root) = storage_root {

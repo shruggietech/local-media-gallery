@@ -13,7 +13,7 @@
     Expected MSI SHA-256.
 #>
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$MsiFile,[Parameter(Mandatory=$true)][string]$Sha256,[Parameter(Mandatory=$true)][string]$EvidenceDirectory)
+param([Parameter(Mandatory=$true)][string]$MsiFile,[Parameter(Mandatory=$true)][string]$Sha256,[Parameter(Mandatory=$true)][ValidatePattern('^[{][A-F0-9-]{36}[}]$')][string]$ProductCode,[Parameter(Mandatory=$true)][string]$EvidenceDirectory)
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { throw 'Standard-user MSI qualification requires isolated CI' }
@@ -69,7 +69,7 @@ $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
 $principal=[Security.Principal.WindowsPrincipal]::new($identity)
 $key=Get-ItemProperty -LiteralPath 'HKCU:\Software\ShruggieTech\LocalMediaGallery' -ErrorAction SilentlyContinue
 $engine=New-Object -ComObject WindowsInstaller.Installer
-$nativeState=$engine.ProductState('{6EC08037-6FA8-4AF3-916B-40D03DE0DAF9}')
+$nativeState=$engine.ProductState('@PRODUCT_CODE@')
 $observed=$null
 if ($key -and $key.ProductCode) {
     $engine=New-Object -ComObject WindowsInstaller.Installer
@@ -83,6 +83,7 @@ if ($key -and $key.ProductCode) {
 }
 @{sid=$identity.User.Value;administrator=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);localAppData=[Environment]::GetFolderPath('LocalApplicationData');programs=[Environment]::GetFolderPath('Programs');shortcutExists=(Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('Programs')) 'Local Media Gallery.lnk'));userPath=[Environment]::GetEnvironmentVariable('Path','User');nativeState=$nativeState;registered=$observed}|ConvertTo-Json -Depth 12 -Compress
 '@
+    $observe=$observe.Replace('@PRODUCT_CODE@',$ProductCode)
     # The credentialed CreateProcessWithLogonW path has a 1024-character command
     # line limit. Keep observation code in a fixture file, after the one-MSI install.
     $observeFile=Join-Path $recipient 'observe.ps1'

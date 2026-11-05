@@ -19,14 +19,14 @@ import {root,node,execute,python,environment,exportInterface} from './run.mjs';
 import {writeUpdateDescriptor} from './update-packages.mjs';
 import {sourceIdentity} from './provenance.mjs';
 import {collectPayload} from './proof.mjs';
-import {digest,validatePayload,verifyPayload,productCodes,dualProductCode,validateNativeAudit,authorInstaller} from './windows-packages.mjs';
+import {digest,validatePayload,verifyPayload,productCodes,validateNativeAudit,authorInstaller} from './windows-packages.mjs';
 assert.equal(process.platform,'win32');assert.equal(process.arch,'x64');
 const call=promisify(execFile);
 const capture=async(file,args,options={})=>{const p=call(file,args,{cwd:root,env:environment,windowsHide:true,shell:false,timeout:180000,maxBuffer:16*1024*1024,...options});p.child.stdin.end();return p;};
 const source=await sourceIdentity();const revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim();
 const directory=await mkdtemp(path.join(root,'.local/windows-packages-'));const inputs=JSON.parse(await readFile(path.join(root,'packaging/windows/inputs.json')));
 // A new generation changes every MSI PackageCode even if source/payload match.
-// Stable ProductCode/component identities remain separate from package identity.
+// Stable component/UpgradeCode identities remain separate from generation ProductCodes.
 const generation=randomBytes(16).toString('hex');
 const buildEnv={...environment,RUSTFLAGS:[environment.RUSTFLAGS??'','-C link-arg=/DEPENDENTLOADFLAG:0x800','-C target-feature=+crt-static'].join(' ').trim()};
 async function cargo(args,extra={}){await execute('cargo',args.includes('--target')?args:[...args,'--target','x86_64-pc-windows-msvc'],{env:{...buildEnv,...extra}});}
@@ -78,7 +78,7 @@ const helper=path.join(directory,'ownership.dll');await copyFile(path.join(root,
 const bundle=path.join(directory,'full-bundle');await mkdir(bundle);await copyFile(path.join(full.directory,'PREREQUISITES.txt'),path.join(bundle,'PREREQUISITES.txt'));
 const template=await readFile(path.join(root,'packaging/windows/installer.wxs'),'utf8');
 async function buildMsi(name,payloadDirectory,ownership,payloadSha,output){
- const files=await collectPayload(payloadDirectory);const {wxs,code}=authorInstaller({files,payloadDirectory,helper:ownership,payloadSha,template});
+ const files=await collectPayload(payloadDirectory);const {wxs,code,productCode}=authorInstaller({files,payloadDirectory,helper:ownership,payloadSha,template});
  const sourceFile=path.join(directory,name+'.wxs'),object=path.join(directory,name+'.wixobj');await writeFile(sourceFile,wxs);await execute(path.join(wix,'candle.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-arch','x64','-out',object,sourceFile]);
  // Static ICE38/43/57/64 cannot resolve the context-dependent HKMU and
  // ProgramMenuFolder relationship. Actual scoped ownership/integration is
@@ -87,8 +87,8 @@ async function buildMsi(name,payloadDirectory,ownership,payloadSha,output){
  await execute(path.join(wix,'light.exe'),['-nologo','-ext',path.join(wix,'WixUIExtension.dll'),'-sice:ICE38','-sice:ICE43','-sice:ICE57','-sice:ICE64','-pdbout',path.join(directory,name+'.wixpdb'),'-out',output,object]);
  await capture(msiAuthor,['--seal-msi',output],{timeout:180000});
  const manifestSha256=(await capture(msiAuthor,['--manifest-identity',output],{timeout:180000})).stdout.trim();assert.match(manifestSha256,/^[a-f0-9]{64}$/);
- const actual=await inspect(output);assert.equal(actual.productCode,dualProductCode);assert.equal(actual.packageCode.toUpperCase(),code);assert.equal(actual.version,version);assert.match(actual.template,/^x64;/);assert.equal(actual.allUsers,'2');const bytes=await readFile(output);
- return{actual,manifestSha256,productCode:dualProductCode,packageCode:code,path:path.basename(output),bytes:String(bytes.length),sha256:digest(bytes)};
+ const actual=await inspect(output);assert.equal(actual.productCode,productCode);assert.equal(actual.packageCode.toUpperCase(),code);assert.equal(actual.version,version);assert.match(actual.template,/^x64;/);assert.equal(actual.allUsers,'2');const bytes=await readFile(output);
+ return{actual,manifestSha256,productCode,packageCode:code,path:path.basename(output),bytes:String(bytes.length),sha256:digest(bytes)};
 }
 const physicalMsi=await buildMsi('application',full.directory,helper,payloadSha,path.join(bundle,'application.msi'));
 const msiRecords=['user','machine'].map(scope=>({...physicalMsi,scope}));
@@ -105,9 +105,9 @@ const replacementHelper=path.join(directory,'replacement-ownership.dll');await c
 const replacementSetup=path.join(directory,'replacement-full.msi');
 const replacementMsi=await buildMsi('replacement',replacementDirectory,replacementHelper,digest(await readFile(replacementPayloadFile)),replacementSetup);
 for(const scope of ['user','machine']){
- const old=msiRecords.find(r=>r.scope===scope);const native=(artifact,packageCode)=>({kind:'windows-msi',scope,productCode:dualProductCode,packageCode,installer:artifact});
- const from=await writeUpdateDescriptor(path.join(bundle,scope+'.msi.update.json'),full.manifest,await collectPayload(full.directory),native({path:old.path,bytes:old.bytes,sha256:old.sha256},old.packageCode));
- const to=await writeUpdateDescriptor(path.join(directory,'replacement-'+scope+'.msi.update.json'),replacementPayload,await collectPayload(replacementDirectory),native({path:replacementMsi.path,bytes:replacementMsi.bytes,sha256:replacementMsi.sha256},replacementMsi.packageCode));
+ const old=msiRecords.find(r=>r.scope===scope);const native=(artifact,record)=>({kind:'windows-msi',scope,productCode:record.productCode,packageCode:record.packageCode,installer:artifact});
+ const from=await writeUpdateDescriptor(path.join(bundle,scope+'.msi.update.json'),full.manifest,await collectPayload(full.directory),native({path:old.path,bytes:old.bytes,sha256:old.sha256},old));
+ const to=await writeUpdateDescriptor(path.join(directory,'replacement-'+scope+'.msi.update.json'),replacementPayload,await collectPayload(replacementDirectory),native({path:replacementMsi.path,bytes:replacementMsi.bytes,sha256:replacementMsi.sha256},replacementMsi));
  upgrades.pairs.push({edition:'full',scope,from:{...from,path:path.relative(root,from.path)},to:{...to,path:path.relative(root,to.path)},source:path.relative(root,replacementDirectory),priorSource:path.relative(root,full.directory),applicationSha256:full.manifest.files.find(f=>f.path===full.manifest.binary).sha256});
 }
 

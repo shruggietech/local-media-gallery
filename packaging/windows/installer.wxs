@@ -56,7 +56,13 @@
   @NOTICE_FEATURE@
   <Feature Id="StartMenu" Title="Start menu shortcut" Level="1"><ComponentRef Id="StartIntegration" /></Feature>
   <Feature Id="CommandPath" Title="Command PATH" Level="2"><ComponentRef Id="UserPathIntegration" /><ComponentRef Id="MachinePathIntegration" /></Feature>
-  <!-- Legacy products are removed inside the standard rollback transaction after ownership preflight. -->
+  <!-- Each payload generation has its own ProductCode; related products are removed
+       inside the standard rollback transaction after ownership preflight. -->
+  <Upgrade Id="@UPGRADE@">
+   <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" Maximum="@VERSION@" IncludeMaximum="yes" MigrateFeatures="no" Property="LMG_OLD_DUAL" />
+   <UpgradeVersion Minimum="@VERSION@" IncludeMinimum="no" OnlyDetect="yes" Property="LMG_NEWER_DUAL" />
+  </Upgrade>
+  <Condition Message="A newer Local Media Gallery version is installed. Use its matching installer for maintenance.">NOT LMG_NEWER_DUAL</Condition>
   <Upgrade Id="{4A53AE01-FF50-4B42-AC2C-7D4EE30FD389}"><UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" Maximum="@VERSION@" IncludeMaximum="yes" Property="LMG_OLD_USER" /></Upgrade>
   <Upgrade Id="{0A757FF9-91A9-4A07-BA0B-4BD4286E6860}"><UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" Maximum="@VERSION@" IncludeMaximum="yes" Property="LMG_OLD_MACHINE" /></Upgrade>
   <Binary Id="Ownership" SourceFile="@HELPER@" />
@@ -72,12 +78,12 @@
   <CustomAction Id="VerifyMachineInstalled" BinaryKey="Ownership" DllEntry="VerifyInstalled" Execute="deferred" Impersonate="no" Return="check" />
   <CustomAction Id="RuntimeResult" BinaryKey="Ownership" DllEntry="RuntimeResult" Execute="immediate" Return="check" />
   <InstallUISequence>
-   <Custom Action="Configure" Before="CostInitialize">NOT Installed</Custom>
+   <Custom Action="Configure" Before="FindRelatedProducts">NOT Installed</Custom>
    <Show Dialog="WelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
    <Show Dialog="MaintenanceWelcomeDlg" Before="ProgressDlg">Installed AND NOT RESUME AND NOT Preselected</Show>
   </InstallUISequence>
   <InstallExecuteSequence>
-   <Custom Action="Configure" Before="CostInitialize">1</Custom>
+   <Custom Action="Configure" Before="FindRelatedProducts">1</Custom>
    <Custom Action="SelectFeatures" After="CostFinalize">NOT REMOVE="ALL"</Custom>
    <Custom Action="SetInstallLocation" After="SelectFeatures">NOT REMOVE="ALL"</Custom>
    <Custom Action="Preflight" Before="InstallInitialize">1</Custom>

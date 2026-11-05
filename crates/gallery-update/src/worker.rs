@@ -198,6 +198,7 @@ pub fn entry(path: &Path) -> Result<i32> {
         } => {
             #[cfg(windows)]
             {
+                let dual_source = native::dual_msi_identity(source, &base.join(&job.side))?;
                 let (package, pins) = reinstall_source(path, &job, source, &package, &record)?;
                 _source_pins = pins;
                 _input = gallery_windows_package::open_verified_input(
@@ -212,9 +213,12 @@ pub fn entry(path: &Path) -> Result<i32> {
                     return Err("Invalid MSI worker operation".into());
                 }
                 if job.action == "remove"
-                    && gallery_windows_package::native::registered_package(scope == "machine")?
+                    && (gallery_windows_package::native::registered_package(scope == "machine")?
                         .as_deref()
                         != Some(package_code)
+                        || gallery_windows_package::native::registered_product(scope == "machine")?
+                            .as_deref()
+                            != Some(product_code))
                 {
                     return Err("Installed MSI changed before native removal".into());
                 }
@@ -231,9 +235,7 @@ pub fn entry(path: &Path) -> Result<i32> {
                     StateContext::Selected(s) => s.windows_integrations.clone(),
                     StateContext::Legacy(_) => None,
                 };
-                let journal = if job.action == "install"
-                    && product_code != gallery_windows_package::native::DUAL
-                {
+                let journal = if job.action == "install" && !dual_source {
                     legacy_install_context(&journal, &job.side)?
                 } else {
                     base.join("journal.json")
@@ -252,8 +254,7 @@ pub fn entry(path: &Path) -> Result<i32> {
                 });
                 let mut elected = vec!["Application", "Payload", "Notices"];
                 let mut absent = Vec::new();
-                if job.action == "install" && product_code == gallery_windows_package::native::DUAL
-                {
+                if job.action == "install" && dual_source {
                     let choices =
                         integration_choices.ok_or("Missing sealed Windows integration choices")?;
                     for (feature, enabled) in [
@@ -274,7 +275,7 @@ pub fn entry(path: &Path) -> Result<i32> {
                 if job.reinstall {
                     let mut features =
                         native::reinstall_features(source, &package, &job.directory)?;
-                    if product_code == gallery_windows_package::native::DUAL {
+                    if dual_source {
                         for f in elected
                             .iter()
                             .filter(|f| matches!(**f, "StartMenu" | "CommandPath"))
@@ -645,7 +646,7 @@ fn legacy_install_context(outer: &Journal, side: &str) -> Result<PathBuf> {
     else {
         return Err("Legacy adapter requires MSI".into());
     };
-    if product_code == gallery_windows_package::native::DUAL {
+    if native::dual_msi_identity(selected, &outer.transaction.join(side))? {
         return Ok(outer.transaction.join("journal.json"));
     }
     let machine = scope == "machine";

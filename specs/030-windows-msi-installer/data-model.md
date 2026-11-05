@@ -6,7 +6,7 @@ Resolved scope is exactly user or machine. INSTALLDIR is an absolute nonredirect
 
 ## Native identity
 
-One new canonical ProductCode and deterministic dual PackageCode identify the physical MSI. An internal descriptor always includes concrete effective scope. Recognize published user and machine ProductCodes as legacy identities; inspect actual registration in its concrete context. Multiple recognized registrations in the same context are a conflict. Package inspection declares dual capability while maintenance authorizes only the elected concrete scope.
+A payload-derived ProductCode and deterministic dual PackageCode identify each physical MSI generation. ProductCode uses the domain-separated digest of `product:` plus the payload SHA-256; PackageCode uses the payload SHA-256 directly. One stable UpgradeCode identifies the dual-purpose family, including same-version replacement generations. An internal descriptor always includes concrete effective scope. Recognize published user and machine ProductCodes as legacy identities; inspect actual registration in its concrete context. Multiple recognized registrations in the same context are a conflict. Package inspection declares dual capability while maintenance authorizes only the elected concrete scope.
 
 ## Ownership state
 

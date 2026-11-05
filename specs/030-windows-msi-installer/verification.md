@@ -34,3 +34,5 @@ All five received findings have code fixes, replies and resolved GitHub review t
 ## Pending completion
 
 Final-head successful installer lifecycle, independent evidence readback, terminal applicable CI, final task closeout and owner handoff remain required.
+
+- Run 41934749965 at 23d121b passed all seven non-MSI scopes. Its Windows readiness probe returned native 1619 with a verbose log, and same-package quiet repetition completed. Replacement then returned 1638 before custom actions because ProductCode was fixed across distinct packages. The corrected design gives each generation its own deterministic ProductCode, retains a stable UpgradeCode, discovers related products in the concrete context and validates both native identifiers against verified payload bytes. Native Upgrade rows include same-version generations; configuration runs before related-product discovery. Hidden stable-source repository checks pass with 280 applicable Node tests and two skips; installer/update Rust units, strict Clippy and revised WiX authoring pass. Complete hosted MSI lifecycle remains pending.

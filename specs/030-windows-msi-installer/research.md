@@ -2,7 +2,7 @@
 
 ## 2026-11-04: package and prerequisite
 
-Adopt one dual-purpose MSI (ALLUSERS=2; MSIINSTALLPERUSER=1 initially), native custom WiX dialogs, editable location in both scopes, and independent StartMenu/CommandPath features. Resolve concrete scope after costing; never infer it solely from ProductCode. A canonical new identity coexists with recognition of both published legacy identities.
+Adopt one dual-purpose MSI (ALLUSERS=2; MSIINSTALLPERUSER=1 initially), native custom WiX dialogs, editable location in both scopes, and independent StartMenu/CommandPath features. Resolve concrete scope after costing; never infer it solely from ProductCode. A generation-specific deterministic identity coexists with recognition of both published legacy identities.
 
 Microsoft's official [WebView2 WiX custom-action sample](https://learn.microsoft.com/en-us/microsoft-edge/webview2/samples/wv2deploymentwixcustomactionsample) embeds the complete offline installer and executes it before InstallFinalize. This supports a real self-contained MSI. [Single-package authoring](https://learn.microsoft.com/en-us/windows/win32/msi/single-package-authoring) defines ALLUSERS/MSIINSTALLPERUSER context selection. The existing EXE wrapper and unmodified inner MSI were rejected because they do not satisfy the issue.
 
@@ -43,3 +43,11 @@ Primary references: [MsiGetActiveDatabase](https://learn.microsoft.com/en-us/win
 The hosted quiet-repetition attempt at c1eb260 timed out after 240 seconds without creating an MSI log, after native wizard installation, browsing and bundled thumbnails succeeded. The maintainer serializer quoted switches as well as operands. Canonical invocations now leave switches bare, distinguish source/log operands containing equals from public properties, and retain explicit empty-property values. A guarded isolated readiness probe requests an intentionally absent package and requires native error 1619 plus a nonempty verbose log before expensive compilation; it does not request installation of a product. Full product maintenance acceptance remains required.
 
 Primary references: [Microsoft Installer command-line options](https://learn.microsoft.com/en-us/windows/win32/msi/command-line-options) and [public property values](https://learn.microsoft.com/en-us/windows/win32/msi/setting-public-property-values-on-the-command-line).
+
+## Native replacement identity correction
+
+Decision: derive ProductCode separately for each payload generation and retain one stable dual-purpose UpgradeCode. Use a native Upgrade row that includes the current three-field version, with removal inside the rollback transaction after ownership preflight. Query actual related products in each concrete context and validate their ProductCode against their verified payload before replacement authority is granted. Keep fixed published predecessor identities and PackageCode derivation unchanged.
+
+Rationale: the hosted replacement attempt returned native error 1638 before custom actions because the newly authored package retained the installed ProductCode while changing PackageCode. Microsoft requires a new ProductCode when the MSI filename changes. An ordinary versioned replacement download must work through the MSI entrypoint. See [changing ProductCode](https://learn.microsoft.com/en-us/windows/win32/msi/changing-the-product-code) and [using UpgradeCode](https://learn.microsoft.com/en-us/windows/win32/msi/using-an-upgradecode).
+
+Alternatives considered: supplying `REINSTALL=ALL` on the qualification command line would bypass the ordinary entrypoint requirement. Defaulting REINSTALL in a fresh package is unsuitable because [REINSTALL does not install an absent product](https://learn.microsoft.com/en-us/windows/win32/msi/reinstall). Same-package repair continues to use the installed product identity and elected features.

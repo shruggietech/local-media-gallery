@@ -143,8 +143,37 @@ pub(super) fn retain(c: &Candidate, base: &Path, name: &str, destination: &Path)
         Native::Direct => unreachable!(),
     };
     c.verify(destination)?;
+    #[cfg(windows)]
+    if matches!(&c.native, Native::WindowsMsi { .. }) {
+        dual_msi_identity(c, destination)?;
+    }
     exact_files(c, destination)
 }
+#[cfg(windows)]
+pub(super) fn dual_msi_identity(candidate: &Candidate, payload_directory: &Path) -> Result<bool> {
+    let Native::WindowsMsi {
+        product_code,
+        package_code,
+        scope,
+        ..
+    } = &candidate.native
+    else {
+        return Err("MSI identity requires a Windows installer candidate".into());
+    };
+    let payload = read_bounded(&payload_directory.join("payload.json"), 8 * 1024 * 1024)?;
+    let machine = scope == "machine";
+    let expected_package =
+        gallery_windows_package::native::package_code(product_code, machine, &payload)?;
+    if !expected_package.eq_ignore_ascii_case(package_code) {
+        return Err("MSI package identity differs from its verified payload".into());
+    }
+    Ok(
+        product_code.eq_ignore_ascii_case(&gallery_windows_package::native::dual_product_code(
+            &payload,
+        )),
+    )
+}
+
 #[cfg(windows)]
 fn cleanup_administrative(root: &Path) -> Result<()> {
     // Called only after exact_msi_image and retained inventory verification.
@@ -300,11 +329,19 @@ pub(super) fn verified(c: &Candidate, directory: &Path) -> Result<()> {
         Native::Direct => {}
         Native::WindowsMsi {
             scope,
+            product_code,
             package_code,
             ..
         } => {
             #[cfg(windows)]
             {
+                dual_msi_identity(c, directory)?;
+                if gallery_windows_package::native::registered_product(scope == "machine")?
+                    .as_deref()
+                    != Some(product_code)
+                {
+                    return Err("Installed MSI ProductCode differs from selected candidate".into());
+                }
                 let payload = io(fs::read_to_string(directory.join("payload.json")))?;
                 gallery_windows_package::native::verify_registered_payload(
                     directory,
@@ -315,7 +352,7 @@ pub(super) fn verified(c: &Candidate, directory: &Path) -> Result<()> {
             }
             #[cfg(not(windows))]
             {
-                let _ = (scope, package_code);
+                let _ = (scope, product_code, package_code);
                 return Err("MSI requires Windows".into());
             }
         }

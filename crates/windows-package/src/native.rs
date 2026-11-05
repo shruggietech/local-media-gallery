@@ -23,11 +23,17 @@ use windows::{
 };
 const USER: &str = "{2098F021-7630-4BF6-B7F8-2AC279022A42}";
 const MACHINE: &str = "{F81110E5-48A6-4096-B065-752E0D3B61C0}";
-pub const DUAL: &str = "{6EC08037-6FA8-4AF3-916B-40D03DE0DAF9}";
+pub const DUAL_UPGRADE: &str = "{788C188C-E8CE-48B6-95CC-134A6AFD4B20}";
 const KEY: &str = "Software\\ShruggieTech\\LocalMediaGallery";
 #[link(name = "msi")]
 unsafe extern "system" {
     fn MsiGetFeatureStateW(h: u32, name: *const u16, installed: *mut i32, action: *mut i32) -> u32;
+    fn MsiEnumRelatedProductsW(
+        upgrade: *const u16,
+        reserved: u32,
+        index: u32,
+        product: *mut u16,
+    ) -> u32;
     fn MsiSetFeatureStateW(h: u32, name: *const u16, state: i32) -> u32;
     fn MsiQueryFeatureStateExW(
         product: *const u16,
@@ -187,6 +193,16 @@ fn guid(scope: &str, identity: &str) -> String {
 fn product(machine: bool) -> &'static str {
     if machine { MACHINE } else { USER }
 }
+pub fn is_legacy_product(code: &str, machine: bool) -> bool {
+    code.eq_ignore_ascii_case(product(machine))
+}
+/// One physical dual-context MSI per payload generation, with a stable upgrade family.
+pub fn dual_product_code(payload: &[u8]) -> String {
+    guid(
+        "dual",
+        &hash(format!("product:{}", hash(payload)).as_bytes()),
+    )
+}
 fn registered_for(code: &str, machine: bool, name: &str) -> Result<Option<OsString>, String> {
     let mut b = vec![0u16; 32768];
     let mut n = b.len() as u32;
@@ -209,13 +225,40 @@ fn registered_for(code: &str, machine: bool, name: &str) -> Result<Option<OsStri
     Ok(Some(OsString::from_wide(&b[..n as usize])))
 }
 pub fn registered_product(machine: bool) -> Result<Option<String>, String> {
+    // Upgrade-family enumeration is discovery only. Callers must still verify
+    // the payload-derived ProductCode, native PackageCode and ownership markers.
+    // Never adopt a caller-writable registry ProductCode as native authority.
+    let mut candidates = std::collections::BTreeSet::from([product(machine).to_owned()]);
+    let upgrade = wide(DUAL_UPGRADE);
+    let mut index = 0;
+    loop {
+        let mut code = [0u16; 39];
+        let status =
+            unsafe { MsiEnumRelatedProductsW(upgrade.as_ptr(), 0, index, code.as_mut_ptr()) };
+        if status == 259 {
+            break;
+        }
+        if status != 0 {
+            return Err(format!("Related native installer enumeration: {status}"));
+        }
+        let end = code
+            .iter()
+            .position(|c| *c == 0)
+            .ok_or("Invalid related ProductCode")?;
+        candidates.insert(
+            String::from_utf16(&code[..end])
+                .map_err(|e| e.to_string())?
+                .to_uppercase(),
+        );
+        index += 1;
+    }
     let mut found = None;
-    for code in [DUAL, product(machine)] {
-        if registered_for(code, machine, "PackageCode")?.is_some() {
+    for code in candidates {
+        if registered_for(&code, machine, "PackageCode")?.is_some() {
             if found.is_some() {
                 return Err("Multiple owned products in the same installation context; resolve the native registration before maintenance".into());
             }
-            found = Some(code.to_owned());
+            found = Some(code);
         }
     }
     Ok(found)
@@ -227,9 +270,9 @@ fn registered(machine: bool, name: &str) -> Result<Option<OsString>, String> {
     }
 }
 pub fn package_code(product_code: &str, machine: bool, payload: &[u8]) -> Result<String, String> {
-    let scope = if product_code == DUAL {
+    let scope = if product_code.eq_ignore_ascii_case(&dual_product_code(payload)) {
         "dual"
-    } else if product_code == product(machine) {
+    } else if is_legacy_product(product_code, machine) {
         if machine { "machine" } else { "user" }
     } else {
         return Err("Unrecognized product identity".into());
@@ -252,7 +295,7 @@ impl Default for Integrations {
 }
 pub fn installed_integrations(machine: bool) -> Result<Integrations, String> {
     let code = registered_product(machine)?.ok_or("No installed product for feature selection")?;
-    if code != DUAL {
+    if is_legacy_product(&code, machine) {
         return Ok(Integrations {
             start_menu: true,
             command_path: true,
@@ -341,7 +384,11 @@ fn configure(h: u32) -> Result<(), String> {
             }
         }
     }
-    if text(h, "ALLUSERS")? == "1" || text(h, "MSIINSTALLPERUSER")?.is_empty() {
+    // A replacement keeps its verified predecessor context. Initial MSI
+    // defaults must not turn an existing user installation into a machine one.
+    if text(h, "LMG_EXISTING")?.is_empty()
+        && (text(h, "ALLUSERS")? == "1" || text(h, "MSIINSTALLPERUSER")?.is_empty())
+    {
         set(h, "LMG_SCOPE", "machine")?;
     }
     if text(h, "LMG_STARTMENU")?.is_empty() {
@@ -630,7 +677,10 @@ fn verify_integrations_for(
     let expected = [
         (
             "ProductCode",
-            OsString::from(registered_product(machine)?.as_deref().unwrap_or(DUAL)),
+            OsString::from(
+                registered_product(machine)?
+                    .unwrap_or_else(|| dual_product_code(PAYLOAD.as_bytes())),
+            ),
         ),
         ("PackageCode", OsString::from(package)),
         ("InstallDir", directory.as_os_str().to_owned()),
@@ -741,7 +791,10 @@ pub fn verify_install(directory: &Path, machine: bool) -> Result<(), String> {
     p.verify(directory, false)?;
     verify_manifest(directory, false)?;
     let package = guid("dual", &hash(PAYLOAD.as_bytes()));
-    if registered(machine, "PackageCode")? != Some(OsString::from(&package)) {
+    if registered_product(machine)?.as_deref()
+        != Some(dual_product_code(PAYLOAD.as_bytes()).as_str())
+        || registered(machine, "PackageCode")? != Some(OsString::from(&package))
+    {
         return Err("Registered package does not match candidate".into());
     }
     verify_integrations(machine, directory, &package, true)?;
@@ -764,7 +817,7 @@ pub(crate) struct DeferredContext {
     pub state: Vec<WriterOperand>,
 }
 fn preflight(h: u32) -> Result<(), String> {
-    if text(h, "ProductCode")? != DUAL {
+    if text(h, "ProductCode")? != dual_product_code(PAYLOAD.as_bytes()) {
         return Err("Unknown installer product".into());
     }
     let machine = text(h, "ALLUSERS")? == "1";
@@ -809,11 +862,14 @@ fn preflight(h: u32) -> Result<(), String> {
             return Err("Installed native identity and payload disagree".into());
         }
         verify_integrations_for(machine, &directory, &package, false, &hash(old.as_bytes()))?;
-        // A published predecessor can only be removed by its recognized Upgrade row.
-        if code != DUAL
+        // Every distinct predecessor must be admitted by its corresponding
+        // Upgrade row, including same-version payload generations.
+        if code != dual_product_code(PAYLOAD.as_bytes())
             && text(
                 h,
-                if machine {
+                if !is_legacy_product(&code, machine) {
+                    "LMG_OLD_DUAL"
+                } else if machine {
                     "LMG_OLD_MACHINE"
                 } else {
                     "LMG_OLD_USER"
@@ -967,7 +1023,10 @@ pub fn validate_destination(directory: &Path, machine: bool) -> Result<(), Strin
     p.validate()?;
     let installed = registered(machine, "PackageCode")?;
     if let Some(actual) = installed {
-        if actual != OsString::from(&package) {
+        if actual != OsString::from(&package)
+            || registered_product(machine)?.as_deref()
+                != Some(dual_product_code(PAYLOAD.as_bytes()).as_str())
+        {
             return Err("Another candidate/version is installed. Preserve it and use its matching uninstaller; cross-version upgrades belong to the upgrade contract".into());
         }
         let marker = guid("dual", &hash(b"component:local-media-gallery.exe"));
@@ -1077,7 +1136,16 @@ pub fn registered_install_directory(machine: bool) -> Result<Option<PathBuf>, St
     Ok(Some(directory))
 }
 pub fn installed_directory(machine: bool) -> Result<Option<PathBuf>, String> {
-    match registered(machine,"PackageCode")? {Some(code) if code==OsString::from(guid("dual",&hash(PAYLOAD.as_bytes())))=>Ok(registered(machine,"InstallLocation")?.map(PathBuf::from)),Some(_)=>Err("A different candidate is registered; use its matching removal package before replacement".into()),None=>Ok(None)}
+    let Some(code) = registered_product(machine)? else {
+        return Ok(None);
+    };
+    if code != dual_product_code(PAYLOAD.as_bytes())
+        || registered_for(&code, machine, "PackageCode")?
+            != Some(OsString::from(guid("dual", &hash(PAYLOAD.as_bytes()))))
+    {
+        return Err("A different candidate is registered; use its matching removal package before replacement".into());
+    }
+    Ok(registered_for(&code, machine, "InstallLocation")?.map(PathBuf::from))
 }
 pub fn verify_removed(directory: &Path, machine: bool) -> Result<(), String> {
     if registered(machine, "PackageCode")?.is_some() {
@@ -1234,8 +1302,10 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
         if v[side]["native"]["packageCode"] != package {
             return Err("Recovery native identity differs".into());
         }
-        packages.push(package);
-        matching |= text == PAYLOAD && side == target;
+        packages.push((product_code.to_owned(), package));
+        matching |= text == PAYLOAD
+            && product_code == dual_product_code(PAYLOAD.as_bytes())
+            && side == target;
         for f in &payload.files {
             validator.validate(&root.join(&f.path))?;
         }
@@ -1252,10 +1322,14 @@ fn recovery_destination(directory: &Path, machine: bool, journal: &Path) -> Resu
     if !matching {
         return Err("This MSI is outside the retained recovery operation".into());
     }
-    if let Some(registered) = registered(machine, "PackageCode")?
-        && !packages.iter().any(|p| registered == OsString::from(p))
-    {
-        return Err("Foreign registered package".into());
+    if let Some(code) = registered_product(machine)? {
+        let registered = registered_for(&code, machine, "PackageCode")?
+            .ok_or("Missing registered recovery PackageCode")?;
+        if !packages.iter().any(|(product, package)| {
+            code.eq_ignore_ascii_case(product) && registered == OsString::from(package)
+        }) {
+            return Err("Foreign registered package".into());
+        }
     }
     let mut namespace = crate::private::PhysicalNamespace::default();
     for (path, records) in allowed {
@@ -1852,8 +1926,12 @@ mod context_identity_tests {
     fn physical_dual_identity_is_shared_but_legacy_authority_stays_context_specific() {
         let bytes = b"retained exact input";
         assert_eq!(
-            package_code(DUAL, false, bytes).unwrap(),
-            package_code(DUAL, true, bytes).unwrap()
+            dual_product_code(bytes),
+            "{B0FBA701-A146-59A0-AFB0-536A96D49F34}"
+        );
+        assert_eq!(
+            package_code(&dual_product_code(bytes), false, bytes).unwrap(),
+            package_code(&dual_product_code(bytes), true, bytes).unwrap()
         );
         assert_ne!(
             package_code(USER, false, bytes).unwrap(),
@@ -1862,5 +1940,10 @@ mod context_identity_tests {
         assert!(package_code(USER, true, bytes).is_err());
         assert!(package_code(MACHINE, false, bytes).is_err());
         assert!(package_code("foreign", false, bytes).is_err());
+        assert!(package_code(&dual_product_code(b"another generation"), false, bytes).is_err());
+        assert_ne!(
+            dual_product_code(bytes),
+            dual_product_code(b"another generation")
+        );
     }
 }
