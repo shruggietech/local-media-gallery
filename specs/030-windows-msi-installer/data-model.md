@@ -12,6 +12,8 @@ A payload-derived ProductCode and deterministic dual PackageCode identify each p
 
 Existing payload inventory/hashes, install directory, native identity and retained source remain authoritative. Integration choices are persisted with registration and queried from MSI feature states. Legacy installations without the new optional features imply both integrations enabled. Extend private state within the existing sealed envelope rather than changing its six top-level identity fields.
 
+Published legacy recovery uses a fresh canonical scoped compatibility context with identical selected predecessor inventories on both sides. Its reference records the outer binding, elected side, canonical journal path, inner binding and identity/context readback. The selected transaction and its six-field immutable identity remain unchanged. Both contexts remain retained; existing or partial compatibility copies are never adopted on retry.
+
 ## Dependency operation
 
 Pinned embedded runtime bytes/hash, elected context, detected runtime state, real phase, vendor result, cancellation request, terminal readback and possible reboot requirement. Shared runtime is never owned for uninstall. Incomplete work retains a diagnostic receipt and prevents a false success.

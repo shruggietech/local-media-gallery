@@ -32,9 +32,10 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
   if(spawnError)throw spawnError;if(child.exitCode!==null)throw new Error('Native app exited '+child.exitCode+': '+output);
   const response=await fetch(origin+route,{method,headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});const r=await response.json();if(!response.ok||r.value?.error)throw new Error(r.value?.message??'Native WebDriver HTTP '+response.status);return r.value;
  }
- // Fresh WebView2 profiles on hosted Windows can initialize after 20 seconds.
- // Allow 30 seconds for this prerequisite; the aggregate qualification limit stays authoritative.
- const readinessTimeline=[];let session;try{session=await readyDriver(child,origin,observation,process.platform==='win32'?30000:20000,{nonce,timeline:readinessTimeline,...(process.platform==='win32'?{readinessScriptTimeoutMs:300}:{}),context:{operation:'native-runtime',edition:process.env.GALLERY_TEST_EDITION??'full',fixture:fixture.sha256}});await until(()=>request('/session/'+session+'/execute/sync',{script:'return document.readyState === "complete" && Boolean(document.querySelector(".app-header"));',args:[]},'POST',2000),'Native frontend readiness',20000);}catch(e){
+ // Fresh hosted Windows profiles have reported listener readiness at 27.9 seconds.
+ // Reserve ten seconds for the following session/identity handshake within one
+ // fixed 40-second allowance; the aggregate qualification limit stays authoritative.
+ const readinessTimeline=[];let session;try{session=await readyDriver(child,origin,observation,process.platform==='win32'?40000:20000,{nonce,timeline:readinessTimeline,...(process.platform==='win32'?{readinessScriptTimeoutMs:300}:{}),context:{operation:'native-runtime',edition:process.env.GALLERY_TEST_EDITION??'full',fixture:fixture.sha256}});await until(()=>request('/session/'+session+'/execute/sync',{script:'return document.readyState === "complete" && Boolean(document.querySelector(".app-header"));',args:[]},'POST',2000),'Native frontend readiness',20000);}catch(e){
   // Observe only after acceptance failed, before terminating its owned PID. This
   // bounded diagnostic never extends readiness or changes a failure into success.
   if(process.platform==='win32')try{e.windowsStartupDiagnostics={...await windowsStartupDiagnostics(child.pid),capturedAfterReadinessFailure:true,child:observation()};}catch(error){e.windowsStartupDiagnostics={result:'unavailable',capturedAfterReadinessFailure:true,error:error.message,...subprocessFailure(error),child:observation()};}

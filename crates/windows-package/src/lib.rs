@@ -283,31 +283,46 @@ pub fn msi_directory_property(path: &Path) -> Result<std::ffi::OsString, String>
 #[cfg(windows)]
 pub fn expand_registry_path(value: &std::ffi::OsStr) -> Result<std::ffi::OsString, String> {
     use std::os::windows::ffi::{OsStrExt, OsStringExt};
-    #[link(name = "kernel32")]
+    #[link(name = "userenv")]
     unsafe extern "system" {
-        fn ExpandEnvironmentStringsW(source: *const u16, destination: *mut u16, size: u32) -> u32;
+        fn ExpandEnvironmentStringsForUserW(
+            token: *mut std::ffi::c_void,
+            source: *const u16,
+            destination: *mut u16,
+            size: u32,
+        ) -> i32;
     }
     let mut source = value.encode_wide().collect::<Vec<_>>();
     if source.contains(&0) {
         return Err("Registry PATH contains an embedded null".into());
     }
     source.push(0);
-    let mut expanded = vec![0u16; 32768];
-    let size = unsafe {
-        ExpandEnvironmentStringsW(
+    // MSI service process variables can belong to SYSTEM. Persistent PATH
+    // entries must instead expand for the effective installing/maintenance user.
+    let token = effective_process::effective_token()?;
+    let handle = token
+        .as_handle()
+        .ok_or("Effective PATH expansion token unavailable")?;
+    let mut expanded = vec![0xffffu16; 32768];
+    if unsafe {
+        ExpandEnvironmentStringsForUserW(
+            handle.0,
             source.as_ptr(),
             expanded.as_mut_ptr(),
             expanded.len() as u32,
         )
-    };
-    if size == 0 || size as usize > expanded.len() {
-        return Err(
-            "Registry PATH expansion failed or exceeds the Windows environment limit".into(),
-        );
+    } == 0
+    {
+        return Err(format!(
+            "Effective-user registry PATH expansion failed: {}",
+            std::io::Error::last_os_error()
+        ));
     }
-    Ok(std::ffi::OsString::from_wide(
-        &expanded[..size as usize - 1],
-    ))
+    let length = expanded
+        .iter()
+        .position(|unit| *unit == 0)
+        .ok_or("Registry PATH expansion exceeds the Windows environment limit")?;
+    Ok(std::ffi::OsString::from_wide(&expanded[..length]))
 }
 
 #[cfg(test)]
@@ -326,6 +341,71 @@ mod tests {
             expected
         );
         assert!(expand_registry_path(std::ffi::OsStr::new("C:\\valid\0;C:\\hidden")).is_err());
+    }
+    #[cfg(windows)]
+    #[test]
+    fn registry_path_expansion_uses_token_profile_despite_process_overrides() {
+        use std::os::windows::process::CommandExt;
+        use std::path::PathBuf;
+        if std::env::var_os("LMG_TEST_EFFECTIVE_PATH_CHILD").is_some() {
+            for (variable, id) in [
+                ("USERPROFILE", windows::Win32::UI::Shell::FOLDERID_Profile),
+                (
+                    "LOCALAPPDATA",
+                    windows::Win32::UI::Shell::FOLDERID_LocalAppData,
+                ),
+            ] {
+                let expected = native::known_folder(&id).unwrap().join("Gallery 雪");
+                assert_ne!(
+                    PathBuf::from(std::env::var_os(variable).unwrap()).join("Gallery 雪"),
+                    expected
+                );
+                assert_eq!(
+                    PathBuf::from(
+                        expand_registry_path(std::ffi::OsStr::new(&format!(
+                            "%{variable}%\\Gallery 雪"
+                        )))
+                        .unwrap()
+                    ),
+                    expected
+                );
+            }
+            println!("effective-user-path-expansion-observed");
+            return;
+        }
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "tests::registry_path_expansion_uses_token_profile_despite_process_overrides",
+                "--nocapture",
+            ])
+            .env("LMG_TEST_EFFECTIVE_PATH_CHILD", "1")
+            .env("USERPROFILE", "C:\\not-the-effective-user")
+            .env("LOCALAPPDATA", "C:\\not-the-effective-appdata")
+            .creation_flags(0x08000000)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        loop {
+            if child.try_wait().unwrap().is_some() {
+                break;
+            }
+            if std::time::Instant::now() >= end {
+                child.kill().unwrap();
+                let output = child.wait_with_output().unwrap();
+                panic!("Effective-user PATH regression child deadline: {output:?}");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .contains("effective-user-path-expansion-observed")
+        );
     }
     #[cfg(windows)]
     #[test]

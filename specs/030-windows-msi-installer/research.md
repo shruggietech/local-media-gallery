@@ -63,3 +63,7 @@ The standard cancellation and failure descriptions incorrectly claim no system c
 ## 2026-11-05 legacy recovery ancestry
 
 Actual published v0.1.0 rollback rejects a selected D: journal ancestor even though the current updater accepts the selected protected directory. Its immutable recovery guard validates every ancestor and cannot be changed by the new updater. Create only the legacy compatibility journal and duplicate selected inventories beneath canonical scoped storage, validate and pin that ancestry, and retain a bound reference in the unchanged selected transaction. Do not relocate the user's transaction, rewrite published packages or bypass the old guard. The actual published rollback campaign is the acceptance boundary.
+
+## 2026-11-05 installing-user PATH expansion
+
+Persistent expandable PATH entries must use the effective user's environment rather than MSI service process variables. [Microsoft's user-environment expansion contract](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-expandenvironmentstringsforuserw) accepts an effective token with QUERY, IMPERSONATE and DUPLICATE rights, already supplied by the shared token helper. Preserve bounded UTF-16 handling. Test the actual user folder behind an expandable entry; a private TEMP override in the test coordinator is not the persistent user environment. A hidden regression child overrides process profile variables and must still resolve the token's native profile folders.
