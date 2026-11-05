@@ -694,28 +694,6 @@ impl PhysicalNamespace {
         Ok(())
     }
 }
-/// Compare already pinned filesystem objects, independently of textual aliases.
-pub fn same_file_identity(left: &File, right: &File) -> Result<bool> {
-    use windows::Win32::{
-        Foundation::HANDLE,
-        Storage::FileSystem::{BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle},
-    };
-    let identity = |file: &File| -> Result<(u32, u32, u32)> {
-        let mut info = BY_HANDLE_FILE_INFORMATION::default();
-        unsafe { GetFileInformationByHandle(HANDLE(file.as_raw_handle()), &mut info) }
-            .map_err(|error| error.to_string())?;
-        if info.dwVolumeSerialNumber == 0 || (info.nFileIndexHigh == 0 && info.nFileIndexLow == 0) {
-            return Err("Filesystem did not provide an unambiguous physical identity".into());
-        }
-        Ok((
-            info.dwVolumeSerialNumber,
-            info.nFileIndexHigh,
-            info.nFileIndexLow,
-        ))
-    };
-    Ok(identity(left)? == identity(right)?)
-}
-
 /// Pin physical names without imposing an ACL policy on gallery content.
 pub fn pin_physical(path: &Path) -> Result<Vec<File>> {
     let mut namespace = PhysicalNamespace::default();
@@ -729,24 +707,6 @@ pub fn ensure_storage_root(machine: bool) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn pinned_directory_identity_accepts_case_aliases_and_rejects_other_directories() {
-        let temp = tempfile::tempdir().unwrap();
-        let first = temp.path().join("owned directory 雪");
-        let other = temp.path().join("other directory 雪");
-        std::fs::create_dir(&first).unwrap();
-        std::fs::create_dir(&other).unwrap();
-        let alias = PathBuf::from(first.to_str().unwrap().to_uppercase());
-        let first_pins = pin_physical(&first).unwrap();
-        let alias_pins = pin_physical(&alias).unwrap();
-        let other_pins = pin_physical(&other).unwrap();
-        assert!(
-            same_file_identity(first_pins.last().unwrap(), alias_pins.last().unwrap()).unwrap()
-        );
-        assert!(
-            !same_file_identity(first_pins.last().unwrap(), other_pins.last().unwrap()).unwrap()
-        );
-    }
     #[test]
     fn filesystem_wide_names_preserve_drive_unc_and_verbatim_identity() {
         let text = |path: &str| {
