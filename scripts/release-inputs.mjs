@@ -72,7 +72,10 @@ export async function downloadQualificationArtifact({client,artifact,directory,f
  const size=artifactSize(artifact,maxBytes);assert.match(filename,/^[a-z0-9][a-z0-9-]*[.]zip$/);await mkdir(directory,{recursive:true});
  const file=path.join(directory,filename),partial=file+'.partial';
  try{await lstat(file);throw Error('Retained archive already exists');}catch(error){if(error.code!=='ENOENT')throw error;}
- const archive=await client.downloadFile(client.prefix+'/actions/artifacts/'+artifact.id+'/zip',partial,{maxBytes:size,timeoutMs:300000});
+ // Supporting lifecycle packets exceed the canonical archive class. Give their
+ // streamed transfer a bounded allowance without changing the client deadline.
+ const timeoutMs=maxBytes===supportBound?600000:300000;
+ const archive=await client.downloadFile(client.prefix+'/actions/artifacts/'+artifact.id+'/zip',partial,{maxBytes:size,timeoutMs});
  const actual=await lstat(partial);assert.ok(actual.isFile()&&!actual.isSymbolicLink()&&actual.nlink===1,'Redirected retained archive');
  assert.equal(archive.bytes,String(size),'CI archive byte size differs');assert.equal(actual.size,size,'Retained archive byte size differs');
  assert.equal('sha256:'+archive.sha256,artifact.digest,'CI artifact digest differs');await rename(partial,file);return file;

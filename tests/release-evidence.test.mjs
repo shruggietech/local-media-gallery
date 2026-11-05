@@ -89,6 +89,18 @@ test('Streamed qualification archives enforce exact declared bytes/digest and sc
  await assert.rejects(downloadQualificationArtifact({client,artifact:{...artifact,size_in_bytes:5*1024**3+1},directory,filename:'large.zip',maxBytes:5*1024**3}),/bound|size/i);
 });
 
+test('Large supporting transfers receive a bounded budget that accommodates the observed full-size operation',async t=>{
+ const directory=await mkdtemp(path.join(os.tmpdir(),'lmg-input-budget-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+ const artifact={id:10,digest:'sha256:'+'a'.repeat(64),size_in_bytes:5063915280},admitted=Error('Transfer admitted within its budget');
+ const client={prefix:'/repos/o/r',deadline:123456789,downloadFile:async(_route,_target,options)=>{
+  assert.equal(options.maxBytes,artifact.size_in_bytes);assert.ok(options.timeoutMs>350000&&options.timeoutMs<=600000,'Observed five-minute cutoff must not recur');throw admitted;
+ }};
+ await assert.rejects(downloadQualificationArtifact({client,artifact,directory,filename:'large-support.zip',maxBytes:5*1024**3}),error=>error===admitted);
+ assert.equal(client.deadline,123456789,'Per-archive allowance must not reset global authority');
+ client.downloadFile=async(_route,_target,options)=>{assert.equal(options.timeoutMs,300000);throw admitted;};
+ await assert.rejects(downloadQualificationArtifact({client,artifact:{...artifact,size_in_bytes:1},directory,filename:'canonical.zip'}),error=>error===admitted);
+});
+
 async function publisherInputFixture({overwriteCanonical=false}={}){
  const f=supportingFixture(),{releaseScopes}=await import('../scripts/release-record.mjs');
  const packets=new Map(),artifacts=[];

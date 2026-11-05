@@ -65,3 +65,5 @@ specs/031-v021-release-preparation contains spec, plan, research, data-model, co
 ## Execution Order
 
 Specify/clarify/checklist -> research/design -> tasks -> blocking analysis -> targeted negative/security regression -> dependency and evidence retrieval fixes -> prose/source A -> current snapshot B -> local parity checks -> push/official PR -> hosted qualification and no more than two reviews -> final independent evidence and owner merge handoff.
+
+Supporting archive transport has a 600-second per-request allowance inside the existing global deadline. Canonical input transport retains 300 seconds. This separates input preparation from qualification and addresses the observed full-size stream cutoff without changing any byte or qualification bound.
