@@ -189,6 +189,8 @@ pub fn entry(path: &Path) -> Result<i32> {
     let _input;
     #[cfg(windows)]
     let _source_pins;
+    #[cfg(windows)]
+    let _legacy_context_pins;
     match &source.native {
         Native::WindowsMsi {
             scope,
@@ -235,11 +237,12 @@ pub fn entry(path: &Path) -> Result<i32> {
                     StateContext::Selected(s) => s.windows_integrations.clone(),
                     StateContext::Legacy(_) => None,
                 };
-                let journal = if job.action == "install" && !dual_source {
+                let (journal, legacy_pins) = if job.action == "install" && !dual_source {
                     legacy_install_context(&journal, &job.side)?
                 } else {
-                    base.join("journal.json")
+                    (base.join("journal.json"), vec![])
                 };
+                _legacy_context_pins = legacy_pins;
                 let journal = journal.to_str().ok_or("Invalid MSI recovery path")?;
                 if directory.contains(['\"', '\r', '\n']) || journal.contains(['\"', '\r', '\n']) {
                     return Err("Invalid MSI property".into());
@@ -632,7 +635,7 @@ pub fn run(path: &Path) -> Result<i32> {
 }
 
 #[cfg(windows)]
-fn legacy_install_context(outer: &Journal, side: &str) -> Result<PathBuf> {
+fn legacy_install_context(outer: &Journal, side: &str) -> Result<(PathBuf, Vec<File>)> {
     let selected = if side == "prior" {
         &outer.prior
     } else {
@@ -647,7 +650,7 @@ fn legacy_install_context(outer: &Journal, side: &str) -> Result<PathBuf> {
         return Err("Legacy adapter requires MSI".into());
     };
     if native::dual_msi_identity(selected, &outer.transaction.join(side))? {
-        return Ok(outer.transaction.join("journal.json"));
+        return Ok((outer.transaction.join("journal.json"), vec![]));
     }
     let machine = scope == "machine";
     if let Some(registered) = gallery_windows_package::native::registered_product(machine)? {
@@ -670,7 +673,8 @@ fn legacy_install_context(outer: &Journal, side: &str) -> Result<PathBuf> {
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos();
-    let base = outer.transaction.join(format!(
+    let (legacy_root, mut pins) = gallery_windows_package::private::legacy_storage_root(machine)?;
+    let base = legacy_root.join(format!(
         "legacy-recovery-{side}-{}-{nonce:x}",
         std::process::id()
     ));
@@ -696,7 +700,25 @@ fn legacy_install_context(outer: &Journal, side: &str) -> Result<PathBuf> {
     let mut adapter = adapter;
     adapter.binding = hash(&read_bounded(&base.join("identity.json"), 8 * 1024 * 1024)?);
     durable_json(&base.join("journal.json"), &adapter)?;
-    Ok(base.join("journal.json"))
+    pins.extend(gallery_windows_package::private::validate_directory(
+        &base, machine,
+    )?);
+    durable_json(
+        &outer.transaction.join(format!(
+            "legacy-recovery-{side}-{}-{nonce:x}.json",
+            std::process::id()
+        )),
+        &serde_json::json!({
+            "formatVersion": 1,
+            "outerBinding": outer.binding,
+            "side": side,
+            "journal": base.join("journal.json"),
+            "binding": adapter.binding,
+            "identity": expected,
+            "context": adapter
+        }),
+    )?;
+    Ok((base.join("journal.json"), pins))
 }
 
 #[cfg(test)]

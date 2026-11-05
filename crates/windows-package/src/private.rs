@@ -548,6 +548,14 @@ pub fn storage_root(machine: bool) -> Result<PathBuf> {
     }
     ensure_storage_at(&root, machine)
 }
+/// Published legacy MSI guards validate every storage ancestor. Keep their
+/// compatibility journals in canonical scoped storage without changing the
+/// caller's selected transaction or weakening that older ancestry contract.
+pub fn legacy_storage_root(machine: bool) -> Result<(PathBuf, Vec<File>)> {
+    let root = storage_root(machine)?;
+    let pins = parents(&root, machine)?;
+    Ok((root, pins))
+}
 /// A validated, already locked coordination handle. Its final close deletes it.
 /// DELETE access with READ|WRITE sharing excludes another deleting opener.
 pub fn coordination_lease_at(root: &Path, key: &str, machine: bool) -> Result<File> {

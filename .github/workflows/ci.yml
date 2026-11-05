@@ -383,6 +383,13 @@ jobs:
           sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev zlib1g-dev debootstrap policykit-1 patchelf dpkg-dev desktop-file-utils shellcheck xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 gir1.2-gtk-3.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+      - name: Reclaim unused hosted Linux SDK space
+        if: runner.os == 'Linux'
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet
+          echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+          df -h "$GITHUB_WORKSPACE"
       - name: Identify Cargo cache image and source
         run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
@@ -400,6 +407,11 @@ jobs:
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-linux-packages-${{ runner.os }}-${{ runner.arch }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-
+      - name: Discard restored incremental compiler scratch
+        if: runner.os == 'Linux'
+        run: |
+          rm -rf target/debug/incremental target/release/incremental
+          df -h "$GITHUB_WORKSPACE"
       - name: Restore verified feature-helper build cache
         id: feature-helper-cache
         continue-on-error: true
@@ -503,6 +515,13 @@ jobs:
           sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y build-essential pkg-config libwebkit2gtk-4.1-dev libssl-dev librsvg2-dev patchelf xvfb xauth xdotool dbus-x11 at-spi2-core gir1.2-atspi-2.0 python3-gi gsettings-desktop-schemas pulseaudio pulseaudio-utils gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly
+      - name: Reclaim unused hosted Linux SDK space
+        if: runner.os == 'Linux'
+        run: |
+          df -h "$GITHUB_WORKSPACE"
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet
+          echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+          df -h "$GITHUB_WORKSPACE"
       - name: Identify Cargo cache image and source
         run: node -e "import('./scripts/provenance.mjs').then(async ({sourceIdentity}) => { const source = await sourceIdentity(); require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'CARGO_CACHE_IMAGE=' + (process.env.ImageVersion ?? 'unknown') + '\nCARGO_CACHE_SOURCE=' + source.sha256 + '\n'); })"
       - name: Restore compiler-validated Cargo cache
@@ -520,6 +539,11 @@ jobs:
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-${{ env.CARGO_CACHE_IMAGE }}-
             cargo-v1-native-proof-${{ runner.os }}-${{ runner.arch }}-
+      - name: Discard restored incremental compiler scratch
+        if: runner.os == 'Linux'
+        run: |
+          rm -rf target/debug/incremental target/release/incremental
+          df -h "$GITHUB_WORKSPACE"
       - run: npm ci
       - name: Run native qualification on isolated Linux display
         if: runner.os == 'Linux'

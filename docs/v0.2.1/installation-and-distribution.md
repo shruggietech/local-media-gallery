@@ -130,6 +130,8 @@ See [guided preparation](gallery-lifecycle.md#guided-preparation-and-recipient-o
 
 User-scoped maintenance uses %LOCALAPPDATA%/local-media-gallery/updates. Machine-scoped maintenance uses %PROGRAMDATA%/local-media-gallery/updates. Native known folders, protected owner/ACL checks and physical path validation select these roots. Transactions, embedded installer inputs, scratch and coordination use the same elected scope. Existing legacy directories are not migrated or repeatedly deleted.
 
+Published legacy MSI recovery uses a compatibility journal and duplicate verified payload inventories in canonical scoped storage to satisfy that installer's ancestry checks. The selected transaction keeps its immutable identity and a bound reference to this copy. Legacy package bytes and registration are unchanged; the compatibility copy remains retained with recovery evidence.
+
 Coordination files are validated for owner, ACL, ordinary type, one link and empty content before an exclusive lease marks them for deletion. Last handle closure, including process termination, removes the transient coordination file. Active leases continue to exclude other transactions targeting the same installation.
 
 Marked preparation and embedded-retention stages carry a scoped ownership record and lease. Retries reclaim abandoned validated Windows stages; active leases, unresolved native clients and foreign, linked or unrecognized contents remain retained. Terminal native worker scratch is eligible for cleanup only after matching terminal authority and native lease acquisition. Sealed prior/next payloads, installers, identities, journals and recovery authority remain available after completion or restoration. A committed transaction is not blanket-deleted.
