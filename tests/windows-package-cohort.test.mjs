@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {windowsCohortClock,validateWindowsCohortClock,windowsReadyName,windowsBuildDigest,combineWindowsCampaigns} from '../scripts/windows-package-cohort.mjs';
+import {windowsCohortClock,validateWindowsCohortClock,windowsReadyName,windowsBuildDigest,combineWindowsCampaigns,validateWindowsInputInventory,normalizeWindowsEvidence} from '../scripts/windows-package-cohort.mjs';
 import {qualification} from '../scripts/qualification.mjs';
 const source={sha256:'a'.repeat(64),files:3},revision='b'.repeat(40),build={source,revision,products:[{edition:'full',artifact:{sha256:'c'.repeat(64)}}]};
 const context={source,revision,shaLabel:'d'.repeat(40),runId:'123',attempt:'2',buildSha256:windowsBuildDigest(build),preparationStarted:'2026-01-01T00:00:00.000Z'};
@@ -32,4 +32,15 @@ test('A late gate includes elapsed worker and transport time instead of restarti
 });
 test('Shared readiness cannot precede preparation or move into the future',async()=>{
  for(const ready of [50,300]){let ran=false;const record=await qualification({now:()=>200,preparationStartedAt:100,readinessVerifiedAt:()=>ready,prepare:async()=>{},steps:[{name:'native',run:async()=>{ran=true;}}]});assert.equal(record.result,'preparation-failed');assert.equal(ran,false);assert.equal(record.qualificationSeconds,0);}
+});
+
+test('Independent Windows readback preserves the complete byte inventory without claiming POSIX permissions',()=>{
+ const expected=[{path:'application.msi',bytes:'4',sha256:'a'.repeat(64),mode:null}];
+ assert.equal(validateWindowsInputInventory([{...expected[0],mode:'644'}],expected),true);
+ for(const actual of [[],[{...expected[0],sha256:'b'.repeat(64)}],[{...expected[0],bytes:'5'}],[{...expected[0],path:'other.msi'}],[...expected,expected[0]]])assert.throws(()=>validateWindowsInputInventory(actual,expected));
+ assert.throws(()=>validateWindowsInputInventory(expected,[{...expected[0],mode:'755'}]));
+});
+test('Independent readback normalizes only retained relative Windows paths without rewriting native observations',()=>{
+ const value={path:'.local\\evidence\\file.log',logs:['.local\\scope\\a.log'],native:'C:\\Owner\\App',source:{sha256:'a'.repeat(64)}};
+ const normalized=normalizeWindowsEvidence(value);assert.equal(normalized.path,'.local/evidence/file.log');assert.deepEqual(normalized.logs,['.local/scope/a.log']);assert.equal(normalized.native,value.native);assert.equal(value.path,'.local\\evidence\\file.log');
 });

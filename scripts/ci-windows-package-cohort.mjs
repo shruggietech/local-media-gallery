@@ -17,7 +17,7 @@ import {joinedChecks} from './joined-checks.mjs';
 import {verifyMsiCommandReadiness} from './windows-msi-command.mjs';
 import {prepareWindowsDiagnosticFixtures} from './windows-package-fixtures.mjs';
 import {validatePackageEvidence,validateSingleFileWindows} from './windows-package-evidence.mjs';
-import {windowsCampaigns,windowsBuildDigest,windowsReadyName,windowsCohortClock,validateWindowsCohortClock,combineWindowsCampaigns} from './windows-package-cohort.mjs';
+import {windowsCampaigns,windowsBuildDigest,windowsReadyName,windowsCohortClock,validateWindowsCohortClock,combineWindowsCampaigns,validateWindowsInputInventory,normalizeWindowsEvidence} from './windows-package-cohort.mjs';
 
 const [operation,campaign]=process.argv.slice(2),local=path.join(root,'.local'),hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 assert.ok(['build','prepare','run','wait','gate'].includes(operation));if(['prepare','run','wait'].includes(operation))assert.ok(windowsCampaigns.includes(campaign));
@@ -29,7 +29,7 @@ await mkdir(local,{recursive:true});
 async function inputs(verify=false){
  const info=await json('windows-package-inputs.json'),raw=await readFile(path.join(local,'windows-package-build.json')),build=JSON.parse(raw);
  assert.equal(info.kind,'windows-package-inputs');assert.equal(info.result,'ready');assert.deepEqual(info.source,await sourceIdentity());assert.equal(info.revision,await revision());
- assert.equal(info.workspace.toLowerCase(),root.toLowerCase(),'Shared Windows inputs require the same workspace namespace');assert.match(info.directory,/^\.local\/windows-packages-[A-Za-z0-9_-]+$/);assert.equal(info.directory,build.directory);assert.equal(info.rawBuildSha256,hash(raw));assert.equal(info.buildSha256,windowsBuildDigest(build));assert.deepEqual(build.source,info.source);assert.equal(build.revision,info.revision);
+ if(process.platform==='win32')assert.equal(info.workspace.toLowerCase(),root.toLowerCase(),'Native Windows inputs require the same workspace namespace');else{assert.ok(['wait','gate'].includes(operation));assert.ok(path.win32.isAbsolute(info.workspace),'Windows input origin must remain explicit');}assert.match(info.directory,/^\.local\/windows-packages-[A-Za-z0-9_-]+$/);assert.equal(info.directory,build.directory);assert.equal(info.rawBuildSha256,hash(raw));assert.equal(info.buildSha256,windowsBuildDigest(build));assert.deepEqual(build.source,info.source);assert.equal(build.revision,info.revision);
  if(verify)await verifyPayload(path.join(root,info.directory),info.inventory);
  const context={source:info.source,revision:info.revision,shaLabel:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,buildSha256:info.buildSha256,preparationStarted:info.preparationStarted};
  assert.equal(String(info.runId),String(context.runId));
@@ -112,13 +112,13 @@ if(operation==='build'){
  const {info,build,context}=await inputs(),fragments=await Promise.all(windowsCampaigns.map(role=>json('windows-campaign-'+role+'.json'))),receipts=await Promise.all(windowsCampaigns.map(role=>json('windows-campaign-'+role+'-qualification.json')));
  const clock=fragments[0].clock,transfers=await Promise.all(windowsCampaigns.map(role=>json('windows-campaign-gate-transfer-'+role+'.json')));validateWindowsCohortClock(clock,context);let combined;
  const record=await qualification({preparationStartedAt:Date.parse(context.preparationStarted),readinessVerifiedAt:()=>Date.parse(clock.readinessVerified),identify:async()=>({scope:'windows-packages',source:context.source,revision:context.revision}),prepare:async()=>{},steps:[
-  {name:'Both isolated Windows campaigns share one source, recipient and absolute clock',run:async()=>{combined=combineWindowsCampaigns(build,fragments,receipts,context);for(const [index,transfer] of transfers.entries()){assert.equal(transfer.campaign,windowsCampaigns[index]);assert.deepEqual(transfer.clock,clock);assert.ok(Number.isSafeInteger(transfer.artifact?.id)&&transfer.artifact.id>0);assert.match(transfer.artifact.digest,/^sha256:[a-f0-9]{64}$/);assert.ok(Date.parse(transfer.observed)<Date.parse(clock.activeDeadline));}await verifyPayload(path.join(root,info.directory),info.inventory);}},
-  {name:'Independent complete package, native, retained-source and governed-byte readback',run:async()=>{await validatePackageEvidence(build,{...combined,acceptance:true},root);assert.deepEqual(await sourceIdentity(),context.source);await node(path.join(root,'scripts/sync-brand-kit.mjs'),['--verify']);}}
+  {name:'Both isolated Windows campaigns share one source, recipient and absolute clock',run:async()=>{combined=combineWindowsCampaigns(build,fragments,receipts,context);for(const [index,transfer] of transfers.entries()){assert.equal(transfer.campaign,windowsCampaigns[index]);assert.deepEqual(transfer.clock,clock);assert.ok(Number.isSafeInteger(transfer.artifact?.id)&&transfer.artifact.id>0);assert.match(transfer.artifact.digest,/^sha256:[a-f0-9]{64}$/);assert.ok(Date.parse(transfer.observed)<Date.parse(clock.activeDeadline));}validateWindowsInputInventory(await collectPayload(path.join(root,info.directory)),info.inventory);}},
+  {name:'Independent complete package, native, retained-source and governed-byte readback',run:async()=>{await validatePackageEvidence(normalizeWindowsEvidence(build),normalizeWindowsEvidence({...combined,acceptance:true}),root);assert.deepEqual(await sourceIdentity(),context.source);await node(path.join(root,'scripts/sync-brand-kit.mjs'),['--verify']);}}
  ]});
  if(record.result==='pass'){
   combined.acceptance=true;combined.terminalFinished=record.terminalFinished;await save('windows-package-results.json',combined);
   record.packages=combined;record.artifacts=build.products.map(p=>p.artifact);record.internalCampaignArchives=build.records.map(r=>r.archive);
  }
- record.cohort={clock,receipts,transfers};record.concurrentChecks=receipts.find(r=>r.context.campaign==='lifecycle').concurrentChecks;
+ record.cohort={clock,receipts,transfers};record.validatorHost={platform:process.platform,arch:process.arch,runnerOS:process.env.RUNNER_OS??null};record.concurrentChecks=receipts.find(r=>r.context.campaign==='lifecycle').concurrentChecks;
  await save('ci-windows-packages.json',record);console.log(JSON.stringify(record,null,2));if(record.result!=='pass')process.exitCode=1;
 }

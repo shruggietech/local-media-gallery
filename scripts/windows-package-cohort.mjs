@@ -56,3 +56,15 @@ export function combineWindowsCampaigns(build,fragments,receipts,context){
  // existing evidence/byte validator and source readback before publishing it.
  return {...lifecycle,kind:undefined,campaign:undefined,buildSha256:undefined,fullMsiSha256:undefined,clock:undefined,acceptance:false,started:experience.clock.readinessVerified,singleFile:experience.singleFile,installerChoices:experience.installerChoices,cachedMaintenance:experience.cachedMaintenance,publishedRecovery:experience.publishedRecovery,standardUser:experience.standardUser,wizardEvidence:experience.wizardEvidence,native:[...experience.native,...lifecycle.native],cohort:{clock:experience.clock,workers:windowsCampaigns.map(campaign=>({campaign,host:parts.get(campaign).host,observer:parts.get(campaign).observer,qualification:records.get(campaign)}))}};
 }
+
+// Windows does not declare POSIX modes. Read back every Windows-origin file
+// and byte on the independent host without inventing a permission observation.
+export function validateWindowsInputInventory(actual,expected){
+ assert.ok(expected.length>0&&expected.every(file=>file.mode===null));
+ assert.deepEqual(actual.map(file=>({...file,mode:null})),expected,'Complete Windows input path/size/hash inventory differs');return true;
+}
+export function normalizeWindowsEvidence(value){
+ if(Array.isArray(value))return value.map(normalizeWindowsEvidence);
+ if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,normalizeWindowsEvidence(item)]));
+ return typeof value==='string'&&value.startsWith('.local\\')?value.replaceAll('\\','/'):value;
+}

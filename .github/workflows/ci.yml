@@ -292,7 +292,7 @@ jobs:
     concurrency:
       group: qualification-${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}-windows-packages
       cancel-in-progress: false
-    runs-on: windows-2025
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       GALLERY_ISOLATED_DESKTOP: "1"
