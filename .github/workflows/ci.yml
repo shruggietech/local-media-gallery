@@ -214,6 +214,8 @@ jobs:
             .local/windows-packages-*/*-candidate.zip
             .local/windows-packages-*/published-*.zip
             .local/windows-packages-*/replacement-lite.exe
+            .local/windows-packages-*/bootstrapper.exe
+            .local/windows-packages-*/msi-author.exe
             .local/windows-packages-*/*-windows.exe
             .local/windows-packages-*/*-windows.msi
             .local/windows-packages-*/replacement-full.msi
