@@ -45,5 +45,8 @@
     "stylelint": "17.16.0",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3"
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
   }
 }

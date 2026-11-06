@@ -4,6 +4,16 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+## [0.2.1]
+
+Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.
+
+### Highlights
+
+- Install Windows Full through one self-contained offline MSI with a native license, scope, location and integration wizard, progress and cancellation.
+- Use consistent application-owned Windows storage and recover invalid or obsolete private preferences/history to usable defaults. Media, sidecars and portable gallery documents keep their independent preservation contracts.
+- Retain selected maintenance choices and exact recovery inputs, with complete source-bound qualification and publication evidence.
+
 ### Changed
 
 - Replace the pending Windows Full setup EXE with one self-contained unsigned MSI. Its native wizard provides license acceptance, user/all-users scope, an editable location, independent Start menu/PATH choices, progress and cancellation. The complete offline WebView2 installer remains bundled; maintenance retains selected integrations and exact recovery inputs. Published v0.1.0/v0.2.0 artifacts are unchanged.
@@ -13,11 +23,11 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Maintenance
 
-- Qualification decision (2026-11-05): run Windows experience and lifecycle groups against the same built MSI on isolated workers, with one shared deadline covering execution, transport and complete final readback. Preserve all elected cases and the existing timing limits.
-
-- Qualification decision (2026-11-05): use optimized binaries for large Windows MSI checks and one owned process for fresh registration/runtime snapshots, preserving assertions, actual installer coverage and timing limits.
 - Isolate Rust fixtures, maintainer app runs, caches and updater campaigns in disposable tooling-owned storage, with no production-profile fallback. Ordinary binaries omit tooling redirection.
 - Reclaim validated abandoned Windows stages and disposable coordination after ownership ends, clean terminal native worker scratch, and retain sealed recovery/rollback inputs. Forward preflight follows the incoming writer; rollback still checks its selected writer.
+- Qualification decision (2026-11-05): use optimized binaries for large Windows MSI checks and one owned process for fresh registration/runtime snapshots, preserving assertions, actual installer coverage and timing limits.
+- Qualification decision (2026-11-05): run Windows experience and lifecycle groups against the same built MSI on isolated workers, with one shared deadline covering execution, transport and complete final readback. Preserve all elected cases and the existing timing limits.
+- Release preparation decision (2026-11-05): pin the fixed pattern-processing dependency for maintainer tooling and bind supporting Windows evidence to the accepted gate's exact identities and digests. Preserve canonical archive bounds and the existing expanded archive bound, with a scoped limit for the larger worker packet. Historical evidence and accepted release assets are retained without rebuild.
 
 ### Fixed
 
