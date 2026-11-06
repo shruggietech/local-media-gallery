@@ -36,7 +36,7 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
  const until=async(fn,description)=>{let last;const phaseEnd=Math.min(end,Date.now()+30000);while(Date.now()<phaseEnd){if(launchError)throw launchError;if(child.exitCode!==null)throw Error('MSI exited '+child.exitCode+' before '+description);try{const value=await fn();if(value)return value;}catch(e){last=e;}await new Promise(r=>setTimeout(r,150));}throw Error('Upgrade readiness deadline: '+description+(last?': '+last.message:''));};
  const wait=label=>until(async()=>{const r=await read();return visible(r,label)?r:null;},label);
  async function capture(label,r=undefined){assert.ok(observations.length<32,'Upgrade observation bound exceeded');r??=await read();observations.push({label,...r});for(const window of r.windows){const screenshot=path.join(work,label+'-'+window.handle+'-'+screens.length+'.png');const image=await observer.request('msi',{screenshot,screenshotWindow:window.handle});const bytes=await readFile(screenshot);screens.push({label,window,observation:image,path:path.relative(root,screenshot).replaceAll('\\','/'),bytes:String(bytes.length),sha256:hash(bytes)});}return r;}
- let failureDialog=null,progress=false;
+ let failureDialog=null,progress=false;const dismissed=new Set();
  try{
   if(clientToken==='limited'){
    while(!output.includes('"clientTokenType":3')&&Date.now()<end){if(child.exitCode!==null)throw Error('Limited client readiness failed: '+output);await new Promise(r=>setTimeout(r,100));}
@@ -53,7 +53,7 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
   while(child.exitCode===null&&Date.now()<end){
    let r;try{r=await read();}catch{await new Promise(r=>setTimeout(r,150));continue;}
    const error=r.records.find(n=>/Cannot bind actual machine common Programs directory|Local Media Gallery:/.test(name(n)));
-   if(error&&!failureDialog){failureDialog=name(error);await capture('failure',r);if(r.records.some(n=>name(n)==='OK'&&n.enabled))await input('OK');}
+   if(error){failureDialog??=name(error);const key=r.windows.map(w=>w.handle).join(',')+'|'+name(error);if(!dismissed.has(key)){assert.ok(dismissed.size<4,'Repeated MSI failure dialog bound');dismissed.add(key);await capture('failure',r);if(r.records.some(n=>name(n)==='OK'&&n.enabled))await input('OK');}}
    if(!progress&&r.records.some(n=>n.role==='ControlType.ProgressBar')){progress=true;await capture('progress',r);}
    if(r.records.some(n=>name(n)==='Finish'&&n.enabled)){
     await capture('terminal',r);await input('Finish');const handles=r.windows.map(w=>w.handle).join(',');const closeEnd=Math.min(end,Date.now()+15000);

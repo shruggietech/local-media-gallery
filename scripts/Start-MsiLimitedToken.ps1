@@ -59,19 +59,20 @@ public static class GalleryLimitedClient {
     if(!$client.WaitForExit(300000)){throw 'Incomplete limited-token MSI client; account/context must remain retained'}
     [Console]::Error.Write($errors.GetAwaiter().GetResult())
     $privateAfter=Read-RetainedPrivate
-    [IO.File]::WriteAllText(($LogPath+'.private.json'),(@{before=$privateBefore;after=$privateAfter}|ConvertTo-Json -Depth 6)+[char]10,[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText(($LogPath+'.private.json'),(@{before=$privateBefore;after=$privateAfter;nativeClientPid=$client.Id;nativeExitCode=$client.ExitCode}|ConvertTo-Json -Depth 6)+[char]10,[Text.UTF8Encoding]::new($false))
     exit $client.ExitCode
 }
 $account='lmgui'+[Guid]::NewGuid().ToString('N').Substring(0,10)
 $password=ConvertTo-SecureString ([Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(30))+'Aa9!') -AsPlainText -Force
 $created=$false;$terminal=$false
+if(Test-Path -LiteralPath ($LogPath+'.private.json')){throw 'A fresh native terminal record is required'}
 $policyBefore=@(foreach($setting in @(@{path='HKLM:\Software\Policies\Microsoft\Windows\Installer';name='DisableMsi'},@{path='HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System';name='ConsentPromptBehaviorAdmin'})) {
     $key=Get-Item -LiteralPath $setting.path -ErrorAction SilentlyContinue
     $present=$null -ne $key -and $key.GetValueNames() -contains $setting.name
     @{path=$setting.path;name=$setting.name;keyPresent=($null -ne $key);present=$present;value=if($present){$key.GetValue($setting.name)}else{$null};kind=if($present){$key.GetValueKind($setting.name).ToString()}else{$null}}
 })
 try {
-    foreach($key in @('HKLM:\Software\Policies\Microsoft\Windows\Installer','HKCU:\Software\Policies\Microsoft\Windows\Installer')){if((Get-ItemPropertyValue -LiteralPath $key -Name AlwaysInstallElevated -ErrorAction SilentlyContinue) -eq 1){throw 'Fixture cannot permit elevated user MSI installs'}}
+    foreach($keyPath in @('HKLM:\Software\Policies\Microsoft\Windows\Installer','HKCU:\Software\Policies\Microsoft\Windows\Installer')){$key=Get-Item -LiteralPath $keyPath -ErrorAction SilentlyContinue;if($key -and $key.GetValue('AlwaysInstallElevated',0) -eq 1){throw 'Fixture cannot permit elevated user MSI installs'}}
     foreach($setting in $policyBefore){if(!(Test-Path -LiteralPath $setting.path)){[void](New-Item -Path $setting.path -Force)};Set-ItemProperty -LiteralPath $setting.path -Name $setting.name -Value 0 -Type DWord}
     $user=New-LocalUser -Name $account -Password $password -AccountNeverExpires -PasswordNeverExpires -Description 'Disposable isolated MSI upgrade client'
     $created=$true
@@ -94,7 +95,7 @@ try {
     $errors=$client.StandardError.BaseStream.CopyToAsync([Console]::OpenStandardError())
     if(!$client.WaitForExit(320000)){throw 'Incomplete credentialed launcher; retain account/context'}
     [void]$output.GetAwaiter().GetResult();[void]$errors.GetAwaiter().GetResult()
-    $terminal=$true
+    if(Test-Path -LiteralPath ($LogPath+'.private.json')){$native=Get-Content -Raw -LiteralPath ($LogPath+'.private.json')|ConvertFrom-Json;$terminal=$native.nativeClientPid -gt 0 -and $native.nativeExitCode -eq $client.ExitCode}
     exit $client.ExitCode
 } finally {
     foreach($setting in $policyBefore){

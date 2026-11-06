@@ -227,15 +227,23 @@ async function ordinaryUpgradeCampaign(){
  const cancelled=await observeMsiUpgrade({file,work:base,root,observer,environment,expected,label:'ordinary-cancel',clientToken:'limited',cancelAt:'license'});
  assert.equal(cancelled.exitCode,1602);assert.equal((await oldState()).registered.package,beforeState.registered.package);await verifyPayload(directory,prior.payload);
  assert.deepEqual({private:await retained(),gallery:await collectPayload(gallery),foreignSha256:digest(await readFile(extra))},before);
+ const oldBinary=path.join(directory,'local-media-gallery.exe'),oldBytes=await readFile(oldBinary);let refused;
+ await writeFile(oldBinary,'Changed legacy executable must survive refused upgrade');
+ try{
+  refused=await observeMsiUpgrade({file,work:base,root,observer,environment,expected,label:'ordinary-tampered-legacy',clientToken:'limited'});
+  assert.equal(refused.exitCode,1603);assert.ok(refused.failureDialog);assert.equal((await oldState()).registered.package,beforeState.registered.package);assert.equal(await readFile(oldBinary,'utf8'),'Changed legacy executable must survive refused upgrade');
+  assert.deepEqual({private:await retained(),gallery:await collectPayload(gallery),foreignSha256:digest(await readFile(extra))},before);
+ }finally{await writeFile(oldBinary,oldBytes);}
+ await verifyPayload(directory,prior.payload);
  const upgraded=await observeMsiUpgrade({file,work:base,root,observer,environment,expected,label:'ordinary-upgrade',clientToken:'limited'});
  assert.ok([0,3010].includes(upgraded.exitCode));assert.equal(upgraded.failureDialog,null);assert.equal(upgraded.reported267,false);
  const observed=await state('machine');assert.equal(observed.registered.version,productVersion);assert.equal(observed.registered.package.toUpperCase(),build.bundle.packages.find(p=>p.scope==='machine').packageCode);assert.equal(observed.integration.product,currentProductCode);assert.equal((await oldState()).registered,null);
  await verifyPayload(directory,build.bundle.payload);
  const after={private:await retained(),gallery:await collectPayload(gallery),foreignSha256:digest(await readFile(extra))};assert.deepEqual(after,before);
  await browse(path.join(directory,'local-media-gallery.exe'),[gallery],{edition:'full',label:'ordinary-legacy-upgrade'});
- const logs=[];for(const operation of [cancelled,upgraded]){const bytes=await readFile(path.join(root,operation.log.path)),text=bytes.toString(bytes[0]===255?'utf16le':'utf8');assert.match(text,/authorized legacy upgrade child [1-9][0-9]*; source [a-f0-9]{64}/);assert.match(text,new RegExp('authorized legacy upgrade terminal exit '+operation.exitCode+';'));assert.doesNotMatch(text,/Doing action: InstallInitialize/);logs.push(operation.log);assert.equal(operation.fixture.policy.restored,true);}
+ const logs=[];for(const operation of [cancelled,refused,upgraded]){const bytes=await readFile(path.join(root,operation.log.path)),text=bytes.toString(bytes[0]===255?'utf16le':'utf8');assert.match(text,/authorized legacy upgrade child [1-9][0-9]*; source [a-f0-9]{64}/);assert.match(text,new RegExp('authorized legacy upgrade terminal exit '+operation.exitCode+';'));assert.doesNotMatch(text,/Doing action: InstallInitialize/);logs.push(operation.log);assert.equal(operation.fixture.policy.restored,true);}
  const removed=await msiProduct(file,'machine',null,{remove:true});assert.equal(await readFile(extra,'utf8'),'Independent retained upgrade bytes\n');await rm(extra);
- return {kind:'published-legacy-ordinary-msi-upgrade',result:'pass',source,revision:build.revision,predecessor:{version:'0.2.0',msi:prior.msi,payload:prior.payload,registered:beforeState.registered},artifact,expected,cancelled,upgraded,observed,before,after,removed,logs};
+ return {kind:'published-legacy-ordinary-msi-upgrade',result:'pass',source,revision:build.revision,predecessor:{version:'0.2.0',msi:prior.msi,payload:prior.payload,registered:beforeState.registered},artifact,expected,cancelled,refused,upgraded,observed,before,after,removed,logs};
 }
 
 try{
