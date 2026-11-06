@@ -28,6 +28,12 @@ on:
         required: false
         default: false
         type: boolean
+      msi_upgrade_case:
+        description: Published MSI diagnostic control selection
+        required: false
+        default: limited
+        type: choice
+        options: [limited, all]
       windows_msi_upgrade:
         description: Diagnose exact published ordinary Windows MSI upgrade (never acceptance)
         required: false
@@ -98,6 +104,7 @@ jobs:
       GALLERY_DIAGNOSTIC_RUN: ${{ inputs.artifact_run }}
       GALLERY_DIAGNOSTIC_NATIVE_RUN: ${{ inputs.native_run }}
       GALLERY_DIAGNOSTIC_RELOAD: ${{ inputs.reload_player && '1' || '' }}
+      GALLERY_MSI_UPGRADE_CASE: ${{ inputs.msi_upgrade_case }}
       GALLERY_DIAGNOSTIC_MSI_UPGRADE: ${{ inputs.windows_msi_upgrade && '1' || '' }}
       GALLERY_DIAGNOSTIC_LEGACY: ${{ inputs.windows_legacy && '1' || '' }}
       GSETTINGS_BACKEND: keyfile

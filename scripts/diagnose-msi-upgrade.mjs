@@ -31,7 +31,8 @@ try{
  consentBefore=await shell("$p='HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System';$k=Get-Item -LiteralPath $p;@{present=($k.GetValueNames() -contains 'ConsentPromptBehaviorAdmin');value=$k.GetValue('ConsentPromptBehaviorAdmin');kind=if($k.GetValueNames() -contains 'ConsentPromptBehaviorAdmin'){$k.GetValueKind('ConsentPromptBehaviorAdmin').ToString()}else{$null};enableLua=$k.GetValue('EnableLUA')}|ConvertTo-Json -Compress");
  result.consentFixture={before:consentBefore,scope:'Isolated host automatically authorizes native administrator elevation; no attended consent-UI claim'};
  await shell("Set-ItemProperty -LiteralPath 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name ConsentPromptBehaviorAdmin -Value 0 -Type DWord;@{configured=$true}|ConvertTo-Json -Compress");
- for(const {readonly,clientToken} of [{readonly:false,clientToken:'current'},{readonly:true,clientToken:'current'},{readonly:true,clientToken:'limited'}]){
+ const cases=process.env.GALLERY_MSI_UPGRADE_CASE==='limited'?[{readonly:true,clientToken:'limited'}]:[{readonly:false,clientToken:'current'},{readonly:true,clientToken:'current'},{readonly:true,clientToken:'limited'}];
+ for(const {readonly,clientToken} of cases){
   await shell("$p=[Environment]::GetFolderPath('CommonPrograms');$i=Get-Item -LiteralPath $p -Force;$i.Attributes=([int]$i.Attributes -band (-bnot 1));@{attributes=[int](Get-Item -LiteralPath $p -Force).Attributes}|ConvertTo-Json -Compress");
   await msi(['/i',oldFile,'/qn','/norestart','/L*v',path.join(work,'old-install-'+readonly+'.log')]);
   const before=await observer.request('state',{scope:'machine',products:[productCodes.machine]},180000);assert.equal(before.registered.version,'0.2.0');await verifyPayload(before.registered.location,payload);
