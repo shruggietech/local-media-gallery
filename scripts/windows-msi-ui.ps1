@@ -13,7 +13,7 @@
     Optional absolute PNG evidence destination.
 #>
 [CmdletBinding()]
-param([string]$Name='', [string]$Value='', [string]$Screenshot='')
+param([string]$Name='', [string]$Value='', [string]$Screenshot='', [long]$ScreenshotWindow=0)
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { throw 'MSI wizard input requires isolated CI' }
@@ -89,8 +89,9 @@ if ($Name -eq '__tab__') {
 }
 $screen=$null
 if ($Screenshot -ne '') {
-    if ($windows.Count -ne 1 -or ![IO.Path]::IsPathFullyQualified($Screenshot)) { throw 'Screenshot requires one MSI window and an absolute output path' }
-    $handle=[IntPtr]$windows[0].Current.NativeWindowHandle
+    $selected=@($windows | Where-Object { $ScreenshotWindow -eq 0 -or $_.Current.NativeWindowHandle -eq $ScreenshotWindow })
+    if ($selected.Count -ne 1 -or ![IO.Path]::IsPathFullyQualified($Screenshot)) { throw 'Screenshot requires one exact attributed MSI window and an absolute output path' }
+    $handle=[IntPtr]$selected[0].Current.NativeWindowHandle
     [void][GalleryMsiWindow]::SetForegroundWindow($handle)
     $rect=[GalleryMsiWindow+Rect]::new()
     if (![GalleryMsiWindow]::GetWindowRect($handle,[ref]$rect)) { throw 'MSI bounds unavailable' }

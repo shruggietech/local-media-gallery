@@ -111,6 +111,10 @@ Param(
                         if ($request.ContainsKey('key')) { $parameters.Keys=[string]$request.key }
                     } elseif ($request.route -eq 'msi') {
                         foreach ($key in @('name','value','screenshot')) { if ($request.ContainsKey($key)) { $parameters[$key]=[string]$request[$key] } }
+                        if ($request.ContainsKey('screenshotWindow')) {
+                            if (($request.screenshotWindow -isnot [long] -and $request.screenshotWindow -isnot [int]) -or $request.screenshotWindow -lt 1) { throw 'Positive attributed MSI window handle required' }
+                            $parameters.ScreenshotWindow=[long]$request.screenshotWindow
+                        }
                     } else {
                         if ($request.file -isnot [string] -or [IO.Path]::GetExtension($request.file) -ne '.lnk' -or ![IO.Path]::IsPathFullyQualified($request.file)) { throw 'Absolute shortcut path required' }
                         $parameters.File=$request.file

@@ -10,6 +10,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Decisions
 
+- 2026-11-06: Add an isolated published Windows MSI upgrade diagnostic that opens the actual ordinary wizard and retains attributed failure dialogs/logs. Existing quiet and advanced-recovery observations do not substitute for ordinary predecessor replacement.
+
 - 2026-11-06: Bind Windows gate transfers to the current readiness window and immutable provider artifact IDs. Retained earlier attempts remain diagnostic history and cannot authorize publication. The demonstrated qualification repair requires a reviewed merge and fresh push-main qualification before v0.2.1 publication.
 
 ## [0.2.1]
