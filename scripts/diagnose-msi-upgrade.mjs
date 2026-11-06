@@ -29,7 +29,7 @@ try{
  const newFile=path.join(work,'published-0.2.1.msi'),newBytes=await download('https://github.com/shruggietech/local-media-gallery/releases/download/v0.2.1/local-media-gallery-0.2.1-full-x86_64-windows.msi');assert.equal(digest(newBytes),'f6bf1c0d500a1f55159f964144c934434882da2184631d0d7c9c923651b4a146');await writeFile(newFile,newBytes);
  result.inputs=[{version:'0.2.0',canonicalSha256:digest(canonical),artifact,msi:native.record},{version:'0.2.1',msi:{bytes:String(newBytes.length),sha256:digest(newBytes)}}];
  if(process.env.GALLERY_MSI_UPGRADE_CASE==='limited-offline'){
-  const group='LMG-S033-diagnostic-'+randomUUID(),ownedRuleNames=['listener','worker','dns-tcp','dns-udp'].map(s=>group+'-'+s);
+  const group='LMG-S025-offline-'+process.pid+'-'+randomUUID(),ownedRuleNames=['listener','worker','dns-tcp','dns-udp'].map(s=>group+'-'+s);
   const before=await shell(snapshotWindowsOfflineFirewall,{workspace:root,ownedRuleNames,ownedGroup:group});
   const intent={kind:'local-media-gallery-windows-offline-policy-intent',formatVersion:1,before,ownedRuleNames,ownedGroup:group};offlineIntent=path.join(work,'offline-restoration.json');await writeFile(offlineIntent,JSON.stringify(intent,null,2)+'\n');
   await shell(applyWindowsOfflineFirewall,intent);result.offline=await shell(readWindowsOfflineFirewall,intent);
