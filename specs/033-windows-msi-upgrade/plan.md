@@ -60,3 +60,7 @@ Post-design: PASS. Reproduction uncertainty is retained as a test gate. Source r
 ## Complexity Tracking
 
 No constitutional exceptions or new service/data schema is required. The only workflow expansion is an isolated diagnostic mode and an elected ordinary upgrade regression.
+
+## 2026-11-06: post-reproduction design amendment
+
+Add crates/windows-package/src/msi_elevation.rs for the narrow UI-only legacy machine authorization handoff and pure decision/exit/argument tests. Invoke it from a dedicated native export in InstallUISequence after Configure but before FindRelatedProducts/ExecuteAction. Pin the session-authenticated source while the actual native administrator child runs; record its original exit and return 259 only on success, 1602 on native/user cancellation, and 1603 with diagnostics otherwise. A 3010 child sets native reboot-at-end before skipping the original transaction. Keep existing guard and deferred verification code unchanged in the child. The ordinary limited-token regression must prove one replacement and source/profile/byte identities; actual client/consent limits remain literal.

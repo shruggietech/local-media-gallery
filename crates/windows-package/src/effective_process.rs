@@ -202,32 +202,35 @@ impl Drop for Attributes {
         }
     }
 }
+pub(crate) fn quote_argument(value: &OsStr) -> Result<Vec<u16>, String> {
+    let mut output = vec![34];
+    let mut slashes = 0;
+    for c in value.encode_wide() {
+        if c == 0 {
+            return Err("A child argument contains NUL".into());
+        }
+        if c == 92 {
+            slashes += 1;
+            continue;
+        }
+        output.extend(std::iter::repeat_n(
+            92,
+            if c == 34 { slashes * 2 + 1 } else { slashes },
+        ));
+        slashes = 0;
+        output.push(c);
+    }
+    output.extend(std::iter::repeat_n(92, slashes * 2));
+    output.push(34);
+    Ok(output)
+}
 fn command_line(file: &Path, args: &[OsString]) -> Result<Vec<u16>, String> {
     let mut output = Vec::new();
     for value in std::iter::once(file.as_os_str()).chain(args.iter().map(OsString::as_os_str)) {
         if !output.is_empty() {
             output.push(32);
         }
-        output.push(34);
-        let mut slashes = 0;
-        for c in value.encode_wide() {
-            if c == 0 {
-                return Err("A child argument contains NUL".into());
-            }
-            if c == 92 {
-                slashes += 1;
-                continue;
-            }
-            if c == 34 {
-                output.extend(std::iter::repeat_n(92, slashes * 2 + 1));
-            } else {
-                output.extend(std::iter::repeat_n(92, slashes));
-            }
-            slashes = 0;
-            output.push(c);
-        }
-        output.extend(std::iter::repeat_n(92, slashes * 2));
-        output.push(34);
+        output.extend(quote_argument(value)?);
     }
     output.push(0);
     Ok(output)

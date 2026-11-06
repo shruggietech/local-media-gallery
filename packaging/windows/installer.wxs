@@ -68,6 +68,7 @@
   <Binary Id="Ownership" SourceFile="@HELPER@" />
   <Binary Id="WebView2Runtime" SourceFile="@RUNTIME@" />
   <CustomAction Id="Configure" BinaryKey="Ownership" DllEntry="Configure" Execute="immediate" Return="check" />
+  <CustomAction Id="ElevateLegacyMachine" BinaryKey="Ownership" DllEntry="ElevateLegacyMachine" Execute="immediate" Return="check" />
   <CustomAction Id="SelectScope" BinaryKey="Ownership" DllEntry="SelectScope" Execute="immediate" Return="check" />
   <CustomAction Id="SelectFeatures" BinaryKey="Ownership" DllEntry="SelectFeatures" Execute="immediate" Return="check" />
   <CustomAction Id="Preflight" BinaryKey="Ownership" DllEntry="Preflight" Execute="immediate" Return="check" />
@@ -79,7 +80,8 @@
   <CustomAction Id="VerifyMachineInstalled" BinaryKey="Ownership" DllEntry="VerifyInstalled" Execute="deferred" Impersonate="no" Return="check" />
   <CustomAction Id="RuntimeResult" BinaryKey="Ownership" DllEntry="RuntimeResult" Execute="immediate" Return="check" />
   <InstallUISequence>
-   <Custom Action="Configure" Before="FindRelatedProducts">NOT Installed</Custom>
+   <Custom Action="Configure" Before="ElevateLegacyMachine">NOT Installed</Custom>
+   <Custom Action="ElevateLegacyMachine" Before="FindRelatedProducts">NOT Installed</Custom>
    <Show Dialog="WelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
    <Show Dialog="MaintenanceWelcomeDlg" Before="ProgressDlg">Installed AND NOT RESUME AND NOT Preselected</Show>
   </InstallUISequence>

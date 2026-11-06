@@ -44,6 +44,10 @@ public static class GalleryLimitedClient {
  public static void Check(int pid) {bool own=pid==GetCurrentProcessId();IntPtr process=own?GetCurrentProcess():OpenProcess(0x1000,false,pid),token=IntPtr.Zero;if(process==IntPtr.Zero)throw new Win32Exception(Marshal.GetLastWin32Error(),"OpenProcess limited query");try{if(!OpenProcessToken(process,10,out token))throw new Win32Exception(Marshal.GetLastWin32Error(),"OpenProcessToken query and duplicate");if(Value(token,18)!=3||Value(token,20)!=0)throw new Exception("Actual linked limited token required; type="+Value(token,18)+", elevated="+Value(token,20));using(var user=new WindowsIdentity(token)){if(new WindowsPrincipal(user).IsInRole(WindowsBuiltInRole.Administrator))throw new Exception("Client is an effective administrator");}}finally{if(token!=IntPtr.Zero)CloseHandle(token);if(!own)CloseHandle(process);}}
 }
 '@
+    $retainedFiles=@((Join-Path $env:APPDATA 'local-media-gallery/settings.json'),(Join-Path $env:LOCALAPPDATA 'local-media-gallery/state/history.sqlite3'))
+    foreach($file in $retainedFiles){[void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($file));[IO.File]::WriteAllText($file,('Retained isolated installer fixture '+$file),[Text.UTF8Encoding]::new($false))}
+    function Read-RetainedPrivate { @($retainedFiles|ForEach-Object {@{path=$_;bytes=([IO.FileInfo]::new($_).Length.ToString());sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($_))).ToLowerInvariant()}}) }
+    $privateBefore=Read-RetainedPrivate
     [GalleryLimitedClient]::Check([Diagnostics.Process]::GetCurrentProcess().Id)
     $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=Join-Path $env:SystemRoot 'System32\msiexec.exe';$start.WorkingDirectory=[IO.Path]::GetDirectoryName($MsiFile)
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardInput=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
@@ -54,12 +58,21 @@ public static class GalleryLimitedClient {
     @{kind='actual-credentialed-limited-msi-client';pid=$client.Id;launcherTokenType=3;clientTokenType=3;clientElevated=$false;sameAccount=$true;profile=$profile;localAppData=[Environment]::GetFolderPath('LocalApplicationData');session=[Diagnostics.Process]::GetCurrentProcess().SessionId;station=[GalleryLimitedClient]::Station();desktop=[GalleryLimitedClient]::Desktop()}|ConvertTo-Json -Compress
     if(!$client.WaitForExit(300000)){throw 'Incomplete limited-token MSI client; account/context must remain retained'}
     [Console]::Error.Write($errors.GetAwaiter().GetResult())
+    $privateAfter=Read-RetainedPrivate
+    [IO.File]::WriteAllText(($LogPath+'.private.json'),(@{before=$privateBefore;after=$privateAfter}|ConvertTo-Json -Depth 6)+[char]10,[Text.UTF8Encoding]::new($false))
     exit $client.ExitCode
 }
 $account='lmgui'+[Guid]::NewGuid().ToString('N').Substring(0,10)
 $password=ConvertTo-SecureString ([Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(30))+'Aa9!') -AsPlainText -Force
 $created=$false;$terminal=$false
+$policyBefore=@(foreach($setting in @(@{path='HKLM:\Software\Policies\Microsoft\Windows\Installer';name='DisableMsi'},@{path='HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\System';name='ConsentPromptBehaviorAdmin'})) {
+    $key=Get-Item -LiteralPath $setting.path -ErrorAction SilentlyContinue
+    $present=$null -ne $key -and $key.GetValueNames() -contains $setting.name
+    @{path=$setting.path;name=$setting.name;keyPresent=($null -ne $key);present=$present;value=if($present){$key.GetValue($setting.name)}else{$null};kind=if($present){$key.GetValueKind($setting.name).ToString()}else{$null}}
+})
 try {
+    foreach($key in @('HKLM:\Software\Policies\Microsoft\Windows\Installer','HKCU:\Software\Policies\Microsoft\Windows\Installer')){if((Get-ItemPropertyValue -LiteralPath $key -Name AlwaysInstallElevated -ErrorAction SilentlyContinue) -eq 1){throw 'Fixture cannot permit elevated user MSI installs'}}
+    foreach($setting in $policyBefore){if(!(Test-Path -LiteralPath $setting.path)){[void](New-Item -Path $setting.path -Force)};Set-ItemProperty -LiteralPath $setting.path -Name $setting.name -Value 0 -Type DWord}
     $user=New-LocalUser -Name $account -Password $password -AccountNeverExpires -PasswordNeverExpires -Description 'Disposable isolated MSI upgrade client'
     $created=$true
     Add-LocalGroupMember -Group (Get-LocalGroup -SID 'S-1-5-32-544').Name -Member $account
@@ -83,4 +96,16 @@ try {
     [void]$output.GetAwaiter().GetResult();[void]$errors.GetAwaiter().GetResult()
     $terminal=$true
     exit $client.ExitCode
-} finally {if($created -and $terminal){Remove-LocalUser -Name $account}}
+} finally {
+    foreach($setting in $policyBefore){
+        if($setting.present){Set-ItemProperty -LiteralPath $setting.path -Name $setting.name -Value $setting.value -Type $setting.kind}
+        else{Remove-ItemProperty -LiteralPath $setting.path -Name $setting.name -ErrorAction SilentlyContinue}
+        if(!$setting.keyPresent){$key=Get-Item -LiteralPath $setting.path -ErrorAction SilentlyContinue;if($key -and $key.ValueCount -eq 0 -and $key.SubKeyCount -eq 0){Remove-Item -LiteralPath $setting.path}}
+    }
+    $restored=$true
+    foreach($setting in $policyBefore){$key=Get-Item -LiteralPath $setting.path -ErrorAction SilentlyContinue;$present=$null -ne $key -and $key.GetValueNames() -contains $setting.name;if($present -ne $setting.present -or ($present -and ($key.GetValue($setting.name) -ne $setting.value -or $key.GetValueKind($setting.name).ToString() -ne $setting.kind))){$restored=$false}}
+    if($created -and $terminal){Remove-LocalUser -Name $account}
+    $record=@{kind='isolated-limited-msi-client-fixture';nativeClientTerminal=$terminal;private=if(Test-Path -LiteralPath ($LogPath+'.private.json')){Get-Content -Raw -LiteralPath ($LogPath+'.private.json')|ConvertFrom-Json}else{$null};policy=@{before=$policyBefore;during=@{DisableMsi=0;ConsentPromptBehaviorAdmin=0};alwaysInstallElevated=$false;restored=$restored}}
+    [IO.File]::WriteAllText(($LogPath+'.fixture.json'),($record|ConvertTo-Json -Depth 8)+[char]10,[Text.UTF8Encoding]::new($false))
+    if(!$restored){throw 'Isolated MSI client policies were not restored'}
+}

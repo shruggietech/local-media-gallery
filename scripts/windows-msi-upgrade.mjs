@@ -21,7 +21,7 @@ export function checkUpgradeChoices(records,{scope,directory,startMenu,commandPa
 
 // A full-UI native launch with no installer property overrides models opening
 // the downloaded MSI. Log/no-restart affect diagnostics, not selected choices.
-export async function observeMsiUpgrade({file,work,root,observer,environment,expected,label='ordinary-upgrade',timeout=240000,clientToken='current'}){
+export async function observeMsiUpgrade({file,work,root,observer,environment,expected,label='ordinary-upgrade',timeout=240000,clientToken='current',cancelAt=null}){
  requireIsolatedDesktop(environment);assert.equal(process.platform,'win32');
  const began=new Date().toISOString(),log=path.join(work,label+'.log'),screens=[],observations=[];
  const executable=path.join(environment.SystemRoot,'System32/msiexec.exe');
@@ -43,22 +43,31 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
    assert.ok(output.includes('"clientTokenType":3'),'Actual limited-client startup receipt required');
   }
   await wait('Next');await input('Next');const license=await wait('License Agreement');
-  const accept=license.records.find(n=>n.role==='ControlType.CheckBox'&&name(n).includes('accept'));assert.ok(accept);await input(name(accept));await input('Next');
-  const scope=await wait('Choose who');assert.ok(scope.records.some(n=>name(n)===(expected.scope==='machine'?'For all users':'Only for me')&&n.selected===true),'Upgrade must retain predecessor scope');await capture('scope',scope);await input('Next');
-  const options=await wait('Choose location');checkUpgradeChoices(options.records,expected);await capture('options',options);await input('Next');await wait('Install');await input('Install');
+  if(cancelAt==='license'){await input('Cancel');await wait('Yes');await input('Yes');}
+  else{
+   assert.equal(cancelAt,null);
+   const accept=license.records.find(n=>n.role==='ControlType.CheckBox'&&name(n).includes('accept'));assert.ok(accept);await input(name(accept));await input('Next');
+   const scope=await wait('Choose who');assert.ok(scope.records.some(n=>name(n)===(expected.scope==='machine'?'For all users':'Only for me')&&n.selected===true),'Upgrade must retain predecessor scope');await capture('scope',scope);await input('Next');
+   const options=await wait('Choose location');checkUpgradeChoices(options.records,expected);await capture('options',options);await input('Next');await wait('Install');await input('Install');
+  }
   while(child.exitCode===null&&Date.now()<end){
    let r;try{r=await read();}catch{await new Promise(r=>setTimeout(r,150));continue;}
    const error=r.records.find(n=>/Cannot bind actual machine common Programs directory|Local Media Gallery:/.test(name(n)));
    if(error&&!failureDialog){failureDialog=name(error);await capture('failure',r);if(r.records.some(n=>name(n)==='OK'&&n.enabled))await input('OK');}
    if(!progress&&r.records.some(n=>n.role==='ControlType.ProgressBar')){progress=true;await capture('progress',r);}
-   if(r.records.some(n=>name(n)==='Finish'&&n.enabled)){await capture('terminal',r);await input('Finish');break;}
+   if(r.records.some(n=>name(n)==='Finish'&&n.enabled)){
+    await capture('terminal',r);await input('Finish');const handles=r.windows.map(w=>w.handle).join(',');const closeEnd=Math.min(end,Date.now()+15000);
+    while(child.exitCode===null&&Date.now()<closeEnd){let next;try{next=await read();}catch{break;}if(next.windows.map(w=>w.handle).join(',')!==handles)break;await new Promise(r=>setTimeout(r,100));}
+   }
    await new Promise(r=>setTimeout(r,150));
   }
   while(child.exitCode===null&&Date.now()<end)await new Promise(r=>setTimeout(r,100));
   assert.notEqual(child.exitCode,null,'Upgrade has no terminal result');
   const logBytes=await readFile(log),logText=logBytes.toString(logBytes[0]===255&&logBytes[1]===254?'utf16le':'utf8');
   const token=clientToken==='limited'?JSON.parse(output.trim()):{kind:'runner-client'};
-  const result={kind:'ordinary-full-ui-msi-upgrade',started:began,terminalFinished:new Date().toISOString(),exitCode:child.exitCode,failureDialog,reported267:/Cannot bind actual machine common Programs directory: 267/.test(logText),expected,clientToken,token,invocation:{executable,arguments:arguments_},msi:{bytes:String((await readFile(file)).length),sha256:hash(await readFile(file))},log:{path:path.relative(root,log).replaceAll('\\','/'),bytes:String(logBytes.length),sha256:hash(logBytes)},screens,observations,progress};
+  const fixture=clientToken==='limited'?JSON.parse(await readFile(log+'.fixture.json','utf8')):null;
+  if(fixture){assert.equal(fixture.policy.restored,true);assert.ok(fixture.private?.before?.length>=2);assert.deepEqual(fixture.private.after,fixture.private.before,'Initiating limited user settings/history bytes retained');}
+  const result={kind:'ordinary-full-ui-msi-upgrade',started:began,terminalFinished:new Date().toISOString(),exitCode:child.exitCode,failureDialog,reported267:/Cannot bind actual machine common Programs directory: 267/.test(logText),expected,clientToken,token,fixture,cancelAt,invocation:{executable,arguments:arguments_},msi:{bytes:String((await readFile(file)).length),sha256:hash(await readFile(file))},log:{path:path.relative(root,log).replaceAll('\\','/'),bytes:String(logBytes.length),sha256:hash(logBytes)},screens,observations,progress};
   await writeFile(path.join(work,label+'.json'),JSON.stringify(result,null,2)+'\n');return result;
  }catch(error){await writeFile(path.join(work,label+'-incomplete.json'),JSON.stringify({started:began,terminalFinished:new Date().toISOString(),error:error.stack,exitCode:child.exitCode,output,screens,observations},null,2)+'\n');throw error;}
  finally{await stopOwnedChild(child);}

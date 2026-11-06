@@ -27,6 +27,7 @@ pub const DUAL_UPGRADE: &str = "{788C188C-E8CE-48B6-95CC-134A6AFD4B20}";
 const KEY: &str = "Software\\ShruggieTech\\LocalMediaGallery";
 #[link(name = "msi")]
 unsafe extern "system" {
+    fn MsiSetMode(h: u32, mode: u32, state: i32) -> u32;
     fn MsiGetFeatureStateW(h: u32, name: *const u16, installed: *mut i32, action: *mut i32) -> u32;
     fn MsiEnumRelatedProductsW(
         upgrade: *const u16,
@@ -494,6 +495,60 @@ fn select_features(h: u32) -> Result<(), String> {
 #[unsafe(no_mangle)]
 pub extern "system" fn Configure(h: u32) -> u32 {
     std::panic::catch_unwind(|| report(h, configure(h))).unwrap_or(1603)
+}
+fn elevate_legacy_machine(h: u32) -> Result<u32, String> {
+    let legacy = registered_product(true)?.is_some_and(|code| is_legacy_product(&code, true));
+    if !crate::msi_elevation::needs_handoff(
+        text(h, "UILevel")? == "5",
+        !text(h, "Installed")?.is_empty(),
+        !text(h, "REMOVE")?.is_empty(),
+        !get(h, "LMG_RECOVERY")?.is_empty(),
+        legacy,
+        crate::private::elevated_administrator()?,
+    ) {
+        return Ok(0);
+    }
+    let source = PathBuf::from(get(h, "OriginalDatabase")?);
+    let record = crate::session_source::authenticate(h, &source)?;
+    let _parents =
+        crate::private::pin_physical(source.parent().ok_or("MSI source has no physical parent")?)?;
+    let _source = crate::open_verified_input(&source, &record)?;
+    let note = |message: String| unsafe {
+        let r = MsiCreateRecord(1);
+        MsiRecordSetStringW(r, 0, wide(message).as_ptr());
+        MsiProcessMessage(h, 0x04000000, r);
+        MsiCloseHandle(r);
+    };
+    let exit = crate::msi_elevation::run(
+        &source,
+        text(h, "LMG_STARTMENU")? == "1",
+        text(h, "LMG_PATH")? == "1",
+        |pid| {
+            note(format!(
+                "Local Media Gallery authorized legacy upgrade child {pid}; source {}",
+                record.sha256
+            ));
+        },
+    )?;
+    note(format!(
+        "Local Media Gallery authorized legacy upgrade terminal exit {exit}; original execute sequence will not run on success"
+    ));
+    let (action, reboot) = crate::msi_elevation::completed_action(exit)?;
+    if reboot {
+        let status = unsafe { MsiSetMode(h, 6, 1) };
+        if status == 0 {
+            return Err("Cannot propagate native restart-required outcome".into());
+        }
+    }
+    Ok(action)
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn ElevateLegacyMachine(h: u32) -> u32 {
+    std::panic::catch_unwind(|| match elevate_legacy_machine(h) {
+        Ok(code) => code,
+        Err(error) => report(h, Err(error)),
+    })
+    .unwrap_or(1603)
 }
 #[unsafe(no_mangle)]
 pub extern "system" fn SelectScope(h: u32) -> u32 {

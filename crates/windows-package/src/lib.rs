@@ -8,6 +8,8 @@ use std::{fs, path::Path};
 pub(crate) mod effective_process;
 pub mod embedded;
 #[cfg(windows)]
+pub mod msi_elevation;
+#[cfg(windows)]
 pub mod native;
 #[cfg(windows)]
 pub mod private;
