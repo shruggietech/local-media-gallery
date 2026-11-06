@@ -13,7 +13,7 @@ export function msiControlLabel(value){
 }
 
 // Only code is retained between requests. Every native query still runs afresh.
-export async function observerSession(child,sources,{startupTimeout=20000,maxBytes=8*1024*1024}={}){
+export async function observerSession(child,sources,{startupTimeout=20000,shutdownTimeout=10000,maxBytes=8*1024*1024}={}){
  let pending=null,buffer=Buffer.alloc(0),stderr='',failure=null,sequence=0,tail=Promise.resolve(),closing=false;
  let readyResolve,readyReject;
  const ready=new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});
@@ -60,7 +60,9 @@ export async function observerSession(child,sources,{startupTimeout=20000,maxByt
    await tail;closing=true;
    if(child.exitCode===null&&child.signalCode===null){
     let timer;const exited=new Promise(resolve=>child.once('exit',resolve));child.stdin.end();
-    try{await Promise.race([exited,new Promise(resolve=>{timer=setTimeout(resolve,2000);})]);}finally{clearTimeout(timer);}
+    // UI Automation/COM teardown can outlast two seconds on a loaded host.
+    // Still require the actual zero exit; a forced stop remains a failure.
+    try{await Promise.race([exited,new Promise(resolve=>{timer=setTimeout(resolve,shutdownTimeout);})]);}finally{clearTimeout(timer);}
     await stopOwnedChild(child);
    }
    if(failure)throw failure;

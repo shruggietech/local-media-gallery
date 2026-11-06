@@ -92,3 +92,12 @@ test('Unnamed native progress records do not hide a later named phase or complet
  assert.equal(records.slice(0,2).some(n=>msiControlLabel(n.name).includes('Installing')),false);
  assert.throws(()=>msiControlLabel(42),/must be text or absent/);
 });
+
+test('Observer lets cooperative native teardown finish beyond the former two-second grace',async()=>{
+ const child=launch(handshake+input+"send({id:q.id,pid:process.pid,ok:true,result:{}});});process.stdin.on('end',()=>setTimeout(()=>process.exit(0),2500));");
+ const observer=await observerSession(child,sources);await observer.request('ui');await observer.close();assert.equal(child.exitCode,0);assert.equal(child.signalCode,null);
+});
+
+test('A stuck observer remains bounded and cannot be reported as a normal terminal exit',async()=>{
+ const child=launch(handshake+"process.stdin.resume();setInterval(()=>{},10000);");const observer=await observerSession(child,sources,{shutdownTimeout:100});await assert.rejects(observer.close(),/Observer exited/);assert.ok(child.exitCode!==null||child.signalCode!==null);assert.notEqual(child.exitCode,0);
+});
