@@ -21,12 +21,15 @@ export function checkUpgradeChoices(records,{scope,directory,startMenu,commandPa
 
 // A full-UI native launch with no installer property overrides models opening
 // the downloaded MSI. Log/no-restart affect diagnostics, not selected choices.
-export async function observeMsiUpgrade({file,work,root,observer,environment,expected,label='ordinary-upgrade',timeout=240000}){
+export async function observeMsiUpgrade({file,work,root,observer,environment,expected,label='ordinary-upgrade',timeout=240000,clientToken='current'}){
  requireIsolatedDesktop(environment);assert.equal(process.platform,'win32');
  const began=new Date().toISOString(),log=path.join(work,label+'.log'),screens=[],observations=[];
  const executable=path.join(environment.SystemRoot,'System32/msiexec.exe');
  const arguments_=msiCommandArguments(['/i',file,'/norestart','/L*v',log]);
- const child=spawn(executable,arguments_,{cwd:work,env:environment,windowsHide:true,shell:false,windowsVerbatimArguments:true,stdio:['ignore','pipe','pipe']});
+ assert.ok(['current','limited'].includes(clientToken));
+ const launcher=clientToken==='limited'?'C:/Program Files/PowerShell/7/pwsh.exe':executable;
+ const launchArgs=clientToken==='limited'?['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/Start-MsiLimitedToken.ps1'),'-MsiFile',file,'-LogPath',log]:arguments_;
+ const child=spawn(launcher,launchArgs,{cwd:work,env:environment,windowsHide:true,shell:false,windowsVerbatimArguments:clientToken==='current',stdio:['ignore','pipe','pipe']});
  let output='',launchError;child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.on('error',e=>launchError=e);
  const end=Date.now()+timeout,read=()=>observer.request('msi'),input=name=>observer.request('msi',{name});
  const name=n=>msiControlLabel(n.name),visible=(r,text)=>upgradePageReady(r.records,text);
@@ -50,7 +53,8 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
   while(child.exitCode===null&&Date.now()<end)await new Promise(r=>setTimeout(r,100));
   assert.notEqual(child.exitCode,null,'Upgrade has no terminal result');
   const logBytes=await readFile(log),logText=logBytes.toString(logBytes[0]===255&&logBytes[1]===254?'utf16le':'utf8');
-  const result={kind:'ordinary-full-ui-msi-upgrade',started:began,terminalFinished:new Date().toISOString(),exitCode:child.exitCode,failureDialog,reported267:/Cannot bind actual machine common Programs directory: 267/.test(logText),expected,invocation:{executable,arguments:arguments_},msi:{bytes:String((await readFile(file)).length),sha256:hash(await readFile(file))},log:{path:path.relative(root,log).replaceAll('\\','/'),bytes:String(logBytes.length),sha256:hash(logBytes)},screens,observations,progress};
+  const token=clientToken==='limited'?JSON.parse(output.trim()):{kind:'runner-client'};
+  const result={kind:'ordinary-full-ui-msi-upgrade',started:began,terminalFinished:new Date().toISOString(),exitCode:child.exitCode,failureDialog,reported267:/Cannot bind actual machine common Programs directory: 267/.test(logText),expected,clientToken,token,invocation:{executable,arguments:arguments_},msi:{bytes:String((await readFile(file)).length),sha256:hash(await readFile(file))},log:{path:path.relative(root,log).replaceAll('\\','/'),bytes:String(logBytes.length),sha256:hash(logBytes)},screens,observations,progress};
   await writeFile(path.join(work,label+'.json'),JSON.stringify(result,null,2)+'\n');return result;
  }catch(error){await writeFile(path.join(work,label+'-incomplete.json'),JSON.stringify({started:began,terminalFinished:new Date().toISOString(),error:error.stack,exitCode:child.exitCode,output,screens,observations},null,2)+'\n');throw error;}
  finally{await stopOwnedChild(child);}

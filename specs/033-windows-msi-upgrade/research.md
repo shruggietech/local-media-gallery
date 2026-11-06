@@ -13,3 +13,7 @@ Sources: [MsiSetTargetPath](https://learn.microsoft.com/windows/win32/api/msique
 ## Planned causal gate
 
 First retain exact baseline logs and dialog trees. Evaluate a native directory-row/costing compatibility correction if it is the demonstrated boundary. Evaluate sequence/token behavior only under controlled changed inputs. Reject any option that merely hides the old ownership guard, alters published inputs or requires user removal. Record resolved observations and repair choice here before changing production behavior, reanalyzing materially changed design.
+
+## 2026-11-06: isolated attribute controls
+
+Corrected baseline run 42221938823 completed both ordinary full-UI upgrades with native exit 0 under the elevated runner account, with CommonPrograms attributes 8208 and 8209. The ReadOnly directory flag alone is therefore not the demonstrated cause on that Server host, and no attribute adapter is justified. Next controlled case uses the same account's actual linked limited token, with actual child-token readback. Isolated native administrator consent is automatically approved only in the disposable diagnostic fixture and its original policy is restored; this does not claim attended consent-prompt or Windows client coverage. A missing native split token must be retained literally, not relabeled actual UAC proof.
