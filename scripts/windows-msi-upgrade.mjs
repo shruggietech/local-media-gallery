@@ -33,9 +33,9 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
  let output='',launchError;child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.on('error',e=>launchError=e);
  const end=Date.now()+timeout,read=()=>observer.request('msi'),input=name=>observer.request('msi',{name});
  const name=n=>msiControlLabel(n.name),visible=(r,text)=>upgradePageReady(r.records,text);
- const until=async(fn,description)=>{let last;while(Date.now()<end){if(launchError)throw launchError;if(child.exitCode!==null)throw Error('MSI exited '+child.exitCode+' before '+description);try{const value=await fn();if(value)return value;}catch(e){last=e;}await new Promise(r=>setTimeout(r,150));}throw Error('Upgrade deadline: '+description+(last?': '+last.message:''));};
+ const until=async(fn,description)=>{let last;const phaseEnd=Math.min(end,Date.now()+30000);while(Date.now()<phaseEnd){if(launchError)throw launchError;if(child.exitCode!==null)throw Error('MSI exited '+child.exitCode+' before '+description);try{const value=await fn();if(value)return value;}catch(e){last=e;}await new Promise(r=>setTimeout(r,150));}throw Error('Upgrade readiness deadline: '+description+(last?': '+last.message:''));};
  const wait=label=>until(async()=>{const r=await read();return visible(r,label)?r:null;},label);
- async function capture(label,r=undefined){r??=await read();observations.push({label,...r});for(const window of r.windows){const screenshot=path.join(work,label+'-'+window.handle+'.png');const image=await observer.request('msi',{screenshot,screenshotWindow:window.handle});const bytes=await readFile(screenshot);screens.push({label,window,observation:image,path:path.relative(root,screenshot).replaceAll('\\','/'),bytes:String(bytes.length),sha256:hash(bytes)});}return r;}
+ async function capture(label,r=undefined){assert.ok(observations.length<32,'Upgrade observation bound exceeded');r??=await read();observations.push({label,...r});for(const window of r.windows){const screenshot=path.join(work,label+'-'+window.handle+'-'+screens.length+'.png');const image=await observer.request('msi',{screenshot,screenshotWindow:window.handle});const bytes=await readFile(screenshot);screens.push({label,window,observation:image,path:path.relative(root,screenshot).replaceAll('\\','/'),bytes:String(bytes.length),sha256:hash(bytes)});}return r;}
  let failureDialog=null,progress=false;
  try{
   if(clientToken==='limited'){
@@ -49,7 +49,7 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
   while(child.exitCode===null&&Date.now()<end){
    let r;try{r=await read();}catch{await new Promise(r=>setTimeout(r,150));continue;}
    const error=r.records.find(n=>/Cannot bind actual machine common Programs directory|Local Media Gallery:/.test(name(n)));
-   if(error){failureDialog=name(error);await capture('failure',r);if(r.records.some(n=>name(n)==='OK'&&n.enabled))await input('OK');}
+   if(error&&!failureDialog){failureDialog=name(error);await capture('failure',r);if(r.records.some(n=>name(n)==='OK'&&n.enabled))await input('OK');}
    if(!progress&&r.records.some(n=>n.role==='ControlType.ProgressBar')){progress=true;await capture('progress',r);}
    if(r.records.some(n=>name(n)==='Finish'&&n.enabled)){await capture('terminal',r);await input('Finish');break;}
    await new Promise(r=>setTimeout(r,150));

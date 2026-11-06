@@ -27,6 +27,10 @@ if($Child) {
     Add-Type @'
 using System;using System.ComponentModel;using System.Diagnostics;using System.Runtime.InteropServices;using System.Security.Principal;
 public static class GalleryLimitedClient {
+ [DllImport("user32.dll")] static extern IntPtr GetProcessWindowStation();
+ [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+ [DllImport("user32.dll")] static extern IntPtr GetThreadDesktop(uint thread);
+ [DllImport("user32.dll",SetLastError=true,CharSet=CharSet.Unicode)] static extern bool GetUserObjectInformationW(IntPtr handle,int kind,System.Text.StringBuilder value,int size,out int needed);
  [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
  [DllImport("kernel32.dll")] static extern uint GetCurrentProcessId();
  [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
@@ -34,6 +38,9 @@ public static class GalleryLimitedClient {
  [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
  [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetTokenInformation(IntPtr token,int kind,IntPtr value,int bytes,out int needed);
  static int Value(IntPtr token,int kind) {IntPtr p=Marshal.AllocHGlobal(4);try{int n;if(!GetTokenInformation(token,kind,p,4,out n))throw new Win32Exception(Marshal.GetLastWin32Error(),"GetTokenInformation");return Marshal.ReadInt32(p);}finally{Marshal.FreeHGlobal(p);}}
+ static string Name(IntPtr handle){var s=new System.Text.StringBuilder(1024);int needed;if(!GetUserObjectInformationW(handle,2,s,2048,out needed))throw new Win32Exception(Marshal.GetLastWin32Error(),"GetUserObjectInformation");return s.ToString();}
+ public static string Station(){return Name(GetProcessWindowStation());}
+ public static string Desktop(){return Name(GetThreadDesktop(GetCurrentThreadId()));}
  public static void Check(int pid) {bool own=pid==GetCurrentProcessId();IntPtr process=own?GetCurrentProcess():OpenProcess(0x1000,false,pid),token=IntPtr.Zero;if(process==IntPtr.Zero)throw new Win32Exception(Marshal.GetLastWin32Error(),"OpenProcess limited query");try{if(!OpenProcessToken(process,10,out token))throw new Win32Exception(Marshal.GetLastWin32Error(),"OpenProcessToken query and duplicate");if(Value(token,18)!=3||Value(token,20)!=0)throw new Exception("Actual linked limited token required; type="+Value(token,18)+", elevated="+Value(token,20));using(var user=new WindowsIdentity(token)){if(new WindowsPrincipal(user).IsInRole(WindowsBuiltInRole.Administrator))throw new Exception("Client is an effective administrator");}}finally{if(token!=IntPtr.Zero)CloseHandle(token);if(!own)CloseHandle(process);}}
 }
 '@
@@ -44,7 +51,7 @@ public static class GalleryLimitedClient {
     $client=[Diagnostics.Process]::new();$client.StartInfo=$start
     [void]$client.Start();$client.StandardInput.Close();$output=$client.StandardOutput.ReadToEndAsync();$errors=$client.StandardError.ReadToEndAsync()
     [GalleryLimitedClient]::Check($client.Id)
-    @{kind='actual-credentialed-limited-msi-client';pid=$client.Id;launcherTokenType=3;clientTokenType=3;clientElevated=$false;sameAccount=$true;profile=$profile;localAppData=[Environment]::GetFolderPath('LocalApplicationData')}|ConvertTo-Json -Compress
+    @{kind='actual-credentialed-limited-msi-client';pid=$client.Id;launcherTokenType=3;clientTokenType=3;clientElevated=$false;sameAccount=$true;profile=$profile;localAppData=[Environment]::GetFolderPath('LocalApplicationData');session=[Diagnostics.Process]::GetCurrentProcess().SessionId;station=[GalleryLimitedClient]::Station();desktop=[GalleryLimitedClient]::Desktop()}|ConvertTo-Json -Compress
     if(!$client.WaitForExit(300000)){throw 'Incomplete limited-token MSI client; account/context must remain retained'}
     [Console]::Error.Write($errors.GetAwaiter().GetResult())
     exit $client.ExitCode

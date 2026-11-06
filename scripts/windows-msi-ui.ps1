@@ -24,10 +24,13 @@ Add-Type -AssemblyName Accessibility
 Add-Type -CompilerOptions '/nowarn:1701' -ReferencedAssemblies ([Accessibility.IAccessible].Assembly.Location) @'
 using System;using System.Runtime.InteropServices;
 public static class GalleryMsiWindow {
+ [DllImport("user32.dll",SetLastError=true)] static extern bool PostMessageW(IntPtr hwnd,uint message,UIntPtr wparam,IntPtr lparam);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetClassNameW(IntPtr hwnd,System.Text.StringBuilder value,int length);
+ [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr hwnd,uint flags);
  [DllImport("oleacc.dll")] static extern int AccessibleObjectFromWindow(IntPtr hwnd,uint objectId,ref Guid iid,[MarshalAs(UnmanagedType.Interface)] out Accessibility.IAccessible accessible);
  static Accessibility.IAccessible Accessible(IntPtr hwnd) {if(hwnd==IntPtr.Zero)throw new Exception("MSI control has no native handle");Guid iid=new Guid("618736e0-3c3d-11cf-810c-00aa00389b71");Accessibility.IAccessible value;Marshal.ThrowExceptionForHR(AccessibleObjectFromWindow(hwnd,0xfffffffc,ref iid,out value));return value;}
  public static object[] ReadLegacy(IntPtr hwnd) {if(hwnd==IntPtr.Zero)return null;Accessibility.IAccessible value=null;try {value=Accessible(hwnd);return new object[]{Convert.ToInt32(value.get_accRole(0)),Convert.ToInt32(value.get_accState(0)),value.get_accDefaultAction(0)??"",value.get_accValue(0)??""};}catch{return null;}finally{if(value!=null)Marshal.FinalReleaseComObject(value);}}
- public static void LegacyAction(IntPtr hwnd,string input) {var value=Accessible(hwnd);try {int role=Convert.ToInt32(value.get_accRole(0));int state=Convert.ToInt32(value.get_accState(0));if(role==42)value.set_accValue(0,input);else if(role==44){if(((state&16)!=0)!=(input!="false"))value.accDoDefaultAction(0);}else if(role==45){if((state&18)==0)value.accDoDefaultAction(0);}else if(!String.IsNullOrEmpty(value.get_accDefaultAction(0)))value.accDoDefaultAction(0);else throw new Exception("MSI control has no accessible default action");}finally{Marshal.FinalReleaseComObject(value);}}
+ public static void LegacyAction(IntPtr hwnd,string input) {var value=Accessible(hwnd);try {int role=Convert.ToInt32(value.get_accRole(0));int state=Convert.ToInt32(value.get_accState(0));if(role==42)value.set_accValue(0,input);else if(role==44){if(((state&16)!=0)!=(input!="false"))value.accDoDefaultAction(0);}else if(role==45){if((state&18)==0)value.accDoDefaultAction(0);}else if(role==43){var name=new System.Text.StringBuilder(128);if(GetClassNameW(hwnd,name,128)==0||!String.Equals(name.ToString(),"Button",StringComparison.OrdinalIgnoreCase))throw new Exception("MSI button class differs");SetForegroundWindow(GetAncestor(hwnd,2));if(!PostMessageW(hwnd,0x00f5,UIntPtr.Zero,IntPtr.Zero))throw new Exception("MSI native button post failed: "+Marshal.GetLastWin32Error());}else if(!String.IsNullOrEmpty(value.get_accDefaultAction(0)))value.accDoDefaultAction(0);else throw new Exception("MSI control has no accessible default action");}finally{Marshal.FinalReleaseComObject(value);}}
  [StructLayout(LayoutKind.Sequential)] public struct Rect {public int Left,Top,Right,Bottom;}
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -82,6 +85,7 @@ if ($Name -eq '__tab__') {
         if ($pattern.Current.ToggleState -ne $wanted) { $pattern.Toggle() }
     } elseif ($target.TryGetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern,[ref]$pattern)) { $pattern.Select() }
     elseif ($target.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern,[ref]$pattern)) { $pattern.SetValue($Value) }
+    elseif ($Name -eq 'OK' -and $target.Current.NativeWindowHandle -ne 0) { [GalleryMsiWindow]::LegacyAction([IntPtr]$target.Current.NativeWindowHandle,$Value) }
     elseif ($target.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern,[ref]$pattern)) { $pattern.Invoke() }
     elseif ($target.Current.NativeWindowHandle -ne 0) { [GalleryMsiWindow]::LegacyAction([IntPtr]$target.Current.NativeWindowHandle,$Value) }
     else { throw ("MSI control has no native input pattern: "+$Name+" / "+$target.Current.ControlType.ProgrammaticName+" / "+(($target.GetSupportedPatterns() | ForEach-Object {$_.ProgrammaticName}) -join ',')) }
