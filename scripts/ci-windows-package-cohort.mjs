@@ -2,7 +2,7 @@
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
 import assert from 'node:assert/strict';
-import {readFile,writeFile,mkdir,copyFile} from 'node:fs/promises';
+import {readFile,writeFile,appendFile,mkdir,copyFile} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import path from 'node:path';
@@ -17,7 +17,7 @@ import {joinedChecks} from './joined-checks.mjs';
 import {verifyMsiCommandReadiness} from './windows-msi-command.mjs';
 import {prepareWindowsDiagnosticFixtures} from './windows-package-fixtures.mjs';
 import {validatePackageEvidence,validateSingleFileWindows} from './windows-package-evidence.mjs';
-import {windowsCampaigns,windowsBuildDigest,windowsReadyName,windowsCohortClock,validateWindowsCohortClock,combineWindowsCampaigns,validateWindowsInputInventory,normalizeWindowsEvidence} from './windows-package-cohort.mjs';
+import {windowsCampaigns,windowsBuildDigest,windowsReadyName,windowsCohortClock,validateWindowsCohortClock,selectWindowsCampaignArtifact,combineWindowsCampaigns,validateWindowsInputInventory,normalizeWindowsEvidence} from './windows-package-cohort.mjs';
 
 const [operation,campaign]=process.argv.slice(2),local=path.join(root,'.local'),hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 assert.ok(['build','prepare','run','wait','gate'].includes(operation));if(['prepare','run','wait'].includes(operation))assert.ok(windowsCampaigns.includes(campaign));
@@ -77,12 +77,14 @@ if(operation==='build'){
  // worker continues. The final gate still uses this same absolute clock.
  while(Date.now()<Date.parse(clock.activeDeadline)){
   const artifacts=(await api('/actions/runs/'+context.runId+'/artifacts?per_page=100')).artifacts;
-  selected=artifacts.filter(a=>a.name==='windows-'+campaign+'-evidence-'+context.shaLabel&&!a.expired&&/^sha256:[a-f0-9]{64}$/.test(a.digest??'')).sort((a,b)=>b.id-a.id)[0];
+  selected=selectWindowsCampaignArtifact(context,clock,campaign,artifacts);
   if(selected){console.log('Ready for independent '+campaign+' evidence transfer');break;}
   await new Promise(resolve=>setTimeout(resolve,5000));
  }
  await save('windows-campaign-gate-transfer-'+campaign+'.json',{campaign,clock,observed:new Date().toISOString(),artifact:selected?{id:selected.id,name:selected.name,digest:selected.digest,bytes:selected.size_in_bytes}:null});
  assert.ok(selected&&Date.now()<Date.parse(clock.activeDeadline),'Shared Windows deadline expired before evidence transfer');
+ assert.ok(process.env.GITHUB_OUTPUT,'Actions output file required for exact worker download');
+ await appendFile(process.env.GITHUB_OUTPUT,'artifact_id='+selected.id+'\n');
 }else if(operation==='run'){
  const {build,context}=await inputs(),ready=await json('windows-campaign-ready-'+campaign+'.json');assert.equal(ready.campaign,campaign);assert.deepEqual(ready.context,context);
  let clock,concurrentChecks;const env=runtimeEnvironment(build);

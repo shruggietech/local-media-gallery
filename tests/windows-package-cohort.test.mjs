@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {windowsCohortClock,validateWindowsCohortClock,windowsReadyName,windowsBuildDigest,combineWindowsCampaigns,validateWindowsInputInventory,normalizeWindowsEvidence} from '../scripts/windows-package-cohort.mjs';
+import {windowsCohortClock,validateWindowsCohortClock,windowsReadyName,windowsBuildDigest,selectWindowsCampaignArtifact,combineWindowsCampaigns,validateWindowsInputInventory,normalizeWindowsEvidence} from '../scripts/windows-package-cohort.mjs';
 import {qualification} from '../scripts/qualification.mjs';
 const source={sha256:'a'.repeat(64),files:3},revision='b'.repeat(40),build={source,revision,products:[{edition:'full',artifact:{sha256:'c'.repeat(64)}}]};
 const context={source,revision,shaLabel:'d'.repeat(40),runId:'123',attempt:'2',buildSha256:windowsBuildDigest(build),preparationStarted:'2026-01-01T00:00:00.000Z'};
@@ -18,6 +18,24 @@ test('Both Windows workers derive one immutable source-bound deadline after read
 });
 test('Ready markers reject missing, duplicate, stale-attempt and foreign-run inputs',()=>{
  for(const markers of [artifacts.slice(0,1),[...artifacts,artifacts[0]],artifacts.map(a=>({...a,name:a.name.replace(/-2$/,'-1')})),artifacts.map(a=>({...a,workflow_run:{id:999,head_sha:revision}}))])assert.throws(()=>windowsCohortClock(context,markers));
+});
+test('A retried gate waits past retained same-name packets until its current worker uploads',()=>{
+ const {clock}=fixture(),name='windows-lifecycle-evidence-'+context.shaLabel;
+ const stale={id:50,name,created_at:context.preparationStarted,expired:false,digest:'sha256:'+'e'.repeat(64),size_in_bytes:1024,workflow_run:{id:123,head_sha:revision}};
+ assert.equal(selectWindowsCampaignArtifact(context,clock,'lifecycle',[stale]),undefined);
+ const current={...stale,id:51,created_at:'2026-01-01T00:00:20.000Z'};
+ assert.equal(selectWindowsCampaignArtifact(context,clock,'lifecycle',[current,stale]),current);
+ // Even misleading ID order cannot make a packet from before readiness fresh.
+ assert.equal(selectWindowsCampaignArtifact(context,clock,'lifecycle',[current,{...stale,id:99}]),current);
+});
+test('Worker transfer selection retains the shared deadline, provider provenance and immutable identity',()=>{
+ const {clock}=fixture(),packet={id:51,name:'windows-experience-evidence-'+context.shaLabel,created_at:clock.readinessVerified,expired:false,digest:'sha256:'+'e'.repeat(64),size_in_bytes:1024,workflow_run:{id:123,head_sha:revision}};
+ assert.equal(selectWindowsCampaignArtifact(context,clock,'experience',[packet]),packet);
+ for(const change of [{created_at:clock.activeDeadline},{created_at:'not-a-time'},{expired:true},{digest:null},{name:'windows-lifecycle-evidence-'+context.shaLabel}])assert.equal(selectWindowsCampaignArtifact(context,clock,'experience',[{...packet,...change}]),undefined);
+ const later={...packet,id:52,created_at:'2026-01-01T00:00:21.000Z'};assert.equal(selectWindowsCampaignArtifact(context,clock,'experience',[packet,later]).id,52);
+ for(const change of [{id:0},{size_in_bytes:0},{size_in_bytes:5*1024**3+1},{workflow_run:{id:999,head_sha:revision}},{workflow_run:{id:123,head_sha:'f'.repeat(40)}}])assert.throws(()=>selectWindowsCampaignArtifact(context,clock,'experience',[{...packet,...change}]));
+ assert.throws(()=>selectWindowsCampaignArtifact(context,{...clock,attempt:'1'},'experience',[packet]));
+ assert.throws(()=>selectWindowsCampaignArtifact(context,clock,'other',[packet]));
 });
 test('Campaign reconciliation remains non-accepting until complete byte validation',()=>{
  const {fragments,receipts}=fixture();const combined=combineWindowsCampaigns(build,fragments,receipts,context);assert.equal(combined.acceptance,false);assert.equal(combined.cohort.workers.length,2);assert.equal(combined.checks.length,29);
