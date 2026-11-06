@@ -61,3 +61,9 @@ Diagnostic 42238610909 reproduced the exact native 267/1603 again, now with dire
 ## 2026-11-06: separate actor collector follow-up
 
 The ten-second collector diagnostic in run 42241665106 stopped earlier at an MSI UI request timeout, so it establishes no new product result or successful collector shutdown. Retain the original failure. Keep account/type/elevation checks but move their native query into the isolated non-UI launcher, leaving the UI observer privileges and native accessibility methods unchanged from the previously completed journey. Bind the independently read live child identity to the original flushed source log and the observed wizard PID. Unit refusal cases continue to reject wrong SID/elevation/type/PID/source or observation time. This is a collector placement correction; installer authorization behavior is unchanged and no further hosted round is triggered.
+
+## 2026-11-06: MTA control and complete lifecycle worker
+
+The explicit-MTA published-pair control, run 42249769420, completed cleanly with the original native failure and restored predecessor. The real PowerShell ping regression attests MTA rather than merely checking launch flags. The lifecycle worker in run 42244737428 passed its complete original campaign, including the previously failed activated interruption; retain the prior access-denied observation without claiming a distinct updater repair.
+
+The experience worker in that run stopped at the first offline fresh-install wizard read. Its original MSI log reaches WelcomeDlg, while the observer times out before Next. This precedes the new ordinary-upgrade journey. Preserve original diagnostics and test the explicit-MTA collector under the same blocked-network condition using the existing diagnostic, before electing another complete candidate run. No qualification condition is skipped.

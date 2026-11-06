@@ -33,7 +33,7 @@ on:
         required: false
         default: limited
         type: choice
-        options: [limited, all]
+        options: [limited, limited-offline, all]
       windows_msi_upgrade:
         description: Diagnose exact published ordinary Windows MSI upgrade (never acceptance)
         required: false
