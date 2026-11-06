@@ -65,7 +65,7 @@ if($Child) {
     if(!$client.WaitForExit(300000)){throw 'Incomplete limited-token MSI client; account/context must remain retained'}
     [Console]::Error.Write($errors.GetAwaiter().GetResult())
     $privateAfter=Read-RetainedPrivate
-    [IO.File]::WriteAllText(($LogPath+'.private.json'),(@{before=$privateBefore;after=$privateAfter;nativeClientPid=$client.Id;nativeExitCode=$client.ExitCode}|ConvertTo-Json -Depth 6)+[char]10,[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText(($LogPath+'.private.json'),((@{before=$privateBefore;after=$privateAfter;nativeClientPid=$client.Id;nativeExitCode=$client.ExitCode}|ConvertTo-Json -Depth 6).Replace([Environment]::NewLine,[string][char]10))+[char]10,[Text.UTF8Encoding]::new($false))
     exit $client.ExitCode
 }
 $account='lmgui'+[Guid]::NewGuid().ToString('N').Substring(0,10)
@@ -131,6 +131,6 @@ try {
     foreach($setting in $policyBefore){$key=Get-Item -LiteralPath $setting.path -ErrorAction SilentlyContinue;$present=$null -ne $key -and $key.GetValueNames() -contains $setting.name;if($present -ne $setting.present -or ($present -and ($key.GetValue($setting.name) -ne $setting.value -or $key.GetValueKind($setting.name).ToString() -ne $setting.kind))){$restored=$false}}
     if($created -and $terminal){Remove-LocalUser -Name $account}
     $record=@{kind='isolated-limited-msi-client-fixture';nativeClientTerminal=$terminal;authorizedClient=$authorized;private=if(Test-Path -LiteralPath ($LogPath+'.private.json')){Get-Content -Raw -LiteralPath ($LogPath+'.private.json')|ConvertFrom-Json}else{$null};policy=@{before=$policyBefore;during=@{DisableMsi=0;ConsentPromptBehaviorAdmin=0};alwaysInstallElevated=$false;restored=$restored}}
-    [IO.File]::WriteAllText(($LogPath+'.fixture.json'),($record|ConvertTo-Json -Depth 8)+[char]10,[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText(($LogPath+'.fixture.json'),(($record|ConvertTo-Json -Depth 8).Replace([Environment]::NewLine,[string][char]10))+[char]10,[Text.UTF8Encoding]::new($false))
     if(!$restored){throw 'Isolated MSI client policies were not restored'}
 }

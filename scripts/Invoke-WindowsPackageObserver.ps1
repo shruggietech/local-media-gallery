@@ -72,7 +72,7 @@ Param(
         $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');input=(Join-Path $PSScriptRoot 'native-input.ps1');state=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1');runtime=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1')}
         $observerHashes=@{}
         foreach ($route in $observerScripts.Keys) { $observerHashes[$route]=(Get-FileHash -LiteralPath $observerScripts[$route] -Algorithm SHA256).Hash.ToLowerInvariant() }
-        @{type='ready';protocolVersion=$ProtocolVersion;pid=$PID;sources=$observerHashes}|ConvertTo-Json -Compress
+        @{type='ready';protocolVersion=$ProtocolVersion;pid=$PID;sources=$observerHashes;apartment=([Threading.Thread]::CurrentThread.GetApartmentState().ToString())}|ConvertTo-Json -Compress
         while ($null -ne ($observerLine=Read-ObserverLine)) {
             $requestId=$null
             try {

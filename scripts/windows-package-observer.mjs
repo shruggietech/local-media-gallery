@@ -71,6 +71,8 @@ export async function observerSession(child,sources,{startupTimeout=20000,shutdo
 }
 export async function openWindowsPackageObserver(root,{cwd,env}={}){
  const sources={};for(const [route,file]of Object.entries({ui:'windows-package-ui.ps1',inspect:'inspect-windows-package.ps1',msi:'windows-msi-ui.ps1',input:'native-input.ps1',state:'Get-WindowsPackageSnapshot.ps1',runtime:'Get-WindowsPackageSnapshot.ps1'}))sources[route]=createHash('sha256').update(await readFile(path.join(root,'scripts',file))).digest('hex');
- const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/Invoke-WindowsPackageObserver.ps1')],{cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
- return observerSession(child,sources);
+ const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-Mta','-File',path.join(root,'scripts/Invoke-WindowsPackageObserver.ps1')],{cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
+ const session=await observerSession(child,sources);
+ if(session.identity.apartment!=='MTA'){await session.close();throw Error('Native UI observer requires an actual MTA thread');}
+ return session;
 }

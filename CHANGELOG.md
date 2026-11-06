@@ -12,6 +12,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Decisions
 
+- 2026-11-06: Run the isolated UI Automation client in an explicit MTA and attest the actual apartment in its startup handshake. Preserve request/deadline limits and add phase diagnostics instead of accepting an unobserved installer result.
+
 - 2026-11-06: Collect authorized MSI actor identity in the isolated non-UI launcher and bind it to the observed wizard PID/source. Keep privileged token inspection separate from UI Automation; retain the same native evidence requirements.
 
 - 2026-11-06: Allow the isolated native observer ten seconds for cooperative COM shutdown, while requiring its actual zero exit and retaining failure for forced termination. The independent 900-second qualification deadline remains authoritative.

@@ -17,10 +17,12 @@ param([string]$Name='', [string]$Value='', [string]$Screenshot='', [long]$Screen
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { throw 'MSI wizard input requires isolated CI' }
+[Console]::Error.WriteLine('MSI observer: loading UI Automation assemblies')
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName Accessibility
+[Console]::Error.WriteLine('MSI observer: loading native accessibility helper')
 Add-Type -CompilerOptions '/nowarn:1701' -ReferencedAssemblies ([Accessibility.IAccessible].Assembly.Location) @'
 using System;using System.Runtime.InteropServices;
 public static class GalleryMsiWindow {
@@ -41,6 +43,7 @@ public static class GalleryMsiWindow {
  public static void Tab(IntPtr window) {SetForegroundWindow(window);if(GetForegroundWindow()!=window)throw new Exception("MSI focus attribution failed");keybd_event(9,0,0,UIntPtr.Zero);keybd_event(9,0,2,UIntPtr.Zero);}
 }
 '@
+[Console]::Error.WriteLine('MSI observer: enumerate desktop roots, apartment '+[Threading.Thread]::CurrentThread.GetApartmentState())
 $top=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.Condition]::TrueCondition)
 $windows=@()
 foreach ($candidate in $top) {
@@ -54,6 +57,7 @@ if ($windows.Count -eq 0) { throw 'No attributed MSI product dialog is ready' }
 $windowRecords=@($windows | ForEach-Object {@{name=$_.Current.Name;processId=$_.Current.ProcessId;handle=$_.Current.NativeWindowHandle}})
 $records=[Collections.Generic.List[object]]::new()
 $targets=[Collections.Generic.List[object]]::new()
+[Console]::Error.WriteLine('MSI observer: attributed windows '+$windows.Count)
 foreach ($window in $windows) {
     $elements=$window.FindAll([Windows.Automation.TreeScope]::Descendants,[Windows.Automation.Condition]::TrueCondition)
     if ($elements.Count -gt 1024) { throw 'MSI accessibility bound exceeded' }
@@ -76,6 +80,7 @@ foreach ($window in $windows) {
         if ($Name -ne '' -and ($label.Replace('&','').Replace('>','').Replace('<','').Trim() -eq $Name -or ($Name -eq '__location__' -and ($c.ControlType -eq [Windows.Automation.ControlType]::Edit -or $legacyRole -eq 42))) -and $c.IsEnabled -and !$c.IsOffscreen) { $targets.Add($element) }
     }
 }
+[Console]::Error.WriteLine('MSI observer: collected controls '+$records.Count)
 $invoked=$false
 if ($Name -eq '__tab__') {
     if ($windows.Count -ne 1) { throw 'Keyboard input requires exactly one attributed MSI window' }
