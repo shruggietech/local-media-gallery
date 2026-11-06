@@ -14,6 +14,16 @@ $ErrorActionPreference='Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { throw 'Limited-token MSI input requires isolated CI' }
 if (![IO.Path]::IsPathFullyQualified($MsiFile) -or ![IO.Path]::IsPathFullyQualified($LogPath) -or $MsiFile.Contains('"') -or $LogPath.Contains('"')) { throw 'Absolute unquoted MSI/log paths required' }
 if($Child) {
+    # A credentialed .NET launch does not rebuild the inherited environment.
+    # Expand shell-folder variables against this loaded profile, not runneradmin.
+    $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+    $profile=Get-ItemPropertyValue -LiteralPath ('HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList\'+$identity.User.Value) -Name ProfileImagePath
+    $profile=[Environment]::ExpandEnvironmentVariables($profile)
+    $env:USERPROFILE=$profile
+    $env:APPDATA=Join-Path $profile 'AppData\Roaming'
+    $env:LOCALAPPDATA=Join-Path $profile 'AppData\Local'
+    $env:TEMP=Join-Path $env:LOCALAPPDATA 'Temp';$env:TMP=$env:TEMP
+    [void][IO.Directory]::CreateDirectory($env:TEMP)
     Add-Type @'
 using System;using System.ComponentModel;using System.Diagnostics;using System.Runtime.InteropServices;using System.Security.Principal;
 public static class GalleryLimitedClient {
@@ -34,7 +44,7 @@ public static class GalleryLimitedClient {
     $client=[Diagnostics.Process]::new();$client.StartInfo=$start
     [void]$client.Start();$client.StandardInput.Close();$output=$client.StandardOutput.ReadToEndAsync();$errors=$client.StandardError.ReadToEndAsync()
     [GalleryLimitedClient]::Check($client.Id)
-    @{kind='actual-credentialed-limited-msi-client';pid=$client.Id;launcherTokenType=3;clientTokenType=3;clientElevated=$false;sameAccount=$true}|ConvertTo-Json -Compress
+    @{kind='actual-credentialed-limited-msi-client';pid=$client.Id;launcherTokenType=3;clientTokenType=3;clientElevated=$false;sameAccount=$true;profile=$profile;localAppData=[Environment]::GetFolderPath('LocalApplicationData')}|ConvertTo-Json -Compress
     if(!$client.WaitForExit(300000)){throw 'Incomplete limited-token MSI client; account/context must remain retained'}
     [Console]::Error.Write($errors.GetAwaiter().GetResult())
     exit $client.ExitCode
