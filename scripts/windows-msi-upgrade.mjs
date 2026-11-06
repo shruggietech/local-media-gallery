@@ -10,6 +10,7 @@ import {msiCommandArguments} from './windows-msi-command.mjs';
 import {stopOwnedChild} from './native-driver-lifecycle.mjs';
 
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+export function upgradePageReady(records,label){return records.some(n=>!n.offscreen&&(['Next','Install','Finish'].includes(label)?n.role==='ControlType.Button'&&msiControlLabel(n.name)===label&&n.enabled:msiControlLabel(n.name).includes(label)));}
 export function checkUpgradeChoices(records,{scope,directory,startMenu,commandPath}){
  const label=n=>msiControlLabel(n.name);
  assert.ok(records.some(n=>label(n)==='Create a Start menu shortcut'&&n.toggle===(startMenu?'On':'Off')),'Upgrade must inherit Start menu choice');
@@ -28,7 +29,7 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
  const child=spawn(executable,arguments_,{cwd:work,env:environment,windowsHide:true,shell:false,windowsVerbatimArguments:true,stdio:['ignore','pipe','pipe']});
  let output='',launchError;child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.on('error',e=>launchError=e);
  const end=Date.now()+timeout,read=()=>observer.request('msi'),input=name=>observer.request('msi',{name});
- const name=n=>msiControlLabel(n.name),visible=(r,text)=>r.records.some(n=>!n.offscreen&&name(n).includes(text));
+ const name=n=>msiControlLabel(n.name),visible=(r,text)=>upgradePageReady(r.records,text);
  const until=async(fn,description)=>{let last;while(Date.now()<end){if(launchError)throw launchError;if(child.exitCode!==null)throw Error('MSI exited '+child.exitCode+' before '+description);try{const value=await fn();if(value)return value;}catch(e){last=e;}await new Promise(r=>setTimeout(r,150));}throw Error('Upgrade deadline: '+description+(last?': '+last.message:''));};
  const wait=label=>until(async()=>{const r=await read();return visible(r,label)?r:null;},label);
  async function capture(label,r=undefined){r??=await read();observations.push({label,...r});for(const window of r.windows){const screenshot=path.join(work,label+'-'+window.handle+'.png');const image=await observer.request('msi',{screenshot,screenshotWindow:window.handle});const bytes=await readFile(screenshot);screens.push({label,window,observation:image,path:path.relative(root,screenshot).replaceAll('\\','/'),bytes:String(bytes.length),sha256:hash(bytes)});}return r;}
