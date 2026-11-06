@@ -21,7 +21,7 @@
 - [x] T005 [US1] Dispatch the isolated published-pair baseline, retain directory/token/full-UI versus quiet controls and exact original operands under .local/s033-reproduction/; record causal evidence and any amended analysis in specs/033-windows-msi-upgrade/research.md (FR-001, FR-007, SC-001).
 - [x] T006 [US1] Write failing ordinary upgrade regressions in tests/msi-upgrade.test.mjs and the elected native package journey in scripts/test-windows-packages.mjs before the source repair (FR-002, FR-006, SC-004).
 - [x] T007 [US1] Implement the demonstrated minimal native directory/sequence compatibility correction in packaging/windows/installer.wxs, crates/windows-package/src/native.rs and crates/windows-package/src/msi_elevation.rs, preserving published inputs and existing guards (FR-002, FR-005, FR-008).
-- [ ] T008 [US1] Repeat the exact ordinary wizard journey with the source-bound candidate, verify inherited scope/location/choices, native product/package and installed launch in scripts/test-windows-packages.mjs and retained original runtime evidence (FR-002, FR-003, FR-006, SC-002).
+- [x] T008 [US1] Repeat the exact ordinary wizard journey with the source-bound candidate, verify inherited scope/location/choices, native product/package and installed launch in scripts/test-windows-packages.mjs and retained original runtime evidence (FR-002, FR-003, FR-006, SC-002).
 
 ## Phase 4: US2 - Data integrity and recovery
 

@@ -27,7 +27,7 @@ pub const DUAL_UPGRADE: &str = "{788C188C-E8CE-48B6-95CC-134A6AFD4B20}";
 const KEY: &str = "Software\\ShruggieTech\\LocalMediaGallery";
 #[link(name = "msi")]
 unsafe extern "system" {
-    fn MsiSetMode(h: u32, mode: u32, state: i32) -> u32;
+    fn MsiSetMode(h: u32, mode: i32, state: i32) -> u32;
     fn MsiGetFeatureStateW(h: u32, name: *const u16, installed: *mut i32, action: *mut i32) -> u32;
     fn MsiEnumRelatedProductsW(
         upgrade: *const u16,
