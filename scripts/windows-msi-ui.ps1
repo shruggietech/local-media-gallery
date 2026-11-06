@@ -33,14 +33,6 @@ public static class GalleryMsiWindow {
  static Accessibility.IAccessible Accessible(IntPtr hwnd) {if(hwnd==IntPtr.Zero)throw new Exception("MSI control has no native handle");Guid iid=new Guid("618736e0-3c3d-11cf-810c-00aa00389b71");Accessibility.IAccessible value;Marshal.ThrowExceptionForHR(AccessibleObjectFromWindow(hwnd,0xfffffffc,ref iid,out value));return value;}
  public static object[] ReadLegacy(IntPtr hwnd) {if(hwnd==IntPtr.Zero)return null;Accessibility.IAccessible value=null;try {value=Accessible(hwnd);return new object[]{Convert.ToInt32(value.get_accRole(0)),Convert.ToInt32(value.get_accState(0)),value.get_accDefaultAction(0)??"",value.get_accValue(0)??""};}catch{return null;}finally{if(value!=null)Marshal.FinalReleaseComObject(value);}}
  public static void LegacyAction(IntPtr hwnd,string input) {var value=Accessible(hwnd);try {int role=Convert.ToInt32(value.get_accRole(0));int state=Convert.ToInt32(value.get_accState(0));if(role==42)value.set_accValue(0,input);else if(role==44){if(((state&16)!=0)!=(input!="false"))value.accDoDefaultAction(0);}else if(role==45){if((state&18)==0)value.accDoDefaultAction(0);}else if(role==43){var name=new System.Text.StringBuilder(128);if(GetClassNameW(hwnd,name,128)==0||!String.Equals(name.ToString(),"Button",StringComparison.OrdinalIgnoreCase))throw new Exception("MSI button class differs");SetForegroundWindow(GetAncestor(hwnd,2));if(!PostMessageW(GetParent(hwnd),0x0111,new UIntPtr((uint)GetDlgCtrlID(hwnd)),hwnd))throw new Exception("MSI native button post failed: "+Marshal.GetLastWin32Error());}else if(!String.IsNullOrEmpty(value.get_accDefaultAction(0)))value.accDoDefaultAction(0);else throw new Exception("MSI control has no accessible default action");}finally{Marshal.FinalReleaseComObject(value);}}
- [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
- [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
- [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr handle);
- [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
- [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetTokenInformation(IntPtr token,int kind,IntPtr value,int bytes,out int needed);
- [DllImport("advapi32.dll",SetLastError=true,CharSet=CharSet.Unicode)] static extern bool ConvertSidToStringSidW(IntPtr sid,out IntPtr text);
- static int TokenValue(IntPtr token,int kind){IntPtr p=Marshal.AllocHGlobal(4);try{int n;if(!GetTokenInformation(token,kind,p,4,out n))throw new Exception("Native MSI token query failed: "+Marshal.GetLastWin32Error());return Marshal.ReadInt32(p);}finally{Marshal.FreeHGlobal(p);}}
- public static object[] Token(int pid){IntPtr process=OpenProcess(0x1000,false,pid),token=IntPtr.Zero,user=IntPtr.Zero,text=IntPtr.Zero;if(process==IntPtr.Zero)throw new Exception("Native MSI token query failed: "+Marshal.GetLastWin32Error());try{if(!OpenProcessToken(process,8,out token))throw new Exception("Native MSI token query failed: "+Marshal.GetLastWin32Error());int needed;GetTokenInformation(token,1,IntPtr.Zero,0,out needed);if(needed<1||needed>65536)throw new Exception("Invalid native token extent");user=Marshal.AllocHGlobal(needed);if(!GetTokenInformation(token,1,user,needed,out needed)||!ConvertSidToStringSidW(Marshal.ReadIntPtr(user),out text))throw new Exception("Native MSI token query failed: "+Marshal.GetLastWin32Error());return new object[]{Marshal.PtrToStringUni(text),TokenValue(token,18),TokenValue(token,20)!=0};}finally{if(text!=IntPtr.Zero)LocalFree(text);if(user!=IntPtr.Zero)Marshal.FreeHGlobal(user);if(token!=IntPtr.Zero)CloseHandle(token);CloseHandle(process);}}
  [StructLayout(LayoutKind.Sequential)] public struct Rect {public int Left,Top,Right,Bottom;}
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -49,9 +41,6 @@ public static class GalleryMsiWindow {
  public static void Tab(IntPtr window) {SetForegroundWindow(window);if(GetForegroundWindow()!=window)throw new Exception("MSI focus attribution failed");keybd_event(9,0,0,UIntPtr.Zero);keybd_event(9,0,2,UIntPtr.Zero);}
 }
 '@
-# Cross-account token queries require SeDebugPrivilege. This changes only the
-# already guarded isolated observer process; closing it releases the token.
-[Diagnostics.Process]::EnterDebugMode()
 $top=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.Condition]::TrueCondition)
 $windows=@()
 foreach ($candidate in $top) {
@@ -62,7 +51,7 @@ foreach ($candidate in $top) {
 }
 if ($windows.Count -eq 0) { throw 'No attributed MSI product dialog is ready' }
 # Retain the observed actor before an input can close its native process.
-$windowRecords=@($windows | ForEach-Object {$token=[GalleryMsiWindow]::Token($_.Current.ProcessId);@{name=$_.Current.Name;processId=$_.Current.ProcessId;handle=$_.Current.NativeWindowHandle;sid=$token[0];tokenType=$token[1];elevated=$token[2]}})
+$windowRecords=@($windows | ForEach-Object {@{name=$_.Current.Name;processId=$_.Current.ProcessId;handle=$_.Current.NativeWindowHandle}})
 $records=[Collections.Generic.List[object]]::new()
 $targets=[Collections.Generic.List[object]]::new()
 foreach ($window in $windows) {

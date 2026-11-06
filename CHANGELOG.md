@@ -12,6 +12,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Decisions
 
+- 2026-11-06: Collect authorized MSI actor identity in the isolated non-UI launcher and bind it to the observed wizard PID/source. Keep privileged token inspection separate from UI Automation; retain the same native evidence requirements.
+
 - 2026-11-06: Allow the isolated native observer ten seconds for cooperative COM shutdown, while requiring its actual zero exit and retaining failure for forced termination. The independent 900-second qualification deadline remains authoritative.
 
 - 2026-11-06: Reproduce the published v0.2.0-to-v0.2.1 common Programs error 267 with a genuine limited-token MSI client. Add that launch context, inherited choices, cancellation and retained private/gallery/foreign bytes to source-bound package qualification; an elevated wizard alone cannot satisfy the regression.

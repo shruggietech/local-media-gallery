@@ -25,7 +25,7 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
  requireIsolatedDesktop(environment);assert.equal(process.platform,'win32');
  const began=new Date().toISOString(),log=path.join(work,label+'.log'),screens=[],observations=[];
  const executable=path.join(environment.SystemRoot,'System32/msiexec.exe');
- const arguments_=msiCommandArguments(['/i',file,'/norestart','/L*v',log]);
+ const arguments_=msiCommandArguments(['/i',file,'/norestart','/L*v!',log]);
  assert.ok(['current','limited'].includes(clientToken));
  const launcher=clientToken==='limited'?'C:/Program Files/PowerShell/7/pwsh.exe':executable;
  const launchArgs=clientToken==='limited'?['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/Start-MsiLimitedToken.ps1'),'-MsiFile',file,'-LogPath',log]:arguments_;
