@@ -1,8 +1,8 @@
 Pillow==13.0.0
-fonttools==4.67.0
+fonttools==4.68.0
 jsonschema==4.26.0
 PyYAML==6.0.3
-coloraide==8.13.1
+coloraide==8.14
 svgelements==1.9.6
 pikepdf==10.17.0
-PyMuPDF==2.0
+PyMuPDF==2.1
