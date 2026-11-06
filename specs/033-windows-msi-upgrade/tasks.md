@@ -29,8 +29,8 @@
 
 **Independent test**: Original inventories and native state agree after success, cancellation and refusal.
 
-- [ ] T009 [US2] Add and run preservation and tampered payload/package/shortcut/source refusal cases around the ordinary transition in scripts/test-windows-packages.mjs and affected Rust/native tests (FR-004, FR-005, SC-003).
-- [ ] T010 [US2] Verify native cancellation/rollback and no orphaned predecessor registration while preserving original failure diagnostics, through scripts/windows-package-evidence.mjs and affected cohort validation (FR-003, FR-004, FR-005, FR-006, SC-003).
+- [x] T009 [US2] Add and run preservation and tampered payload/package/shortcut/source refusal cases around the ordinary transition in scripts/test-windows-packages.mjs and affected Rust/native tests (FR-004, FR-005, SC-003).
+- [x] T010 [US2] Verify native cancellation/rollback and no orphaned predecessor registration while preserving original failure diagnostics, through scripts/windows-package-evidence.mjs and affected cohort validation (FR-003, FR-004, FR-005, FR-006, SC-003).
 
 ## Phase 5: US3 - Reviewable candidate
 
@@ -38,13 +38,13 @@
 
 **Independent test**: Exact final head, all applicable terminal CI and addressed review comments.
 
-- [ ] T011 [US3] Update CHANGELOG.md with repair and dated workflow decision; run npm check/tests/docs plus affected native/site checks and UTF-8/LF/mojibake/published-history preservation checks (FR-007, FR-008, FR-009, FR-010, SC-004).
-- [ ] T012 [US3] Commit/push/open official PR, elect exact final-head hosted qualification and independently verify original receipts, upgrade evidence and preparation/qualification/combined timing (FR-009, FR-010, FR-011, SC-005).
-- [ ] T013 [US3] Address every hosted review finding with replies/resolution and at most two total Codex rounds; retain count/head/checks in specs/033-windows-msi-upgrade/verification.md (FR-011, SC-005).
+- [x] T011 [US3] Update CHANGELOG.md with repair and dated workflow decision; run npm check/tests/docs plus affected native/site checks and UTF-8/LF/mojibake/published-history preservation checks (FR-007, FR-008, FR-009, FR-010, SC-004).
+- [x] T012 [US3] Commit/push/open official PR, elect exact final-head hosted qualification and independently verify original receipts, upgrade evidence and preparation/qualification/combined timing (FR-009, FR-010, FR-011, SC-005).
+- [x] T013 [US3] Address every hosted review finding with replies/resolution and at most two total Codex rounds; retain count/head/checks in specs/033-windows-msi-upgrade/verification.md (FR-011, SC-005).
 
 ## Phase 6: Closeout
 
-- [ ] T014 Complete chronological verification/measurements and issue/Project/PR handoff, report actual host/reproduction/preservation limits and stop for owner merge in specs/033-windows-msi-upgrade/verification.md and measurements.md (FR-007, FR-008, FR-010, FR-011, SC-006).
+- [x] T014 Complete chronological verification/measurements and issue/Project/PR handoff, report actual host/reproduction/preservation limits and stop for owner merge in specs/033-windows-msi-upgrade/verification.md and measurements.md (FR-007, FR-008, FR-010, FR-011, SC-006).
 
 ## Dependencies and Execution Order
 
