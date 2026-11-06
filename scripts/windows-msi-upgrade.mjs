@@ -38,6 +38,10 @@ export async function observeMsiUpgrade({file,work,root,observer,environment,exp
  async function capture(label,r=undefined){r??=await read();observations.push({label,...r});for(const window of r.windows){const screenshot=path.join(work,label+'-'+window.handle+'.png');const image=await observer.request('msi',{screenshot,screenshotWindow:window.handle});const bytes=await readFile(screenshot);screens.push({label,window,observation:image,path:path.relative(root,screenshot).replaceAll('\\','/'),bytes:String(bytes.length),sha256:hash(bytes)});}return r;}
  let failureDialog=null,progress=false;
  try{
+  if(clientToken==='limited'){
+   while(!output.includes('"clientTokenType":3')&&Date.now()<end){if(child.exitCode!==null)throw Error('Limited client readiness failed: '+output);await new Promise(r=>setTimeout(r,100));}
+   assert.ok(output.includes('"clientTokenType":3'),'Actual limited-client startup receipt required');
+  }
   await wait('Next');await input('Next');const license=await wait('License Agreement');
   const accept=license.records.find(n=>n.role==='ControlType.CheckBox'&&name(n).includes('accept'));assert.ok(accept);await input(name(accept));await input('Next');
   const scope=await wait('Choose who');assert.ok(scope.records.some(n=>name(n)===(expected.scope==='machine'?'For all users':'Only for me')&&n.selected===true),'Upgrade must retain predecessor scope');await capture('scope',scope);await input('Next');

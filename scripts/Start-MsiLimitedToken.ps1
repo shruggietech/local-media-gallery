@@ -52,11 +52,15 @@ try {
     $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=Join-Path $PSHOME 'pwsh.exe';$start.WorkingDirectory=$directory
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden;$start.RedirectStandardInput=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
     $start.UserName=$account;$start.Domain=$env:COMPUTERNAME;$start.Password=$password;$start.LoadUserProfile=$true
+    $start.Environment['GITHUB_ACTIONS']=$env:GITHUB_ACTIONS
+    $start.Environment['GALLERY_ISOLATED_DESKTOP']=$env:GALLERY_ISOLATED_DESKTOP
     foreach($argument in @('-NoProfile','-NonInteractive','-File',$script,'-MsiFile',$MsiFile,'-LogPath',$LogPath,'-Child')){$start.ArgumentList.Add($argument)}
     $client=[Diagnostics.Process]::new();$client.StartInfo=$start
-    [void]$client.Start();$client.StandardInput.Close();$output=$client.StandardOutput.ReadToEndAsync();$errors=$client.StandardError.ReadToEndAsync()
+    [void]$client.Start();$client.StandardInput.Close()
+    $output=$client.StandardOutput.BaseStream.CopyToAsync([Console]::OpenStandardOutput())
+    $errors=$client.StandardError.BaseStream.CopyToAsync([Console]::OpenStandardError())
     if(!$client.WaitForExit(320000)){throw 'Incomplete credentialed launcher; retain account/context'}
-    [Console]::Out.Write($output.GetAwaiter().GetResult());[Console]::Error.Write($errors.GetAwaiter().GetResult())
+    $output.GetAwaiter().GetResult();$errors.GetAwaiter().GetResult()
     $terminal=$true
     exit $client.ExitCode
 } finally {if($created -and $terminal){Remove-LocalUser -Name $account}}
