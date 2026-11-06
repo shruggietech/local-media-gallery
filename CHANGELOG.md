@@ -10,6 +10,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 - Keep a retried Windows qualification gate waiting for current-cohort worker archives instead of downloading retained packets from an earlier attempt. Download the exact selected artifact IDs while preserving original diagnostics and existing source, clock, receipt, byte and deadline checks.
 
+- Elect aggregate CI inputs by artifact creation time and exact provider IDs, preserving all canonical and Windows worker evidence. Retries cannot merge an older failed receipt over the current observation.
+
 ### Decisions
 
 - 2026-11-06: Bind Windows gate transfers to the current readiness window and immutable provider artifact IDs. Retained earlier attempts remain diagnostic history and cannot authorize publication. The demonstrated qualification repair requires a reviewed merge and fresh push-main qualification before v0.2.1 publication.
@@ -25,6 +27,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - 2026-11-06: Run the isolated UI Automation client in an explicit MTA and attest the actual apartment in its startup handshake. Preserve request/deadline limits and add phase diagnostics instead of accepting an unobserved installer result.
 
 - 2026-11-06: Reuse the bounded published-pair diagnostic with an optional blocked-network variant to reproduce collector startup in the offline context before full candidate qualification. Restore original firewall policy and preserve original observations.
+
+- 2026-11-06: Use the existing newest-qualification-artifact contract to elect every upstream aggregate input before download. Bind the election to the current run/head, retain its original receipt and never fall back from a newer failed observation to an older pass.
 
 ## [0.2.1]
 
