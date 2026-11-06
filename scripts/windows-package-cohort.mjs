@@ -30,6 +30,18 @@ export function validateWindowsCohortClock(clock,context){
  const artifacts=clock.markers.map(m=>({id:m.id,name:m.name,created_at:m.createdAt,expired:false,workflow_run:{id:Number(clock.runId),head_sha:clock.revision}}));
  assert.deepEqual(clock,windowsCohortClock(context,artifacts),'Windows workers must share the same source-bound absolute clock');return true;
 }
+export function selectWindowsCampaignArtifact(context,clock,campaign,artifacts){
+ assert.ok(windowsCampaigns.includes(campaign));validateWindowsCohortClock(clock,context);
+ const ready=Date.parse(clock.readinessVerified),deadline=Date.parse(clock.activeDeadline);
+ // Names are reused across attempts. An earlier completed or failed packet
+ // cannot satisfy this cohort while its fresh worker is still running.
+ const selected=artifacts.filter(a=>a.name==='windows-'+campaign+'-evidence-'+context.shaLabel&&!a.expired&&/^sha256:[a-f0-9]{64}$/.test(a.digest??'')&&Date.parse(a.created_at)>=ready&&Date.parse(a.created_at)<deadline).sort((a,b)=>b.id-a.id)[0];
+ if(!selected)return undefined;
+ assert.ok(Number.isSafeInteger(selected.id)&&selected.id>0);
+ assert.ok(Number.isSafeInteger(selected.size_in_bytes)&&selected.size_in_bytes>0&&selected.size_in_bytes<=5*1024**3);
+ if(selected.workflow_run){assert.equal(String(selected.workflow_run.id),String(context.runId));assert.equal(selected.workflow_run.head_sha,context.revision);}
+ return selected;
+}
 export function combineWindowsCampaigns(build,fragments,receipts,context){
  contextValid(context);assert.equal(context.buildSha256,windowsBuildDigest(build));assert.deepEqual(context.source,build.source);assert.equal(context.revision,build.revision);
  assert.equal(fragments.length,2);assert.equal(receipts.length,2);

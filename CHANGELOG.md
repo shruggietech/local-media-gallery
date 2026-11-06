@@ -4,6 +4,14 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep a retried Windows qualification gate waiting for current-cohort worker archives instead of downloading retained packets from an earlier attempt. Download the exact selected artifact IDs while preserving original diagnostics and existing source, clock, receipt, byte and deadline checks.
+
+### Decisions
+
+- 2026-11-06: Bind Windows gate transfers to the current readiness window and immutable provider artifact IDs. Retained earlier attempts remain diagnostic history and cannot authorize publication. The demonstrated qualification repair requires a reviewed merge and fresh push-main qualification before v0.2.1 publication.
+
 ## [0.2.1]
 
 Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.
