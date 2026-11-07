@@ -21,3 +21,7 @@ Source A is b196c564762d2a005cc3e4d3a9627b5ded0f342e. The existing snapshot CLI 
 ## 2026-11-06: first hosted observation
 
 All local affected checks pass: application/Rust checks, production site build, 118-page/8929-link/127-raw-source integrity and ten rendered browser groups. The first automatic hosted code review of b54919f completed with no findings. Hosted readiness run 42331349148 correctly failed before qualification because administrative MSI costing selects its authored Local Media Gallery directory beneath TARGETDIR, overriding the assumed payload subdirectory. Original archive 13557640991 and administrative log/payload were retained and independently read with ZIP CRC. Preparation now reads the demonstrated authored image directory and omits the ineffective INSTALLDIR override. Product installation behavior and acceptance requirements are unchanged; fresh exact-head qualification is required.
+
+## 2026-11-06: native location boundary regression
+
+Readback of actual retained Windows registration shows InstallLocation includes its final separator. The new shortcut comparison appended another separator before normalization, which would falsely reject a valid ordinary upgrade. Normalize the directory before appending the executable name, and use a genuine trailing-separator fixture with a normal native joined shortcut target. Existing data/location/integration requirements remain unchanged. This source correction requires a fresh current-head run; previous receipts remain diagnostic evidence only.
