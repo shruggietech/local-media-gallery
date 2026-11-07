@@ -1,0 +1,15 @@
+# Verification: v0.2.2 hotfix preparation
+
+## 2026-11-06: specification and blocking gates
+
+Installed Python create_new_feature, clarification path prerequisites, setup_plan, setup_tasks, analyze prerequisites and implementation prerequisites completed successfully. No extension hooks exist. Author specification checklist passes 16/16; no custom reviewer checklist or additional attended approval gate was introduced.
+
+Read-only semantic and structural analysis passed: 10 functional requirements, six success criteria, 16 tasks, 100% coverage, no unmapped tasks, no unresolved placeholders/ambiguities/duplications or constitution conflicts. The two read-only Phase 0 inventories informed the version and distinct predecessor designs. Git ignores already cover dependencies, generated output, target, tooling, local evidence and selector state; no additional published-package ignore file is needed for this private workspace.
+
+Issue #108 tracks S034. Explicit owner push/PR authorization supersedes the generic pre-push pause. No product release, tag, merge or public latest promotion is authorized. Installer/GUI/runtime execution stays isolated; none has been performed on the owner installation. Main post-merge qualification remains observed separately and is not reused as a new-version candidate result.
+
+## 2026-11-06: local implementation checks
+
+Prepared coherent 0.2.2 product metadata, new documentation/schema/reference inputs, unchanged published-history fixtures and paired ordinary upgrade evidence/transfer checks. Focused regression tests passed. Repository check passed, including UTF-8 without BOM, LF, local links, mojibake, version and brand checks. The initial complete unit run had 315 passes, two platform-specific skips and one expected preparation failure: the new retained documentation receipt does not exist until committed-source snapshot capture. No unrelated test failed. The missing receipt is not accepted as a final result; the complete suite will run again after capture.
+
+The v0.2.1 MSI and canonical record are pinned from live published metadata. Administrative extraction and both ordinary upgrade campaigns are isolated-CI-only preparation/runtime operations. Their implementation is complete; runtime acceptance remains pending. Public release/tag/latest and original v0.2.1 bytes remain unchanged.

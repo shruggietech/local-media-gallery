@@ -7,6 +7,9 @@ import path from 'node:path';
 import { root } from './run.mjs';
 
 export const evidenceExclusions = [
+  'specs/034-v022-hotfix-preparation/tasks.md',
+  'specs/034-v022-hotfix-preparation/verification.md',
+  'specs/034-v022-hotfix-preparation/measurements.md',
   'specs/033-windows-msi-upgrade/tasks.md',
   'specs/033-windows-msi-upgrade/verification.md',
   'specs/033-windows-msi-upgrade/measurements.md',
