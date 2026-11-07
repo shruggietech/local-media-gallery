@@ -1,0 +1,280 @@
+{
+  "snapshot": {
+    "version": "v0.2.1",
+    "status": "released",
+    "source": "docs/v0.2.1",
+    "topics": [
+      "index",
+      "overview",
+      "architecture",
+      "installation-and-distribution",
+      "gallery-lifecycle",
+      "browsing-and-playback",
+      "metadata-and-sidecars",
+      "configuration-and-state",
+      "interfaces-and-contracts",
+      "thumbnails-and-performance",
+      "security-and-reliability",
+      "website-and-documentation",
+      "verification-and-compatibility",
+      "glossary",
+      "brand"
+    ],
+    "references": [
+      {
+        "source": "brand/kit/enforcement/consumer-contract.json",
+        "name": "enforcement/consumer-contract.json",
+        "captured": "site/snapshots/v0.2.1/references/enforcement_consumer-contract.json.source",
+        "sha256": "5dc144a6e57d7dce2bd424ff54fcccd649d5d0d3a203461b6f4a00adde1f6775"
+      },
+      {
+        "source": "brand/kit/enforcement/IMPLEMENTATION.md",
+        "name": "enforcement/IMPLEMENTATION.md",
+        "captured": "site/snapshots/v0.2.1/references/enforcement_IMPLEMENTATION.md.source",
+        "sha256": "20e3217254e4a7e2a64a7ede7b0ff50d1ba44b95b3af116a6fc61726e937d809"
+      },
+      {
+        "source": "brand/kit/web/adapter.json",
+        "name": "web/adapter.json",
+        "captured": "site/snapshots/v0.2.1/references/web_adapter.json.source",
+        "sha256": "ed791d31774e84aa1ca8292ff9afaf5c44dfaa156d978cf5dbf664209fcad778"
+      },
+      {
+        "source": "brand/kit/enforcement/component-recipes.json",
+        "name": "enforcement/component-recipes.json",
+        "captured": "site/snapshots/v0.2.1/references/enforcement_component-recipes.json.source",
+        "sha256": "c56f8eeac54670f4ca53d1bd06c8a02acfd59f94f8f0aed92bdfdc4947ccd241"
+      },
+      {
+        "source": "brand/kit/tokens/interface.css",
+        "name": "tokens/interface.css",
+        "captured": "site/snapshots/v0.2.1/references/tokens_interface.css.source",
+        "sha256": "617bfd731ad5422c8694ea5d3d5619fe8e950e021cda9c864d7972326fb471a4"
+      },
+      {
+        "source": "brand/kit/LICENSE",
+        "name": "LICENSE",
+        "captured": "site/snapshots/v0.2.1/references/LICENSE.source",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "source": "brand/kit/LICENSE-BRAND.md",
+        "name": "LICENSE-BRAND.md",
+        "captured": "site/snapshots/v0.2.1/references/LICENSE-BRAND.md.source",
+        "sha256": "bd1107a804108bbe02955ca64000945322a6fc2456b45b795dac11a253c0023a"
+      },
+      {
+        "source": "brand/kit/NOTICE",
+        "name": "NOTICE",
+        "captured": "site/snapshots/v0.2.1/references/NOTICE.source",
+        "sha256": "d919688fd2c931500447418b628dfd0acf4d82c88d7eb392692bb629f7d0193f"
+      }
+    ],
+    "schema": "schemas/v0.2.1/local-media-gallery.schema.json",
+    "additionalSchemas": [
+      {
+        "source": "schemas/v0.2.1/windows-packages.schema.json",
+        "topic": "windows-packages-schema",
+        "title": "Windows package payload schema"
+      },
+      {
+        "source": "schemas/v0.2.1/macos-packages.schema.json",
+        "topic": "macos-packages-schema",
+        "title": "macOS package payload schema"
+      },
+      {
+        "topic": "linux-packages",
+        "title": "Linux package payload schema",
+        "source": "schemas/v0.2.1/linux-packages.schema.json"
+      },
+      {
+        "topic": "recipient-update-schema",
+        "title": "Recipient update candidate and result schema",
+        "source": "schemas/v0.2.1/recipient-update.schema.json"
+      },
+      {
+        "source": "schemas/v0.2.1/release-record.schema.json",
+        "topic": "release-record-schema",
+        "title": "Canonical release and publication schema"
+      }
+    ],
+    "examples": [
+      "schemas/v0.2.1/examples/selection.json"
+    ],
+    "contracts": [
+      {
+        "source": "schemas/v0.2.1/platform-matrix.json",
+        "definition": "platformMatrix",
+        "topic": "platform-matrix",
+        "title": "Platform and dependency matrix"
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "docs/v0.2.1/architecture.md",
+      "bytes": "8320",
+      "sha256": "eec7f9c63f59fe76ccb8c0c8acc17381371decf7ff6b67970446c121b45584d3"
+    },
+    {
+      "path": "docs/v0.2.1/brand.md",
+      "bytes": "6582",
+      "sha256": "9779c783a37643ed182cbcb980489227da743f875ad2b6c381e212700c7f04a9"
+    },
+    {
+      "path": "docs/v0.2.1/browsing-and-playback.md",
+      "bytes": "11026",
+      "sha256": "62292abf9b82fb78ffa63b35343403c68d54dae0891ed28b4026e35f6e76d012"
+    },
+    {
+      "path": "docs/v0.2.1/configuration-and-state.md",
+      "bytes": "16026",
+      "sha256": "31da1d336a3b4912ae9df9fbdf15cab6fc9d47ec1cb3b12f99ba083d52c42e17"
+    },
+    {
+      "path": "docs/v0.2.1/gallery-lifecycle.md",
+      "bytes": "16396",
+      "sha256": "086e8b35bd348f2fcb1b3df2219f0a6c6dcbe7bed789d9189c653b239c77ffbb"
+    },
+    {
+      "path": "docs/v0.2.1/glossary.md",
+      "bytes": "16007",
+      "sha256": "f5c19609a985e9c89cec0290ec155c34f78844067b9fb0e7e74b84fa87a2175f"
+    },
+    {
+      "path": "docs/v0.2.1/index.md",
+      "bytes": "7020",
+      "sha256": "8ab2f41a6f71799dfa6d25b7f0f9ec692e9b273723c11deb0c0b1f6b9b007768"
+    },
+    {
+      "path": "docs/v0.2.1/installation-and-distribution.md",
+      "bytes": "20084",
+      "sha256": "6d4c8598a956cbacaf9d85ba1ad1090d460984c9795a3827eb99ed4fba9909a3"
+    },
+    {
+      "path": "docs/v0.2.1/interfaces-and-contracts.md",
+      "bytes": "23912",
+      "sha256": "40b28cca76683327b75595b7df4762c13666c5080f8064ce50f51de3e9508eed"
+    },
+    {
+      "path": "docs/v0.2.1/metadata-and-sidecars.md",
+      "bytes": "10123",
+      "sha256": "deeb5a339ac8c1f9df2de69b533c6b9755f958cbcc57a1af3d7b04ec289481f7"
+    },
+    {
+      "path": "docs/v0.2.1/overview.md",
+      "bytes": "7845",
+      "sha256": "5356bf847b0cde94c55d7a194bf676ac1ff693b251181960973af51f0ddff064"
+    },
+    {
+      "path": "docs/v0.2.1/security-and-reliability.md",
+      "bytes": "10905",
+      "sha256": "aa95f8f4c25f97d7903e1437443d55f87c7d091d9078199fb287e3ad8051ac2b"
+    },
+    {
+      "path": "docs/v0.2.1/thumbnails-and-performance.md",
+      "bytes": "16024",
+      "sha256": "9cf62dd54f19c8ed296f94096445fa6f7a1966b1b65a86b44b3d9c4249006b93"
+    },
+    {
+      "path": "docs/v0.2.1/verification-and-compatibility.md",
+      "bytes": "33783",
+      "sha256": "3d7c8b8da608d609116cf4537c7e5b928624dbca71484745bbfd354a91fcb52f"
+    },
+    {
+      "path": "docs/v0.2.1/website-and-documentation.md",
+      "bytes": "15103",
+      "sha256": "dfec2adef4a9824196775d14e8c76c6faa7229918c0d70dd72a486f4b726bbe3"
+    },
+    {
+      "path": "schemas/v0.2.1/examples/portable-settings.json",
+      "bytes": "241",
+      "sha256": "42b3b2bebd5c2a96be7c3fcd8b619b30cceb47de01734a7e7909cfde484a31b8"
+    },
+    {
+      "path": "schemas/v0.2.1/examples/selection.json",
+      "bytes": "225",
+      "sha256": "16ae9806b3134e75702e2abf02dbb13f15bfd527437a8c74660228c0f542dbe6"
+    },
+    {
+      "path": "schemas/v0.2.1/linux-packages.schema.json",
+      "bytes": "3272",
+      "sha256": "e8ab40a729d3ebfe826c4c6273a07f5a5a76df34ba57a37c115052d0db8db6b6"
+    },
+    {
+      "path": "schemas/v0.2.1/local-media-gallery.schema.json",
+      "bytes": "53732",
+      "sha256": "044957f6fb9a47ef6613d4e942bb74e9676970a0f2458a8b1b2e65c2a4f99f44"
+    },
+    {
+      "path": "schemas/v0.2.1/macos-packages.schema.json",
+      "bytes": "2994",
+      "sha256": "4de7de5f7348411376ac4b04e2fc80a5595c8135dc1adeb830a1f30ccf5adb45"
+    },
+    {
+      "path": "schemas/v0.2.1/platform-matrix.json",
+      "bytes": "5820",
+      "sha256": "91d569405eff5c17a9275646d792dfafc4afd058fd3b70c4d7f557985cb738b0"
+    },
+    {
+      "path": "schemas/v0.2.1/recipient-update.schema.json",
+      "bytes": "11605",
+      "sha256": "6041c72c911974c56539855de41585fd9906618bab9d9397cb6d74dafc56d816"
+    },
+    {
+      "path": "schemas/v0.2.1/release-record.schema.json",
+      "bytes": "15454",
+      "sha256": "9a9c8b84682e71463d0dd9bc2b7d26908490f40271e9e3d39a9cd39112399bf0"
+    },
+    {
+      "path": "schemas/v0.2.1/windows-packages.schema.json",
+      "bytes": "2294",
+      "sha256": "69debf9b20253bd8151aa0e15a1ee2962c920b5314f5ba275747bb272fbfee40"
+    },
+    {
+      "path": "site/retained/v0.2.1.json",
+      "bytes": "25758",
+      "sha256": "bbc3dc34f934f6a70284e20e7d5752f61bc1607df41367fdb5d4a401034b8420"
+    },
+    {
+      "path": "site/snapshots/v0.2.1/references/enforcement_component-recipes.json.source",
+      "bytes": "23406",
+      "sha256": "c56f8eeac54670f4ca53d1bd06c8a02acfd59f94f8f0aed92bdfdc4947ccd241"
+    },
+    {
+      "path": "site/snapshots/v0.2.1/references/enforcement_consumer-contract.json.source",
+      "bytes": "10412",
+      "sha256": "5dc144a6e57d7dce2bd424ff54fcccd649d5d0d3a203461b6f4a00adde1f6775"
+    },
+    {
+      "path": "site/snapshots/v0.2.1/references/enforcement_IMPLEMENTATION.md.source",
+      "bytes": "9367",
+      "sha256": "20e3217254e4a7e2a64a7ede7b0ff50d1ba44b95b3af116a6fc61726e937d809"
+    },
+    {
+      "path": "site/snapshots/v0.2.1/references/LICENSE-BRAND.md.source",
+      "bytes": "2339",
+      "sha256": "bd1107a804108bbe02955ca64000945322a6fc2456b45b795dac11a253c0023a"
+    },
+    {
+      "path": "site/snapshots/v0.2.1/references/LICENSE.source",
+      "bytes": "11358",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "site/snapshots/v0.2.1/references/NOTICE.source",
+      "bytes": "1064",
+      "sha256": "d919688fd2c931500447418b628dfd0acf4d82c88d7eb392692bb629f7d0193f"
+    },
+    {
+      "path": "site/snapshots/v0.2.1/references/tokens_interface.css.source",
+      "bytes": "3080",
+      "sha256": "617bfd731ad5422c8694ea5d3d5619fe8e950e021cda9c864d7972326fb471a4"
+    },
+    {
+      "path": "site/snapshots/v0.2.1/references/web_adapter.json.source",
+      "bytes": "1860",
+      "sha256": "ed791d31774e84aa1ca8292ff9afaf5c44dfaa156d978cf5dbf664209fcad778"
+    }
+  ]
+}

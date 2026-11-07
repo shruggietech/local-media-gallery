@@ -4,6 +4,16 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+## [0.2.2]
+
+Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.
+
+### Highlights
+
+- Fix the ordinary Windows Full upgrade from a published v0.2.0 machine installation, including administrator authorization and cancellation.
+- Qualify ordinary upgrades from both published v0.2.0 and v0.2.1, preserving installation choices and independent data.
+- Align software, documentation and schemas at v0.2.2 while preserving published release history.
+
 ### Fixed
 
 - Request native administrator authorization before ordinary full-UI replacement of a legacy machine installation. Keep the authenticated MSI pinned through the authorized installer, propagate cancellation and restart outcomes, and prevent the original unelevated session from starting a second transaction.

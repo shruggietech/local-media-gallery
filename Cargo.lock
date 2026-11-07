@@ -1158,7 +1158,7 @@ dependencies = [
 
 [[package]]
 name = "gallery-core"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -1180,7 +1180,7 @@ dependencies = [
 
 [[package]]
 name = "gallery-linux-package"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "gallery-update",
  "hex",
@@ -1193,7 +1193,7 @@ dependencies = [
 
 [[package]]
 name = "gallery-macos-package"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "gallery-update",
  "hex",
@@ -1205,7 +1205,7 @@ dependencies = [
 
 [[package]]
 name = "gallery-preparation"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
@@ -1224,7 +1224,7 @@ dependencies = [
 
 [[package]]
 name = "gallery-update"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "gallery-windows-package",
  "hex",
@@ -1236,7 +1236,7 @@ dependencies = [
 
 [[package]]
 name = "gallery-windows-package"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "hex",
  "serde",
@@ -2256,7 +2256,7 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "local-media-gallery"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "cap-fs-ext",
  "cap-std",

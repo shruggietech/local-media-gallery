@@ -21,9 +21,10 @@ export function validateSingleFileWindows(build,result){
 }
 
 export async function validateOrdinaryUpgrade(build,evidence,root){
- assert.equal(evidence.kind,'published-legacy-ordinary-msi-upgrade');assert.equal(evidence.result,'pass');assert.deepEqual(evidence.source,build.source);assert.equal(evidence.revision,build.revision);
- const prior=build.publishedPredecessors.find(p=>p.version==='0.2.0'),artifact=build.products.find(p=>p.edition==='full').artifact;
- assert.deepEqual(evidence.artifact,artifact);assert.equal(evidence.predecessor.version,'0.2.0');assert.deepEqual(evidence.predecessor.msi,prior.msi);assert.deepEqual(evidence.predecessor.payload,prior.payload);assert.equal(evidence.predecessor.registered.version,'0.2.0');
+ const legacy=evidence.predecessor.version==='0.2.0';assert.ok(legacy||evidence.predecessor.version==='0.2.1');
+ assert.equal(evidence.kind,legacy?'published-legacy-ordinary-msi-upgrade':'published-ordinary-msi-upgrade');assert.equal(evidence.result,'pass');assert.deepEqual(evidence.source,build.source);assert.equal(evidence.revision,build.revision);
+ const prior=(build.ordinaryPredecessors??build.publishedPredecessors).find(p=>p.version===evidence.predecessor.version),artifact=build.products.find(p=>p.edition==='full').artifact;assert.ok(prior);
+ assert.deepEqual(evidence.artifact,artifact);assert.deepEqual(evidence.predecessor.msi,prior.msi);assert.deepEqual(evidence.predecessor.payload,prior.payload);assert.equal(evidence.predecessor.registered.version,prior.version);
  assert.deepEqual(evidence.before,evidence.after);assert.ok(evidence.before.foreignSha256);assert.ok(evidence.before.gallery.length);assert.equal(evidence.removed.operation,'remove');assert.ok([0,3010].includes(evidence.removed.exitCode));
  assert.equal(evidence.observed.registered.package.toUpperCase(),build.bundle.packages.find(p=>p.scope==='machine').packageCode);assert.equal(evidence.expected.scope,'machine');
  for(const [field,cancel] of [['cancelled',true],['refused',false],['upgraded',false]]){
@@ -31,10 +32,32 @@ export async function validateOrdinaryUpgrade(build,evidence,root){
   assert.deepEqual(operation.expected,evidence.expected);assert.deepEqual(operation.msi,{bytes:artifact.bytes,sha256:artifact.sha256});assert.equal(operation.cancelAt,cancel?'license':null);assert.ok(cancel?operation.exitCode===1602:field==='refused'?operation.exitCode===1603:[0,3010].includes(operation.exitCode));assert.equal(operation.reported267,false);if(field==='refused')assert.ok(operation.failureDialog);else assert.equal(operation.failureDialog,null);
   assert.equal(operation.fixture.nativeClientTerminal,true);assert.equal(operation.fixture.policy.alwaysInstallElevated,false);assert.equal(operation.fixture.policy.restored,true);assert.deepEqual(operation.fixture.policy.during,{DisableMsi:0,ConsentPromptBehaviorAdmin:0});assert.ok(operation.fixture.private.before.length>=2);assert.deepEqual(operation.fixture.private.before,operation.fixture.private.after);
   const bytes=await readFile(path.join(root,operation.log.path));assert.equal(digest(bytes),operation.log.sha256);assert.equal(String(bytes.length),operation.log.bytes);
-  const text=bytes.toString(bytes[0]===255?'utf16le':'utf8');const child=/authorized legacy upgrade child ([1-9][0-9]*); source ([a-f0-9]{64})/.exec(text);assert.ok(child);assert.equal(child[2],artifact.sha256);assert.match(text,new RegExp('authorized legacy upgrade terminal exit '+operation.exitCode+';'));assert.doesNotMatch(text,/Doing action: InstallInitialize/);
-  assert.match(operation.token.sid,/^S-1-5-21-/);const actor=operation.fixture.authorizedClient;assert.equal(actor.pid,Number(child[1]));assert.equal(actor.sid,operation.token.sid);assert.equal(actor.tokenType,2);assert.equal(actor.elevated,true);assert.equal(actor.sourceSha256,artifact.sha256);assert.ok(Date.parse(actor.observedAt)>=Date.parse(operation.started)&&Date.parse(actor.observedAt)<=Date.parse(operation.terminalFinished));assert.ok(operation.observations.some(o=>o.windows.some(w=>w.processId===actor.pid)),'Wizard belongs to the authorized same-user elevated native child');
+  const text=bytes.toString(bytes[0]===255?'utf16le':'utf8');assert.match(operation.token.sid,/^S-1-5-21-/);
+  if(legacy){
+   const child=/authorized legacy upgrade child ([1-9][0-9]*); source ([a-f0-9]{64})/.exec(text);assert.ok(child);assert.equal(child[2],artifact.sha256);assert.match(text,new RegExp('authorized legacy upgrade terminal exit '+operation.exitCode+';'));assert.doesNotMatch(text,/Doing action: InstallInitialize/);
+   const actor=operation.fixture.authorizedClient;assert.equal(actor.pid,Number(child[1]));assert.equal(actor.sid,operation.token.sid);assert.equal(actor.tokenType,2);assert.equal(actor.elevated,true);assert.equal(actor.sourceSha256,artifact.sha256);assert.ok(Date.parse(actor.observedAt)>=Date.parse(operation.started)&&Date.parse(actor.observedAt)<=Date.parse(operation.terminalFinished));assert.ok(operation.observations.some(o=>o.windows.some(w=>w.processId===actor.pid)),'Wizard belongs to the authorized same-user elevated native child');
+  }else{
+   assert.equal(operation.fixture.authorizedClient,null);assert.doesNotMatch(text,/authorized legacy upgrade child/);assert.ok(Number.isInteger(operation.token.pid)&&operation.token.pid>0);assert.equal(operation.fixture.private.nativeClientPid,operation.token.pid);assert.equal(operation.fixture.private.nativeExitCode,operation.exitCode);assert.ok(operation.observations.some(o=>o.windows.some(w=>w.processId===operation.token.pid)),'Modern wizard belongs to the actual initiating limited MSI client');
+   if(field==='upgraded'){assert.match(text,/Doing action: InstallInitialize/);assert.match(text,/Doing action: InstallFinalize/);}
+  }
   for(const screen of operation.screens){const bytes=await readFile(path.join(root,screen.path));assert.equal(digest(bytes),screen.sha256);assert.equal(String(bytes.length),screen.bytes);assert.ok(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])));}
   if(!cancel){for(const label of ['scope','options','terminal'])assert.ok(operation.screens.some(s=>s.label===label));}
+ }
+ return true;
+}
+
+export async function validateOrdinaryUpgrades(build,result,root){
+ // Read accepted historical receipts using their original singular contract.
+ if(build.records[0].payload.version==='0.2.1')return validateOrdinaryUpgrade(build,result.ordinaryUpgrade,root);
+ assert.deepEqual(build.ordinaryPredecessors.map(p=>p.version),['0.2.0','0.2.1']);
+ assert.deepEqual(result.ordinaryUpgrades.map(p=>p.predecessor.version),['0.2.0','0.2.1']);assert.deepEqual(result.ordinaryUpgrade,result.ordinaryUpgrades[0]);
+ const pkg=build.bundle.packages.find(p=>p.scope==='machine');
+ for(const row of result.ordinaryUpgrades){
+  await validateOrdinaryUpgrade(build,row,root);const prior=build.ordinaryPredecessors.find(p=>p.version===row.predecessor.version);
+  assert.equal(row.predecessor.registered.product,prior.msi.productCode);assert.equal(row.predecessor.registered.package.toUpperCase(),prior.msi.packageCode);assert.deepEqual(row.cancelledPredecessor,row.predecessor.registered);assert.deepEqual(row.refusedPredecessor,row.predecessor.registered);
+  assert.equal(row.observed.registered.product,pkg.productCode);assert.equal(row.observed.registered.version,build.records[0].payload.version);assert.equal(row.observed.integration.product,pkg.productCode);assert.equal(row.observed.integration.package.toUpperCase(),pkg.packageCode);
+  const normalize=s=>s.replaceAll('\\','/').replace(/\/$/,'').toLowerCase();assert.equal(normalize(row.observed.registered.location),normalize(row.expected.directory));assert.equal(row.expected.startMenu,true);assert.equal(row.expected.commandPath,true);assert.equal(normalize(row.observed.shortcut.target),normalize(row.expected.directory)+'/local-media-gallery.exe');assert.ok(row.observed.path.split(';').some(p=>normalize(p)===normalize(row.expected.directory)));
+  assert.equal(row.nativeLabel,'ordinary-'+prior.version+'-upgrade');assert.equal(result.native.filter(n=>n.label===row.nativeLabel&&n.edition==='full').length,1,'Both installed upgrades must launch and render the actual candidate');
  }
  return true;
 }
@@ -52,7 +75,7 @@ export async function validatePackageEvidence(build,result,root){
  assert.equal(result.result,'pass');assert.equal(result.acceptance,true);assert.equal(result.formatVersion,1);assert.deepEqual(result.source,build.source);assert.equal(result.revision,build.revision);assert.ok(new Date(result.terminalFinished)>=new Date(result.started));assert.equal(result.host.platform,'win32');assert.equal(result.host.arch,'x64');
  assert.deepEqual(result.installations.map(i=>i.scope),['user','machine']);for(const label of ['user-full','machine-full','lite-in-place','lite-relocated','lite-explicit'])assert.ok(result.native.some(i=>i.label===label));
  if(build.products?.find(p=>p.edition==='full')?.artifact.format==='msi'){
-  await validateOrdinaryUpgrade(build,result.ordinaryUpgrade,root);
+  await validateOrdinaryUpgrades(build,result,root);
   assert.equal(result.standardUser.policy.during,0);assert.equal(result.standardUser.policy.alwaysInstallElevated,false);assert.equal(result.standardUser.policy.restored,true);
   assert.equal(result.standardUser.result,'pass');assert.equal(result.standardUser.kind,'disposable-standard-user');assert.equal(result.standardUser.installed.administrator,false);assert.equal(result.standardUser.installed.sid,result.standardUser.sid);assert.equal(result.standardUser.installed.registered.startMenu,3);assert.equal(result.standardUser.installed.registered.commandPath,2);assert.equal(result.standardUser.removed.registered,null);assert.equal(result.standardUser.installed.nativeState,5);assert.equal(result.standardUser.removed.nativeState,-1);assert.equal(result.standardUser.installed.shortcutExists,true);assert.equal(result.standardUser.removed.shortcutExists,false);assert.equal(result.standardUser.ownedRemoval.length,result.standardUser.installed.registered.owned.length);assert.ok(result.standardUser.ownedRemoval.every(f=>f.exists===false));assert.deepEqual(result.standardUser.offline.initial.executables,[]);assert.equal(result.standardUser.sha256,build.products.find(p=>p.edition==='full').artifact.sha256);for(const log of result.standardUser.logs)assert.ok((await readFile(path.isAbsolute(log)?log:path.join(root,log))).length>0);
   assert.deepEqual(result.publishedRecovery.map(r=>r.version),['0.1.0','0.2.0']);for(const legacy of result.publishedRecovery){assert.equal(legacy.update.status,'complete');assert.equal(legacy.rollback.status,'restored');assert.equal(legacy.recovered.status,'restored');assert.deepEqual(legacy.before,legacy.after);assert.ok(legacy.adapters.length);assert.match(legacy.outerIdentitySha256,/^[a-f0-9]{64}$/);}
