@@ -6,11 +6,29 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Fixed
 
+- Request native administrator authorization before ordinary full-UI replacement of a legacy machine installation. Keep the authenticated MSI pinned through the authorized installer, propagate cancellation and restart outcomes, and prevent the original unelevated session from starting a second transaction.
+
 - Keep a retried Windows qualification gate waiting for current-cohort worker archives instead of downloading retained packets from an earlier attempt. Download the exact selected artifact IDs while preserving original diagnostics and existing source, clock, receipt, byte and deadline checks.
+
+- Elect aggregate CI inputs by artifact creation time and exact provider IDs, preserving all canonical and Windows worker evidence. Retries cannot merge an older failed receipt over the current observation.
 
 ### Decisions
 
 - 2026-11-06: Bind Windows gate transfers to the current readiness window and immutable provider artifact IDs. Retained earlier attempts remain diagnostic history and cannot authorize publication. The demonstrated qualification repair requires a reviewed merge and fresh push-main qualification before v0.2.1 publication.
+
+- 2026-11-06: Add an isolated published Windows MSI upgrade diagnostic that opens the actual ordinary wizard and retains attributed failure dialogs/logs. Existing quiet and advanced-recovery observations do not substitute for ordinary predecessor replacement.
+
+- 2026-11-06: Reproduce the published v0.2.0-to-v0.2.1 common Programs error 267 with a genuine limited-token MSI client. Add that launch context, inherited choices, cancellation and retained private/gallery/foreign bytes to source-bound package qualification; an elevated wizard alone cannot satisfy the regression.
+
+- 2026-11-06: Allow the isolated native observer ten seconds for cooperative COM shutdown, while requiring its actual zero exit and retaining failure for forced termination. The independent 900-second qualification deadline remains authoritative.
+
+- 2026-11-06: Collect authorized MSI actor identity in the isolated non-UI launcher and bind it to the observed wizard PID/source. Keep privileged token inspection separate from UI Automation; retain the same native evidence requirements.
+
+- 2026-11-06: Run the isolated UI Automation client in an explicit MTA and attest the actual apartment in its startup handshake. Preserve request/deadline limits and add phase diagnostics instead of accepting an unobserved installer result.
+
+- 2026-11-06: Reuse the bounded published-pair diagnostic with an optional blocked-network variant to reproduce collector startup in the offline context before full candidate qualification. Restore original firewall policy and preserve original observations.
+
+- 2026-11-06: Use the existing newest-qualification-artifact contract to elect every upstream aggregate input before download. Bind the election to the current run/head, retain its original receipt and never fall back from a newer failed observation to an older pass.
 
 ## [0.2.1]
 

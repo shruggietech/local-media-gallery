@@ -272,6 +272,9 @@ jobs:
             .local/windows-package-test-*/wizard-*-failure.json
             .local/windows-package-test-*/*.png
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/ordinary legacy upgrade/*.log
+            .local/windows-package-test-*/ordinary legacy upgrade/*.json
+            .local/windows-package-test-*/ordinary legacy upgrade/*.png
             .local/windows-package-test-*/legacy */*.log
             .local/windows-package-test-*/legacy */storage/**/*.log
             .local/windows-package-test-*/legacy */storage/**/*.json
@@ -331,6 +334,9 @@ jobs:
             .local/windows-campaign-*-qualification.json
             .local/windows-campaign-clock-*.json
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/ordinary legacy upgrade/*.log
+            .local/windows-package-test-*/ordinary legacy upgrade/*.json
+            .local/windows-package-test-*/ordinary legacy upgrade/*.png
             .local/windows-campaign-failure-*.json
           include-hidden-files: true
           compression-level: 0
@@ -348,6 +354,9 @@ jobs:
             .local/windows-packages-*/**
             .local/windows-package-test-*/*.png
             .local/windows-package-test-*/*.log
+            .local/windows-package-test-*/ordinary legacy upgrade/*.log
+            .local/windows-package-test-*/ordinary legacy upgrade/*.json
+            .local/windows-package-test-*/ordinary legacy upgrade/*.png
           include-hidden-files: true
           compression-level: 0
           if-no-files-found: error
@@ -759,9 +768,12 @@ jobs:
       - name: Use primary Ubuntu archive for browser prerequisites
         run: sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
       - run: node node_modules/playwright/cli.js install --with-deps chromium --no-shell
+      - name: Elect newest upstream evidence by creation time
+        id: evidence
+        run: node scripts/ci-evidence-selection.mjs
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: '*-evidence-${{ github.sha }}'
+          artifact-ids: ${{ steps.evidence.outputs.artifact_ids }}
           path: .local/release-inputs/.local
           merge-multiple: true
       - run: node scripts/ci-release.mjs
@@ -771,6 +783,7 @@ jobs:
           name: release-validation-evidence-${{ github.sha }}
           path: |
             .local/ci-release-validation.json
+            .local/ci-evidence-selection.json
             .local/release-assembly.json
             .local/release-campaign.json
             .local/release-navigation.json

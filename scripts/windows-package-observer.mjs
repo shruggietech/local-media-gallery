@@ -13,7 +13,7 @@ export function msiControlLabel(value){
 }
 
 // Only code is retained between requests. Every native query still runs afresh.
-export async function observerSession(child,sources,{startupTimeout=20000,maxBytes=8*1024*1024}={}){
+export async function observerSession(child,sources,{startupTimeout=20000,shutdownTimeout=10000,maxBytes=8*1024*1024}={}){
  let pending=null,buffer=Buffer.alloc(0),stderr='',failure=null,sequence=0,tail=Promise.resolve(),closing=false;
  let readyResolve,readyReject;
  const ready=new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});
@@ -60,7 +60,9 @@ export async function observerSession(child,sources,{startupTimeout=20000,maxByt
    await tail;closing=true;
    if(child.exitCode===null&&child.signalCode===null){
     let timer;const exited=new Promise(resolve=>child.once('exit',resolve));child.stdin.end();
-    try{await Promise.race([exited,new Promise(resolve=>{timer=setTimeout(resolve,2000);})]);}finally{clearTimeout(timer);}
+    // UI Automation/COM teardown can outlast two seconds on a loaded host.
+    // Still require the actual zero exit; a forced stop remains a failure.
+    try{await Promise.race([exited,new Promise(resolve=>{timer=setTimeout(resolve,shutdownTimeout);})]);}finally{clearTimeout(timer);}
     await stopOwnedChild(child);
    }
    if(failure)throw failure;
@@ -69,6 +71,8 @@ export async function observerSession(child,sources,{startupTimeout=20000,maxByt
 }
 export async function openWindowsPackageObserver(root,{cwd,env}={}){
  const sources={};for(const [route,file]of Object.entries({ui:'windows-package-ui.ps1',inspect:'inspect-windows-package.ps1',msi:'windows-msi-ui.ps1',input:'native-input.ps1',state:'Get-WindowsPackageSnapshot.ps1',runtime:'Get-WindowsPackageSnapshot.ps1'}))sources[route]=createHash('sha256').update(await readFile(path.join(root,'scripts',file))).digest('hex');
- const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/Invoke-WindowsPackageObserver.ps1')],{cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
- return observerSession(child,sources);
+ const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-Mta','-File',path.join(root,'scripts/Invoke-WindowsPackageObserver.ps1')],{cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
+ const session=await observerSession(child,sources);
+ if(session.identity.apartment!=='MTA'){await session.close();throw Error('Native UI observer requires an actual MTA thread');}
+ return session;
 }

@@ -53,7 +53,7 @@ test('Observer bounds readiness and handles early exit without an unhandled pipe
 });
 test('Real PowerShell session pings, refuses unknown commands and joins cleanly without native calls',{skip:process.platform!=='win32'},async()=>{
  const root=path.resolve(import.meta.dirname,'..'),observer=await openWindowsPackageObserver(root,{env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:'0'}});
- try{assert.deepEqual(await observer.request('ping'),{pong:true});await assert.rejects(observer.request('arbitrary'),/Unknown observer route/);await assert.rejects(observer.request('ui',{processId:123}),/requires isolated CI/);await assert.rejects(observer.request('inspect',{file:'C:/unwanted.exe'}),/Absolute shortcut path required/);await assert.rejects(observer.request('msi'),/requires isolated CI/);await assert.rejects(observer.request('input',{processId:123,action:'compile'}),/requires an explicitly isolated CI/);assert.deepEqual(await observer.request('ping'),{pong:true});}finally{await observer.close();}
+ try{assert.equal(observer.identity.apartment,'MTA');assert.deepEqual(await observer.request('ping'),{pong:true});await assert.rejects(observer.request('arbitrary'),/Unknown observer route/);await assert.rejects(observer.request('ui',{processId:123}),/requires isolated CI/);await assert.rejects(observer.request('inspect',{file:'C:/unwanted.exe'}),/Absolute shortcut path required/);await assert.rejects(observer.request('msi'),/requires isolated CI/);await assert.rejects(observer.request('input',{processId:123,action:'compile'}),/requires an explicitly isolated CI/);assert.deepEqual(await observer.request('ping'),{pong:true});}finally{await observer.close();}
 });
 test('Real server reuses only unchanged child code and releases script scopes',{skip:process.platform!=='win32'},async()=>{
  const work=await mkdtemp(path.join(os.tmpdir(),'gallery-observer-'));
@@ -91,4 +91,13 @@ test('Unnamed native progress records do not hide a later named phase or complet
  assert.equal(records.some(n=>msiControlLabel(n.name)==='Finish'&&n.enabled),true);
  assert.equal(records.slice(0,2).some(n=>msiControlLabel(n.name).includes('Installing')),false);
  assert.throws(()=>msiControlLabel(42),/must be text or absent/);
+});
+
+test('Observer lets cooperative native teardown finish beyond the former two-second grace',async()=>{
+ const child=launch(handshake+input+"send({id:q.id,pid:process.pid,ok:true,result:{}});});process.stdin.on('end',()=>setTimeout(()=>process.exit(0),2500));");
+ const observer=await observerSession(child,sources);await observer.request('ui');await observer.close();assert.equal(child.exitCode,0);assert.equal(child.signalCode,null);
+});
+
+test('A stuck observer remains bounded and cannot be reported as a normal terminal exit',async()=>{
+ const child=launch(handshake+"process.stdin.resume();setInterval(()=>{},10000);");const observer=await observerSession(child,sources,{shutdownTimeout:100});await assert.rejects(observer.close(),/Observer exited/);assert.ok(child.exitCode!==null||child.signalCode!==null);assert.notEqual(child.exitCode,0);
 });

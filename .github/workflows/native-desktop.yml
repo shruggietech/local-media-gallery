@@ -28,6 +28,17 @@ on:
         required: false
         default: false
         type: boolean
+      msi_upgrade_case:
+        description: Published MSI diagnostic control selection
+        required: false
+        default: limited
+        type: choice
+        options: [limited, limited-offline, all]
+      windows_msi_upgrade:
+        description: Diagnose exact published ordinary Windows MSI upgrade (never acceptance)
+        required: false
+        default: false
+        type: boolean
       windows_legacy:
         description: Diagnose existing Windows regressions with identified prior binaries (never acceptance)
         required: false
@@ -93,6 +104,8 @@ jobs:
       GALLERY_DIAGNOSTIC_RUN: ${{ inputs.artifact_run }}
       GALLERY_DIAGNOSTIC_NATIVE_RUN: ${{ inputs.native_run }}
       GALLERY_DIAGNOSTIC_RELOAD: ${{ inputs.reload_player && '1' || '' }}
+      GALLERY_MSI_UPGRADE_CASE: ${{ inputs.msi_upgrade_case }}
+      GALLERY_DIAGNOSTIC_MSI_UPGRADE: ${{ inputs.windows_msi_upgrade && '1' || '' }}
       GALLERY_DIAGNOSTIC_LEGACY: ${{ inputs.windows_legacy && '1' || '' }}
       GSETTINGS_BACKEND: keyfile
       XDG_CONFIG_HOME: ${{ github.workspace }}/.local/desktop-config
@@ -120,8 +133,11 @@ jobs:
       - name: Select diagnostic Node
         run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, 'GALLERY_PROOF_NODE=' + process.execPath + '\n')"
       - run: node scripts/prepare.mjs
+        if: ${{ !inputs.windows_msi_upgrade }}
       - run: node scripts/create-runtime-fixture.mjs
+        if: ${{ !inputs.windows_msi_upgrade }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: ${{ !inputs.windows_msi_upgrade }}
         with:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.artifact_run }}
@@ -147,12 +163,16 @@ jobs:
         run: dbus-run-session -- xvfb-run -a -s '-screen 0 1600x1200x24' node scripts/diagnose-runtime.mjs
       - name: Diagnose on isolated desktop
         if: runner.os != 'Linux'
-        run: node ${{ inputs.windows_legacy && 'scripts/diagnose-legacy-windows.mjs' || 'scripts/diagnose-runtime.mjs' }}
+        run: node ${{ inputs.windows_msi_upgrade && 'scripts/diagnose-msi-upgrade.mjs' || inputs.windows_legacy && 'scripts/diagnose-legacy-windows.mjs' || 'scripts/diagnose-runtime.mjs' }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: diagnostic-${{ inputs.platform }}-${{ github.run_id }}
           path: |
+            .local/msi-upgrade-diagnostic.json
+            .local/msi-upgrade-diagnostic/*.log
+            .local/msi-upgrade-diagnostic/*.json
+            .local/msi-upgrade-diagnostic/*.png
             .local/runtime-diagnostic.json
             .local/legacy-diagnostic.json
             .local/native-results.json
