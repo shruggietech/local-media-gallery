@@ -88,10 +88,10 @@ async function setup(scope,destination,flags=[]){return msiProduct(path.join(ful
 const wizardEvidence=[];const cachedMaintenance=[];
 async function wizardInstall(file,{scope='machine',destination,startMenu=true,commandPath=true,cancelAt=null}={}){
  const log=path.join(work,'wizard-'+(++msiSequence)+'.log');const child=spawn(systemMsi,['/i',file,'/norestart','/L*v',log],{cwd:outside,env:environment,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});live.add(child);let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);child.once('error',e=>output+=e.message);
- const screens=[];const read=()=>observer.request('msi');const input=async(name,value='')=>{try{return await observer.request('msi',{name,value});}catch(e){throw Error('MSI input '+name+': '+e.message,{cause:e});}};
+ const screens=[];const requestMsi=(parameters={})=>observer.request('msi',{processId:child.pid,...parameters});const read=()=>requestMsi();const input=async(name,value='')=>{try{return await requestMsi({name,value});}catch(e){throw Error('MSI input '+name+': '+e.message,{cause:e});}};
  const name=msiControlLabel;
  const waitFor=(label)=>until(async()=>{if(child.exitCode!==null)throw Error('MSI wizard exited '+child.exitCode+': '+output);const r=await read();return r.records.some(n=>!n.offscreen&&(['Next','Install','Finish'].includes(label)?n.role==='ControlType.Button'&&name(n.name)===label&&n.enabled:name(n.name).includes(label)))?r:false;},'Actual MSI wizard '+label,30000);
- async function screen(label){const screenshot=path.join(work,'wizard-'+msiSequence+'-'+label+'.png');const r=await observer.request('msi',{screenshot});const b=await readFile(screenshot);screens.push({label,...r,screenshot:path.relative(root,screenshot),bytes:String(b.length),sha256:digest(b)});return r;}
+ async function screen(label){const screenshot=path.join(work,'wizard-'+msiSequence+'-'+label+'.png');const r=await requestMsi({screenshot});const b=await readFile(screenshot);screens.push({label,...r,screenshot:path.relative(root,screenshot),bytes:String(b.length),sha256:digest(b)});return r;}
  try{
   await waitFor('Next');await input('Next');let license=await waitFor('License Agreement');await screen('license');
   assert.ok(license.records.some(n=>name(n.name)==='Next'&&!n.enabled),'License acceptance is required before Next');

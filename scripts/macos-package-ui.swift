@@ -46,7 +46,9 @@ func processFacts(_ pid: Int32) throws -> proc_bsdinfo? {
     var info = proc_bsdinfo()
     errno = 0
     let size = Int32(MemoryLayout<proc_bsdinfo>.size)
-    let result = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size)
+    // Include unreaped exited processes. With arg=0 BSD-info returns ESRCH
+    // while kill(pid,0) can still succeed for the same zombie.
+    let result = proc_pidinfo(pid, PROC_PIDTBSDINFO, 1, &info, size)
     if result == size { return info }
     let inspectionError = errno
     errno = 0
@@ -167,6 +169,16 @@ func interruptionSelfTest() throws -> [String:Any] {
     _ = try signalBoundActor(stopped,signal:SIGCONT,name:"CONT",inspect:{stopped},send:{_,_ in signals += 1;return (0,0)},record:{_ in});try requireObservation(signals == 1,"Unadmitted stop did not resume");checks.append("resume unadmitted stop")
     let update:[String:Any] = ["phase":"prepared","next":["generation":generation]]
     try requireObservation(admittedInterruptionPhase(update,fresh:false,generation:generation,transaction:"/Library/Application Support/Local Media Gallery Updates/"+generation,exists:{_ in false}) == "prepared","Update generation refused");checks.append("update generation")
+    let exitedPid=lmg_observer_exited_fixture()
+    try requireObservation(exitedPid > 0,"Could not create owned process-lifetime fixture")
+    defer { var status:Int32=0;_ = kill(exitedPid,SIGKILL);_ = waitpid(exitedPid,&status,0) }
+    let exitedDeadline=Date().addingTimeInterval(2)
+    var observedZombie=false
+    while Date() < exitedDeadline {
+        if let facts=try processFacts(exitedPid),Int32(facts.pbi_status) == SZOMB { observedZombie=true;break }
+        Thread.sleep(forTimeInterval:0.001)
+    }
+    try requireObservation(observedZombie,"Unreaped exited process must retain SDK birth/status facts");checks.append("real unreaped exit identity")
     return ["result":"pass","observerProtocol":"operation-bound-v1","checks":checks]
 }
 func observePackageInterruption(_ args: [String]) throws -> [String:Any] {
@@ -183,12 +195,13 @@ func observePackageInterruption(_ args: [String]) throws -> [String:Any] {
     process.executableURL=URL(fileURLWithPath:"/usr/sbin/installer");process.arguments=["-verboseR","-pkg",package,"-target","/"]
     process.standardInput=FileHandle.nullDevice;process.standardOutput=stdout;process.standardError=stderr
     var report:[String:Any] = ["observerProtocol":"operation-bound-v1","result":"pending","transaction":transaction,"helperSha256":expectedDigest,"stdout":out,"stderr":err]
-    var observations:[[String:Any]] = [],signals:[[String:Any]] = [],dropped=0,held:ObservedActor?=nil,installer:ObservedActor?=nil
+    var observations:[[String:Any]] = [],signals:[[String:Any]] = [],dropped=0,droppedSignals=0,held:ObservedActor?=nil,installer:ObservedActor?=nil
     func note(_ item:[String:Any]) { if observations.count == 128 { observations.removeFirst();dropped += 1 };observations.append(item.merging(["at":observationTime()]){old,_ in old}) }
-    func persist() throws { report["observations"]=observations;report["droppedObservations"]=dropped;report["signals"]=signals;let bytes=try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys]);try bytes.write(to:URL(fileURLWithPath:logs+"/observer.json"),options:.atomic) }
+    func recordSignal(_ item:[String:Any]) { if signals.count == 128 { signals.removeFirst();droppedSignals += 1 };signals.append(item) }
+    func persist() throws { report["droppedSignals"]=droppedSignals;report["observations"]=observations;report["droppedObservations"]=dropped;report["signals"]=signals;let bytes=try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys]);try bytes.write(to:URL(fileURLWithPath:logs+"/observer.json"),options:.atomic) }
     let send:(Int32,Int32)->(Int32,Int32) = {pid,signal in errno=0;let result=kill(pid,signal);return (result,errno)}
     func signal(_ actor:ObservedActor,_ number:Int32,_ name:String) throws -> ObservedActor {
-        try signalBoundActor(actor,signal:number,name:name,inspect:{try inspectActor(actor.pid)},send:send,record:{signals.append($0)})
+        try signalBoundActor(actor,signal:number,name:name,inspect:{try inspectActor(actor.pid)},send:send,record:{recordSignal($0)})
     }
     do {
         let before = Set(try matchingCoordinators(expectedDigest).map{$0.birth})
@@ -279,7 +292,7 @@ func observePackageInterruption(_ args: [String]) throws -> [String:Any] {
             let end=Date().addingTimeInterval(2)
             while process.isRunning && Date() < end { Thread.sleep(forTimeInterval:0.01) }
             if process.isRunning,let owner=installer {
-                do { _ = try signalBoundActor(owner,signal:SIGKILL,name:"INSTALLER-KILL",inspect:{try inspectActor(owner.pid)},send:send,record:{signals.append($0)}) }
+                do { _ = try signalBoundActor(owner,signal:SIGKILL,name:"INSTALLER-KILL",inspect:{try inspectActor(owner.pid)},send:send,record:{recordSignal($0)}) }
                 catch { note(["event":"installer-cleanup-failed","error":String(describing:error)]) }
                 let final=Date().addingTimeInterval(2)
                 while process.isRunning && Date() < final { Thread.sleep(forTimeInterval:0.01) }

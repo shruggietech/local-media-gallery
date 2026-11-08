@@ -45,7 +45,7 @@
 
 - [x] T019 Run npm run check, npm test and affected site build/check/browser verification; retain failing and passing source-bound results in specs/035-ci-observer-reliability/verification.md and measurements.md. [FR-008, FR-009, SC-005]
 - [x] T020 Update CHANGELOG.md with concise Unreleased tooling fixes and dated process decisions; sanity-check UTF-8/LF, no mojibake and no public numbered-planning links. [FR-009, FR-011, FR-012]
-- [ ] T021 Commit, push and open the official S035 PR with Fixes #110, #111 and #112, the actual final scope, validation and review-round accounting. Preserve owner merge boundary. [FR-012, SC-006]
+- [x] T021 Commit, push and open the official S035 PR with Fixes #110, #111 and #112, the actual final scope, validation and review-round accounting. Preserve owner merge boundary. [FR-012, SC-006]
 - [ ] T022 Monitor exact-head applicable CI, elect latest artifacts by creation time and exact IDs, independently bind source/clock/bytes and complete T007/T012/T018 with original records; retain preparation/qualification/combined timings in measurements.md. [FR-008, FR-009, FR-010, SC-005]
 - [ ] T023 Answer and resolve every hosted review finding with necessary fixes, allow at most one explicitly requested second round after automatic first review, and finish exact-head green CI. Record counts in verification.md. [FR-012, SC-006]
 - [ ] T024 Verify unchanged public v0.2.2 identities, clean local slice state and prepare final owner review/merge handoff with exact SHA/checks/review/native evidence and literal unverified limits in verification.md. [FR-010, FR-011, FR-012, SC-004, SC-005, SC-006]

@@ -20,4 +20,14 @@ macOS receipt regressions pass locally; SDK compilation, 17 compiled process-lif
 
 ## Delivery accounting
 
-Review rounds requested: zero. PR automatic hosted review will be round one; at most one explicit second round is authorized. Owner performs final merge. No published product or release version changed.
+PR #113 opened at e4897c2103cdd496fa953bb2c28e5a96d5b5f240. Automatic hosted review round one completed at 2026-11-08T14:03:39Z with no findings and a bot thumbs-up. No explicit second round has been requested. At most one explicit second round is authorized. Owner performs final merge. No published product or release version changed.
+
+Independent anonymous public readback verified the Linux Lite SHA-256 and embedded product revision/source, canonical metadata and unchanged identities for all four published releases. Actual public Linux recipient execution remains pending the hosted native campaign.
+
+## 2026-11-08: first hosted attempt retained
+
+Run 42487685876 at e4897c2103cdd496fa953bb2c28e5a96d5b5f240 used explicit branch-head checkout (temporary merge SHA only labels transport artifacts). Repository, website and macOS/Windows native product campaigns passed. Package acceptance remains pending.
+
+Original macOS artifact 13621220217 (614575199 bytes) was read by exact provider ID using ZIP central-directory ranges and per-entry CRC, retaining ci-macos-packages.json, the build, 17 passing compiled selftests, failure and observer.json. Preparation 500.960 seconds, qualification 247.479 seconds, combined 748.439 seconds; result failed. It confirmed the actual current coordinator stopped at the generation-bound partial-app boundary and live authority refused replay. KILL returned zero, then BSD-info arg=0 returned ESRCH while kill(pid,0) still saw an unreaped process. The observer correctly refused to claim retirement.
+
+The correction uses the SDK-supported BSD-info arg=1 zombie lookup, adds an actual owned unreaped-child regression, and bounds signal history. A subsequent successful original hosted packet is required; this failed packet is never substituted for one. Windows wizard requests also now carry their owned MSI client PID for creation-time checkpoints.
