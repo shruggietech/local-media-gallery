@@ -33,3 +33,23 @@ Run 42490907587 at 872f85d: preparation 674.349 s, qualification 498.200 s, comb
 ## 2026-11-08: current implementation and hosted-review regression
 
 At b9186cd, Windows product: preparation 413.903 s, qualification 338.412 s, combined 752.315 s, all steps pass including direct listener ownership. macOS packages: preparation 515.921 s, qualification 581.744 s, combined 1097.665 s, complete pass; 22 compiled cases included actual held-fork parent/child SDK facts. The post-review local suite passed 343 cases (341 pass, two platform skips) in 9.6779579 s. The changed termination-reference path still requires fresh hosted CI.
+
+## 2026-11-08: controller fixture readiness regression
+
+At 3a38d4c, original macOS package artifact 13624229343 independently passed 22 compiled cases and both real interruption/recovery journeys: preparation 575.287 s, qualification 450.389 s, combined 1025.676 s. The same run failed the Windows experience pre-campaign controller regression and was cancelled after its original failure packet and successful macOS packet were retained. Its incomplete scopes do not grant acceptance.
+
+The readiness-admitted real controller regression failed in 1.681 s when the production reference-release repair was removed, then passed all three scenarios after restoration. Full local suite: 9.6989039 s, 343 cases (341 pass, two platform skips). The five-second readiness bound is separate from unchanged 40 ms operation and 40 ms termination test bounds; no native campaign limit increased.
+
+## 2026-11-08: readiness-corrected implementation receipts
+
+Run 42498777911 at 5737356: repository preparation 25.212 s, qualification 19.220 s, combined 44.432 s; Windows product preparation 296.583 s, qualification 327.404 s, combined 623.987 s; macOS packages preparation 568.164 s, qualification 540.342 s, combined 1108.506 s. All passed, with independently read original source-bound receipts. Remaining package scopes are recorded after their terminal evidence.
+
+Run 42498777911, original Linux artifact 13625358440: preparation 1180.561 s, qualification 333.686 s, combined 1514.247 s; complete package campaign and independent public-recipient readback pass. All eight PCM windows completed within four seconds. Independent original PNG decoding found 626090 expected-color pixels in each of three frames.
+
+Run 42498777911, Windows lifecycle artifact 13625965504: preparation 1460.279 s, qualification 351.290 s, combined 1811.569 s; all 29 checks and independent checkpoint/diagnostic readback pass.
+
+Run 42498777911, Windows experience artifact 13626315192: preparation 1460.279 s, qualification 733.842 s, combined 2194.121 s, pass with advisory target overrun. Final Windows gate artifact 13625887016: preparation 1460.279 s, qualification 754.348 s, combined 2214.627 s, pass. Both remain below the unchanged 900-second hard limit with terminal timestamps authoritative.
+
+## 2026-11-08: complete implementation acceptance
+
+Run 42498777911 completed all twelve applicable jobs successfully on 5737356; production Pages deployment intentionally skipped for this PR. Aggregate release-validation artifact 13626560007: preparation 168.488 s, qualification 225.762 s, combined 394.250 s, pass. Each scope retains its own readiness and terminal timestamp authority; the complete workflow wall time is not a single qualification window. The final evidence-only commit preserves implementation source 7f7da549 and receives a separate fresh head run, recorded on PR #113 before handoff. No native acceptance threshold or 15-second reserve changed.
