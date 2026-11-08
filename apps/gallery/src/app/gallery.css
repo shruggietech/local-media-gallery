@@ -11,13 +11,13 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 .bb-app-frame[data-bb-host="tauri"] .bb-button--ghost { border-color: transparent; }
 .bb-app-frame__scroll { scrollbar-width: none; scrollbar-gutter: auto; }
 .bb-app-frame__scroll::-webkit-scrollbar { display: none; }
-.app-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--lo-space-3); min-block-size: var(--lo-space-7); padding-inline: var(--lo-space-3); border-block-end: var(--bb-border-default) solid var(--bb-action-primary); }
-.identity { display: flex; align-items: center; gap: var(--lo-space-2); min-inline-size: 0; }
-.identity picture, .identity img { display: block; flex-shrink: 0; }
-.identity img { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); object-fit: contain; }
-.identity h1 { margin: 0; font: inherit; white-space: nowrap; }
-.folder-title { flex: 1 1 0; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--bb-text-muted); }
-.app-header > .header-actions { flex-shrink: 0; max-inline-size: 100%; }
+.app-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--lo-space-2); min-block-size: var(--lo-space-7); padding-inline: var(--lo-space-3); border-block-end: var(--bb-border-default) solid var(--bb-action-primary); }
+.app-header h1 { margin: 0; min-inline-size: 0; font: inherit; }
+.app-header .identity { text-align: center; overflow-wrap: anywhere; }
+.folder-title { min-inline-size: 0; overflow: hidden; }
+.folder-title .bb-button { inline-size: 100%; min-inline-size: 0; max-inline-size: 100%; justify-content: center; }
+.folder-name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-title svg { flex-shrink: 0; }
 .header-actions, .viewer-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--lo-space-2); }
 .header-actions svg, .viewer-header svg { inline-size: var(--lo-space-4); block-size: var(--lo-space-4); }
 .collection-summary { display: flex; align-items: flex-start; flex-wrap: wrap; justify-content: space-between; gap: var(--lo-space-3); margin-block-end: var(--lo-space-3); }
@@ -82,9 +82,6 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
   .bb-app-frame[data-bb-host="tauri"] .bb-field { gap: var(--bb-spacing-control-block); }
 }
 @media (max-width: 45rem) {
-  .app-header { justify-content: flex-start; }
-  .header-actions { margin-inline-start: auto; }
-  .folder-title { flex: 1 1 100%; }
   .viewer-header { flex-wrap: wrap; }
   .viewer-content[data-information="true"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
   .viewer-information { padding-inline-start: 0; padding-block-start: var(--lo-space-3); border-inline-start: 0; border-block-start: var(--bb-border-default) solid var(--bb-action-primary); }
@@ -139,3 +136,40 @@ svg { inline-size: var(--lo-space-5); block-size: var(--lo-space-5); stroke-widt
 
 .media-surface .card-thumbnail[hidden] { display: none; }
 .preparation-facts li { overflow-wrap: anywhere; }
+
+/* Product navigation uses the existing native top layer and AppFrame overlay root. */
+.application-drawer { inset: 0 auto 0 var(--lo-space-3); margin-block: auto; margin-inline: 0; inline-size: min(calc(100% - var(--lo-space-5)), calc(var(--lo-space-9) * 4)); max-inline-size: calc(100% - var(--lo-space-5)); block-size: calc(var(--bb-visual-viewport-height, 100dvh) - var(--lo-space-5)); max-block-size: calc(var(--bb-visual-viewport-height, 100dvh) - var(--lo-space-5)); overflow: auto; color: var(--bb-text-primary); background: var(--bb-surface-card); border-radius: var(--lo-radius-xl); }
+.application-drawer::backdrop { background: var(--bb-surface-background); }
+.navigation-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--lo-space-2); margin-block-end: var(--lo-space-3); }
+.navigation-header .bb-button { flex-shrink: 0; white-space: nowrap; min-inline-size: max-content; }
+.navigation-content, .navigation-list { display: grid; min-inline-size: 0; gap: var(--lo-space-2); }
+.navigation-list .bb-button { inline-size: 100%; justify-content: space-between; white-space: normal; overflow-wrap: anywhere; text-align: start; }
+.navigation-list svg { flex-shrink: 0; }
+.application-drawer h2:focus-visible, .folder-path:focus-visible { outline: var(--bb-focus-width) solid var(--bb-focus-ring); outline-offset: var(--bb-focus-offset); }
+.application-drawer fieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.application-drawer fieldset > .bb-field, .application-drawer fieldset > p, .application-drawer fieldset > .bb-button { margin-block: var(--lo-space-3); }
+.application-drawer .settings-panel { display: grid; grid-template-columns: minmax(0, 1fr); padding: 0; border: 0; }
+.application-drawer .bb-field, .application-drawer .bb-field__control { min-inline-size: 0; max-inline-size: 100%; }
+.application-drawer .save-destination .bb-field, .viewer-information .save-destination .bb-field, .inline-controls .save-destination .bb-field { display: grid; grid-template-columns: minmax(0, 1fr); }
+.save-destination select { inline-size: 100%; max-inline-size: 100%; }
+.folder-path { min-inline-size: 0; max-inline-size: 100%; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; font-family: var(--bb-typography-mono-family); }
+.navigation-content .state-controls { margin: 0; padding: 0; }
+.navigation-content .setting-sources > div { grid-template-columns: minmax(0, 1fr); }
+.navigation-content .recent-folders .bb-button { max-inline-size: 100%; white-space: normal; overflow-wrap: anywhere; text-align: start; }
+.count-actions, .active-work, .guided-progress { display: flex; align-items: center; flex-wrap: wrap; gap: var(--lo-space-2); min-inline-size: 0; }
+.count-actions { flex: 1 1 100%; }
+.inline-scope, .information-scope { color: var(--bb-text-muted); overflow-wrap: anywhere; }
+.information-action { display: grid; min-inline-size: 0; gap: var(--lo-space-1); }
+.inline-controls { margin-block-end: var(--lo-space-3); }
+.inline-controls .collection-controls { margin-block-start: var(--lo-space-3); }
+.guided-progress p { margin: 0; }
+.selection-actions { display: grid; justify-items: start; gap: var(--lo-space-4); }
+.application-notice { max-inline-size: 100%; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--bb-typography-mono-family); }
+.application-drawer .bb-button, .viewer-information .bb-button { max-inline-size: 100%; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 45rem) {
+  .app-header .action-label { display: none; }
+  .viewer-header .header-actions { max-inline-size: 100%; }
+  .viewer-header .information-action { max-inline-size: 100%; }
+}
+
+.about-mark { inline-size: var(--lo-space-7); block-size: var(--lo-space-7); object-fit: contain; }

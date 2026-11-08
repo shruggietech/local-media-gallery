@@ -9,8 +9,30 @@ import {requireIsolatedDesktop} from '../scripts/desktop-isolation.mjs';
 
 const frames=()=>({before:{hash:1,time:0.4,width:160,height:96},moving:{hash:2,time:0.6,width:160,height:96},sought:{hash:3,time:2.25,width:160,height:96}});
 const source={sha256:'a'.repeat(64),files:100,exclusions:[]};
-const expected={source,binarySha256:'b'.repeat(64),fixtureSha256:'c'.repeat(64),edition:'full',platform:'win32'};
+const expected={source,binarySha256:'b'.repeat(64),fixtureSha256:'c'.repeat(64),edition:'full',platform:'win32',navigationProtocol:'legacy-controls-v1'};
 function receipt(){return {formatVersion:1,result:'pass',source,edition:'full',binary:{sha256:expected.binarySha256,bytes:'100'},fixture:{sha256:expected.fixtureSha256},environment:{platform:'win32',arch:'x64',userAgent:'actual native runtime',devicePixelRatio:1},checks:['images','video','keyboard','presentation','nativeAccessibility','integrity'].map(name=>({name,result:'pass'})),input:{method:'Windows SendKeys',trusted:true},accessibility:{method:'UIAutomation',nodes:7,overflow:false,essentialNames:['Refresh','Controls','Thumbnails','Diagnostics']},screenReader:{name:'NVDA',version:'2026.3',speech:['Refresh button','photo.png dialog'],overflow:false,bytes:'100'},media:[{name:'image.tiff',outcome:'unsupported',reason:'Native decoder reported an unsupported image.',retained:true,inspectable:true}],terminalFinished:new Date().toISOString()};}
+test('Current candidate cannot qualify with legacy or missing drawer traversal evidence',()=>{
+ const candidate={...expected,navigationProtocol:'drawer-v1'};
+ assert.throws(()=>validateRuntimeReceipt(receipt(),candidate));
+ const make=()=>{
+  const r=receipt();r.accessibility.essentialNames=['Menu','Refresh','Controls'];
+  const packet=names=>({method:'UIAutomation',overflow:false,nodes:names.map(name=>({name,showing:true}))});
+  const groups=[
+   ['Gallery',['Open folder','Recent folders','Refresh','Folder details','Close folder'],'Folder details'],
+   ['View',['Sort and filter','Layout','Information display'],'Layout'],
+   ['Prepare & share',['Prepare gallery','Thumbnails','Preparation progress'],'Thumbnails'],
+   ['Settings',['Appearance','Loading','Saved preferences and overrides','History'],'Appearance'],
+   ['Help',['Diagnostics','Documentation','About and licenses'],'Diagnostics'],
+  ];
+  r.navigation={protocol:'drawer-v1',keyboard:{trusted:true,contained:true,focusReturned:true},root:packet(groups.map(g=>g[0])),categories:groups.map(([category,names,name])=>({category,...packet(names),task:{name,...packet([name])},backFocus:true,focusReturned:true}))};
+  return r;
+ };
+ validateRuntimeReceipt(make(),candidate);
+ for(const mutate of [r=>delete r.navigation,r=>r.navigation.protocol='legacy-controls-v1',r=>r.navigation.keyboard.trusted=false,r=>r.navigation.keyboard.contained=false,r=>r.navigation.categories.pop(),r=>r.navigation.root.nodes=[],r=>r.navigation.categories[0].nodes=[],r=>r.navigation.categories[1].method='DOM aria',r=>r.navigation.categories[2].task.nodes=[],r=>r.navigation.categories[3].backFocus=false,r=>r.navigation.categories[4].focusReturned=false]){
+  const changed=make();mutate(changed);assert.throws(()=>validateRuntimeReceipt(changed,candidate));
+ }
+ validateRuntimeReceipt(receipt(),expected);
+});
 test('native receipt binds exact source, compiled artifact, fixture and edition',()=>{
  const r=receipt();validateRuntimeReceipt(r,expected);
  for(const [key,mutate] of [['source',r=>r.source={...source,sha256:'d'.repeat(64)}],['binary',r=>r.binary.sha256='d'.repeat(64)],['fixture',r=>r.fixture.sha256='d'.repeat(64)],['edition',r=>r.edition='lite']]){const changed=receipt();mutate(changed);assert.throws(()=>validateRuntimeReceipt(changed,expected),undefined,key);}

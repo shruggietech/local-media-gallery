@@ -4,6 +4,11 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Added
+
+- Organize the application into Gallery, View, Prepare & share, Settings and Help drawer pages, with a compact folder bar, selectable full paths, contextual save destinations, persistent viewer Information and accessible Back/dismissal behavior. See the [unreleased navigation contract](https://github.com/shruggietech/local-media-gallery/blob/main/docs/unreleased/application-navigation.md).
+- Keep preparation progress, cancellation and thumbnail destination drafts available across navigation; provide released documentation and embedded application, brand and font notices.
+
 ### Fixed
 
 - Request explicit PulseAudio recording latency and retain complete-window or bounded failure evidence when the final PCM bytes arrive separately.
@@ -14,6 +19,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - Select current Windows campaign artifacts by creation time before provider ID, preserving the shared qualification clock.
 
 ### Maintenance
+
+- On 2026-11-08, add rendered application navigation coverage to website qualification and source-candidate native drawer/accessibility and ordinary package smoke coverage. Preserve explicit historical recipient routes and the existing qualification clocks, elections and finalization reserve.
 
 - On 2026-11-08, retain the existing 660-second advisory target, 900-second hard limit and 15-second finalization reserve while strengthening observer diagnostics. Existing published releases remain unchanged.
 

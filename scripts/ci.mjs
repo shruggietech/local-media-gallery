@@ -1,3 +1,4 @@
+import {prepareMediaTool} from './prepare-media-tool.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
@@ -61,6 +62,8 @@ const record = await qualification({
       if (process.env.GALLERY_SITE_BROWSER) await access(process.env.GALLERY_SITE_BROWSER);
       else
         await node(path.join(root, 'node_modules/playwright/cli.js'), ['install', 'chromium', '--no-shell']);
+      await prepareMediaTool({download:true});
+      await exportInterface();
       await command('build:site')();
     }
     assert.deepEqual(await sourceIdentity(), context.source, 'Preparation changed qualified source');
@@ -71,6 +74,7 @@ const record = await qualification({
       ? ['check:site', 'test:site']
       : ['check:app']
   ).map((name) => ({ name: `npm run ${name}`, run: command(name) })),
+  ...(scope==='website'?[{name:'Rendered application navigation',run:()=>node(path.join(root,'scripts/test-gallery-navigation.mjs'))}]:[]),
   ...(scope==='product-linux'?[{name:'Optimized corrected GLib string iterator',run:()=>cargo(['test','--release','--locked','-p','gallery-core','--test','glib_variant_iter'])}]:[]),
   ...(isProduct ? [{
     name: 'native shell and persistent-state unit tests',

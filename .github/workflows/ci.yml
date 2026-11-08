@@ -725,6 +725,8 @@ jobs:
           path: |
             .local/ci-website.json
             .local/site-artifact.json
+            .local/gallery-navigation.json
+            .local/gallery-navigation/*.png
             .local/site-browser.json
             .local/site-visual/
           include-hidden-files: true

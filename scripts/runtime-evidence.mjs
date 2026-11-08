@@ -24,7 +24,10 @@ export function validateRuntimeReceipt(r,expected){
  assert.ok(r.checks.every(c=>c.result==='pass'));assert.equal(r.input.trusted,true);assert.ok(r.input.method.length>0);
  assert.ok(['UIAutomation','AT-SPI','AppKit/WKWebView provider','WebKit remote-token/ApplicationServices native AX client (test-only SPI)'].includes(r.accessibility.method));
  assert.equal(r.accessibility.overflow,false);assert.ok(r.accessibility.nodes>0&&r.accessibility.nodes<=2048);
- for(const name of ['Refresh','Controls','Thumbnails','Diagnostics'])assert.ok(r.accessibility.essentialNames.includes(name),'Missing native accessible '+name);
+ const protocol=expected.navigationProtocol??'drawer-v1';
+ assert.ok(['legacy-controls-v1','drawer-v1'].includes(protocol),'Unknown expected navigation protocol');
+ for(const name of (protocol==='drawer-v1'?['Menu','Refresh','Controls']:['Refresh','Controls','Thumbnails','Diagnostics']))assert.ok(r.accessibility.essentialNames.includes(name),'Missing native accessible '+name);
+ if(protocol==='drawer-v1')validateNavigationReceipt(r.navigation,r.accessibility.method);
  if(expected.platform==='win32'){
   assert.equal(r.screenReader.name,'NVDA');assert.ok(r.screenReader.version);assert.equal(r.screenReader.overflow,false);
   assert.ok(r.screenReader.speech.length>0&&r.screenReader.speech.length<=256);assert.match(r.screenReader.bytes,/^(0|[1-9][0-9]*)$/);assert.ok(BigInt(r.screenReader.bytes)<=262144n);
@@ -52,4 +55,28 @@ export function validateRuntimeReceipt(r,expected){
   }
  }
  return r;
+}
+export function validateNavigationReceipt(navigation,method){
+ assert.equal(navigation?.protocol,'drawer-v1','Current candidates require explicit drawer traversal');
+ assert.equal(navigation.keyboard?.trusted,true);assert.equal(navigation.keyboard?.contained,true);assert.equal(navigation.keyboard?.focusReturned,true);
+ const text=node=>[node.name,node.description,node.value].filter(v=>typeof v==='string').join(' ');
+ const packet=(value,names)=>{
+  assert.equal(value?.method,method);assert.equal(value.overflow,false);assert.ok(Array.isArray(value.nodes)&&value.nodes.length>0&&value.nodes.length<=96);
+  for(const name of names)assert.ok(value.nodes.some(node=>text(node).includes(name)),'Missing actual native navigation '+name);
+ };
+ const groups=[
+  ['Gallery',['Open folder','Recent folders','Refresh','Folder details','Close folder'],'Folder details'],
+  ['View',['Sort and filter','Layout','Information display'],'Layout'],
+  ['Prepare & share',['Prepare gallery','Thumbnails','Preparation progress'],'Thumbnails'],
+  ['Settings',['Appearance','Loading','Saved preferences and overrides','History'],'Appearance'],
+  ['Help',['Diagnostics','Documentation','About and licenses'],'Diagnostics'],
+ ];
+ packet(navigation.root,groups.map(g=>g[0]));
+ assert.equal(navigation.categories?.length,groups.length);
+ for(const [category,names,task]of groups){
+  const entry=navigation.categories.find(e=>e.category===category);assert.ok(entry,'Missing category '+category);packet(entry,names);
+  assert.equal(entry.task?.name,task);packet(entry.task,[task]);
+  assert.equal(entry.backFocus,true);assert.equal(entry.focusReturned,true);
+ }
+ return navigation;
 }

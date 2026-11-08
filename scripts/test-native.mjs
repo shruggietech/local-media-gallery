@@ -1,3 +1,4 @@
+import {activeScopeScript,navigateApplication,closeNavigation,selectSetting,showSetting} from './navigation-driver.mjs';
 import {subprocessFailure} from './runtime-driver.mjs';
 import {productVersion} from './product-version.mjs';
 // SPDX-License-Identifier: Apache-2.0
@@ -60,18 +61,31 @@ async function openSettled(directory) {
   return until(async()=>{const s=await snapshot();return s.discovery?.id===id&&!['opening','scanning'].includes(s.discovery.phase)?s:false;},'Requested folder terminal outcome');
 }
 const visible = script => until(() => js(`return Boolean(${script})`), script);
-async function click(text) {
+async function rawClick(text) {
   const deadline=Date.now()+10000;
   await until(() => {
     const remaining=deadline-Date.now();
     if(remaining<=0)return false;
-    return js('const scope=document.querySelector("dialog[open]")||document; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b||b.disabled||b.getClientRects().length===0)return false; b.click(); return true;', [text], remaining);
+    return js('const scope='+activeScopeScript+'; const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0] || b.getAttribute("aria-label")===arguments[0]); if(!b||b.disabled||b.getClientRects().length===0)return false; b.click(); return true;', [text], remaining);
   }, 'Enabled rendered button '+text);
   // Let React commit the action and finish queued viewer focus restoration.
   await js('return await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
 }
-const open = name => js('const card=[...document.querySelectorAll(".media-card")].find(c=>c.dataset.name===arguments[0]); if(!card)throw Error("Missing card"); card.querySelector("button").click(); return true;', [name]);
-const select = (id, value) => js('const el=document.getElementById(arguments[0]); el.value=arguments[1]; el.dispatchEvent(new Event("change",{bubbles:true})); return true;', [id, value]);
+const navApp={js,click:rawClick};
+async function click(text){
+ const main=['Show controls','Hide controls','Next page','Previous page','Close viewer'];
+ if(main.includes(text))await closeNavigation(navApp);
+ if(text==='Refresh'||text==='Close folder'||text==='Open folder'){
+  await navigateApplication(navApp,'Gallery');
+  await rawClick(text);await closeNavigation(navApp);return;
+ }
+ await rawClick(text);
+}
+async function open(name){await closeNavigation(navApp);return js('const card=[...document.querySelectorAll(".media-card")].find(c=>c.dataset.name===arguments[0]);if(!card)throw Error("Missing card");card.querySelector("button").click();return true;',[name]);}
+const select=(id,value)=>selectSetting(navApp,id,value);
+const settings=()=>showSetting(navApp,'font-scale');
+const recent=()=>navigateApplication(navApp,'Gallery','Recent folders');
+const provenance=()=>navigateApplication(navApp,'Settings','Saved preferences and overrides');
 const input = (action, extra = []) => execute('C:/Program Files/PowerShell/7/pwsh.exe', ['-NoProfile', '-NonInteractive', '-File', path.join(root, 'scripts/native-input.ps1'), '-AppProcessId', String(child.pid), '-Action', action, ...extra]);
 async function test(name, body) { await body(); passed.push(name); console.log(`PASS ${name}`); }
 async function connect() {
@@ -103,7 +117,7 @@ try {
   await test('native startup, versioned contract and direct-file boundaries', async () => {
     const value = await snapshot(); assert.ok(validate(value), JSON.stringify(validate.errors)); assert.equal(value.items.length, 12);
     assert.deepEqual(value.items.map(i => i.name).sort(), fixture.names.toSorted());
-    assert.equal(await js('return document.querySelector("h1").textContent'), 'Local Media Gallery');
+    assert.equal(await js('return document.querySelector(".app-header h1").textContent'),path.basename(fixture.directory));
     await js('await document.fonts.ready; return true;');
     assert.ok(await js('return Array.from(document.fonts).filter(f=>f.status==="loaded").length>=3'));
   });
@@ -188,12 +202,12 @@ try {
   });
   await test('focused playback survives discovery cancellation and replacement rejects old publication', async () => {
     const control = (action,config) => js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:arguments[0],config:arguments[1]})',[action,config??null]);
-    await open('clip silent.mp4'); await visible('document.querySelector("dialog")?.open');
-    await js('const v=document.querySelector("dialog video"); window.__s009Focused=v; await new Promise(resolve=>{if(v.readyState>=1)resolve();else v.addEventListener("loadedmetadata",resolve,{once:true})}); v.currentTime=0.5; return true;');
+    await open('clip silent.mp4'); await visible('document.querySelector("dialog.media-viewer[open]")?.open');
+    await js('const v=document.querySelector("dialog.media-viewer[open] video"); window.__s009Focused=v; await new Promise(resolve=>{if(v.readyState>=1)resolve();else v.addEventListener("loadedmetadata",resolve,{once:true})}); v.currentTime=0.5; return true;');
     await control('arm',{pauseAfter:2}); await click('Refresh'); await until(()=>control('status'),'Focused discovery barrier');
-    assert.equal(await js('return document.querySelector("dialog video")===window.__s009Focused'),true);
+    assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video")===window.__s009Focused'),true);
     await click('Cancel discovery'); await until(async()=> (await snapshot()).status==='cancelled','Viewer cancellation');
-    assert.equal(await js('return document.querySelector("dialog video")===window.__s009Focused && Math.abs(window.__s009Focused.currentTime-0.5)<0.15'),true);
+    assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video")===window.__s009Focused && Math.abs(window.__s009Focused.currentTime-0.5)<0.15'),true);
     await control('release'); await click('Close viewer');
     const old=await snapshot(); const other=await mkdtemp(path.join(root,'.local/discovery-replacement-'));
     await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(other,'replacement.jpg'));
@@ -210,7 +224,7 @@ try {
     const directory=await mkdtemp(path.join(root,'.local/discovery-anchor-'));
     for(let i=10;i<18;i++) await copyFile(path.join(fixture.directory,'image2.jpg'),path.join(directory,'image'+i+'.jpg'));
     await openSettled(directory); await visible('document.querySelectorAll(".media-card").length===8');
-    await click('Show controls'); await click('Settings'); await select('page-size','4');
+    await click('Show controls'); await settings(); await select('page-size','4');
     await visible('document.querySelectorAll(".media-card").length===4'); await click('Next page');
     await visible('document.getElementById("page-jump").value==="2"');
     const anchor=await js('return document.querySelector(".media-card").dataset.name'); assert.equal(anchor,'image14.jpg');
@@ -229,15 +243,15 @@ try {
     await openSettled(fixture.directory); await visible('document.querySelectorAll(".media-card").length===12');
     await visible('[...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="Show controls" && !b.disabled)');
   });
-  await test('state save destination is visible before opening controls', async () => {
-    assert.equal(await js('return Boolean(document.querySelector("[data-save-destination]"))'), true, 'A reader must see where explicit choices will be saved even with controls collapsed');
+  await test('contextual destination is visible before settings mutation', async () => {
+    await settings();assert.equal(await js('return Boolean(document.querySelector("dialog.application-drawer[open] .save-destination select"))'),true,'Every mutation destination exposes its scope before editing');await closeNavigation(navApp);
   });
   await test('focused information starts collapsed and gallery media is suspended', async () => {
-    await open('image2.jpg'); await visible('document.querySelector("dialog")?.open');
-    assert.equal(await js('return [...document.querySelectorAll("dialog button")].find(b=>b.textContent.trim()==="Information").getAttribute("aria-expanded")'),'false');
+    await open('image2.jpg'); await visible('document.querySelector("dialog.media-viewer[open]")?.open');
+    assert.equal(await js('return [...document.querySelectorAll("dialog.media-viewer[open] button")].find(b=>b.textContent.trim()==="Information").getAttribute("aria-expanded")'),'false');
     assert.equal(await js('return document.querySelector(".item-facts") === null'), true, 'Metadata must be collapsed initially');
     assert.equal(await js('return document.querySelectorAll(".media-card img, .media-card video, .metadata-probe").length'), 0);
-    assert.equal(await js('return [...document.querySelectorAll("dialog button")].every(b=>{const h=b.getBoundingClientRect().height;return h>=30&&h<=35})'),true,'Compact viewer buttons');
+    assert.equal(await js('return [...document.querySelectorAll("dialog.media-viewer[open] button")].every(b=>{const h=b.getBoundingClientRect().height;return h>=30&&h<=35})'),true,'Compact viewer buttons');
     await click('Close viewer');
   });
   await test('native folder picker cancellation preserves session', async () => {
@@ -245,11 +259,11 @@ try {
     const controlsBefore=await js('return document.getElementById("collection-controls")!==null');
     await input('focus');
     await visible('document.hasFocus()');
-    await js('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Choose folder").focus(); return true;');
-    await visible('document.activeElement?.textContent.trim()==="Choose folder"');
+    await navigateApplication(navApp,'Gallery');await js('Array.from(document.querySelectorAll("dialog.application-drawer[open] button")).find(b=>b.textContent.trim()==="Open folder").focus();return true;');
+    await visible('document.activeElement?.textContent.trim()==="Open folder"');
     await input('keys', ['-Keys', '{ENTER}']); await input('cancel-picker');
-    await visible('!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.includes("Choose folder")).disabled');
-    assert.equal((await snapshot()).sessionId, before.sessionId);
+    await visible('!document.querySelector(".app-header button[aria-label=Refresh]").disabled && document.activeElement?.getAttribute("aria-label")==="Menu"');
+    await closeNavigation(navApp);assert.equal((await snapshot()).sessionId, before.sessionId);
     assert.equal(await js('return document.getElementById("collection-controls")!==null'),controlsBefore,'Picker cancellation preserves presentation');
   });
   await click('Show controls');
@@ -280,9 +294,9 @@ try {
   await test('native image decoding, EXIF orientation and per-item information', async () => {
     let firstInformation=true;
     for (const [name, dimensions] of Object.entries(fixture.expected.stills)) {
-      await open(name); await visible('document.querySelector("dialog img")?.naturalWidth>0');
-      assert.deepEqual(await js('const i=document.querySelector("dialog img"); return [i.naturalWidth,i.naturalHeight]'), dimensions);
-      if(firstInformation){await click('Information');firstInformation=false;assert.equal(await js('return [...document.querySelectorAll("dialog button")].find(b=>b.textContent.trim()==="Information").getAttribute("aria-expanded")'),'true');}
+      await open(name); await visible('document.querySelector("dialog.media-viewer[open] img")?.naturalWidth>0');
+      assert.deepEqual(await js('const i=document.querySelector("dialog.media-viewer[open] img"); return [i.naturalWidth,i.naturalHeight]'), dimensions);
+      if(firstInformation){await click('Information');firstInformation=false;assert.equal(await js('return [...document.querySelectorAll("dialog.media-viewer[open] button")].find(b=>b.textContent.trim()==="Information").getAttribute("aria-expanded")'),'true');}
       else assert.equal(await js('return Boolean(document.querySelector(".item-facts"))'),true,'Disclosure stays open across assets');
       assert.ok((await js('return document.querySelector(".item-facts").textContent')).includes(dimensions.join(' × ')));
       await click('Close viewer');
@@ -290,29 +304,29 @@ try {
       assert.ok(Math.abs(ratio - dimensions[0] / dimensions[1]) < 0.06, `Card ratio ${name}: ${ratio}`);
     }
     for (const name of ['broken.jpg', 'unsupported.tiff']) {
-      await open(name); await visible('document.querySelector("dialog .media-error")'); await click('Close viewer');
+      await open(name); await visible('document.querySelector("dialog.media-viewer[open] .media-error")'); await click('Close viewer');
     }
   });
   for (const name of ['clip audio.mp4', 'clip silent.mp4']) await test(`trusted native playback, pause and seek: ${name}`, async () => {
-    await open(name); await visible('document.querySelector("dialog video")?.readyState>=1');
-    await js('const b=Array.from(document.querySelectorAll("dialog button")).find(b=>b.textContent.trim()==="Play"); b.focus(); return true;');
+    await open(name); await visible('document.querySelector("dialog.media-viewer[open] video")?.readyState>=1');
+    await js('const b=Array.from(document.querySelectorAll("dialog.media-viewer[open] button")).find(b=>b.textContent.trim()==="Play"); b.focus(); return true;');
     await input('keys', ['-Keys', ' ']);
-    await visible('document.querySelector("dialog video")?.currentTime>0.15 && !document.querySelector("dialog video").paused');
-    assert.equal(await js('return document.querySelector("dialog video").muted'), false);
-    await js('const c=document.createElement("canvas"); c.width=32; c.height=18; c.getContext("2d").drawImage(document.querySelector("dialog video"),0,0,32,18); window.__nativeFrame=c.toDataURL(); return true;');
-    await js('window.__focusedNode=document.querySelector("dialog video");window.__focusedTime=window.__focusedNode.currentTime;return true;');
+    await visible('document.querySelector("dialog.media-viewer[open] video")?.currentTime>0.15 && !document.querySelector("dialog.media-viewer[open] video").paused');
+    assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video").muted'), false);
+    await js('const c=document.createElement("canvas"); c.width=32; c.height=18; c.getContext("2d").drawImage(document.querySelector("dialog.media-viewer[open] video"),0,0,32,18); window.__nativeFrame=c.toDataURL(); return true;');
+    await js('window.__focusedNode=document.querySelector("dialog.media-viewer[open] video");window.__focusedTime=window.__focusedNode.currentTime;return true;');
     const beforeWidth=await js('return document.querySelector(".viewer-media").getBoundingClientRect().width');
     const wasOpen=await js('return Boolean(document.querySelector(".item-facts"))');
     await click('Information'); await pause(180);
-    assert.equal(await js('return document.querySelector("dialog video")===window.__focusedNode && !window.__focusedNode.paused && window.__focusedNode.currentTime>window.__focusedTime'),true);
+    assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video")===window.__focusedNode && !window.__focusedNode.paused && window.__focusedNode.currentTime>window.__focusedTime'),true);
     const afterWidth=await js('return document.querySelector(".viewer-media").getBoundingClientRect().width');
     assert.ok(wasOpen?afterWidth>beforeWidth:afterWidth<beforeWidth,'Information must resize canvas');
     assert.equal(await js('return document.querySelectorAll(".media-card img,.media-card video,.metadata-probe").length'),0);
-    await click('Pause'); assert.equal(await js('return document.querySelector("dialog video").paused'), true);
-    await js('document.querySelector("dialog video").currentTime=2; return true;');
-    await visible('Math.abs(document.querySelector("dialog video").currentTime-2)<0.2 && !document.querySelector("dialog video").seeking');
-    await until(() => js('const c=document.createElement("canvas"); c.width=32; c.height=18; c.getContext("2d").drawImage(document.querySelector("dialog video"),0,0,32,18); return c.toDataURL()!==window.__nativeFrame;'), 'Seek displays a different decoded frame');
-    await click('Close viewer'); await visible('!document.querySelector("dialog")');
+    await click('Pause'); assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video").paused'), true);
+    await js('document.querySelector("dialog.media-viewer[open] video").currentTime=2; return true;');
+    await visible('Math.abs(document.querySelector("dialog.media-viewer[open] video").currentTime-2)<0.2 && !document.querySelector("dialog.media-viewer[open] video").seeking');
+    await until(() => js('const c=document.createElement("canvas"); c.width=32; c.height=18; c.getContext("2d").drawImage(document.querySelector("dialog.media-viewer[open] video"),0,0,32,18); return c.toDataURL()!==window.__nativeFrame;'), 'Seek displays a different decoded frame');
+    await click('Close viewer'); await visible('!document.querySelector("dialog.media-viewer[open]")');
     assert.equal(await js('return Array.from(document.querySelectorAll("video")).filter(v=>!v.paused).length'), 0);
   });
   await test('native keyboard activation, Escape and focus return', async () => {
@@ -322,21 +336,21 @@ try {
     await input('keys', ['-Keys', '{HOME}{DOWN}{ENTER}']); await visible('document.querySelectorAll(".media-card").length===10');
     await input('keys', ['-Keys', '{HOME}{ENTER}']); await visible('document.querySelectorAll(".media-card").length===12');
     await js('document.querySelector(".media-open").focus(); return true;');
-    await input('keys', ['-Keys', '{ENTER}']); await visible('document.querySelector("dialog")?.open');
+    await input('keys', ['-Keys', '{ENTER}']); await visible('document.querySelector("dialog.media-viewer[open]")?.open');
     await input('keys', ['-Keys', '{ESC}']);
-    await visible('!document.querySelector("dialog") && document.activeElement?.classList.contains("media-open")');
+    await visible('!document.querySelector("dialog.media-viewer[open]") && document.activeElement?.classList.contains("media-open")');
     await js('window.__keyboardFocusBeforeTab=document.activeElement; return true;');
     await input('keys', ['-Keys', '{TAB}']);
     await visible('document.activeElement!==window.__keyboardFocusBeforeTab && document.activeElement?.classList.contains("media-open") && getComputedStyle(document.activeElement).outlineStyle!=="none"');
   });
   await test('root replacement stops active playback and revokes old access', async () => {
-    await open('clip audio.mp4'); await visible('document.querySelector("dialog video")?.readyState>=1');
-    await js('window.__retiredMedia=document.querySelector("dialog video"); Array.from(document.querySelectorAll("dialog button")).find(b=>b.textContent.trim()==="Play").focus(); return true;');
+    await open('clip audio.mp4'); await visible('document.querySelector("dialog.media-viewer[open] video")?.readyState>=1');
+    await js('window.__retiredMedia=document.querySelector("dialog.media-viewer[open] video"); Array.from(document.querySelectorAll("dialog.media-viewer[open] button")).find(b=>b.textContent.trim()==="Play").focus(); return true;');
     await input('keys', ['-Keys', ' ']); await visible('!window.__retiredMedia.paused');
     const before = await snapshot(); const item = before.items.find(i => i.kind === 'video');
     const empty = await mkdtemp(path.join(root, '.local/switch-'));
     await openSettled(empty);
-    await visible('!document.querySelector("dialog") && document.body.textContent.includes("No media found")');
+    await visible('!document.querySelector("dialog.media-viewer[open]") && document.body.textContent.includes("No media found")');
     assert.equal(await js('return window.__retiredMedia.paused && window.__retiredMedia.getAttribute("src")===null'), true);
     assert.equal((await fetch(`${before.mediaOrigin}/media/${before.sessionId}/${item.id}/${item.revision}`)).status, 404);
     await openSettled(fixture.directory); await visible('document.querySelectorAll(".media-card").length===12');
@@ -366,16 +380,16 @@ try {
       assert.equal((await snapshot()).items.find(i=>i.name==='temporary.jpg').revision,old.revision);
       await click('Refresh');
       await until(async () => (await snapshot()).items.find(i => i.name === 'temporary.jpg')?.revision !== old.revision, 'Manual replacement revision');
-      assert.equal(await js('return Boolean(document.querySelector("dialog"))'),true,'Existing selected item remains open');
+      assert.equal(await js('return Boolean(document.querySelector("dialog.media-viewer[open]"))'),true,'Existing selected item remains open');
       await rm(added); await pause(1200); assert.equal((await snapshot()).items.length,13);
-      await click('Refresh'); await visible('document.querySelectorAll(".media-card").length===12 && !document.querySelector("dialog")');
+      await click('Refresh'); await visible('document.querySelectorAll(".media-card").length===12 && !document.querySelector("dialog.media-viewer[open]")');
       const stale = await fetch(before.mediaOrigin+'/media/'+before.sessionId+'/'+old.id+'/'+old.revision); assert.equal(stale.status,404);
       assert.equal((await snapshot()).items.length,12);
     } finally { await rm(added,{force:true}); }
   });
   await test('native chooser selects empty directory and invalid selection preserves it', async () => {
     const empty = await mkdtemp(path.join(root, '.local/empty-'));
-    await click('Choose folder'); await input('select-picker', ['-Directory', empty]);
+    await click('Open folder'); await input('select-picker', ['-Directory', empty]);
     await visible('document.querySelectorAll(".media-card").length===0 && document.body.textContent.includes("No media found")');
     const before = await snapshot();
     assert.equal(path.relative(path.toNamespacedPath(empty), before.root), '', 'Picker selected the exact requested directory');
@@ -401,7 +415,7 @@ try {
     await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('bounded pagination, full sorting, cross-page viewer and geometry', async () => {
-    await click('Settings'); await select('page-size','4');
+    await settings(); await select('page-size','4');
     await visible('document.querySelectorAll(".media-card").length===4');
     await select('media-sort','size'); await select('media-direction','desc');
     const all=viewItems((await snapshot()).items,'all','size','desc');
@@ -416,9 +430,9 @@ try {
     await select('media-sort','name'); await select('media-direction','asc');
     const cards=await pageNames(); await open(cards[3]); await click('Next');
     assert.equal(await js('return document.querySelectorAll(".media-card img,.media-card video,.metadata-probe").length'),0);
-    const focusedName=await js('return document.querySelector("dialog h2").textContent');
+    const focusedName=await js('return document.querySelector("dialog.media-viewer[open] h2").textContent');
     assert.ok(!cards.includes(focusedName),'Viewer Next must cross page boundary');
-    await click('Close viewer'); await visible('!document.querySelector("dialog")');
+    await click('Close viewer'); await visible('!document.querySelector("dialog.media-viewer[open]")');
     await until(()=>js('return document.activeElement?.closest(".media-card")?.dataset.name===arguments[0]',[focusedName]),'Focused card restored across page');
     assert.equal((await pageNames()).length,4);
     await js('document.getElementById("page-jump").focus();return true;');
@@ -450,10 +464,10 @@ try {
     await click('Show controls');
   });
   await test('global font size scales app text, preserves geometry and restores preferences',async()=>{
-    if(await js('return !document.getElementById("font-scale")')) await click('Settings');
+    if(await js('return !document.getElementById("font-scale")')) await settings();
     await visible('document.getElementById("font-scale")');
     assert.equal(await js('return document.getElementById("font-scale").value'),'100','Current size is default');
-    const measureText=()=>js('const selectors=["body",".identity h1",".app-header button","label[for=media-filter]","#media-filter",".settings-panel h2",".media-caption>span:first-child",".collection-count"];return selectors.map(s=>({selector:s,font:parseFloat(getComputedStyle(document.querySelector(s)).fontSize)}));');
+    const measureText=()=>js('const selectors=["body",".app-header h1",".app-header button","label[for=media-filter]","#media-filter","#navigation-title",".media-caption>span:first-child",".collection-count"];return selectors.map(s=>({selector:s,font:parseFloat(getComputedStyle(document.querySelector(s)).fontSize)}));');
     const measureGeometry=()=>js('const c=document.querySelector(".media-card");const b=document.querySelector(".app-header button");return {root:parseFloat(getComputedStyle(document.documentElement).fontSize),card:c.getBoundingClientRect().width,media:c.querySelector(".media-surface").getBoundingClientRect().width,target:parseFloat(getComputedStyle(b).minHeight),bar:document.querySelector(".app-header").getBoundingClientRect().height};');
     const normal=await measureText();const geometry=await measureGeometry();
     let viewerFonts;let viewerGeometry;
@@ -461,9 +475,9 @@ try {
       await select('font-scale',String(scale));await pause(150);
       const actual=await measureText();for(let i=0;i<actual.length;i++)assert.ok(Math.abs(actual[i].font-normal[i].font*scale/100)<0.06,JSON.stringify({scale,actual:actual[i],baseline:normal[i]}));
       const current=await measureGeometry();for(const key of Object.keys(geometry))assert.ok(Math.abs(current[key]-geometry[key])<0.1,'Text sizing changed '+key);
-      await open('image2.jpg');await visible('document.querySelector("dialog img")?.naturalWidth>0');
+      await open('image2.jpg');await visible('document.querySelector("dialog.media-viewer[open] img")?.naturalWidth>0');
       if(await js('return !document.querySelector(".item-facts")'))await click('Information');
-      const focused=await js('const d=document.querySelector("dialog").getBoundingClientRect();const m=document.querySelector(".viewer-media").getBoundingClientRect();return {fonts:["#viewer-title","#information-title",".item-facts dt",".item-facts dd","dialog button"].map(s=>parseFloat(getComputedStyle(document.querySelector(s)).fontSize)),geometry:{w:d.width,h:d.height,mw:m.width}}');
+      const focused=await js('const d=document.querySelector("dialog.media-viewer[open]").getBoundingClientRect();const m=document.querySelector(".viewer-media").getBoundingClientRect();return {fonts:["#viewer-title","#information-title",".item-facts dt",".item-facts dd","dialog button"].map(s=>parseFloat(getComputedStyle(document.querySelector(s)).fontSize)),geometry:{w:d.width,h:d.height,mw:m.width}}');
       if(scale===100){viewerFonts=focused.fonts;viewerGeometry=focused.geometry;}
       else{for(let i=0;i<focused.fonts.length;i++)assert.ok(Math.abs(focused.fonts[i]-viewerFonts[i]*scale/100)<0.06,'Viewer text scales');for(const key of Object.keys(viewerGeometry))assert.ok(Math.abs(focused.geometry[key]-viewerGeometry[key])<0.1,'Viewer media frame changed');}
       await click('Close viewer');
@@ -471,7 +485,7 @@ try {
     }
     await stop();child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
     await until(()=>js('return Math.abs(parseFloat(getComputedStyle(document.body).fontSize)-arguments[0])<0.06',[normal[0].font*0.8]),'Reduced size restored after restart');
-    await click('Settings');assert.equal(await js('return document.getElementById("font-scale").value'),'80');
+    await settings();assert.equal(await js('return document.getElementById("font-scale").value'),'80');
     await js('document.getElementById("font-scale").focus();return true;');await input('keys',['-Keys','{HOME}{ENTER}']);
     await until(()=>js('return document.getElementById("font-scale").value==="100"'),'Keyboard default reset');
     await until(async()=>JSON.parse(await readFile(settingsFile)).fontScale===100,'Default font save');
@@ -499,7 +513,7 @@ try {
   });
   await test('all view preferences restore, invalid state resets silently and write failures remain observable',async()=>{
     if(await js('return !document.getElementById("media-filter")')) await click('Show controls');
-    if(await js('return !document.getElementById("page-size")')) await click('Settings');
+    if(await js('return !document.getElementById("page-size")')) await settings();
     await select('page-size','24');await select('card-size','small');await select('scroll-indicator','always');
     await select('media-filter','image');await select('media-sort','size');await select('media-direction','desc');
     await click('Hide controls');
@@ -507,9 +521,9 @@ try {
     await until(async()=>{const saved=JSON.parse(await readFile(settingsFile));return Object.entries(wanted).every(([k,v])=>saved[k]===v)},'All preferences saved before restart');
     await stop();child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===10');
     assert.ok(await js('return [...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="Show controls")'));
-    await click('Show controls');await click('Settings');
+    await click('Show controls');await settings();
     assert.ok(await js('return [...document.querySelectorAll(".settings-panel select")].every(el=>{const h=el.getBoundingClientRect().height;return h>=30&&h<=35})'),'Compact settings dropdowns');
-    for(const [id,value]of [['page-size','24'],['card-size','small'],['scroll-indicator','always'],['media-filter','image'],['media-sort','size'],['media-direction','desc']])assert.equal(await js('return document.getElementById(arguments[0]).value',[id]),value);
+    for(const [id,value]of [['page-size','24'],['card-size','small'],['scroll-indicator','always'],['media-filter','image'],['media-sort','size'],['media-direction','desc']]){await showSetting(navApp,id);assert.equal(await js('const d=document.querySelector("dialog.application-drawer[open]");return (d.querySelector("#"+arguments[0])||d.querySelector("#navigation-"+arguments[0])).value',[id]),value);}
     await select('media-filter','all');await select('media-sort','name');await select('media-direction','asc');await select('page-size','48');await select('card-size','medium');await select('scroll-indicator','auto');
     await until(async()=>{const s=JSON.parse(await readFile(settingsFile));return s.filter==='all'&&s.sort==='name'&&s.direction==='asc'&&s.pageSize===48&&s.cardSize==='medium'&&s.scrollIndicator==='auto'&&s.controlsExpanded},'Restored normal test preferences');
     const valid=await readFile(settingsFile);
@@ -523,10 +537,10 @@ try {
     await visible('document.querySelectorAll(".media-card").length===10');
     await stop();await writeFile(settingsFile,valid);await rm(path.join(settingsDirectory,'settings.lock'),{force:true});await mkdir(path.join(settingsDirectory,'settings.lock'));
     child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');await open('image2.jpg');await click('Information');
-    await visible('document.querySelector("dialog .media-error")?.textContent.includes("Could not lock for save preferences at ")');
-    assert.ok(await js('return document.querySelector("dialog .media-error").textContent.includes(arguments[0])',[settingsFile]),'Write failure names the preferences file');
-    assert.ok(await js('return document.querySelector("dialog .media-error").textContent.includes("reopen the gallery to retry")'),'Write failure explains how to retry');
-    assert.equal(await js('return Boolean(document.querySelector("dialog .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
+    await visible('document.querySelector("dialog.media-viewer[open] .media-error")?.textContent.includes("Could not lock for save preferences at ")');
+    assert.ok(await js('return document.querySelector("dialog.media-viewer[open] .media-error").textContent.includes(arguments[0])',[settingsFile]),'Write failure names the preferences file');
+    assert.ok(await js('return document.querySelector("dialog.media-viewer[open] .media-error").textContent.includes("reopen the gallery to retry")'),'Write failure explains how to retry');
+    assert.equal(await js('return Boolean(document.querySelector("dialog.media-viewer[open] .item-facts"))'),true);assert.deepEqual(await readFile(settingsFile),valid);
     await stop();await rm(path.join(settingsDirectory,'settings.lock'),{recursive:true});child=launch([fixture.directory]);await connect();await visible('document.querySelectorAll(".media-card").length===12');
   });
   await test('folder choices, portable intent, provenance, inheritance and failed recents', async () => {
@@ -537,17 +551,17 @@ try {
     await copyFile(path.join(fixture.directory, 'image2.jpg'), path.join(b, 'image.jpg'));
     const openRoot = async directory => {
       await openSettled(directory);
-      await visible('document.getElementById("save-destination") && !document.getElementById("save-destination").disabled');
+      await settings();await visible('document.querySelector("dialog.application-drawer[open] .save-destination select") && !document.querySelector("dialog.application-drawer[open] .save-destination select").disabled');
     };
     const state = async () => js('const s=await window.__TAURI_INTERNALS__.invoke("snapshot");return await window.__TAURI_INTERNALS__.invoke("load_settings",{sessionId:s.sessionId})');
-    const settings = async () => { if (await js('return !document.getElementById("font-scale")')) await click('Settings'); };
+    const settings = () => showSetting(navApp,'font-scale');
     await openRoot(a); await settings(); await select('save-destination','remembered'); await select('font-scale','90');
     await until(async () => (await state()).layers.remembered.fontScale === 90, 'Folder A remembered');
     assert.equal((await state()).savedTo.fontScale,'remembered');
     const retired=await state();
     await openRoot(b);
     assert.equal(await js('try{await window.__TAURI_INTERNALS__.invoke("save_settings",{request:{sessionId:arguments[0].sessionId,expectedRevision:arguments[0].revision,destination:"portable",patch:{fontScale:80},remove:null,clear:false}});return "accepted"}catch(error){return error.code}',[retired]),'stale_session');
-    await settings(); assert.equal(await js('return document.getElementById("save-destination").value'),'user');
+    await settings(); assert.equal(await js('return document.querySelector("dialog.application-drawer[open] .save-destination select").value'),'user');
     assert.equal(await js('return document.getElementById("font-scale").value'),'100');
     await select('save-destination','remembered'); await select('font-scale','80');
     await until(async () => (await state()).layers.remembered.fontScale === 80, 'Folder B independent');
@@ -556,7 +570,7 @@ try {
     const portableFile=path.join(a,'settings.json');
     await until(async()=>JSON.parse(await readFile(portableFile)).choices.fontScale===100,'Explicit default written sparsely');
     assert.deepEqual(JSON.parse(await readFile(portableFile)).choices,{fontScale:100});
-    await js('document.querySelector(".state-controls").open=true;return true;');
+    await provenance();
     await click('Inherit Global font size from below Portable gallery');
     await until(async()=>(await state()).settings.fontScale===90,'Removal clears temporary field and reveals remembered choice');
     await select('font-scale','80'); await until(async()=>JSON.parse(await readFile(portableFile)).choices.fontScale===80,'Portable choice');
@@ -570,10 +584,10 @@ try {
     assert.deepEqual(JSON.parse(await readFile(portableFile)).choices.futureChoice,[false,0,null]);
     await select('save-destination','remembered');await select('media-filter','video');
     await until(async()=>(await state()).layers.remembered.filter==='video','Remembered filter');
-    await js('document.querySelector(".state-controls").open=true;return true;');await click('Clear temporary choices');
+    await provenance();await click('Clear temporary choices');
     await until(async()=>(await state()).sources.filter==='remembered','Remembered source visible');
     const rows=(await state()).recents;const aRow=rows.find(r=>r.displayPath.endsWith('gallery-a'));const bRow=rows.find(r=>r.displayPath.endsWith('gallery-b'));
-    await click('Forget '+aRow.displayPath);await until(async()=>(await state()).settings.filter==='all','Forget re-resolves active layer');
+    await recent();await click('Forget '+aRow.displayPath);await until(async()=>(await state()).settings.filter==='all','Forget re-resolves active layer');
     assert.equal((await state()).settings.fontScale,80);assert.equal((await state()).sources.fontScale,'portable');
     await rename(b,b+'-moved');await click(bRow.displayPath);
     await visible('document.body.textContent.includes("Cannot open the selected folder")');
@@ -614,7 +628,7 @@ try {
     await metadataControl('metadata_arm');
     await openSettled(metadataRoot);await visible('document.querySelectorAll(".media-card").length===3');
     assert.equal(await metadataControl('metadata_status'),false,'Cards must not read sidecars');
-    await open('clip.mp4');await visible('document.querySelector("dialog video")?.readyState>=1');
+    await open('clip.mp4');await visible('document.querySelector("dialog.media-viewer[open] video")?.readyState>=1');
     assert.equal(await js('return document.querySelector(".metadata-inspector")===null'),true,'Information remains collapsed');
     await click('Information');await until(()=>metadataControl('metadata_status'),'Demand-only metadata barrier');
     assert.equal((await snapshot()).status,'complete','Snapshot remains responsive during metadata read');
@@ -647,23 +661,23 @@ try {
     const photo=await inspect('photo.jpg');assert.ok(validateMetadata(photo));assert.ok(photo.documents.some(d=>d.ambiguous));assert.ok(photo.documents.some(d=>d.status==='invalid'));
   });
   await test('sidecar-only Refresh, failed reads and stale completion preserve focused video',async()=>{
-    await js('const v=document.querySelector("dialog video");window.__s010Video=v;window.__s010Reloads=0;v.addEventListener("emptied",()=>window.__s010Reloads++);v.loop=true;v.currentTime=0.4;const b=[...document.querySelectorAll("dialog button")].find(b=>b.textContent==="Play");b.focus();return true;');
-    await input('keys',['-Keys','{ENTER}']);await visible('document.querySelector("dialog video").currentTime>0.5');
+    await js('const v=document.querySelector("dialog.media-viewer[open] video");window.__s010Video=v;window.__s010Reloads=0;v.addEventListener("emptied",()=>window.__s010Reloads++);v.loop=true;v.currentTime=0.4;const b=[...document.querySelectorAll("dialog.media-viewer[open] button")].find(b=>b.textContent==="Play");b.focus();return true;');
+    await input('keys',['-Keys','{ENTER}']);await visible('document.querySelector("dialog.media-viewer[open] video").currentTime>0.5');
     const before=await snapshot();
     const updated=metadataSources[0][1].replace('900719925474099312345','900719925474099312346');
     await writeFile(metadataFile,updated);await click('Refresh');
     await visible('document.querySelector(".metadata-summary")?.textContent.includes("900719925474099312346")');
     const after=await snapshot();assert.equal(after.items.find(i=>i.name==='clip.mp4').revision,before.items.find(i=>i.name==='clip.mp4').revision);
     assert.notEqual(after.metadataRevision,before.metadataRevision);
-    assert.equal(await js('return document.querySelector("dialog video")===window.__s010Video && !window.__s010Video.paused && window.__s010Reloads===0'),true);
+    assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video")===window.__s010Video && !window.__s010Video.paused && window.__s010Reloads===0'),true);
     await metadataControl('metadata_arm');await click('Retry metadata inspection');await until(()=>metadataControl('metadata_status'),'Held old metadata read');
     await writeFile(metadataFile,updated.replace('900719925474099312346','900719925474099312347'));await click('Refresh');
     await visible('document.querySelector(".metadata-inspector")?.textContent.includes("still running")');
     await metadataControl('metadata_release');await pause(100);await click('Retry metadata inspection');
     await visible('document.querySelector(".metadata-summary")?.textContent.includes("900719925474099312347")');
-    assert.equal(await js('return document.querySelector("dialog video")===window.__s010Video && window.__s010Reloads===0'),true);
+    assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video")===window.__s010Video && window.__s010Reloads===0'),true);
     await writeFile(metadataFile,'{broken');await click('Refresh');await visible('document.querySelector("[data-metadata-source=full-name-meta]")?.dataset.metadataStatus==="invalid"');
-    assert.equal(await js('return document.querySelector("dialog video")===window.__s010Video && !window.__s010Video.paused'),true);
+    assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video")===window.__s010Video && !window.__s010Video.paused'),true);
     await writeFile(metadataFile,metadataSources[0][1]);await click('Refresh');await visible('document.querySelector("[data-metadata-source=full-name-meta]")?.dataset.metadataStatus==="ready"');
     await metadataControl('metadata_arm');await click('Retry metadata inspection');await until(()=>metadataControl('metadata_status'),'Root-retired read');
     await click('Close viewer');await openSettled(fixture.directory);await metadataControl('metadata_release');await pause(100);
@@ -671,7 +685,7 @@ try {
     assert.equal((await snapshot()).items.length,12);
   });
   await test('summary choices persist through all destinations and portable relocation without media changes',async()=>{
-    await openSettled(metadataRoot);await visible('document.getElementById("save-destination") && !document.getElementById("save-destination").disabled');
+    await openSettled(metadataRoot);await settings();
     await open('clip.mp4');await click('Information');await visible('document.querySelectorAll(".metadata-document").length===4');
     await js('document.querySelector("[data-metadata-source=full-name-meta] details").open=true;return true;');
     const title='Include summary field full-name-meta $["Title"]';const removeTitle='Remove summary field full-name-meta $["Title"]';
@@ -682,7 +696,7 @@ try {
     await select('viewer-save-destination','portable');
     await click('Include summary field full-name-meta $["Empty"]');
     await until(async()=>JSON.parse(await readFile(metadataSettings)).choices.summaryFields?.length===2,'Final portable summary');
-    await click('Close viewer');if(await js('return !document.getElementById("font-scale")'))await click('Settings');
+    await click('Close viewer');if(await js('return !document.getElementById("font-scale")'))await settings();
     await select('save-destination','session');await select('font-scale','80');
     await open('clip.mp4');await visible('document.querySelector(".metadata-summary")?.textContent.includes("900719925474099312345")');
     const textSize=await js('return parseFloat(getComputedStyle(document.querySelector(".metadata-summary code")).fontSize)');
@@ -714,8 +728,8 @@ try {
   const releaseDecodes=()=>js('HTMLImageElement.prototype.decode=window.__s011Decode;for(const release of window.__s011Held.splice(0))release();return true;');
   await test('loading strategy keyboard control and all existing persistence destinations retain deliberate intent',async()=>{
     await openSettled(loadingRoot);await visible('document.querySelectorAll(".media-card").length===2');
-    if(await js('return !document.getElementById("loading-mode")'))await click('Settings');
-    await select('save-destination','session');
+    await showSetting(navApp,'loading-mode');
+    await select('save-destination','session');await showSetting(navApp,'loading-mode');
     await js('document.getElementById("loading-mode").focus();return true;');await input('keys',['-Keys','{HOME}{DOWN}']);
     await visible('document.getElementById("loading-mode").value==="conservative"');
     const page=await js('return document.getElementById("page-jump").value');
@@ -759,12 +773,12 @@ try {
       await js('if(window.__s011Decode)HTMLImageElement.prototype.decode=window.__s011Decode;delete document.visibilityState;document.dispatchEvent(new Event("visibilitychange"));for(const release of window.__s011Held??[])release();return true;');
     }
     await select('loading-mode','standard');await visible('document.querySelector(".media-grid")?.dataset.loadingLimit==="4"');
-    await open('clip.mp4');await visible('document.querySelector("dialog video")?.readyState>=1');
-    await js('const v=document.querySelector("dialog video");window.__s011Video=v;window.__s011Emptied=0;v.addEventListener("emptied",()=>window.__s011Emptied++);v.loop=true;[...document.querySelectorAll("dialog button")].find(b=>b.textContent.trim()==="Play").focus();return true;');
-    await input('keys',['-Keys','{ENTER}']);await visible('document.querySelector("dialog video").currentTime>0.1');
-    await select('loading-mode','conservative');
+    await open('clip.mp4');await visible('document.querySelector("dialog.media-viewer[open] video")?.readyState>=1');
+    await js('const v=document.querySelector("dialog.media-viewer[open] video");window.__s011Video=v;window.__s011Emptied=0;v.addEventListener("emptied",()=>window.__s011Emptied++);v.loop=true;[...document.querySelectorAll("dialog.media-viewer[open] button")].find(b=>b.textContent.trim()==="Play").focus();return true;');
+    await input('keys',['-Keys','{ENTER}']);await visible('document.querySelector("dialog.media-viewer[open] video").currentTime>0.1');
+    await select('loading-mode','conservative');await closeNavigation(navApp);
     await until(async()=>(await currentState()).settings.loadingMode==='conservative','Preference while focused');
-    assert.equal(await js('return document.querySelector("dialog video")===window.__s011Video && !window.__s011Video.paused && window.__s011Emptied===0'),true);
+    assert.equal(await js('return document.querySelector("dialog.media-viewer[open] video")===window.__s011Video && !window.__s011Video.paused && window.__s011Emptied===0'),true);
     assert.equal(await js('return document.querySelectorAll(".media-grid img[src],.media-grid video[src],.metadata-probe").length'),0);
     const resources=await js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"s011_resource_snapshot",config:null})');
     assert.equal(resources.mediaResponsesCap,32);assert.equal(resources.metadataCap,1);assert.equal(resources.discoveryCap,1);

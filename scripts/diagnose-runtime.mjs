@@ -1,3 +1,4 @@
+import {selectSetting,closeNavigation} from './navigation-driver.mjs';
 // SPDX-License-Identifier: Apache-2.0
 // Mixed-source diagnosis only. This file never produces an acceptance receipt.
 import assert from 'node:assert/strict';
@@ -40,10 +41,10 @@ async function diagnoseMacVideo(){
  const js=(fn,...args)=>app.js('return await ('+fn.toString()+')(...arguments);',args);
  try{
   await until(()=>js(()=>document.querySelectorAll('.media-card').length>0),'Diagnostic gallery');
-  await app.click('Settings');await until(()=>js(()=>Boolean(document.getElementById('page-size'))),'Diagnostic settings');
-  await js(()=>{const s=document.getElementById('page-size');s.value='24';s.dispatchEvent(new Event('change',{bubbles:true}));return true;});
-  await until(()=>js(()=>document.querySelectorAll('.media-card').length===22),'Diagnostic corpus');await app.click('Hide controls');
-  try{let last;try{receipt.platformAccessibility=await until(async()=>{last=await app.accessibility();const text=last.records.map(n=>[n.name,n.description,n.value].filter(Boolean).join(' '));return ['Refresh','Thumbnails','Diagnostics'].every(name=>text.some(t=>t.includes(name)))&&text.some(t=>/Show controls|Hide controls/.test(t))?last:false;},'Diagnostic native AX readiness for all essential controls',20000);}catch(e){receipt.platformAccessibility={...last,failure:e.stack};}}catch(e){receipt.platformAccessibility={failure:e.stack};}
+  const currentNavigation=await js(()=>document.querySelector('.app-header')?.dataset.navigationProtocol==='drawer-v1');if(currentNavigation){await selectSetting(app,'page-size','24');await closeNavigation(app);}else{await app.click('Settings');await until(()=>js(()=>Boolean(document.getElementById('page-size'))),'Diagnostic settings');}
+  if(!currentNavigation)await js(()=>{const s=document.getElementById('page-size');s.value='24';s.dispatchEvent(new Event('change',{bubbles:true}));return true;});
+  await until(()=>js(()=>document.querySelectorAll('.media-card').length===22),'Diagnostic corpus');if(await js(()=>Boolean(document.getElementById('collection-controls'))))await app.click('Hide controls');
+  try{let last;try{receipt.platformAccessibility=await until(async()=>{last=await app.accessibility();const text=last.records.map(n=>[n.name,n.description,n.value].filter(Boolean).join(' '));return (currentNavigation?['Refresh','Menu']:['Refresh','Thumbnails','Diagnostics']).every(name=>text.some(t=>t.includes(name)))&&text.some(t=>/Show controls|Hide controls/.test(t))?last:false;},'Diagnostic native AX readiness for all essential controls',20000);}catch(e){receipt.platformAccessibility={...last,failure:e.stack};}}catch(e){receipt.platformAccessibility={failure:e.stack};}
   await js(()=>{document.addEventListener('keydown',e=>{window.__diagnosticKey={key:e.key,trusted:e.isTrusted};if(e.isTrusted&&e.key===' '&&window.__runtimeAudio)void window.__runtimeAudio.context.resume();},true);return true;});
   const media=await readFile(path.join(fixture.directory,'tone.webm'));
   assert.equal(digest(media),fixture.files.find(f=>f.name==='tone.webm').sha256);
