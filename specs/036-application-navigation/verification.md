@@ -38,3 +38,7 @@ The first ordinary macOS package campaign captured a closed drawer after its ext
 ## 2026-11-08: post-focus native acceptance migration
 
 At 547d17a, both Windows editions passed all native media, trusted keyboard, navigation accessibility, screen-reader, presentation and integrity checks. macOS native qualification also passed. Windows then reached the preserved extended browsing campaign and found a stale toolbar-only Close folder selector before discovery cancellation. That assertion now opens the real Gallery submenu, verifies Close folder is enabled during scanning, dismisses the drawer, and uses the relocated active-work Cancel discovery control for the existing trusted Enter cancellation. No discovery outcome, state or source-integrity assertion was removed.
+
+## 2026-11-08: explicit test return to browsing
+
+At 4ecfb61, hosted Windows Full/Lite native media, keyboard, accessibility, NVDA, presentation and integrity checks again passed. Extended browsing progressed through cancellation and partial/unavailable recovery, then its Retry discovery action remained scoped to the Sort and filter drawer opened by earlier edits. The test driver now explicitly dismisses navigation before named gallery/discovery and viewer actions; drawer-only inheritance/history actions retain their task scope. This does not add a missing-button fallback or change product behavior. Both authorized hosted reviews completed cleanly; subsequent driver corrections are validated through local syntax/integrity checks and hosted CI without requesting a third round.

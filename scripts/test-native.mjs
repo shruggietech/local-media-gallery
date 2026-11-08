@@ -73,8 +73,8 @@ async function rawClick(text) {
 }
 const navApp={js,click:rawClick};
 async function click(text){
- const main=['Show controls','Hide controls','Next page','Previous page','Close viewer'];
- if(main.includes(text))await closeNavigation(navApp);
+ const main=['Show controls','Hide controls','Next page','Previous page','Retry discovery','Cancel discovery','Close viewer','Information','Play','Pause','Previous','Next','Retry metadata inspection','Show next 50 fields (10 remaining)'];
+ if(main.includes(text)||text.startsWith('Include summary field ')||text.startsWith('Remove summary field '))await closeNavigation(navApp);
  if(text==='Refresh'||text==='Close folder'||text==='Open folder'){
   await navigateApplication(navApp,'Gallery');
   await rawClick(text);await closeNavigation(navApp);return;
