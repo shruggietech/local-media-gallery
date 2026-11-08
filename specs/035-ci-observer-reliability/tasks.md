@@ -28,7 +28,7 @@
 - [x] T009 [US2] Use SDK-owned process layout/constants through a small scripts/macos-process-info.h bridge and update scripts/build-macos-packages.mjs compilation without hand-coded ABI offsets. [FR-003, SC-002]
 - [x] T010 [US2] Repair scripts/macos-package-ui.swift with prelaunch identity snapshot, unique new coordinator/intent-generation binding, per-signal revalidation, actual stopped-state confirmation and bounded stop-inspect-resume admission. Record signal errno/identity/intent/terminal outcome; throw through cleanup. [FR-003, FR-004, FR-008, FR-009, SC-002]
 - [x] T011 [US2] Pass expected generation from scripts/test-macos-packages.mjs, elect compiled selftests and validate stronger interruption receipts in scripts/macos-packages.mjs and scripts/ci-macos-packages.mjs. Preserve operand-free managed-install replay. [FR-003, FR-004, FR-009, SC-002]
-- [ ] T012 [US2] Read back exact hosted original macOS interruption/refusal/recovery evidence and record it in specs/035-ci-observer-reliability/verification.md after T021. [FR-004, FR-009, SC-002]
+- [x] T012 [US2] Read back exact hosted original macOS interruption/refusal/recovery evidence and record it in specs/035-ci-observer-reliability/verification.md after T021. [FR-004, FR-009, SC-002]
 
 ## Phase 5: US3 - Windows checkpoints and bounded lifetime (P2)
 
@@ -37,9 +37,9 @@
 - [x] T013 [US3] Add failing pending/queued request, close/deadline, child-no-exit, inherited-output and journal context/ordering regressions in tests/windows-package-observer.test.mjs, tests/windows-child-termination.test.mjs and focused checkpoint tests. [FR-005, FR-006, FR-007, SC-003]
 - [x] T014 [US3] Implement narrowly scoped durable source/run/attempt/campaign/build/clock checkpoints and finite owned command settlement in scripts/observer-checkpoint.mjs and scripts/observer-command.mjs. Bound records/output and allowlist facts; never serialize environments or credentials. [FR-005, FR-006, FR-007, SC-003]
 - [x] T015 [US3] Repair scripts/windows-package-observer.mjs request admission/closing and scripts/run.mjs deadline settlement: clip requests, reject queued work on close and finalize failed termination without indefinite exit/pipe waits. [FR-006, FR-008, FR-009, SC-003]
-- [x] T016 [US3] Integrate pre-call source-bound phase/request/actor/MSI checkpoints, finite capture and preserved primary/cleanup errors into scripts/test-windows-packages.mjs and scripts/ci-windows-package-cohort.mjs. [FR-005, FR-006, FR-007, FR-009, SC-003]
+- [x] T016 [US3] Integrate pre-call source-bound phase/request/actor/MSI checkpoints, finite capture and preserved primary/cleanup errors into scripts/test-windows-packages.mjs and scripts/ci-windows-package-cohort.mjs. Repair the demonstrated legacy listener lookup in scripts/measure-processes.ps1 using SDK-layout scripts/windows-listener-table.cs, retaining native IPv4/IPv6 and foreign-owner regressions. [FR-005, FR-006, FR-007, FR-009, SC-003]
 - [x] T017 [US3] Retain diagnostics through existing always-run restoration/upload in .github/workflows/ci.yml and ensure outer native campaign output cannot strand the worker through inherited pipe handles. Preserve original 660/900/15 acceptance. [FR-007, FR-008, FR-009, SC-003]
-- [ ] T018 [US3] Read back exact hosted Windows checkpoint/teardown and ordinary MSI outcomes into specs/035-ci-observer-reliability/verification.md after T021. [FR-005, FR-007, FR-009, SC-003]
+- [x] T018 [US3] Read back exact hosted Windows checkpoint/teardown and ordinary MSI outcomes into specs/035-ci-observer-reliability/verification.md after T021. [FR-005, FR-007, FR-009, SC-003]
 
 ## Phase 6: Cross-cutting verification and delivery
 

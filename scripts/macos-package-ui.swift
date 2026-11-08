@@ -189,7 +189,14 @@ func interruptionSelfTest() throws -> [String:Any] {
         Thread.sleep(forTimeInterval:0.001)
     }
     try requireObservation(observedZombie,"Unreaped exited process must retain SDK birth/status facts");checks.append("real unreaped exit identity")
-    return ["result":"pass","observerProtocol":"operation-bound-v1","checks":checks]
+    let fixture=lmg_observer_held_fork()
+    try requireObservation(fixture.pid > 0,"Could not create owned fork-family fixture")
+    defer { lmg_observer_reap_fork(fixture) }
+    guard let realParent=try inspectActor(getpid()),let realChild=try inspectActor(fixture.pid),let realOwner=try inspectActor(getppid()) else { throw InterruptionFailure("Owned fork-family SDK facts unavailable") }
+    try requireObservation(realChild.parentPid == realParent.pid && realChild.path == realParent.path && realChild.sha256 == realParent.sha256,"Fork did not retain its parent's executable identity")
+    guard let selected=try selectCoordinator([realChild,realParent],Set(),realOwner) else { throw InterruptionFailure("Actual fork-family root unavailable") }
+    try requireObservation(selected.birth == realParent.birth,"Actual same-executable child displaced its coordinator root");checks.append("real held fork family")
+    return ["result":"pass","observerProtocol":"operation-bound-v1","checks":checks,"actualForkFamily":["parent":realParent.json,"child":realChild.json,"owner":realOwner.json,"selectedPid":Int(selected.pid)]]
 }
 func observePackageInterruption(_ args: [String]) throws -> [String:Any] {
     try requireObservation(args.count == 6,"Supply package, owned transaction, helper digest, log directory and generation")

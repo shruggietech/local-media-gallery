@@ -19,3 +19,13 @@ Run 42487685876 at e4897c2: preparation 1249.659 s, qualification 337.524 s, com
 ## 2026-11-08: second macOS and initial Windows lifecycle
 
 Run 42489263001 at e6dcd09, macOS: preparation 398.630 s, qualification 297.164 s, combined 695.794 s; first-install recovery passed, later update-root selection failed. Run 42487685876 at e4897c2, Windows lifecycle: preparation 1361.920 s, qualification 380.546 s, combined 1742.466 s; 29 checks and independent original diagnostic readback passed.
+
+Initial Windows experience: preparation 1361.920 s, qualification 784.192 s, combined 2146.112 s, pass (advisory overrun). Complete Windows gate: preparation 1361.920 s, qualification 816.409 s, combined 2178.329 s, pass. Transport/readback elapsed time remains inside the same original cohort window.
+
+## 2026-11-08: initial current-head Windows product failure
+
+Run 42490907587 at 872f85d: preparation 347.066 s, qualification 193.476 s, combined 540.542 s; unanswered legacy listener owner query, failed. Local repaired driver/listener suite: 26/26 pass in 9.4804511 s; original real legacy owner case 0.681471 s and unavailable-CIM/foreign-owner case 0.7100258 s. These local timings are not hosted qualification results.
+
+## 2026-11-08: successful macOS package campaign
+
+Run 42490907587 at 872f85d: preparation 674.349 s, qualification 498.200 s, combined 1172.549 s; complete package campaign and independent original interruption/refusal/recovery readback passed. All 21 compiled selftests passed. The final run additionally elects a real held-fork SDK regression (22 cases).
