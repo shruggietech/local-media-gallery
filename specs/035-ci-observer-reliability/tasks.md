@@ -18,7 +18,7 @@
 - [x] T004 [US1] Add failing tests for final 20/16-byte chunks, partial capture timeout, split frames, exit/spawn/duplicate terminals, cleanup failure, recorder latency and no-input/owned-stream continuity in tests/native-pcm.test.mjs. [FR-001, FR-002, SC-001]
 - [x] T005 [US1] Repair scripts/native-pcm.mjs with explicit 50-ms recording latency, idempotent complete-window settlement, bounded progress/partial digest and primary-plus-cleanup diagnostics. Preserve 16384 frames, 48-kHz float32 mono, four seconds and before/after assertions. [FR-001, FR-002, FR-008, FR-009, SC-001]
 - [x] T006 [US1] Elect the meaningful PCM regressions in scripts/ci-linux-packages.mjs and retain the existing later exercisePreparedRecipient path in scripts/test-linux-packages.mjs; document observer versus actual published source in verification.md. [FR-001, FR-002, FR-010, SC-004]
-- [ ] T007 [US1] Independently replay the actual published Linux canonical/asset bytes, prepared archive modes/retained data and in-place/relocated Refresh PNGs from the exact hosted artifacts into specs/035-ci-observer-reliability/verification.md after T021. [FR-010, FR-011, SC-004]
+- [x] T007 [US1] Independently replay the actual published Linux canonical/asset bytes, prepared archive modes/retained data and in-place/relocated Refresh PNGs from the exact hosted artifacts into specs/035-ci-observer-reliability/verification.md after T021. [FR-010, FR-011, SC-004]
 
 ## Phase 4: US2 - macOS operation-bound interruption (P2)
 

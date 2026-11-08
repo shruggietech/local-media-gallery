@@ -79,8 +79,14 @@ func matchingCoordinators(_ digest: String) throws -> [ObservedActor] {
     return result
 }
 func selectCoordinator(_ candidates: [ObservedActor], _ before: Set<String>, _ installer: ObservedActor) throws -> ObservedActor? {
-    let eligible = candidates.filter { !before.contains($0.birth) && bornAfter($0,installer) }
-    try requireObservation(eligible.count <= 1,"Ambiguous new package coordinators")
+    try requireObservation(candidates.count <= 64,"Package helper snapshot exceeds its bound")
+    // A fork temporarily has the same executable as its parent before exec.
+    // Admission belongs to the root coordinator, never its fork/worker child.
+    let roots = candidates.filter { child in !candidates.contains { parent in
+        parent.pid == child.parentPid && parent.path == child.path && parent.sha256 == child.sha256 && bornAfter(child,parent)
+    } }
+    let eligible = roots.filter { !before.contains($0.birth) && bornAfter($0,installer) }
+    try requireObservation(eligible.count <= 1,"Ambiguous new package coordinator roots")
     return eligible.first
 }
 func sandboxRoot(_ file: String) throws -> String {
@@ -151,6 +157,10 @@ func interruptionSelfTest() throws -> [String:Any] {
     try requireObservation(try selectCoordinator([owned],Set([owned.birth]),installer) == nil,"Pre-existing coordinator admitted");checks.append("pre-existing actor")
     try requireObservation(try selectCoordinator([actor(23,198)],Set(),installer) == nil,"Older actor admitted");checks.append("old birth")
     try rejected("ambiguous actors") { _ = try selectCoordinator([owned,actor(24)],Set(),installer) }
+    let forkChild=actor(24,200,SRUN,23)
+    try requireObservation(try selectCoordinator([forkChild,owned],Set(),installer)?.birth == owned.birth,"Fork child selected instead of coordinator root");checks.append("same executable fork family")
+    try requireObservation(try selectCoordinator([forkChild,owned],Set([owned.birth]),installer) == nil,"Pre-existing family admitted through its new child");checks.append("pre-existing family child")
+    try rejected("competing coordinator roots with child") { _ = try selectCoordinator([forkChild,owned,actor(25)],Set(),installer) }
     var reads = 0
     let stopped = try waitForStopped(owned,deadline:Date().addingTimeInterval(0.1),inspect:{reads += 1;return reads == 1 ? owned:actor(23,200,SSTOP)},pause:{})
     try requireObservation(reads == 2 && stopped.status == SSTOP,"STOP delivery was not observed");checks.append("delayed STOP delivery")
@@ -200,11 +210,17 @@ func observePackageInterruption(_ args: [String]) throws -> [String:Any] {
     func recordSignal(_ item:[String:Any]) { if signals.count == 128 { signals.removeFirst();droppedSignals += 1 };signals.append(item) }
     func persist() throws { report["droppedSignals"]=droppedSignals;report["observations"]=observations;report["droppedObservations"]=dropped;report["signals"]=signals;let bytes=try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys]);try bytes.write(to:URL(fileURLWithPath:logs+"/observer.json"),options:.atomic) }
     let send:(Int32,Int32)->(Int32,Int32) = {pid,signal in errno=0;let result=kill(pid,signal);return (result,errno)}
+    func snapshot() throws -> [ObservedActor] {
+        let matches=try matchingCoordinators(expectedDigest)
+        try requireObservation(matches.count <= 64,"Package helper snapshot exceeds its bound")
+        if matches.count > 1 { note(["event":"helper-family-snapshot","actors":matches.map{$0.json}]) }
+        return matches
+    }
     func signal(_ actor:ObservedActor,_ number:Int32,_ name:String) throws -> ObservedActor {
         try signalBoundActor(actor,signal:number,name:name,inspect:{try inspectActor(actor.pid)},send:send,record:{recordSignal($0)})
     }
     do {
-        let before = Set(try matchingCoordinators(expectedDigest).map{$0.birth})
+        let before = Set(try snapshot().map{$0.birth})
         let packageData = try Data(contentsOf:URL(fileURLWithPath:package)),packageDigest=SHA256.hash(data:packageData).map{String(format:"%02x",$0)}.joined()
         try process.run()
         guard let owner = try inspectActor(process.processIdentifier) else { throw InterruptionFailure("Installer exited before operation identity") }
@@ -214,10 +230,12 @@ func observePackageInterruption(_ args: [String]) throws -> [String:Any] {
         let deadline=Date().addingTimeInterval(60)
         var interrupted=false
         while Date() < deadline && process.isRunning {
-            guard let coordinator = try selectCoordinator(matchingCoordinators(expectedDigest),before,owner) else { Thread.sleep(forTimeInterval:0.005);continue }
+            let family=try snapshot()
+            guard let coordinator = try selectCoordinator(family,before,owner) else { Thread.sleep(forTimeInterval:0.005);continue }
             note(["event":"candidate","identity":coordinator.json,"parent":(try? inspectActor(coordinator.parentPid)).map{$0.json as Any} ?? NSNull()])
             // Recheck uniqueness and operation birth immediately before admission.
-            guard let unique = try selectCoordinator(matchingCoordinators(expectedDigest),before,owner),sameActor(unique,coordinator),process.isRunning else { continue }
+            let latestFamily=try snapshot()
+            guard let unique = try selectCoordinator(latestFamily,before,owner),sameActor(unique,coordinator),process.isRunning else { continue }
             held = coordinator
             _ = try signal(coordinator,SIGSTOP,"STOP")
             let stopped = try waitForStopped(coordinator,deadline:min(deadline,Date().addingTimeInterval(1)),inspect:{try inspectActor(coordinator.pid)},pause:{Thread.sleep(forTimeInterval:0.0005)})
@@ -230,7 +248,7 @@ func observePackageInterruption(_ args: [String]) throws -> [String:Any] {
                 Thread.sleep(forTimeInterval:0.001);continue
             }
             report["coordinator"]=coordinator.json;report["coordinatorPid"]=Int(coordinator.pid);report["coordinatorPath"]=coordinator.path;report["phase"]=phase
-            report["binding"]=["unique":true,"new":true,"generation":generation,"sandboxRoot":try sandboxRoot(coordinator.path)]
+            report["binding"]=["unique":true,"new":true,"generation":generation,"sandboxRoot":try sandboxRoot(coordinator.path),"selection":"same-executable-root","family":latestFamily.map{$0.json}]
             report["stopped"]=["confirmed":true,"identity":stopped.json,"observedAt":observationTime()]
             try persist()
             // Replay only the authentic embedded facade, without descriptor operands.
