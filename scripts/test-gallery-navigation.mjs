@@ -111,6 +111,7 @@ const reflow=async()=>assert.ok(await page.evaluate(()=>document.documentElement
  await step('Compact bar, all five categories, Back/Escape/focus and empty selection',async()=>{
   assert.equal(await page.locator('.app-header').getByRole('button').count(),3);
   const menu=page.locator('.app-header').getByRole('button',{name:'Menu',exact:true});await menu.click();
+  assert.equal(await page.locator(':focus').getAttribute('id'),'navigation-title');await page.keyboard.press('Tab');assert.equal(await page.locator(':focus').getAttribute('aria-label'),'Close menu');
   for(const category of ['Gallery','View','Prepare & share','Settings','Help']){
    await drawer().getByRole('button',{name:category,exact:true}).click();
    assert.equal(await drawer().locator('h2').innerText(),category);

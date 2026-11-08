@@ -43,7 +43,7 @@ export function ApplicationNavigation({route, navigate, close, action, invoker, 
       const nodes=[...event.currentTarget.querySelectorAll<HTMLElement>('button,input,select,textarea,a[href],[tabindex="0"],summary')].filter(n=>!n.matches(':disabled')&&n.getClientRects().length>0&&!n.closest('[hidden]'));
       const first=nodes[0],last=nodes.at(-1);if(!first){event.preventDefault();title.current?.focus();return;}
       if(event.shiftKey&&(document.activeElement===first||document.activeElement===title.current)){event.preventDefault();last?.focus();}
-      else if(!event.shiftKey&&(document.activeElement===last||!event.currentTarget.contains(document.activeElement))){event.preventDefault();first.focus();}
+      else if(!event.shiftKey&&(document.activeElement===title.current||document.activeElement===last||!event.currentTarget.contains(document.activeElement))){event.preventDefault();first.focus();}
     }}>
     <header className="navigation-header">
       {route&&route!=='menu'?<Button variant="ghost" onClick={back}><ArrowLeft aria-hidden="true"/>Back</Button>:<span/>}

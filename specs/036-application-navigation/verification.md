@@ -26,3 +26,7 @@ Native acceptance remains outstanding until hosted CI. The active workstation wa
 Wide and 320px screenshots were inspected. The 200-percent text capture exposed split Back/Close words; the header now wraps whole buttons instead. Browser checks verify coarse-pointer targets of at least 44px and axe in both themes. These are browser observations, not physical touch or native screen-reader claims.
 
 Final hosted checks and up to two review rounds are recorded on the PR, with the owner final merge boundary. No completion-only evidence commit is required after CI.
+
+## 2026-11-08: hosted keyboard correction
+
+Initial head 986241d passed hosted repository, website and rendered navigation checks and received a clean first Codex review. Windows and macOS native playback/image checks passed, then both observed trusted Tab move from the menu heading to Gallery, skipping the earlier Close control. A new browser assertion reproduced that exact mismatch before the fix. The drawer now explicitly moves forward Tab from the focused heading to its first available control. The meaningful red assertion and complete eight-group browser suite passed after correction, with frontend/export, syntax, integrity and encoding checks. This replaces no native assertion and preserves the failed first-run receipts under run 42522452074.
