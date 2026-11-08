@@ -35,7 +35,7 @@ export function selectWindowsCampaignArtifact(context,clock,campaign,artifacts){
  const ready=Date.parse(clock.readinessVerified),deadline=Date.parse(clock.activeDeadline);
  // Names are reused across attempts. An earlier completed or failed packet
  // cannot satisfy this cohort while its fresh worker is still running.
- const selected=artifacts.filter(a=>a.name==='windows-'+campaign+'-evidence-'+context.shaLabel&&!a.expired&&/^sha256:[a-f0-9]{64}$/.test(a.digest??'')&&Date.parse(a.created_at)>=ready&&Date.parse(a.created_at)<deadline).sort((a,b)=>b.id-a.id)[0];
+ const selected=artifacts.filter(a=>a.name==='windows-'+campaign+'-evidence-'+context.shaLabel&&!a.expired&&/^sha256:[a-f0-9]{64}$/.test(a.digest??'')&&Date.parse(a.created_at)>=ready&&Date.parse(a.created_at)<deadline).sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at)||b.id-a.id)[0];
  if(!selected)return undefined;
  assert.ok(Number.isSafeInteger(selected.id)&&selected.id>0);
  assert.ok(Number.isSafeInteger(selected.size_in_bytes)&&selected.size_in_bytes>0&&selected.size_in_bytes<=5*1024**3);
@@ -48,7 +48,7 @@ export function combineWindowsCampaigns(build,fragments,receipts,context){
  const parts=new Map(),records=new Map();
  for(const part of fragments){
   assert.equal(part.kind,'windows-package-fragment');assert.ok(windowsCampaigns.includes(part.campaign));assert.equal(part.result,'pass');assert.equal(part.acceptance,false,'Partial campaigns cannot grant product acceptance');assert.equal(parts.has(part.campaign),false);
-  assert.deepEqual(part.source,build.source);assert.equal(part.revision,build.revision);assert.equal(part.buildSha256,context.buildSha256);assert.equal(part.fullMsiSha256,build.products.find(p=>p.edition==='full').artifact.sha256);validateWindowsCohortClock(part.clock,context);parts.set(part.campaign,part);
+  assert.deepEqual(part.source,build.source);assert.equal(part.revision,build.revision);assert.equal(part.buildSha256,context.buildSha256);assert.equal(part.fullMsiSha256,build.products.find(p=>p.edition==='full').artifact.sha256);validateWindowsCohortClock(part.clock,context);if(build.observerProtocol==='bounded-observer-v1'){assert.equal(part.diagnostics?.protocol,'bounded-observer-v1');assert.deepEqual(part.diagnostics.context,{...context,campaign:part.campaign,clock:part.clock});assert.deepEqual(part.diagnostics.files.map(file=>file.path).sort(),['windows-campaign-checkpoints-','windows-campaign-latest-','windows-observer-checkpoint-'].map(prefix=>'.local/'+prefix+part.campaign+'.json').concat(['.local/windows-campaign-native-'+part.campaign+'.stdout.log','.local/windows-campaign-native-'+part.campaign+'.stderr.log']).sort());for(const file of part.diagnostics.files){assert.match(file.path,/^\.local\/windows-(campaign|observer)-[A-Za-z0-9.-]+$/);assert.match(file.sha256,/^[a-f0-9]{64}$/);assert.match(file.bytes,/^[0-9]+$/);}}parts.set(part.campaign,part);
  }
  for(const record of receipts){
   const campaign=record.context.campaign;assert.ok(windowsCampaigns.includes(campaign));assert.equal(records.has(campaign),false);assert.equal(record.context.scope,'windows-'+campaign);assert.deepEqual(record.context.source,build.source);assert.equal(record.context.revision,build.revision);assert.equal(record.result,'pass');assert.ok(record.steps.length>0&&record.steps.every(s=>s.result==='pass'));

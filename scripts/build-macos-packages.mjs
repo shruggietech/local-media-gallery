@@ -16,7 +16,7 @@ import {writeUpdateDescriptor} from './update-packages.mjs';
 import {sourceIdentity} from './provenance.mjs';import {collectPayload} from './proof.mjs';import {hash,validateMacPayload,macProductDistribution,macInstallerScript,validateMacProduct,macContainerInventory} from './macos-packages.mjs';
 assert.equal(process.platform,'darwin');assert.equal(process.arch,'arm64');
 const call=promisify(execFile);export async function capture(file,args,options={}){const p=call(file,args,{cwd:root,env:environment,shell:false,timeout:120000,maxBuffer:16*1024*1024,...options});p.child.stdin.end();return p;}
-const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim();const generation=randomBytes(16).toString('hex');const directory=await mkdtemp(path.join(root,'.local/macos-packages-'));await execute('/usr/bin/swiftc',[path.join(root,'scripts/macos-package-ui.swift'),'-o',path.join(directory,'macos-package-ui')]);
+const source=await sourceIdentity(),revision=(await capture('git',['rev-parse','HEAD'])).stdout.trim();const generation=randomBytes(16).toString('hex');const directory=await mkdtemp(path.join(root,'.local/macos-packages-'));await execute('/usr/bin/swiftc',[path.join(root,'scripts/macos-package-ui.swift'),'-import-objc-header',path.join(root,'scripts/macos-process-info.h'),'-lproc','-o',path.join(directory,'macos-package-ui')]);
 const predecessorRecordBytes=await readFile(path.join(root,'crates/gallery-preparation/tests/fixtures/release-0.1.0.json'));
 assert.equal(hash(predecessorRecordBytes),'079615f3ff8434b32c3c632190b544c6c32e17513fa125ec7e07f679a1c65f1f');
 const predecessorRelease=parseReleaseRecord(predecessorRecordBytes,{requirePublished:true});assert.equal(predecessorRelease.version,'0.1.0');
@@ -111,4 +111,4 @@ for(const record of records){
  if(edition==='full')for(const scope of ['user','system'])upgrades.pairs.push({...pair,scope});else upgrades.pairs.push(pair);
 }
 
-assert.deepEqual(await sourceIdentity(),source);await writeFile(path.join(root,'.local/macos-package-build.json'),JSON.stringify({formatVersion:1,generation,source,revision,directory:path.relative(root,directory),products,publishedPredecessor,featureFixture:fixtureRecord,observer:path.relative(root,path.join(directory,'macos-package-ui')),upgrades,records},null,2)+'\n');console.log('Built ordinary macOS Full/Lite candidates.');
+assert.deepEqual(await sourceIdentity(),source);await writeFile(path.join(root,'.local/macos-package-build.json'),JSON.stringify({formatVersion:1,observerProtocol:'operation-bound-v1',generation,source,revision,directory:path.relative(root,directory),products,publishedPredecessor,featureFixture:fixtureRecord,observer:path.relative(root,path.join(directory,'macos-package-ui')),upgrades,records},null,2)+'\n');console.log('Built ordinary macOS Full/Lite candidates.');

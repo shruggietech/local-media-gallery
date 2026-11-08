@@ -19,8 +19,9 @@ while ($null -ne ($line = [Console]::ReadLine())) {
         } elseif ($request.action -eq 'listener') {
             $port = [int]$request.port
             if ($port -lt 1 -or $port -gt 65535) { throw 'Invalid listener port' }
-            $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue | Where-Object { $_.LocalAddress -in @('127.0.0.1','0.0.0.0','::') })
-            $result = @{port=$port;owners=@($listeners | Select-Object -ExpandProperty OwningProcess -Unique);addresses=@($listeners | Select-Object -ExpandProperty LocalAddress -Unique);method='Windows TCP listener table'}
+            if (!('GalleryListenerTable' -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot 'windows-listener-table.cs') }
+            $listeners = @([GalleryListenerTable]::Listen($port))
+            $result = @{port=$port;owners=@($listeners | Select-Object -ExpandProperty OwningProcess -Unique);addresses=@($listeners | Select-Object -ExpandProperty LocalAddress -Unique);method='Windows TCP listener table';provider='GetExtendedTcpTable'}
         } elseif ($request.action -eq 'memory') {
             $rootId = [int]$request.rootPid
             $all = @(Get-CimInstance Win32_Process -OperationTimeoutSec 5)

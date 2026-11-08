@@ -8,6 +8,9 @@
     UI operations retain the existing isolated-CI guard. Shortcut, registration
     and runtime inspection are read-only. No network, clipboard, installation or arbitrary command route.
     EOF closes the session. Protocol or source failures return structured errors.
+    Optional isolated-CI checkpoints retain source, clock and process identities
+    before native calls. They write only under the current workspace .local tree;
+    request payloads, environment values and credentials are not serialized.
 .PARAMETER ProtocolVersion
     Supported pipe protocol version, currently 1. Default: 1. Alias: v.
 .PARAMETER Help
@@ -55,6 +58,48 @@ Param(
         }
     }
 
+    function Write-ObserverCheckpoint {
+        [CmdletBinding()]
+        Param(
+            [Parameter(Mandatory=$true)][hashtable]$Request,
+            [Parameter(Mandatory=$true)][ValidateSet('pending','complete','failed')][string]$Status
+        )
+        if (!$script:ObserverCheckpointFile) { return }
+        $latestText=[IO.File]::ReadAllText($script:ObserverContextFile)
+        $latest=ConvertFrom-Json -InputObject $latestText -AsHashtable
+        $document=[Text.Json.JsonDocument]::Parse($latestText)
+        try { $contextJson=$document.RootElement.GetProperty('context').GetRawText() } finally { $document.Dispose() }
+        if ($contextJson -ne $script:ObserverContextJson) { throw 'Observer checkpoint source/clock context changed' }
+        if ($latest.record.requestId -ne $Request.id -or $latest.record.route -ne $Request.route) { throw 'Observer checkpoint request differs from its admitted owner record' }
+        $target=$null
+        if ($Request.ContainsKey('processId')) {
+            $target=@{pid=$Request.processId;creationTime=$null}
+            try {
+                $owned=[Diagnostics.Process]::GetProcessById([int]$Request.processId)
+                try { $target.creationTime=$owned.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture) } finally { $owned.Dispose() }
+            } catch { $target.creationTime=$null }
+        }
+        $action=if ($Request.route -eq 'msi' -and $Request.ContainsKey('name')) { ([string]$Request.name).Substring(0,[Math]::Min(256,([string]$Request.name).Length)) } else { [string]$Request.route }
+        $packet=@{formatVersion=1;acceptance=$false;context=$null;phase='native-request';status=$Status;at=[DateTime]::UtcNow.ToString('O');stage=$latest.record.stage;requestId=$Request.id;route=$Request.route;action=$action;actor=$script:ObserverActor;targetActor=$target}
+        if ([IO.File]::Exists($script:ObserverCheckpointFile)) {
+            $oldText=[IO.File]::ReadAllText($script:ObserverCheckpointFile)
+            $old=ConvertFrom-Json -InputObject $oldText -AsHashtable
+            $document=[Text.Json.JsonDocument]::Parse($oldText)
+            try { $oldContext=$document.RootElement.GetProperty('context').GetRawText() } finally { $document.Dispose() }
+            if ($old.formatVersion -ne 1 -or $oldContext -ne $script:ObserverContextJson) { throw 'Refusing a foreign observer checkpoint destination' }
+        }
+        $temporary=$script:ObserverCheckpointFile+'.next-'+[Guid]::NewGuid().ToString('N')
+        try {
+            # Preserve the exact JSON context. ConvertFrom-Json otherwise coerces ISO dates
+            # and ConvertTo-Json changes their spelling, invalidating the shared clock.
+            $json=(ConvertTo-Json -InputObject $packet -Depth 32 -Compress).Replace('"context":null','"context":'+$contextJson)
+            $bytes=[Text.UTF8Encoding]::new($false).GetBytes($json+[char]10)
+            $file=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+            try { $file.Write($bytes,0,$bytes.Length); $file.Flush() } finally { $file.Dispose() }
+            [IO.File]::Move($temporary,$script:ObserverCheckpointFile,$true)
+        } finally { if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) } }
+    }
+
 #_______________________________________________________________________________
 ## Declare Variables and Arrays
 
@@ -72,7 +117,27 @@ Param(
         $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');input=(Join-Path $PSScriptRoot 'native-input.ps1');state=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1');runtime=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1')}
         $observerHashes=@{}
         foreach ($route in $observerScripts.Keys) { $observerHashes[$route]=(Get-FileHash -LiteralPath $observerScripts[$route] -Algorithm SHA256).Hash.ToLowerInvariant() }
-        @{type='ready';protocolVersion=$ProtocolVersion;pid=$PID;sources=$observerHashes;apartment=([Threading.Thread]::CurrentThread.GetApartmentState().ToString())}|ConvertTo-Json -Compress
+        $self=[Diagnostics.Process]::GetCurrentProcess()
+        try { $script:ObserverActor=@{pid=$PID;creationTime=$self.StartTime.ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture);executablePath=$self.MainModule.FileName;sha256=(Get-FileHash -LiteralPath $self.MainModule.FileName -Algorithm SHA256).Hash.ToLowerInvariant()} } finally { $self.Dispose() }
+        $serverSha256=(Get-FileHash -LiteralPath $ThisScriptPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $script:ObserverCheckpointFile=$null
+        if ($env:GALLERY_OBSERVER_CONTEXT_FILE -or $env:GALLERY_OBSERVER_CHECKPOINT_FILE) {
+            if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1' -or !$env:GITHUB_WORKSPACE -or !$env:GALLERY_OBSERVER_CONTEXT_FILE -or !$env:GALLERY_OBSERVER_CHECKPOINT_FILE) { throw 'Native checkpoints require explicitly isolated CI and both owned paths' }
+            $localRoot=[IO.Path]::GetFullPath((Join-Path $env:GITHUB_WORKSPACE '.local')).TrimEnd([char]92)+[char]92
+            foreach ($candidate in @($env:GALLERY_OBSERVER_CONTEXT_FILE,$env:GALLERY_OBSERVER_CHECKPOINT_FILE)) {
+                $full=[IO.Path]::GetFullPath($candidate)
+                if (!$full.StartsWith($localRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Observer checkpoint must remain in the isolated workspace' }
+                for ($parent=[IO.DirectoryInfo]::new([IO.Path]::GetDirectoryName($full));$null -ne $parent;$parent=$parent.Parent) {
+                    if ($parent.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Redirected observer checkpoint parent' }
+                }
+                if ([IO.File]::Exists($full) -and ((Get-Item -LiteralPath $full).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Redirected observer checkpoint file' }
+            }
+            $script:ObserverContextFile=[IO.Path]::GetFullPath($env:GALLERY_OBSERVER_CONTEXT_FILE)
+            $script:ObserverCheckpointFile=[IO.Path]::GetFullPath($env:GALLERY_OBSERVER_CHECKPOINT_FILE)
+            $document=[Text.Json.JsonDocument]::Parse([IO.File]::ReadAllText($script:ObserverContextFile))
+            try { $script:ObserverContextJson=$document.RootElement.GetProperty('context').GetRawText() } finally { $document.Dispose() }
+        }
+        @{type='ready';protocolVersion=$ProtocolVersion;pid=$PID;sources=$observerHashes;apartment=([Threading.Thread]::CurrentThread.GetApartmentState().ToString());creationTime=$script:ObserverActor.creationTime;executablePath=$script:ObserverActor.executablePath;executableSha256=$script:ObserverActor.sha256;serverSha256=$serverSha256}|ConvertTo-Json -Compress
         while ($null -ne ($observerLine=Read-ObserverLine)) {
             $requestId=$null
             try {
@@ -80,6 +145,7 @@ Param(
                 if ($request.id -isnot [long] -and $request.id -isnot [int]) { throw 'Observer request ID must be an integer' }
                 $requestId=$request.id
                 if ($requestId -lt 1) { throw 'Observer request ID must be positive' }
+                Write-ObserverCheckpoint -Request $request -Status pending
                 if ($request.route -eq 'ping') {
                     $result=@{pong=$true}
                 } else {
@@ -123,9 +189,12 @@ Param(
                     $raw=& $scriptFile @parameters
                     $result=if ($request.route -eq 'input') { @{completed=$true;action=$request.action;targetPid=$request.processId} } else { ConvertFrom-Json -InputObject ($raw -join [char]10) -AsHashtable }
                 }
-                @{id=$requestId;pid=$PID;ok=$true;result=$result}|ConvertTo-Json -Depth 16 -Compress
+                Write-ObserverCheckpoint -Request $request -Status complete
+                @{id=$requestId;pid=$PID;creationTime=$script:ObserverActor.creationTime;ok=$true;result=$result}|ConvertTo-Json -Depth 16 -Compress
             } catch {
-                @{id=$requestId;pid=$PID;ok=$false;error=$_.Exception.Message}|ConvertTo-Json -Compress
+                $failureMessage=$_.Exception.Message
+                if ($null -ne $requestId) { try { Write-ObserverCheckpoint -Request $request -Status failed } catch { $failureMessage+='; checkpoint failure' } }
+                @{id=$requestId;pid=$PID;creationTime=$script:ObserverActor.creationTime;ok=$false;error=$failureMessage}|ConvertTo-Json -Compress
             }
             $result=$null; $raw=$null; $request=$null
             $Error.Clear()

@@ -2,7 +2,7 @@
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
 import assert from 'node:assert/strict';
-import {readFile,writeFile,appendFile,mkdir,copyFile} from 'node:fs/promises';
+import {readFile,writeFile,appendFile,mkdir,copyFile,open} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import path from 'node:path';
@@ -13,6 +13,7 @@ import {collectPayload,verifyPayload} from './proof.mjs';
 import {prepareCargoDependencies} from './cargo-readiness.mjs';
 import {prepareMediaTool} from './prepare-media-tool.mjs';
 import {qualification} from './qualification.mjs';
+import {validateObserverJournal,validateNativeObserverCheckpoint} from './observer-checkpoint.mjs';
 import {joinedChecks} from './joined-checks.mjs';
 import {verifyMsiCommandReadiness} from './windows-msi-command.mjs';
 import {prepareWindowsDiagnosticFixtures} from './windows-package-fixtures.mjs';
@@ -61,7 +62,7 @@ if(operation==='build'){
  await copyFile(path.join(root,'target/release/gallery-preparation.exe'),path.join(root,build.directory,'preparation-driver.exe'));
  await save('windows-package-inputs.json',{formatVersion:1,kind:'windows-package-inputs',result:'ready',source,revision:head,runId:process.env.GITHUB_RUN_ID,workspace:root,directory:build.directory,buildSha256:windowsBuildDigest(build),rawBuildSha256:hash(raw),preparationStarted,ready:new Date().toISOString(),inventory:await collectPayload(path.join(root,build.directory))});
 }else if(operation==='prepare'){
- const {build,context}=await inputs(true),msiCommandReadiness=await verifyMsiCommandReadiness({root,env:environment});
+ const {build,context}=await inputs(true);assert.equal(build.observerProtocol,'bounded-observer-v1');const msiCommandReadiness=await verifyMsiCommandReadiness({root,env:environment});
  const mediaTool=campaign==='experience'?await prepareMediaTool({download:true}):null;
  await mkdir(path.join(root,'target/release'),{recursive:true});await copyFile(path.join(root,build.directory,'preparation-driver.exe'),path.join(root,'target/release/gallery-preparation.exe'));
  if(campaign==='lifecycle'){
@@ -86,12 +87,23 @@ if(operation==='build'){
  assert.ok(process.env.GITHUB_OUTPUT,'Actions output file required for exact worker download');
  await appendFile(process.env.GITHUB_OUTPUT,'artifact_id='+selected.id+'\n');
 }else if(operation==='run'){
- const {build,context}=await inputs(),ready=await json('windows-campaign-ready-'+campaign+'.json');assert.equal(ready.campaign,campaign);assert.deepEqual(ready.context,context);
+ const {build,context}=await inputs(),ready=await json('windows-campaign-ready-'+campaign+'.json');assert.equal(build.observerProtocol,'bounded-observer-v1');assert.equal(ready.campaign,campaign);assert.deepEqual(ready.context,context);
  let clock,concurrentChecks;const env=runtimeEnvironment(build);
+ await execute(process.execPath,['--test','tests/observer-command.test.mjs','tests/observer-checkpoint.test.mjs','tests/windows-package-observer.test.mjs','tests/windows-child-termination.test.mjs','tests/windows-package-cohort.test.mjs']);
  const record=await qualification({preparationStartedAt:Date.parse(context.preparationStarted),readinessVerifiedAt:prepared=>Date.parse(prepared.cohortClock.readinessVerified),identify:async()=>({scope:'windows-'+campaign,campaign,source:context.source,revision:context.revision}),prepare:async()=>{clock=await commonClock(context,ready);await save('windows-campaign-clock-'+campaign+'.json',clock);return {cohortClock:clock};},steps:[
   ...(campaign==='lifecycle'?[{name:'Exact published MSI administrative retention in isolated protected storage',run:()=>execute('cargo',['test','--release','--locked','-p','gallery-update','actual_native_admin_retention','--','--ignored'],{env:{...env,GALLERY_MSI_ADMIN_DESCRIPTOR:path.join(root,build.publishedPredecessor.directory,'machine.msi.update.json'),GALLERY_MSI_ADMIN_FAILURE:path.join(local,'windows-admin-retention-failure.log'),GALLERY_MSI_ADMIN_LOG:path.join(local,'windows-admin-retention-native.log')}})}]:[]),
   {name:campaign==='experience'?'Actual offline MSI, standard user, wizard, choices, cached repair and published recovery':'Joined Windows ownership units and ordinary Full/Lite lifecycle',run:async()=>{
-   const actual=()=>node(path.join(root,'scripts/test-windows-packages.mjs'),[],{env:{...environment,GALLERY_WINDOWS_CAMPAIGN:campaign,GALLERY_WINDOWS_COHORT_FILE:path.join(local,'windows-campaign-clock-'+campaign+'.json')}});
+   const actual=async()=>{
+    const out=await open(path.join(local,'windows-campaign-native-'+campaign+'.stdout.log'),'w');let err;
+    try{err=await open(path.join(local,'windows-campaign-native-'+campaign+'.stderr.log'),'w');await node(path.join(root,'scripts/test-windows-packages.mjs'),[],{stdio:['ignore',out.fd,err.fd],env:{...environment,GALLERY_WINDOWS_CAMPAIGN:campaign,GALLERY_WINDOWS_COHORT_FILE:path.join(local,'windows-campaign-clock-'+campaign+'.json')}});}
+    catch(error){await save('windows-campaign-controller-failure-'+campaign+'.json',{acceptance:false,context:{...context,campaign,clock},observed:new Date().toISOString(),error:error.message,code:error.code??null,terminal:error.terminal??null});throw error;}
+    finally{await out.close();await err?.close();}
+    const contextPacket={...context,campaign,clock},journal=await json('windows-campaign-checkpoints-'+campaign+'.json'),native=await json('windows-observer-checkpoint-'+campaign+'.json');validateObserverJournal(journal,contextPacket);validateNativeObserverCheckpoint(native,contextPacket);
+    assert.equal(journal.records.at(-1)?.status,'closed','Native campaign cleanup must finish before success');assert.equal(native.status,'complete');
+    const fragment=await json('windows-campaign-'+campaign+'.json');fragment.diagnostics={protocol:'bounded-observer-v1',context:contextPacket,files:[]};
+    for(const name of ['windows-campaign-checkpoints-'+campaign+'.json','windows-campaign-latest-'+campaign+'.json','windows-observer-checkpoint-'+campaign+'.json','windows-campaign-native-'+campaign+'.stdout.log','windows-campaign-native-'+campaign+'.stderr.log']){const raw=await readFile(path.join(local,name));fragment.diagnostics.files.push({path:'.local/'+name,bytes:String(raw.length),sha256:hash(raw)});}
+    fragment.terminalFinished=new Date().toISOString();await save('windows-campaign-'+campaign+'.json',fragment);
+   };
    if(campaign==='experience'){await actual();return;}
    concurrentChecks=await joinedChecks([{name:'Windows package native ownership units',run:async()=>{
     await execute('cargo',['test','--locked','-p','gallery-windows-package','-p','gallery-update'],{env});
@@ -114,7 +126,8 @@ if(operation==='build'){
  const {info,build,context}=await inputs(),fragments=await Promise.all(windowsCampaigns.map(role=>json('windows-campaign-'+role+'.json'))),receipts=await Promise.all(windowsCampaigns.map(role=>json('windows-campaign-'+role+'-qualification.json')));
  const clock=fragments[0].clock,transfers=await Promise.all(windowsCampaigns.map(role=>json('windows-campaign-gate-transfer-'+role+'.json')));validateWindowsCohortClock(clock,context);let combined;
  const record=await qualification({preparationStartedAt:Date.parse(context.preparationStarted),readinessVerifiedAt:()=>Date.parse(clock.readinessVerified),identify:async()=>({scope:'windows-packages',source:context.source,revision:context.revision}),prepare:async()=>{},steps:[
-  {name:'Both isolated Windows campaigns share one source, recipient and absolute clock',run:async()=>{combined=combineWindowsCampaigns(build,fragments,receipts,context);for(const [index,transfer] of transfers.entries()){assert.equal(transfer.campaign,windowsCampaigns[index]);assert.deepEqual(transfer.clock,clock);assert.ok(Number.isSafeInteger(transfer.artifact?.id)&&transfer.artifact.id>0);assert.match(transfer.artifact.digest,/^sha256:[a-f0-9]{64}$/);assert.ok(Date.parse(transfer.observed)<Date.parse(clock.activeDeadline));}validateWindowsInputInventory(await collectPayload(path.join(root,info.directory)),info.inventory);}},
+  {name:'Both isolated Windows campaigns share one source, recipient and absolute clock',run:async()=>{combined=combineWindowsCampaigns(build,fragments,receipts,context);for(const [index,transfer] of transfers.entries()){assert.equal(transfer.campaign,windowsCampaigns[index]);assert.deepEqual(transfer.clock,clock);assert.ok(Number.isSafeInteger(transfer.artifact?.id)&&transfer.artifact.id>0);assert.match(transfer.artifact.digest,/^sha256:[a-f0-9]{64}$/);assert.ok(Date.parse(transfer.observed)<Date.parse(clock.activeDeadline));}for(const fragment of fragments)for(const file of fragment.diagnostics.files){const raw=await readFile(path.join(root,file.path));assert.equal(String(raw.length),file.bytes);assert.equal(hash(raw),file.sha256);}
+   validateWindowsInputInventory(await collectPayload(path.join(root,info.directory)),info.inventory);}},
   {name:'Independent complete package, native, retained-source and governed-byte readback',run:async()=>{await validatePackageEvidence(normalizeWindowsEvidence(build),normalizeWindowsEvidence({...combined,acceptance:true}),root);assert.deepEqual(await sourceIdentity(),context.source);await node(path.join(root,'scripts/sync-brand-kit.mjs'),['--verify']);}}
  ]});
  if(record.result==='pass'){

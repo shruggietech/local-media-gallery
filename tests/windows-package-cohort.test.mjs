@@ -25,6 +25,7 @@ test('A retried gate waits past retained same-name packets until its current wor
  assert.equal(selectWindowsCampaignArtifact(context,clock,'lifecycle',[stale]),undefined);
  const current={...stale,id:51,created_at:'2026-01-01T00:00:20.000Z'};
  assert.equal(selectWindowsCampaignArtifact(context,clock,'lifecycle',[current,stale]),current);
+ const newer={...current,id:40,created_at:'2026-01-01T00:00:21.000Z'};assert.equal(selectWindowsCampaignArtifact(context,clock,'lifecycle',[current,newer]),newer,'Creation time is authoritative even when IDs are not chronological');
  // Even misleading ID order cannot make a packet from before readiness fresh.
  assert.equal(selectWindowsCampaignArtifact(context,clock,'lifecycle',[current,{...stale,id:99}]),current);
 });
@@ -62,3 +63,5 @@ test('Independent readback normalizes only retained relative Windows paths witho
  const value={path:'.local\\evidence\\file.log',logs:['.local\\scope\\a.log'],native:'C:\\Owner\\App',source:{sha256:'a'.repeat(64)}};
  const normalized=normalizeWindowsEvidence(value);assert.equal(normalized.path,'.local/evidence/file.log');assert.deepEqual(normalized.logs,['.local/scope/a.log']);assert.equal(normalized.native,value.native);assert.equal(value.path,'.local\\evidence\\file.log');
 });
+
+test('Current observer campaigns require source-bound unique diagnostics instead of historical receipts',()=>{const current={...build,observerProtocol:'bounded-observer-v1'},c={...context,buildSha256:windowsBuildDigest(current)},clock=windowsCohortClock(c,artifacts),value=fixture();for(const fragment of value.fragments){fragment.buildSha256=c.buildSha256;fragment.clock=clock;fragment.diagnostics={protocol:'bounded-observer-v1',context:{...c,campaign:fragment.campaign,clock},files:['windows-campaign-checkpoints-','windows-campaign-latest-','windows-observer-checkpoint-'].map(prefix=>({path:'.local/'+prefix+fragment.campaign+'.json',bytes:'100',sha256:'e'.repeat(64)})).concat(['stdout','stderr'].map(stream=>({path:'.local/windows-campaign-native-'+fragment.campaign+'.'+stream+'.log',bytes:'0',sha256:'f'.repeat(64)})))};}assert.equal(combineWindowsCampaigns(current,value.fragments,value.receipts,c).acceptance,false);for(const mutate of [x=>delete x.fragments[0].diagnostics,x=>x.fragments[0].diagnostics.context.clock={...clock,hardLimitSeconds:901},x=>x.fragments[0].diagnostics.files[1]=x.fragments[0].diagnostics.files[0]]){const bad=structuredClone(value);mutate(bad);assert.throws(()=>combineWindowsCampaigns(current,bad.fragments,bad.receipts,c));}});
