@@ -405,12 +405,12 @@ try {
   });
   await test('relocated directory reopens without a manifest and retires old grants', async () => {
     const before = await snapshot(); const item = before.items[0]; const moved = fixture.directory + '-moved';
-    await click('Close folder'); await visible('document.body.textContent.includes("No directory selected")');
+    await click('Close folder'); await visible('document.querySelector("#gallery-empty")?.textContent.includes("Open a media directory") && [...document.querySelectorAll(".selection-actions button")].some(b=>b.textContent.trim()==="Open folder"&&!b.disabled)');
     await rename(fixture.directory, moved);
     try {
       await openSettled(moved); await visible('document.querySelectorAll(".media-card").length===12');
       assert.equal((await fetch(`${before.mediaOrigin}/media/${before.sessionId}/${item.id}/${item.revision}`)).status, 404);
-    } finally { await click('Close folder'); await visible('document.body.textContent.includes("No directory selected")'); await rename(moved, fixture.directory); }
+    } finally { await click('Close folder'); await visible('document.querySelector("#gallery-empty")?.textContent.includes("Open a media directory") && [...document.querySelectorAll(".selection-actions button")].some(b=>b.textContent.trim()==="Open folder"&&!b.disabled)'); await rename(moved, fixture.directory); }
     await openSettled(fixture.directory);
     await visible('document.querySelectorAll(".media-card").length===12');
   });
@@ -807,7 +807,7 @@ try {
   });
   await test('no-argument startup is explicit selection; unavailable startup is recoverable', async () => {
     await stop(); child = launch([]); await connect();
-    await visible('document.body.textContent.includes("No directory selected")');
+    await visible('document.querySelector("#gallery-empty")?.textContent.includes("Open a media directory") && [...document.querySelectorAll(".selection-actions button")].some(b=>b.textContent.trim()==="Open folder"&&!b.disabled)');
     assert.equal((await snapshot()).sessionId, null);
     await stop(); child = launch([path.join(root, '.local/absent-root-for-acceptance')]); await connect();
     await visible('document.body.textContent.includes("Directory unavailable")');
