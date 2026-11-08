@@ -12,8 +12,8 @@ export function terminateWindowsChildTree(child,{launch=spawn,graceMilliseconds=
   };
   try {
     terminator=launch('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,shell:false,stdio:'ignore'});
-    terminator.once('error',finish);terminator.once('exit',finish);
-    watchdog=setTimeout(()=>{if(terminator.exitCode===null&&terminator.signalCode===null)terminator.kill('SIGKILL');finish();},graceMilliseconds);
+    terminator.once('error',finish);terminator.once('exit',finish);terminator.unref?.();
+    watchdog=setTimeout(()=>{try{if(terminator.exitCode===null&&terminator.signalCode===null)terminator.kill('SIGKILL');}finally{terminator.unref?.();finish();}},graceMilliseconds);watchdog.unref?.();
   } catch {finish();}
 }
 
@@ -31,7 +31,11 @@ export function settleOwnedChild(child,{label='Owned command',deadline=null,hard
    child.off('exit',onExit);child.off('close',onClose);abortSignal?.removeEventListener('abort',onAbort);
    for(const [name,stream]of [['stdout',child.stdout],['stderr',child.stderr]])if(stream){stream.off('data',handlers[name]);stream.off('end',onEnd);stream.off('error',onError);}
    const result={code,signal,stdout:Buffer.concat(output.stdout).toString('utf8'),stderr:Buffer.concat(output.stderr).toString('utf8'),terminal:terminal()};
-   child.stdout?.destroy();child.stderr?.destroy();
+   child.stdin?.destroy();child.stdout?.destroy();child.stderr?.destroy();
+   // Settlement can outlive a failed termination attempt. Retire this owner's
+   // event-loop references without claiming the operating-system child exited.
+   result.terminal.controllerReferencesReleased=false;
+   try{child.channel?.unref?.();if(!exited&&typeof child.unref==='function'){child.unref();result.terminal.controllerReferencesReleased=true;}}catch(error){result.terminal.referenceReleaseError=error.message;}
    if(closed)child.off('error',onError);else child.once('close',()=>child.off('error',onError));
    const error=primary??(code===0?null:new Error(label+' exited '+(code??signal??'without terminal status')));
    if(error){error.code??=code;error.signal=signal;error.killed=terminationRequested;error.stdout=result.stdout;error.stderr=result.stderr;error.terminal=result.terminal;reject(error);}else resolve(result);

@@ -29,3 +29,7 @@ Run 42490907587 at 872f85d: preparation 347.066 s, qualification 193.476 s, comb
 ## 2026-11-08: successful macOS package campaign
 
 Run 42490907587 at 872f85d: preparation 674.349 s, qualification 498.200 s, combined 1172.549 s; complete package campaign and independent original interruption/refusal/recovery readback passed. All 21 compiled selftests passed. The final run additionally elects a real held-fork SDK regression (22 cases).
+
+## 2026-11-08: current implementation and hosted-review regression
+
+At b9186cd, Windows product: preparation 413.903 s, qualification 338.412 s, combined 752.315 s, all steps pass including direct listener ownership. macOS packages: preparation 515.921 s, qualification 581.744 s, combined 1097.665 s, complete pass; 22 compiled cases included actual held-fork parent/child SDK facts. The post-review local suite passed 343 cases (341 pass, two platform skips) in 9.6779579 s. The changed termination-reference path still requires fresh hosted CI.

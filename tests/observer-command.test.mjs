@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {EventEmitter} from 'node:events';
+import {EventEmitter,once} from 'node:events';
+import {createServer} from 'node:net';
+import {randomUUID} from 'node:crypto';
 import {PassThrough} from 'node:stream';
 import {spawn} from 'node:child_process';
 import {settleOwnedChild,captureObserverCommand} from '../scripts/observer-command.mjs';
@@ -16,3 +18,18 @@ test('Actual platform output lifetime remains bounded after the original root ex
 test('An expired admission never launches a child or logs its arguments',async()=>{await assert.rejects(captureObserverCommand('not-launched',['secret-value'],{deadline:Date.now()-1,launch:()=>{throw Error('must not spawn');}}),/deadline.*admission/);});
 
 test('A stalled post-launch checkpoint retires its original child within the command bound',async()=>{let spawned=false,killed=0;const child=fixture();child.stdin=new PassThrough();const begin=Date.now();await assert.rejects(captureObserverCommand('fixture.exe',['private-argument'],{timeout:30,terminationMilliseconds:25,launch:()=>{spawned=true;return child;},terminate:()=>{killed++;return false;},checkpoint:event=>event.status==='started'?new Promise(()=>{}):Promise.resolve()}),/checkpoint deadline/);assert.equal(spawned,true);assert.equal(killed,1);assert.ok(Date.now()-begin<500);});
+
+async function within(work,milliseconds,label){let timer;try{return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(label)),milliseconds);})]);}finally{clearTimeout(timer);}}
+test('A real failed-termination controller exits without waiting for its live child or IPC channel',async()=>{
+ for(const scenario of ['stdio','ipc','tree-helper']){
+  const ipc=scenario==='ipc',treeHelper=scenario==='tree-helper',nonce=randomUUID(),peers=new Set(),authenticated=new Set();let accept;
+  const connected=new Promise(resolve=>{accept=resolve;});
+  const server=createServer(socket=>{peers.add(socket);let received='';socket.on('error',()=>{});socket.on('data',bytes=>{received+=bytes;if(received===nonce){authenticated.add(socket);if(authenticated.size===(treeHelper?2:1))accept();}else if(!nonce.startsWith(received))socket.destroy();});});
+  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
+  const childCode="const socket=require('node:net').connect("+server.address().port+",'127.0.0.1',()=>socket.write("+JSON.stringify(nonce)+"));let command='';socket.on('data',b=>{command+=b;if(command==="+JSON.stringify('stop:'+nonce)+")process.exit(0)});socket.on('error',()=>process.exit(4));setTimeout(()=>process.exit(5),10000);"+(ipc?"process.on('message',()=>{});":"");
+  const code="(async()=>{const {spawn}=require('node:child_process');const {settleOwnedChild,terminateWindowsChildTree}=await import("+JSON.stringify(new URL('../scripts/observer-command.mjs',import.meta.url).href)+");const child=spawn(process.execPath,['-e',"+JSON.stringify(childCode)+"],{windowsHide:true,shell:false,stdio:"+JSON.stringify(ipc?['pipe','pipe','pipe','ipc']:['pipe','pipe','pipe'])+"});"+(ipc?"child.on('message',()=>{});":"")+(treeHelper?"child.kill=()=>false;":"")+"try{await settleOwnedChild(child,{deadline:Date.now()+40,terminationMilliseconds:40,terminate:"+(treeHelper?"target=>terminateWindowsChildTree(target,{launch:()=>{const helper=spawn(process.execPath,['-e',"+JSON.stringify(childCode)+"],{windowsHide:true,shell:false,stdio:'ignore'});helper.kill=()=>false;return helper;},graceMilliseconds:10000})":"()=>false")+"});process.exitCode=2;}catch(e){console.log(JSON.stringify({terminal:e.terminal}));process.exitCode=1;}})().catch(e=>{console.error(e);process.exitCode=3;});";
+  const controller=spawn(process.execPath,['-e',code],{windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});let output='',errors='';controller.stdout.on('data',b=>output+=b);controller.stderr.on('data',b=>errors+=b);const exited=once(controller,'close');
+  try{await within(connected,3000,'Owned child control connection deadline');const [exit]=await within(exited,1500,'Controller remained referenced after failed termination');assert.equal(exit,1,errors);const result=JSON.parse(output.trim());assert.equal(result.terminal.exitObserved,false);assert.equal(result.terminal.terminationRequested,true);assert.equal(result.terminal.controllerReferencesReleased,true);assert.equal(result.terminal.stdioClosed,false);}
+  finally{for(const peer of authenticated){const closed=once(peer,'close');peer.end('stop:'+nonce);await within(closed,2000,'Owned child cleanup deadline').catch(()=>peer.destroy());}if(controller.exitCode===null&&controller.signalCode===null)controller.kill('SIGKILL');await within(exited,2000,'Controller cleanup deadline').catch(()=>{});for(const socket of peers)socket.destroy();await new Promise(resolve=>server.close(resolve));}
+ }
+});

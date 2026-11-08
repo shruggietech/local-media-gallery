@@ -70,3 +70,7 @@ No constitution violations. No product architecture expansion or new dependencie
 ## 2026-11-08: observed Windows listener-provider correction
 
 The current-head Windows product run exposed a ten-second unanswered listener ownership query after HTTP readiness. The persistent measurement observer used Get-NetTCPConnection/CIM. Replace only this listener path with the documented GetExtendedTcpTable owner-PID listener tables, retaining SDK layouts, IPv4/IPv6 coverage, address filtering, actual ownership checks and all existing deadlines. Compile the helper once per persistent observer, bound table allocation/retries, and fail on incomplete/error results. Memory measurement remains unchanged. Elect a real listener regression with CIM unavailable and a foreign answering process.
+
+## 2026-11-08: hosted review correction
+
+A rejected termination promise is insufficient if Node still references the live child, stdin or IPC channel. After bounded failure, release those controller references while retaining the literal unobserved-exit failure. Keep the termination helper/watchdog unreferenced so an outer hard deadline can remain shorter than its fallback grace. Test natural controller exit with healthy independently controlled children and no-op termination, including IPC and the helper path.

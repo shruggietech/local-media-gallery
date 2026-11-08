@@ -9,6 +9,7 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - Request explicit PulseAudio recording latency and retain complete-window or bounded failure evidence when the final PCM bytes arrive separately.
 - Bind macOS package interruption to a newly observed coordinator, process creation identity, expected generation and confirmed stopped state; retain refusal and recovery diagnostics.
 - Bound Windows observer requests, command termination and output drain by the campaign deadline. Persist phase and native-request checkpoints before blocking work, and retain controller logs through cleanup and artifact upload.
+- Release live child, pipe, IPC and termination-helper references after a bounded failure so a failed controller can exit and publish diagnostics without claiming the child stopped.
 - Read legacy Windows listener ownership directly from the IPv4/IPv6 TCP owner tables, preserving PID checks and readiness deadlines while avoiding CIM provider startup.
 - Select current Windows campaign artifacts by creation time before provider ID, preserving the shared qualification clock.
 

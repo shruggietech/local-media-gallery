@@ -61,3 +61,15 @@ Original macOS artifact 13622097747 from run 42490907587 at 872f85d is 697185692
 Both actual first-install partial-app and update prepared-phase interruptions confirmed stopped status 4, revalidated STOP/KILL identities, real retirement, live-authority refusal and Installer exit 1. Ordinary same-package recovery succeeded without JSON operands, followed by rollback/repeat/uninstall and offline native rendering. All 21 compiled cases and complete package readback passed. Preparation 674.349 s, qualification 498.200 s, combined 1172.549 s. The successful capture did not retain a multiple-helper snapshot, so the second attempt's transient-child explanation remains source-derived; root selection is covered by explicit family regressions.
 
 A real held-fork SDK case is additionally elected for the final run (22 compiled cases), proving parent/child executable identity and root selection deterministically. The Windows direct listener repair passed the complete 342-case local suite (340 pass, two platform-specific skips). Its new provider and final-head native scopes remain pending fresh hosted confirmation.
+
+After retaining original successful macOS artifacts and the diagnosed Windows failure, superseded run 42490907587 was cancelled to release queued runner slots. Its incomplete remaining jobs cannot grant acceptance. The current corrected head must run every applicable scope afresh.
+
+Second and final hosted code review requested on implementation b9186cd9dd77d2b0c2a457394d9c1a6ff15be782. Two rounds total are now used; no further trigger is authorized. Findings and final CI remain pending.
+
+## 2026-11-08: final hosted review finding and real-process regression
+
+Hosted round two completed on b9186cd with one P2 finding (thread PRRT_kwDOVUAZgc61B42W): a settled failure could still retain the live ChildProcess handle and block controller exit. A real child/controller regression reproduced the hang after the termination promise rejected.
+
+Settlement now destroys its stdin/output pipes, unreferences an owned IPC channel and the unobserved live process handle, and preserves original exit/EOF observations plus an explicit controller-reference-release fact. The tree helper and its watchdog cannot retain a controller beyond a shorter outer budget. A separate owned control socket retires test children without PID-based cleanup. Actual-controller cases cover plain stdio, explicitly referenced IPC and a stubborn tree helper with a longer watchdog. All 343 local tests pass (341 pass, two platform skips), including the real controller exiting naturally with process.exitCode=1 while exitObserved and stdioClosed remain false.
+
+All b9186cd hosted scopes subsequently passed. The review correction changes the implementation, so it must receive fresh exact-head CI before owner handoff. No third hosted review round will be triggered.
