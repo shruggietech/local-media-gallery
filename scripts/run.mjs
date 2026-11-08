@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { spawn } from 'node:child_process';
+import {settleOwnedChild} from './observer-command.mjs';
+export {terminateWindowsChildTree} from './observer-command.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { access, readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
@@ -20,34 +22,11 @@ let executionDeadline = null;
 export function setExecutionDeadline(value) { executionDeadline = value; }
 // Tree termination can fail or stall. Always bound that owned helper and then
 // use the original child handle for the final direct termination attempt.
-export function terminateWindowsChildTree(child,{launch=spawn,graceMilliseconds=3000}={}) {
-  if(!Number.isSafeInteger(child.pid)||child.pid<=0)throw new Error('Owned child PID required');
-  if(child.exitCode!==null||child.signalCode!==null)return;
-  let terminator,watchdog,finished=false;
-  const finish=()=>{
-    if(finished)return;finished=true;clearTimeout(watchdog);
-    if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');
-  };
-  try {
-    terminator=launch('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,shell:false,stdio:'ignore'});
-    terminator.once('error',finish);terminator.once('exit',finish);
-    watchdog=setTimeout(()=>{if(terminator.exitCode===null&&terminator.signalCode===null)terminator.kill('SIGKILL');finish();},graceMilliseconds);
-  } catch {finish();}
-}
-export function execute(file, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    if (executionDeadline !== null && Date.now() >= executionDeadline) return reject(new Error('Qualification deadline reached before child admission'));
-    const child = spawn(file, args, { cwd: root, env: environment, windowsHide: true, shell: false, stdio: 'inherit', detached: process.platform !== 'win32', ...options });
-    let timedOut = false;
-    const timer = executionDeadline === null ? null : setTimeout(() => {
-      timedOut = true;
-      if (process.platform === 'win32') {
-        terminateWindowsChildTree(child);
-      } else { try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); } }
-    }, Math.max(1, executionDeadline - Date.now()));
-    child.once('error', error => { clearTimeout(timer); reject(error); });
-    child.once('exit', (code, signal) => { clearTimeout(timer); timedOut ? reject(new Error(`Qualification deadline terminated ${path.basename(file)} (${code ?? signal})`)) : code === 0 ? resolve() : reject(new Error(`${path.basename(file)} exited ${code ?? signal}`)); });
-  });
+export function execute(file,args,options={}){
+ if(executionDeadline!==null&&Date.now()>=executionDeadline)return Promise.reject(new Error('Qualification deadline reached before child admission'));
+ const child=spawn(file,args,{cwd:root,env:environment,windowsHide:true,shell:false,stdio:'inherit',detached:process.platform!=='win32',...options});
+ const terminate=process.platform==='win32'?undefined:c=>{try{process.kill(-c.pid,'SIGKILL');}catch{c.kill('SIGKILL');}};
+ return settleOwnedChild(child,{label:path.basename(file),deadlineMessage:'Qualification deadline for '+path.basename(file),deadline:executionDeadline,collect:false,...(terminate?{terminate}:{})}).then(()=>{});
 }
 export const node = (script, args = [], options = {}) => execute(process.execPath, [script, ...args], options);
 export const cargo = (args, options = {}) => execute('cargo', args, options);

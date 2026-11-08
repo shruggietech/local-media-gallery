@@ -11,8 +11,9 @@ import {validateUpdateEvidence} from './update-packages.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
 import assert from 'node:assert/strict';
-import {spawn,execFile} from 'node:child_process';
-import {promisify} from 'node:util';
+import {spawn} from 'node:child_process';
+import {captureObserverCommand,settleOwnedChild} from './observer-command.mjs';
+import {createObserverJournal} from './observer-checkpoint.mjs';
 import {mkdtemp,mkdir,readFile,writeFile,copyFile,rename,rm,stat,lstat,readdir} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -23,17 +24,24 @@ import {digest,verifyPayload,productCodes} from './windows-packages.mjs';
 import {collectPayload,verifyPayload as verifyInventory} from './proof.mjs';
 import {openWindowsPackageObserver,msiControlLabel} from './windows-package-observer.mjs';
 import {msiCommandArguments} from './windows-msi-command.mjs';
-import {stopOwnedChild,settingsControlsReady} from './native-driver-lifecycle.mjs';
-const call=promisify(execFile);const started=new Date().toISOString();const source=await sourceIdentity();
+import {settingsControlsReady} from './native-driver-lifecycle.mjs';
+const started=new Date().toISOString();const source=await sourceIdentity();
 const build=JSON.parse(await readFile(path.join(root,'.local/windows-package-build.json')));const currentProductCode=build.bundle.packages[0].productCode;const currentProductCodes=[...new Set(build.upgrades.pairs.filter(p=>p.edition==='full').flatMap(p=>[p.from.descriptor.native.productCode,p.to.descriptor.native.productCode]))];assert.deepEqual(build.source,source);const diagnosticFixtures=JSON.parse(await readFile(path.join(root,'.local/windows-package-fixtures.json')));
 const campaignProfile=process.env.GALLERY_WINDOWS_CAMPAIGN??'all';assert.ok(['all','experience','lifecycle'].includes(campaignProfile));
 const cohortClock=campaignProfile==='all'?null:JSON.parse(await readFile(process.env.GALLERY_WINDOWS_COHORT_FILE,'utf8'));if(cohortClock){assert.deepEqual(cohortClock.source,source);assert.equal(cohortClock.revision,build.revision);assert.equal(cohortClock.buildSha256,windowsBuildDigest(build));assert.ok(Date.parse(started)>=Date.parse(cohortClock.readinessVerified));}
 const work=await mkdtemp(path.join(root,'.local/windows-package-test-'));const outside=path.join(work,'unrelated caller');await mkdir(outside);const updates=[];const checks=[];const installations=[];const native=[];const live=new Set();
-const capture=async(file,args,options={})=>{const p=call(file,args,{cwd:outside,env:environment,windowsHide:true,shell:false,timeout:180000,maxBuffer:8*1024*1024,...options});p.child.stdin.end();return p;};
+const deadline=cohortClock?Date.parse(cohortClock.activeDeadline):Date.now()+885000,hardDeadline=cohortClock?Date.parse(cohortClock.hardDeadline):deadline+15000;
+const checkpointContext={runId:process.env.GITHUB_RUN_ID??null,attempt:process.env.GITHUB_RUN_ATTEMPT??null,revision:build.revision,shaLabel:process.env.GITHUB_SHA??build.revision,source,buildSha256:windowsBuildDigest(build),preparationStarted:cohortClock?.preparationStarted??started,campaign:campaignProfile,clock:cohortClock};
+const journal=await createObserverJournal({file:path.join(root,'.local/windows-campaign-checkpoints-'+campaignProfile+'.json'),latest:path.join(root,'.local/windows-campaign-latest-'+campaignProfile+'.json'),context:checkpointContext});
+const nativeCheckpoint=path.join(root,'.local/windows-observer-checkpoint-'+campaignProfile+'.json');let stage='preparation',campaignFailure=null;
+const checkpoint=event=>journal.record({...event,stage});
+async function phase(name,fn){const previous=stage;stage=name;await checkpoint({phase:'campaign',status:'pending'});try{const value=await fn();await checkpoint({phase:'campaign',status:'complete'});return value;}catch(error){await checkpoint({phase:'campaign',status:'failed',errorCode:'campaign_failure'}).catch(()=>{});throw error;}finally{stage=previous;}}
+const capture=(file,args,options={})=>captureObserverCommand(file,args,{cwd:outside,env:environment,timeout:180000,maxBuffer:8*1024*1024,...options,deadline,hardDeadline,checkpoint});
+async function retire(child){if(child.exitCode!==null||child.signalCode!==null)return;const end=Math.min(hardDeadline,Date.now()+5000);const terminal=settleOwnedChild(child,{deadline:end,hardDeadline,collect:false});terminal.catch(()=>{});child.kill();await terminal;}
 const shell=async(script,values={},options={})=>JSON.parse((await capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-Command',"[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);$ErrorActionPreference='Stop';$arg=ConvertFrom-Json ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Buffer.from(JSON.stringify(values)).toString('base64')+"')));"+script],options)).stdout);
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,message,timeout=15000){const end=Date.now()+timeout;let last;while(Date.now()<end){try{const r=await fn();if(r)return r;}catch(e){last=e;}await pause(150);}const error=Error(message+': '+(last?.message??'not ready'),{cause:last});error.stdout=last?.stdout??null;error.stderr=last?.stderr??null;throw error;}
-async function test(name,fn){await fn();checks.push({name,result:'pass',terminalFinished:new Date().toISOString()});console.log('PASS '+name);}
+async function test(name,fn){await phase(name,fn);checks.push({name,result:'pass',terminalFinished:new Date().toISOString()});console.log('PASS '+name);}
 const full=path.resolve(root,diagnosticFixtures.records.find(r=>r.edition==='full').directory),lite=path.resolve(root,diagnosticFixtures.records.find(r=>r.edition==='lite').directory);const extracted={};let singleFile;
 async function extract(edition,destination){const actual=await verifyWindowsDiagnosticFixture({root,build,fixtures:diagnosticFixtures,edition});assert.equal(actual,destination);extracted[edition]=build.records.find(r=>r.edition===edition).archive;}
 let observer;
@@ -50,7 +58,7 @@ async function browse(binary,args,{edition,label,mutate,selectedRoot}={}){
   const screen=await readFile(path.join(work,label+'-red.png'));const green=refreshed?await readFile(path.join(work,label+'-green.png')):null;
   native.push({screenshotBytes:String(screen.length),screenshotSha256:digest(screen),refreshedPixels:refreshed?.pixels??null,refreshScreenshot:green?{path:path.relative(root,path.join(work,label+'-green.png')).replaceAll('\\','/'),bytes:String(green.length),sha256:digest(green)}:null,edition,label,pid:child.pid,binarySha256:digest(bytes),windowHandle:tree.windowHandle,accessibility:tree.records,pixels:image.pixels,screenshot:path.relative(root,path.join(work,label+'-red.png')).replaceAll('\\','/'),children:image.children});
   await ui(child.pid,'__close_window__');await until(()=>child.exitCode!==null,'Ordinary candidate closes normally',10000);assert.equal(child.exitCode,0,output);
- }catch(error){await writeFile(path.join(work,label+'-launch-failure.log'),JSON.stringify({pid:child.pid,exitCode:child.exitCode,signalCode:child.signalCode,output,selectedRoot:attributedRoot,expectedPresentation,portableSettings:portableIdentity,observer:lastTree,error:error.stack,observerStdout:error.stdout??null,observerStderr:error.stderr??null},null,2)+'\n');throw error;}finally{await stopOwnedChild(child);live.delete(child);}
+ }catch(error){await writeFile(path.join(work,label+'-launch-failure.log'),JSON.stringify({pid:child.pid,exitCode:child.exitCode,signalCode:child.signalCode,output,selectedRoot:attributedRoot,expectedPresentation,portableSettings:portableIdentity,observer:lastTree,error:error.stack,observerStdout:error.stdout??null,observerStderr:error.stderr??null},null,2)+'\n');throw error;}finally{await retire(child);live.delete(child);}
 }
 function color(value){return new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450"><rect width="600" height="450" fill="${value}"/></svg>`).render().asPng();}
 const gallery=path.join(work,'Full gallery 雪');await mkdir(gallery);await writeFile(path.join(gallery,'red.png'),color('#dc1414'));await writeFile(path.join(gallery,'red.png.json'),' {"source":"recipient fixture","retain":true}\n');await writeFile(path.join(gallery,'settings.json'),JSON.stringify({product:'local-media-gallery',kind:'gallery-settings',version:productVersion,formatVersion:1,choices:{controlsExpanded:true},futureChoice:'retain'})+'\n');const originalGallery=await collectPayload(gallery);
@@ -112,7 +120,7 @@ async function wizardInstall(file,{scope='machine',destination,startMenu=true,co
   if(cancelAt)return result;
   assert.ok(progressObserved,'Actual native installer progress was represented in the wizard');const directory=observed.registered.location;
   return{...result,result:'pass',operation:'install',package:observed.registered.package.toUpperCase(),nativeDirectory:{encoding:'windows-utf16le',bytes:[...Buffer.from(directory.replace(/[\\/]$/,''),'utf16le')]},runtimeAfter:await installedRuntime(scope)};
- }catch(error){await writeFile(path.join(work,'wizard-'+msiSequence+'-failure.json'),JSON.stringify({error:error.stack,screens,output,exitCode:child.exitCode},null,2)+'\n');throw error;}finally{await stopOwnedChild(child);live.delete(child);}
+ }catch(error){await writeFile(path.join(work,'wizard-'+msiSequence+'-failure.json'),JSON.stringify({error:error.stack,screens,output,exitCode:child.exitCode},null,2)+'\n');throw error;}finally{await retire(child);live.delete(child);}
 }
 async function publishedRecoveryCampaign(){
  const results=[];const current=build.upgrades.pairs.find(p=>p.edition==='full'&&p.scope==='machine').from;const updater=path.join(root,build.upgrades.helper);
@@ -247,10 +255,10 @@ async function ordinaryUpgradeCampaign(prior){
 }
 
 try{
- observer=await openWindowsPackageObserver(root,{cwd:outside,env:environment});
+ observer=await openWindowsPackageObserver(root,{cwd:outside,env:{...environment,GALLERY_OBSERVER_CONTEXT_FILE:journal.latest,GALLERY_OBSERVER_CHECKPOINT_FILE:nativeCheckpoint},deadline,hardDeadline,checkpoint});
  let publishedRecovery,installerChoices,standardUser,ordinaryUpgrade,ordinaryUpgrades;
  if(campaignProfile!=='lifecycle'){
-  singleFile=await singleFileCampaign();publishedRecovery=await publishedRecoveryCampaign();installerChoices=await choiceCampaign();standardUser=singleFile.standardUser;ordinaryUpgrades=[];for(const prior of build.ordinaryPredecessors)ordinaryUpgrades.push(await ordinaryUpgradeCampaign(prior));ordinaryUpgrade=ordinaryUpgrades[0];
+  singleFile=await phase('offline single-file and standard user',singleFileCampaign);publishedRecovery=await phase('published predecessor recovery',publishedRecoveryCampaign);installerChoices=await phase('ordinary installer choices',choiceCampaign);standardUser=singleFile.standardUser;ordinaryUpgrades=[];for(const prior of build.ordinaryPredecessors)ordinaryUpgrades.push(await phase('ordinary MSI upgrade '+prior.version,()=>ordinaryUpgradeCampaign(prior)));ordinaryUpgrade=ordinaryUpgrades[0];
   if(campaignProfile==='experience'){
    assert.deepEqual(await sourceIdentity(),source);await writeFile(path.join(root,'.local/windows-campaign-experience.json'),JSON.stringify({formatVersion:1,kind:'windows-package-fragment',campaign:'experience',result:'pass',acceptance:false,source,revision:build.revision,buildSha256:windowsBuildDigest(build),fullMsiSha256:build.products.find(p=>p.edition==='full').artifact.sha256,clock:cohortClock,started,terminalFinished:new Date().toISOString(),singleFile,publishedRecovery,installerChoices,standardUser,ordinaryUpgrade,ordinaryUpgrades,wizardEvidence,cachedMaintenance,diagnosticFixtureReadiness:diagnosticFixtures,native,observer:{...observer.identity,snapshotQueries},host:{platform:process.platform,arch:process.arch,release:os.release(),version:os.version(),imageVersion:process.env.ImageVersion??null}},null,2)+String.fromCharCode(10));
   }
@@ -295,9 +303,16 @@ try{
  assert.deepEqual(await sourceIdentity(),source);const receipt={formatVersion:1,result:'pass',acceptance:true,source,revision:build.revision,singleFile,installerChoices,wizardEvidence,cachedMaintenance,publishedRecovery,standardUser,ordinaryUpgrade,ordinaryUpgrades,diagnosticFixtureReadiness:diagnosticFixtures,started,terminalFinished:new Date().toISOString(),observer:{...observer.identity,snapshotQueries},host:{platform:process.platform,arch:process.arch,release:os.release(),version:os.version(),imageVersion:process.env.ImageVersion??null},checks,extracted,installations,native,preparedRecipient,updates:{result:'pass',source,transitions:updates},fixture:{files:originalGallery,sha256:digest(Buffer.from(JSON.stringify(originalGallery)))},footprints:build.records.map(r=>({edition:r.edition,downloadBytes:r.artifact.bytes,extractedBytes:r.edition==='lite'?r.artifact.bytes:r.payload.files.reduce((sum,f)=>sum+BigInt(f.bytes),0n).toString(),installedApplicationBytes:r.edition==='full'?installations.map(i=>({scope:i.scope,bytes:i.installedBytes})):null,installedReason:r.edition==='lite'?'Portable edition has no installed application directory':null,sharedRuntime,optionalPayload:r.edition==='full'?{bytes:build.featureHelper.bytes,sha256:build.featureHelper.sha256,reason:'Bundled FFmpeg helper, corresponding source and notices are managed application files'}:{bytes:'0',reason:'Lite uses declared host prerequisites and optional explicitly selected helper'}})),limits:['Hosted Windows Server observed; Windows client and trust prompts not qualified','Actual Evergreen absence and offline standalone provisioning observed on the isolated hosted image; Windows client baseline remains separate','Candidates unsigned and unpublished; shared runtime and retained data independent']};await validateUpdateEvidence(build,receipt.updates,root);if(campaignProfile==='lifecycle'){Object.assign(receipt,{kind:'windows-package-fragment',campaign:'lifecycle',acceptance:false,clock:cohortClock,buildSha256:windowsBuildDigest(build),fullMsiSha256:build.products.find(p=>p.edition==='full').artifact.sha256});}await writeFile(path.join(root,campaignProfile==='lifecycle'?'.local/windows-campaign-lifecycle.json':'.local/windows-package-results.json'),JSON.stringify(receipt,null,2)+String.fromCharCode(10));
  }
 }catch(e){
+ campaignFailure=e;
  const logs=[];
  for(const file of [path.join(environment.TEMP,'msedge_installer.log'),path.join(process.env.SystemRoot,'Temp/msedge_installer.log'),path.join(process.env.ProgramData,'Microsoft/EdgeUpdate/Log/MicrosoftEdgeUpdate.log'),path.join(process.env.LOCALAPPDATA,'Microsoft/EdgeUpdate/Log/MicrosoftEdgeUpdate.log')]){
   try{const bytes=await readFile(file);const output=path.join(work,'prerequisite-'+logs.length+'.log');await writeFile(output,bytes.subarray(Math.max(0,bytes.length-8*1024*1024)));logs.push({source:file,path:path.relative(root,output)});}catch(error){if(error.code!=='ENOENT')logs.push({source:file,error:error.message});}
  }
  await writeFile(path.join(root,'.local/windows-package-failure.json'),JSON.stringify({result:'fail',acceptance:false,source,checks,error:e.stack,code:e.code??null,killed:e.killed??false,signal:e.signal??null,stdout:e.stdout??null,stderr:e.stderr??null,cleanupError:e.cleanupError??null,logs,installations,native},null,2)+'\n');throw e;
-}finally{try{for(const child of live)await stopOwnedChild(child);}finally{await observer?.close();}}
+ }finally{
+ stage='cleanup';const failures=[];await checkpoint({phase:'campaign',status:'cleanup'}).catch(e=>failures.push(e));
+ for(const child of live){try{await retire(child);}catch(e){failures.push(e);}}
+ try{await observer?.close();}catch(e){failures.push(e);}
+ await checkpoint({phase:'campaign',status:campaignFailure||failures.length?'failed':'closed',...(failures.length?{errorCode:'cleanup_failure'}:{})}).catch(e=>failures.push(e));
+ if(failures.length){await writeFile(path.join(root,'.local/windows-campaign-cleanup-'+campaignProfile+'.json'),JSON.stringify({acceptance:false,context:checkpointContext,failures:failures.map(e=>({message:e.message,terminal:e.terminal??null}))})+'\n');if(campaignFailure)campaignFailure.cleanupErrors=failures.map(e=>e.message);else throw new AggregateError(failures,'Native campaign cleanup failed');}
+ }

@@ -4,6 +4,17 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Fixed
+
+- Request explicit PulseAudio recording latency and retain complete-window or bounded failure evidence when the final PCM bytes arrive separately.
+- Bind macOS package interruption to a newly observed coordinator, process creation identity, expected generation and confirmed stopped state; retain refusal and recovery diagnostics.
+- Bound Windows observer requests, command termination and output drain by the campaign deadline. Persist phase and native-request checkpoints before blocking work, and retain controller logs through cleanup and artifact upload.
+- Select current Windows campaign artifacts by creation time before provider ID, preserving the shared qualification clock.
+
+### Maintenance
+
+- On 2026-11-08, retain the existing 660-second advisory target, 900-second hard limit and 15-second finalization reserve while strengthening observer diagnostics. Existing published releases remain unchanged.
+
 ## [0.2.2]
 
 Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.

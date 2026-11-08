@@ -260,6 +260,8 @@ jobs:
           name: windows-${{ matrix.campaign }}-evidence-${{ github.sha }}
           path: |-
             .local/windows-campaign-*.json
+            .local/windows-campaign-native-*.log
+            .local/windows-observer-checkpoint-*.json
             .local/windows-package-fixtures-*.json
             .local/windows-msi-command-readiness.json
             .local/msi-command-ready-*/*.log
@@ -421,6 +423,7 @@ jobs:
           path: |
             .local/ci-macos-packages.json
             .local/macos-package-build.json
+            .local/macos-observer-selftest.json
             .local/macos-package-results.json
             .local/prepared-recipient-macos.json
             .local/macos-package-test-*/prepared-recipient-*.tar.gz
