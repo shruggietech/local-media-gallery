@@ -134,8 +134,8 @@ try {
     await visible('document.querySelector(".discovery-status")?.textContent.includes("Scanning directory")');
     assert.equal(await js('return document.querySelector("#collection-controls")===null'),true,'Progress is visible with controls collapsed');
     assert.equal(await js('return document.querySelector(".discovery-status").textContent.includes("%")'),false);
-    assert.equal(await js('return [...document.querySelectorAll("button")].find(b=>b.getAttribute("aria-label")==="Close folder").disabled'),false);
-    await js('const b=[...document.querySelectorAll(".discovery-status button")].find(b=>b.textContent==="Cancel discovery"); b.focus(); return true;');
+    await navigateApplication(navApp,'Gallery');assert.equal(await js('return [...document.querySelectorAll("dialog.application-drawer[open] button")].find(b=>b.textContent.trim()==="Close folder").disabled'),false);await closeNavigation(navApp);
+    await js('const b=[...document.querySelectorAll(".active-work button")].find(b=>b.textContent==="Cancel discovery"); b.focus(); return true;');
     await input('keys',['-Keys','{ENTER}']);
     await until(async()=> (await snapshot()).status==='cancelled','Keyboard cancellation');
     value=await snapshot(); const cancelledSequence=value.sequence; const observed=value.items.length;

@@ -10,6 +10,12 @@ func fail(_ text: String) -> Never {FileHandle.standardError.write(Data((text+"\
 func emit(_ value: Any) {do {let d=try JSONSerialization.data(withJSONObject:value,options:[.sortedKeys]);FileHandle.standardOutput.write(d);FileHandle.standardOutput.write(Data([10]))}catch{fail("JSON: \(error)")}}
 func attribute(_ element: AXUIElement,_ name:String)->CFTypeRef? {var value:CFTypeRef?;let status=AXUIElementCopyAttributeValue(element,name as CFString,&value);return status == .success ? value:nil}
 
+// Press requests target enabled web buttons, never same-named headings,
+// containers or native menu-bar items.
+func isPressTarget(_ wanted:String,_ title:String,_ description:String,_ role:String,_ enabled:Bool)->Bool {
+    !wanted.isEmpty && enabled && role == "AXButton" && (title == wanted || description == wanted)
+}
+
 struct InterruptionFailure: Error, CustomStringConvertible {
     let description: String
     init(_ text: String) { description = text }
@@ -145,6 +151,10 @@ func interruptionSelfTest() throws -> [String:Any] {
     }
     let owned = actor(),installer = actor(19,199)
     var checks:[String] = [],signals = 0
+    try requireObservation(!isPressTarget("Menu","Menu","","AXGroup",true),"Menu container admitted as button");checks.append("same-named drawer container rejected")
+    try requireObservation(!isPressTarget("View","View","","AXMenuBarItem",true),"Native menu bar admitted as web button");checks.append("same-named native menu rejected")
+    try requireObservation(!isPressTarget("Menu","","Menu","AXButton",false),"Disabled button admitted");checks.append("disabled button rejected")
+    try requireObservation(isPressTarget("Menu","","Menu","AXButton",true),"Enabled labelled web button rejected");checks.append("labelled native button admitted")
     func rejected(_ name:String,_ work:() throws -> Void) throws {
         var failed = false
         do { try work() } catch { failed = true }
@@ -406,7 +416,7 @@ repeat {
         visited[key,default:[]].append(element);AXUIElementSetMessagingTimeout(element,0.1)
         let title=attribute(element,"AXTitle") as? String ?? "",desc=attribute(element,"AXDescription") as? String ?? "",value=attribute(element,"AXValue") as? String ?? "",role=attribute(element,"AXRole") as? String ?? ""
         let name=title.isEmpty ? desc:title;records.append(["name":name,"title":title,"description":desc,"value":value,"role":role,"depth":depth,"enabled":attribute(element,"AXEnabled") as? Bool ?? false])
-        if !wanted.isEmpty && (name==wanted || desc==wanted || title==wanted){found=element}
+        if found == nil && isPressTarget(wanted,title,desc,role,attribute(element,"AXEnabled") as? Bool ?? false){found=element}
         if depth<35,let children=attribute(element,"AXChildren") as? [AXUIElement]{
             if role == "AXWebArea" && !children.isEmpty{webContent=true}
             queue.append(contentsOf:children.map{($0,depth+1)})

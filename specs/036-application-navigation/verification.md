@@ -30,3 +30,11 @@ Final hosted checks and up to two review rounds are recorded on the PR, with the
 ## 2026-11-08: hosted keyboard correction
 
 Initial head 986241d passed hosted repository, website and rendered navigation checks and received a clean first Codex review. Windows and macOS native playback/image checks passed, then both observed trusted Tab move from the menu heading to Gallery, skipping the earlier Close control. A new browser assertion reproduced that exact mismatch before the fix. The drawer now explicitly moves forward Tab from the focused heading to its first available control. The meaningful red assertion and complete eight-group browser suite passed after correction, with frontend/export, syntax, integrity and encoding checks. This replaces no native assertion and preserves the failed first-run receipts under run 42522452074.
+
+## 2026-11-08: ordinary macOS observer correction
+
+The first ordinary macOS package campaign captured a closed drawer after its external observer reported pressing Menu. The native AX tree contained both an AXButton named Menu and a later AXGroup named Menu; its traversal overwrote the button with the container. Press selection now requires an enabled AXButton and retains the first matching button, excluding headings, containers and native menu-bar items. Four compiled observer self-test cases cover the decoy container, menu bar, disabled button and genuine labelled button. These Swift cases execute in hosted macOS CI, not on Windows. Existing pixel, portable settings, lifecycle and historical recipient assertions remain intact.
+
+## 2026-11-08: post-focus native acceptance migration
+
+At 547d17a, both Windows editions passed all native media, trusted keyboard, navigation accessibility, screen-reader, presentation and integrity checks. macOS native qualification also passed. Windows then reached the preserved extended browsing campaign and found a stale toolbar-only Close folder selector before discovery cancellation. That assertion now opens the real Gallery submenu, verifies Close folder is enabled during scanning, dismisses the drawer, and uses the relocated active-work Cancel discovery control for the existing trusted Enter cancellation. No discovery outcome, state or source-integrity assertion was removed.
