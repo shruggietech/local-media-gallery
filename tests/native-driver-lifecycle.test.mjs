@@ -40,11 +40,23 @@ test('Legacy listener ownership cannot overrun the original readiness deadline',
  const port=await availableLoopbackPort(),child=launch(fixture(port),''),began=Date.now();try{await assert.rejects(readyDriver(child,'http://127.0.0.1:'+port,observeChild(child),400,{listenerOwner:async()=>new Promise(()=>{})}),/deadline/);assert.ok(Date.now()-began<1600);}finally{await stopOwnedChild(child);}
 });
 
-test('Windows persistent observer verifies the actual legacy listener PID',{skip:process.platform!=='win32',timeout:20000},async()=>{
- const port=await availableLoopbackPort(),child=launch(`require('node:http').createServer((q,r)=>{if(q.url.includes('execute'))process.exit(29);r.end(JSON.stringify({value:q.url==='/session'?{sessionId:'legacy'}:{ready:true}}));}).listen(${port},'127.0.0.1')`,'');
- const observer=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File','scripts/measure-processes.ps1'],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});const lines=createInterface({input:observer.stdout});let pending;let stderr='';observer.stderr.on('data',b=>stderr=(stderr+b).slice(-4096));lines.on('line',line=>pending?.(line));
- const query=()=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending=null;reject(Error('Listener observer deadline '+stderr));},10000);pending=line=>{clearTimeout(timer);pending=null;try{resolve(JSON.parse(line));}catch(e){reject(e);}};observer.stdin.write(JSON.stringify({action:'listener',port})+'\n');});
- try{assert.equal(await readyDriver(child,'http://127.0.0.1:'+port,observeChild(child),12000,{listenerOwner:async()=>{const result=await query();assert.equal(result.method,'Windows TCP listener table');assert.deepEqual(result.owners,[child.pid]);return {...result,pid:Number(result.owners[0])};}}),'legacy');}finally{observer.stdin.end();await stopOwnedChild(child);await stopOwnedChild(observer);lines.close();}
+// A timed-out unframed observer cannot be reused: its late reply has no request ID.
+function listenerQueries(observer){
+ const lines=createInterface({input:observer.stdout});let pending=null,failed=null,stderr='';
+ observer.stderr.on('data',b=>stderr=(stderr+b).slice(-4096));observer.stdin.on('error',fail);observer.on('error',fail);observer.on('exit',()=>fail(Error('Listener observer exited '+stderr)));
+ function fail(error){failed??=error;if(pending){clearTimeout(pending.timer);pending.reject(failed);pending=null;}}
+ lines.on('line',line=>{if(!pending)return;const current=pending;pending=null;clearTimeout(current.timer);try{const result=JSON.parse(line);assert.equal(result.error,undefined);assert.equal(result.provider,'GetExtendedTcpTable');current.resolve(result);}catch(error){fail(error);current.reject(error);}});
+ return {query(port,timeout=5000){if(failed)return Promise.reject(failed);if(pending)return Promise.reject(Error('Concurrent listener observer query'));return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{fail(Error('Listener observer deadline '+stderr));observer.kill();},timeout);pending={resolve,reject,timer};observer.stdin.write(JSON.stringify({action:'listener',port})+'\n');});},close(){lines.close();}};
+}
+test('Timed-out listener observer cannot accept a stale response for another request',async()=>{
+ const observer=spawn(process.execPath,['-e',"require('node:readline').createInterface({input:process.stdin}).on('line',()=>setTimeout(()=>console.log(JSON.stringify({provider:'GetExtendedTcpTable',owners:[123]})),500))"],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});const rpc=listenerQueries(observer);
+ try{await assert.rejects(rpc.query(1234,50),/observer deadline/);await assert.rejects(rpc.query(1234),/observer deadline/);}finally{await stopOwnedChild(observer);rpc.close();}
+});
+
+test('Windows persistent observer verifies the actual legacy listener PID',{skip:process.platform!=='win32',timeout:50000},async()=>{
+ const port=await availableLoopbackPort(),child=launch(`require('node:http').createServer((q,r)=>{if(q.url.includes('execute'))process.exit(29);r.end(JSON.stringify({value:q.url==='/session'?{sessionId:'legacy'}:{ready:true}}));}).listen(${port},'127.0.0.1',()=>console.log('fixture-listening'))`,'');
+ const observer=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File','scripts/measure-processes.ps1'],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});const rpc=listenerQueries(observer);
+ try{const [listening]=await once(child.stdout,'data',{signal:AbortSignal.timeout(10000)});assert.match(listening.toString(),/fixture-listening/);const warm=await rpc.query(port,30000);assert.equal(warm.method,'Windows TCP listener table');assert.deepEqual(warm.owners,[child.pid]);assert.equal(await readyDriver(child,'http://127.0.0.1:'+port,observeChild(child),12000,{listenerOwner:async()=>{const result=await rpc.query(port);assert.equal(result.method,'Windows TCP listener table');assert.deepEqual(result.owners,[child.pid]);return {...result,pid:Number(result.owners[0])};}}),'legacy');}finally{observer.stdin.end();await stopOwnedChild(child);await stopOwnedChild(observer);rpc.close();}
 });
 
 test('Slow session creation uses the original deadline without duplicate creation',async()=>{
@@ -191,11 +203,10 @@ test('Port allocator default OS candidate can be rebound by an owned HTTP fixtur
  finally{await new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()));}
 });
 
-test('Direct TCP ownership remains available without CIM and refuses a foreign answering process',{skip:process.platform!=='win32',timeout:15000},async()=>{
+test('Direct TCP ownership remains available without CIM and refuses a foreign answering process',{skip:process.platform!=='win32',timeout:40000},async()=>{
  const server=createServer((q,r)=>r.end(JSON.stringify({value:{ready:true}})));await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});const port=server.address().port;
- const observer=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-Command',"function Get-NetTCPConnection { throw 'Unavailable CIM must not be called' }; & './scripts/measure-processes.ps1'"],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']}),lines=createInterface({input:observer.stdout});let pending=null,stderr='';observer.stderr.on('data',b=>stderr=(stderr+b).slice(-4096));observer.stdin.on('error',()=>{});lines.on('line',line=>pending?.(line));
- const query=port=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending=null;reject(Error('Listener table fixture deadline '+stderr));},5000);pending=line=>{clearTimeout(timer);pending=null;try{const result=JSON.parse(line);assert.equal(result.error,undefined);assert.equal(result.provider,'GetExtendedTcpTable');resolve(result);}catch(e){reject(e);}};observer.stdin.write(JSON.stringify({action:'listener',port})+'\n');});let foreign;
- try{const result=await query(port);assert.deepEqual(result.owners,[process.pid]);assert.deepEqual(result.addresses,['127.0.0.1']);foreign=launch('setTimeout(()=>{},10000)','');await assert.rejects(readyDriver(foreign,'http://127.0.0.1:'+port,observeChild(foreign),2000,{listenerOwner:async()=>{const r=await query(port);return {...r,pid:r.owners[0]};}}),/ownership mismatch/);
+ const observer=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-Command',"function Get-NetTCPConnection { throw 'Unavailable CIM must not be called' }; & './scripts/measure-processes.ps1'"],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});const rpc=listenerQueries(observer);const query=(port,timeout)=>rpc.query(port,timeout);let foreign;
+ try{const result=await query(port,30000);assert.deepEqual(result.owners,[process.pid]);assert.deepEqual(result.addresses,['127.0.0.1']);foreign=launch('setTimeout(()=>{},10000)','');await assert.rejects(readyDriver(foreign,'http://127.0.0.1:'+port,observeChild(foreign),2000,{listenerOwner:async()=>{const r=await query(port);return {...r,pid:r.owners[0]};}}),/ownership mismatch/);
   const ipv6=createServer();let enabled=false;try{await new Promise((resolve,reject)=>{ipv6.once('error',reject);ipv6.listen({port:0,host:'::',ipv6Only:true},resolve);});enabled=true;const r=await query(ipv6.address().port);assert.deepEqual(r.owners,[process.pid]);assert.deepEqual(r.addresses,['::']);}catch(e){if(!['EAFNOSUPPORT','EADDRNOTAVAIL'].includes(e.code))throw e;}finally{if(enabled)await new Promise(resolve=>ipv6.close(resolve));}
- }finally{observer.stdin.end();if(foreign)await stopOwnedChild(foreign);await stopOwnedChild(observer);lines.close();await new Promise(resolve=>server.close(resolve));}
+ }finally{observer.stdin.end();if(foreign)await stopOwnedChild(foreign);await stopOwnedChild(observer);rpc.close();await new Promise(resolve=>server.close(resolve));}
 });

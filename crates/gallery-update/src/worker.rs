@@ -137,6 +137,39 @@ fn reinstall_source(
 }
 
 #[cfg(windows)]
+fn legacy_patch_property(path: &Path) -> Result<String> {
+    let path = path.to_str().ok_or("Invalid legacy patch path")?;
+    if path.contains([';', '\"', '\r', '\n']) {
+        return Err("Legacy PATCH requires one unambiguous verified input".into());
+    }
+    Ok(format!("PATCH=\"{path}\""))
+}
+
+#[cfg(windows)]
+fn stage_legacy_patch(patch: &Path, record: &FileRecord) -> Result<(PathBuf, Vec<File>)> {
+    // PATCH is an MSI semicolon-delimited list even inside quotes. Preserve the
+    // selected transaction path by staging only this authenticated input.
+    if !patch
+        .to_str()
+        .ok_or("Invalid legacy patch path")?
+        .contains(';')
+    {
+        legacy_patch_property(patch)?;
+        return Ok((patch.to_path_buf(), vec![]));
+    }
+    let (root, pins) = gallery_windows_package::private::legacy_storage_root(true)?;
+    let staged = root.join(format!("legacy-patch-{}.msp", record.sha256));
+    legacy_patch_property(&staged)?;
+    if staged.exists() {
+        gallery_windows_package::private::validate_file(&staged, true)?;
+        verify_file(&staged, record)?;
+    } else {
+        copy_owned(patch, &staged, record, true)?;
+    }
+    Ok((staged, pins))
+}
+
+#[cfg(windows)]
 fn select_legacy_patch(
     version: &str,
     candidates: &[(PathBuf, FileRecord)],
@@ -237,6 +270,8 @@ pub fn entry(path: &Path) -> Result<i32> {
     let _legacy_context_pins;
     #[cfg(windows)]
     let _patch_input;
+    #[cfg(windows)]
+    let mut _patch_pins = vec![];
     match &source.native {
         Native::WindowsMsi {
             scope,
@@ -280,6 +315,8 @@ pub fn entry(path: &Path) -> Result<i32> {
                     let (patch, record) = retained_legacy_patch(&journal, source)?;
                     gallery_windows_package::private::validate_file(&patch, true)?;
                     verify_file(&patch, &record)?;
+                    let (patch, pins) = stage_legacy_patch(&patch, &record)?;
+                    _patch_pins = pins;
                     let input = gallery_windows_package::open_verified_input(
                         &patch,
                         &gallery_windows_package::FileRecord {
@@ -355,12 +392,8 @@ pub fn entry(path: &Path) -> Result<i32> {
                     }
                 }
                 if let Some((patch, _)) = &_patch_input {
-                    let patch = patch.to_str().ok_or("Invalid legacy patch path")?;
-                    if patch.contains(['\"', '\r', '\n']) {
-                        return Err("Invalid legacy patch property".into());
-                    }
                     command
-                        .raw_arg(format!("PATCH=\"{patch}\""))
+                        .raw_arg(legacy_patch_property(patch)?)
                         .args(["REINSTALL=ALL", "REINSTALLMODE=omus"]);
                 } else if job.reinstall {
                     let mut features =
@@ -870,6 +903,21 @@ mod legacy_patch_tests {
                 mode: 644,
             },
         )
+    }
+    #[test]
+    fn legacy_patch_property_cannot_expand_into_multiple_inputs() {
+        assert_eq!(
+            legacy_patch_property(Path::new(r"C:\retained 雪\one.msp")).unwrap(),
+            "PATCH=\"C:\\retained 雪\\one.msp\""
+        );
+        for path in [
+            "C:\\one.msp;C:\\foreign.msp",
+            "C:\\bad\".msp",
+            "C:\\bad\n.msp",
+            "C:\\bad\r.msp",
+        ] {
+            assert!(legacy_patch_property(Path::new(path)).is_err());
+        }
     }
     #[test]
     fn legacy_patch_selection_requires_exact_version_and_unambiguous_retained_bytes() {
