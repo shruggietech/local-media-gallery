@@ -10,6 +10,7 @@ import {prepareScreenReader} from './prepare-screen-reader.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 import {availableLoopbackPort,observeChild,readyDriver} from './native-driver-lifecycle.mjs';
 import {openWindowsPackageObserver} from './windows-package-observer.mjs';
+import {activeScopeScript,closeNavigation} from './navigation-driver.mjs';
 export const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export async function until(probe,message,timeout=12000){const end=Date.now()+timeout;let last;while(Date.now()<end){try{last=await probe();if(last)return last;}catch(e){last=e.message;}await pause(100);}throw new Error(message+': '+JSON.stringify(last));}
 const call=promisify(execFile);
@@ -52,10 +53,11 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
   else if(process.platform==='linux'){const found=await hidden('xdotool',['search','--onlyvisible','--pid',String(child.pid)]);const window=found.stdout.trim().split(/\s+/)[0];assert.match(window,/^[0-9]+$/);await hidden('xdotool',['windowfocus','--sync',window,'key','--clearmodifiers',({Tab:'Tab',ShiftTab:'shift+Tab',Space:'space',Escape:'Escape',Enter:'Return'})[key]]);}
   else await command('key',{key});
  };
- const click=text=>js('const scope=document.querySelector("dialog[open]")||document.querySelector("[role=dialog]")||document;const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0]);if(!b)throw Error("Missing button "+arguments[0]);b.click();return true;',[text]);
- const focus=text=>js('return (async()=>{const frame=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));await frame();const scope=document.querySelector("dialog[open]")||document.querySelector("[role=dialog]")||document;const b=[...scope.querySelectorAll("button")].find(b=>b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0]);if(!b||b.disabled)throw Error("Missing enabled button "+arguments[0]);b.scrollIntoView({block:"nearest"});b.focus();await frame();if(document.activeElement!==b)throw Error("Native input focus moved before key admission: "+arguments[0]);return true;})()',[text]);
+ const click=text=>js('const scope='+activeScopeScript+';const b=[...scope.querySelectorAll("button")].find(b=>(b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0])&&!b.disabled&&b.getClientRects().length);if(!b)throw Error("Missing enabled visible button "+arguments[0]);b.click();return true;',[text]);
+ const focus=text=>js('return (async()=>{const frame=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));await frame();const scope='+activeScopeScript+';const b=[...scope.querySelectorAll("button")].find(b=>(b.textContent.trim()===arguments[0]||b.getAttribute("aria-label")===arguments[0])&&!b.disabled&&b.getClientRects().length);if(!b)throw Error("Missing enabled visible button "+arguments[0]);b.scrollIntoView({block:"nearest"});b.focus();await frame();if(document.activeElement!==b)throw Error("Native input focus moved before key admission: "+arguments[0]);return true;})()',[text]);
  async function closeViewer(){
-  const name=await js('return document.querySelector("dialog[open] h2")?.textContent');assert.ok(name);
+  await closeNavigation({js,click});
+  const name=await js('return document.querySelector("dialog.media-viewer[open] h2")?.textContent');assert.ok(name);
   await click('Close viewer');
   await until(()=>js('return !document.querySelector("dialog[open]")&&document.activeElement?.getAttribute("aria-label")==="Open "+arguments[0];',[name]),'Viewer closes and returns native focus to '+name);
  }
@@ -72,7 +74,7 @@ export async function openRuntime(binary,fixture,{reducedMotion=true}={}){
   const tool=await prepareScreenReader();const config=path.join(directory,'nvda-config');await mkdir(path.join(config,'scratchpad/globalPlugins'),{recursive:true});await copyFile(path.join(root,'scripts/nvda-qualification.py'),path.join(config,'scratchpad/globalPlugins/galleryQualification.py'));
   await writeFile(path.join(config,'nvda.ini'),'schemaVersion = 25\n[general]\nlanguage = en\nshowWelcomeDialogAtStartup = False\nplayStartAndExitSounds = False\naskToExit = False\nsaveConfigurationOnExit = False\n[speech]\nsynth = silence\n[audio]\nsoundVolume = 0\n[braille]\ndisplay = noBraille\n[mouse]\nenableMouseTracking = False\n[virtualBuffers]\nautoSayAllOnPageLoad = False\npassThroughAudioIndication = False\n[update]\nautoCheck = False\nstartupNotification = False\naskedAllowUsageStats = True\nallowUsageStats = False\n[development]\nenableScratchpadDir = True\n');
   const evidence=path.join(directory,'nvda-evidence.json');const handle=(await command('window')).handle;
-  const labels=['Local Media Gallery','Skip to content','Choose folder','Refresh','Close folder','Show controls','Hide controls','Settings','Thumbnails','Diagnostics','Information','Close viewer','Previous','Next','Play','Pause','Close dialog',...fixture.entries.map(e=>e.name)];
+  const labels=['Local Media Gallery','Skip to content','Open folder','Refresh','Close folder','Show controls','Hide controls','Menu','Gallery','View','Prepare & share','Settings','Help','Back','Close menu','Recent folders','Folder details','Sort and filter','Layout','Information display','Prepare gallery','Thumbnails','Preparation progress','Appearance','Loading','Saved preferences and overrides','History','Diagnostics','Documentation','About and licenses','Information','Close viewer','Previous','Next','Play','Pause',...fixture.entries.map(e=>e.name)];
   const reader=spawn(tool.binary,['--minimal','--config-path='+config,'--log-file='+path.join(directory,'nvda.log')],{cwd:tool.directory,windowsHide:true,shell:false,stdio:'ignore',env:{...environment,GALLERY_NVDA_EVIDENCE:evidence,GALLERY_NVDA_HWND:handle,GALLERY_NVDA_LABELS:JSON.stringify(labels)}});
   reader.once('error',e=>{spawnError=e;});
   try{await until(async()=>{const r=JSON.parse(await readFile(evidence));return r.ready?r:false;},'Isolated NVDA startup',20000);}catch(e){await stop(reader);throw new Error(e.message+'; '+await readFile(path.join(directory,'nvda.log'),'utf8').catch(()=>''));}

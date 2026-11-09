@@ -4,6 +4,7 @@ mod compatibility;
 mod discovery;
 mod gallery_state;
 mod guided;
+mod help;
 mod history;
 mod launch;
 mod maintenance;
@@ -438,6 +439,8 @@ fn run_application(
         startup,
         operation_result,
         application_info,
+        help::application_notices,
+        help::open_documentation,
         snapshot,
         load_settings,
         inspect_metadata,
@@ -473,6 +476,8 @@ fn run_application(
         startup,
         operation_result,
         application_info,
+        help::application_notices,
+        help::open_documentation,
         snapshot,
         load_settings,
         inspect_metadata,

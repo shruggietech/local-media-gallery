@@ -3,7 +3,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {invoke} from '@tauri-apps/api/core';
 import {Button,Field,FormControls} from '@brand/web/react/server';
-import {Dialog} from '@brand/web/react/client';
 import type {NativePath,SettingsEnvelope} from './types';
 import type {Job} from './preparation';
 interface Selection {presentation:boolean;thumbnails:boolean;recipients:string[]}
@@ -13,7 +12,7 @@ interface Status {id:string;sessionId:string;sequence:string;phase:string;root:N
 const busy=(job:Status|null)=>!!job&&['previewing','running','cancelling'].includes(job.phase);
 const message=(e:unknown)=>typeof e==='object'&&e&&'message' in e?String(e.message):String(e);
 const pathLabel=(p:NativePath)=>new TextDecoder(p.encoding==='windows-utf16le'?'utf-16le':'utf-8').decode(new Uint8Array(p.bytes));
-export function GuidedPreparation({sessionId,envelope,completed}:{sessionId:string|null;envelope:SettingsEnvelope|null;completed:()=>void}) {
+export function useGuidedPreparation(sessionId:string|null,completed:()=>void) {
  const [selection,setSelection]=useState<Selection>({presentation:false,thumbnails:false,recipients:[]});
  const [job,setJob]=useState<Status|null>(null);const [pending,setPending]=useState(false);const [error,setError]=useState('');
  const current=useRef<Status|null>(null);const session=useRef(sessionId);session.current=sessionId;
@@ -29,8 +28,13 @@ export function GuidedPreparation({sessionId,envelope,completed}:{sessionId:stri
  useEffect(()=>{if(job&&['success','partial','cancelled','failed'].includes(job.phase)&&terminal.current!==job.id){terminal.current=job.id;completed();}},[job,completed]);
  const action=async(command:string,args:Record<string,unknown>)=>{const expected=session.current;setPending(true);setError('');try{const result=await invoke<Status>(command,args);if(session.current===expected)apply(result);}catch(e){if(session.current===expected)setError(message(e));}finally{setPending(false);}};
  const choose=(patch:Partial<Selection>)=>{setSelection(old=>({...old,...patch}));current.current=null;setJob(null);setError('');};
+ return {sessionId,selection,job,pending,error,active,action,choose};
+}
+export type GuidedPreparationState=ReturnType<typeof useGuidedPreparation>;
+export function GuidedPreparation({state,envelope}:{state:GuidedPreparationState;envelope:SettingsEnvelope|null}) {
+ const {sessionId,selection,job,pending,error,active,action,choose}=state;
  const disabled=active||pending;const root=job?pathLabel(job.root):'';
- return <Dialog triggerLabel="Prepare gallery" title="Prepare this gallery" description="Choose optional presentation, thumbnails and recipient launchers. Browsing works without preparation.">
+ return <section className="guided-preparation" aria-label="Prepare this gallery"><p>Choose optional presentation, thumbnails and recipient launchers. Browsing works without preparation.</p>
   <Field id="prepare-presentation" label="Save current presentation in this gallery" control={<FormControls.Checkbox checked={selection.presentation} disabled={disabled} onChange={e=>choose({presentation:e.target.checked})}/>}/>
   <Field id="prepare-thumbnails" label="Generate portable thumbnails" control={<FormControls.Checkbox checked={selection.thumbnails} disabled={disabled} onChange={e=>choose({thumbnails:e.target.checked})}/>}/>
   <p>Still-image thumbnails are built in. Select optional FFmpeg in Thumbnails before this preview to include videos.</p>
@@ -50,5 +54,5 @@ export function GuidedPreparation({sessionId,envelope,completed}:{sessionId:stri
   </section>:null}
   {error?<p role="alert">{error}</p>:null}
   <p>Keep complete packages and gallery-root launchers together when moving. Transfer Unix files with executable modes preserved, or extract the retained original archive on the recipient. Root launch copies and retained package update tools have separate locations; replacing one does not update the other.</p>
- </Dialog>;
+ </section>;
 }

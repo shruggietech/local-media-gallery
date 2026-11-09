@@ -32,7 +32,7 @@ tauri-plugin-wdio-webdriver = { version = "=1.5.1", optional = true }
 tokio = { version = "=1.54.1", features = ["time"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_System_Console", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_System_Console", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell"] }
 
 [dev-dependencies]
 tempfile = "=3.27.0"

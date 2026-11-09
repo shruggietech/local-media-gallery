@@ -1,3 +1,4 @@
+import {activeScopeScript,closeNavigation,selectSetting} from './navigation-driver.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
@@ -84,8 +85,11 @@ try {
     };
     const js = (script, args = []) => request('/session/' + session + '/execute/sync', { script, args });
     const snap = () => js('return await window.__TAURI_INTERNALS__.invoke("snapshot")');
-    const click = text => js('const e=[...document.querySelectorAll("button")].find(e=>e.textContent.trim()===arguments[0]||e.getAttribute("aria-label")===arguments[0]);if(!e)throw Error("Missing button "+arguments[0]);e.click();return true;', [text]);
-    const select = (id, value) => js('const e=document.getElementById(arguments[0]);if(!e)throw Error("Missing selector");e.value=arguments[1];e.dispatchEvent(new Event("change",{bubbles:true}));return true;', [id, value]);
+    const rawClick = text => js('const e=[...document.querySelectorAll("button")].find(e=>e.textContent.trim()===arguments[0]||e.getAttribute("aria-label")===arguments[0]);if(!e)throw Error("Missing button "+arguments[0]);e.click();return true;', [text]);
+    const legacySelect = (id, value) => js('const e=document.getElementById(arguments[0]);if(!e)throw Error("Missing selector");e.value=arguments[1];e.dispatchEvent(new Event("change",{bubbles:true}));return true;', [id, value]);
+    const navApp={js,click:rawClick};
+    const click=async text=>{if(label!=='baseline')await closeNavigation(navApp);return rawClick(text);};
+    const select=async(id,value)=>{if(label==='baseline')return legacySelect(id,value);await selectSetting(navApp,id,value);await closeNavigation(navApp);};
     const open = name => js('const e=[...document.querySelectorAll(".media-card")].find(e=>e.dataset.name===arguments[0]);if(!e)throw Error("Missing card");e.querySelector("button").click();return true;', [name]);
     const measure = async (name, action) => { const start = performance.now(); const result = await action(); samples[name].push(performance.now() - start); return result; };
     const resource = async () => label === 'baseline' ? { status: 'unavailable', basis: 'unchanged baseline has no native resource counter action' } : js('return await window.__TAURI_INTERNALS__.invoke("test_discovery_control",{action:"s011_resource_snapshot",config:null})');
@@ -98,7 +102,7 @@ try {
       const before = await observe({ action: 'memory', rootPid: child.pid, notBefore }); memory.push({ trial, phase: 'before exercise', ...before });
       assert.ok(!before.error && before.native?.processes > 0, JSON.stringify(before));
       if (await js('return !document.getElementById("media-sort")')) await click('Show controls');
-      if (await js('return !document.getElementById("font-scale")')) await click('Settings');
+      if(label==='baseline'&&await js('return !document.getElementById("font-scale")'))await click('Settings');
       await select('page-size', '48');
       const browser = await js('return {userAgent:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,devicePixelRatio},visibility:document.visibilityState}');
       await measure('discovery', async () => {
