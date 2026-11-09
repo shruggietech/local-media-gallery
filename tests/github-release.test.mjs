@@ -63,3 +63,16 @@ test('Large upload timeout inherits global and mutation-observation deadlines',a
  client.deadline=Date.now()+60;await assert.rejects(client.upload(release,'source.tar.xz',Buffer.from('source')),error=>['AbortError','TimeoutError'].includes(error.name));
  client.deadline=Date.now()+5000;const failure=Error('observation expired');await assert.rejects(client.observe(()=>client.upload(release,'source.tar.xz',Buffer.from('source')),'pending',failure),error=>error===failure);
 });
+
+test('Idempotent GitHub reads recover temporary responses while every mutation stays one-shot',async t=>{
+ const calls=new Map();const local=await service((req,res)=>{const key=req.method+' '+req.url;calls.set(key,(calls.get(key)??0)+1);if(req.method==='GET'&&req.url==='/eventual'&&calls.get(key)>1){res.end('{"ready":true}');return;}res.writeHead(503);res.end('private response');});t.after(local.close);const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true});assert.deepEqual(await client.json('GET','/eventual'),{ready:true});assert.equal(calls.get('GET /eventual'),2);
+ for(const method of ['POST','PATCH','DELETE']){await assert.rejects(client.json(method,'/mutation',{body:method==='DELETE'?undefined:{value:1}}));assert.equal(calls.get(method+' /mutation'),1);}
+ await assert.rejects(client.upload({upload_url:local.url+'/upload{?name}'},'fixture.bin',Buffer.from('bytes')));assert.equal(calls.get('POST /upload?name=fixture.bin'),1);
+});
+test('An interrupted owned file stream retries from byte zero with a new digest',async t=>{
+ const {mkdtemp,readFile,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const path=await import('node:path');const {createHash}=await import('node:crypto');const directory=await mkdtemp(path.join(tmpdir(),'lmg-replay-'));t.after(()=>rm(directory,{recursive:true,force:true}));let calls=0;
+ const local=await service((req,res)=>{calls++;if(calls===1){res.writeHead(200);res.write('stale prefix');setTimeout(()=>res.destroy(),10);}else res.end('complete replacement');});t.after(local.close);const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true});const file=path.join(directory,'candidate.partial'),result=await client.downloadFile('/bytes',file,{maxBytes:1024});const actual=await readFile(file);assert.equal(calls,2);assert.equal(actual.toString(),'complete replacement');assert.equal(result.bytes,String(actual.length));assert.equal(result.sha256,createHash('sha256').update(actual).digest('hex'));
+});
+test('An irreversible custom chunk sink is not replayed after delivered bytes',async t=>{
+ let calls=0,delivered='';const local=await service((req,res)=>{calls++;res.writeHead(200);res.write('only once');setTimeout(()=>res.destroy(),10);});t.after(local.close);const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true});await assert.rejects(client.download('/bytes',{onChunk:async chunk=>{delivered+=Buffer.from(chunk).toString();}}));assert.equal(calls,1);assert.equal(delivered,'only once');
+});

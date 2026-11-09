@@ -1,3 +1,4 @@
+import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 // Isolated diagnostic evidence only. Original failure remains a recorded failure.
 import assert from 'node:assert/strict';
@@ -18,7 +19,7 @@ const selected=registrationCase(process.env.GALLERY_MSI_UPGRADE_CASE);
 const call=promisify(execFile),work=path.join(root,'.local/msi-registration-diagnostic');await mkdir(work,{recursive:true});
 const capture=(file,args,extra={})=>{const task=call(file,args,{cwd:work,env:environment,windowsHide:true,shell:false,timeout:180000,maxBuffer:8*1024*1024,...extra});task.child.stdin.end();return task;};
 async function shell(script,arg={}){const encoded=Buffer.from(JSON.stringify(arg)).toString('base64');return capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-Command',"[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);$ErrorActionPreference='Stop';$arg=ConvertFrom-Json ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+encoded+"')));"+script]);}
-async function download(url,sha,bytes){const response=await fetch(url,{signal:AbortSignal.timeout(180000)});assert.ok(response.ok,url+': '+response.status);const data=Buffer.from(await response.arrayBuffer());assert.equal(digest(data),sha);if(bytes)assert.equal(String(data.length),String(bytes));return data;}
+async function download(url,sha,bytes){const data=await acquireBytes(url,{label:'Published MSI diagnostic input',timeoutMs:180000,maxBytes:bytes?Number(bytes):1024*1024});assert.equal(digest(data),sha);if(bytes)assert.equal(String(data.length),String(bytes));return data;}
 const pins={'0.2.0':'9f95fbfce0b46fc946f38a2bad6f22fa8284451bccfb258e82d667603cfec039','0.2.1':'1fe581cf724c1aab9c3451c40efd94cac78eba997112e9423aa03e29e5fbb5ce','0.2.2':'91093fac720854e1b6d6d637777453b50285846665398f776e37fc67cff1dae8'};
 async function published(version){
  const canonical=version==='0.1.0'?await readFile(path.join(root,'crates/gallery-preparation/tests/fixtures/release-0.1.0.json')):await download('https://github.com/shruggietech/local-media-gallery/releases/download/v'+version+'/release.json',pins[version]);

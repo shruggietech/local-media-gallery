@@ -1,3 +1,4 @@
+import {productVersion} from './product-version.mjs';
 // SPDX-License-Identifier: Apache-2.0
 // Synthetic-host browser regression. No mocks are imported by the application.
 import assert from 'node:assert/strict';
@@ -32,9 +33,9 @@ await context.route('**/media/**',route=>{
 });
 await context.addInitScript(({folder,origin})=>{
  const callbacks=new Map(),listeners=new Map();let callback=0,sequence=1,revision=1;
- const defaults={version:'0.2.2',formatVersion:1,fontScale:100,pageSize:48,cardSize:'medium',controlsExpanded:false,scrollIndicator:'auto',metadataExpanded:false,summaryFields:[],loadingMode:'automatic',filter:'all',sort:'name',direction:'asc'};
+ const defaults={version:productVersion,formatVersion:1,fontScale:100,pageSize:48,cardSize:'medium',controlsExpanded:false,scrollIndicator:'auto',metadataExpanded:false,summaryFields:[],loadingMode:'automatic',filter:'all',sort:'name',direction:'asc'};
  const layers={user:{},remembered:{},portable:{},session:{}};
- let current={version:'0.2.2',sequence:'1',discovery:{id:'discovery',generation:'1',kind:'open',phase:'complete',entriesSeen:'2',mediaSeen:'2',requestedRoot:folder,requestedNativeRoot:null,sessionId:'gallery',message:null},sessionId:'gallery',root:folder,nativeRoot:null,status:'complete',revision:'1',metadataRevision:'1',mediaOrigin:origin,issues:[],items:[
+ let current={version:productVersion,sequence:'1',discovery:{id:'discovery',generation:'1',kind:'open',phase:'complete',entriesSeen:'2',mediaSeen:'2',requestedRoot:folder,requestedNativeRoot:null,sessionId:'gallery',message:null},sessionId:'gallery',root:folder,nativeRoot:null,status:'complete',revision:'1',metadataRevision:'1',mediaOrigin:origin,issues:[],items:[
   {id:'image',revision:'1',name:'red.png',relativePath:'red.png',kind:'image',mime:'image/png',size:'100',modifiedMs:'0',issue:null,stale:false},
   {id:'video',revision:'1',name:'video.webm',relativePath:'video.webm',kind:'video',mime:'video/webm',size:'200',modifiedMs:'0',issue:null,stale:false},
  ]};
@@ -70,9 +71,9 @@ await context.addInitScript(({folder,origin})=>{
    if(command==='cache_interest')return null;
    if(['cache_cancel','report_media_observation','preparation_cancel_inspection'].includes(command))return;
    if(command==='inspect_metadata')return {...args.request,documents:[],limitations:[]};
-   if(command==='diagnostics_snapshot')return {context:{product:'Local Media Gallery',version:'0.2.2',edition:'full',os:'test',arch:'test'},records:[],dropped:'0',serializedBytes:'0',contents:''};
+   if(command==='diagnostics_snapshot')return {context:{product:'Local Media Gallery',version:productVersion,edition:'full',os:'test',arch:'test'},records:[],dropped:'0',serializedBytes:'0',contents:''};
    if(command==='diagnostics_export')return false;
-   if(command==='application_info')return {product:'Local Media Gallery',version:'0.2.2',edition:'full',os:'test',arch:'test',capabilities:[]};
+   if(command==='application_info')return {product:'Local Media Gallery',version:productVersion,edition:'full',os:'test',arch:'test',capabilities:[]};
    if(command==='open_documentation')return;
    if(command==='application_notices')return [{title:'Application license',contents:'Apache License 2.0 (synthetic host fixture)'}];
    if(command==='guided_preview'){job={id:'guided',sessionId:'gallery',sequence:'1',phase:'ready',root:{encoding:'unix-bytes',bytes:Array.from(new TextEncoder().encode(folder))},selection:args.selection,actions:[],activeAction:null,transferredBytes:'0',thumbnail:null,presentationBytes:'10',presentationSha256:'a'.repeat(64),error:null};return structuredClone(job);}

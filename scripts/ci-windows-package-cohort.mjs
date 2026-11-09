@@ -1,3 +1,4 @@
+import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 requireIsolatedDesktop();
@@ -39,7 +40,7 @@ async function inputs(verify=false){
 function runtimeEnvironment(build){return {...environment,LMG_RUNTIME_INPUT:path.resolve(root,build.runtimeInput.path),LMG_RUNTIME_SHA256:build.runtimeInput.sha256};}
 async function api(route){
  assert.ok(process.env.GH_TOKEN,'Actions read token required');const repository=process.env.GITHUB_REPOSITORY;assert.match(repository,/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/);
- const response=await fetch('https://api.github.com/repos/'+repository+route,{headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('Actions readiness API returned '+response.status);return response.json();
+ const bytes=await acquireBytes('https://api.github.com/repos/'+repository+route,{label:'Actions readiness read',headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},timeoutMs:30000,maxBytes:4*1024*1024});return JSON.parse(bytes.toString('utf8'));
 }
 async function commonClock(context,ready){
  const run=await api('/actions/runs/'+context.runId);assert.equal(run.head_sha,context.revision);assert.equal(String(run.run_attempt),String(context.attempt));

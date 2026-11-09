@@ -4,7 +4,7 @@ Your media presented beautifully.
 
 A lightweight desktop gallery for local images and videos. Open a directory and browse current media without importing a library, generating a manifest or preparing thumbnails. Rust and Tauri host the application with a bundled static Next.js interface.
 
-The latest published release is v0.2.2. Unreleased source adds [organized application navigation](docs/unreleased/application-navigation.md); published packages retain their versioned interface. Package availability, exact download hashes and supported native rows come from the matching canonical [GitHub Release](https://github.com/shruggietech/local-media-gallery/releases) and [official website](https://localmedia.gallery). The retained [v0.0.0 specification](docs/v0.0.0/index.md) is not a shipped product.
+The latest published release is v0.2.2. The v0.3.0 source candidate adds [organized application navigation](docs/v0.3.0/browsing-and-playback.md#application-navigation) and [legacy MSI maintenance recovery](docs/v0.3.0/installation-and-distribution.md#legacy-machine-msi-maintenance-recovery); published packages retain their versioned interface. Package availability, exact download hashes and supported native rows come from the matching canonical [GitHub Release](https://github.com/shruggietech/local-media-gallery/releases) and [official website](https://localmedia.gallery). The retained [v0.0.0 specification](docs/v0.0.0/index.md) is not a shipped product.
 
 ## Browsing and editions
 
@@ -16,7 +16,7 @@ The latest published release is v0.2.2. Unreleased source adds [organized applic
 - Full supplies installed integration. Lite runs in place on its declared supported host without installing Full or depending on a sender profile.
 - Published v0.2.2 Windows Full uses one offline MSI with license acceptance, current-user/all-users scope, an editable location, independent Start menu/PATH choices, progress and cancellation. Its complete WebView2 installer is bundled.
 
-The elected package targets are Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 Apple Silicon. Runtime prerequisites, actual tested hosts and limits are explicit in the [current source installation contract](docs/v0.2.2/installation-and-distribution.md). Use the documentation matching a downloaded release for its installation workflow. These are not universal clean-machine or every-architecture packages. Project signing and notarization are not performed.
+The elected package targets are Windows x86_64, Ubuntu 24.04 x86_64 and macOS 15 Apple Silicon. Runtime prerequisites, actual tested hosts and limits are explicit in the [current source installation contract](docs/v0.3.0/installation-and-distribution.md). Use the documentation matching a downloaded release for its installation workflow. These are not universal clean-machine or every-architecture packages. Project signing and notarization are not performed.
 
 Richer previews/autoplay/additional browsing criteria and media editing are deferred beyond v0.2.2. Guided preparation independently previews and applies gallery-local presentation, thumbnails and verified published Lite recipient launchers, with progress, cancellation and exact reuse. Moving a closed gallery and reopening or explicitly refreshing it does not require manifest regeneration.
 
@@ -44,13 +44,13 @@ npm run check:app
 
 `prepare:local` prepares ignored maintainer tools; it does not install the product. `npm run app -- DIRECTORY` rebuilds and runs a tooling build using disposable .local/development-state storage for its complete profile and cache. Native interactive/input/installer acceptance runs only on isolated CI desktops, never the active workstation.
 
-The [v0.2.2 documentation](docs/v0.2.2/index.md), [contribution guide](CONTRIBUTING.md), [changelog](CHANGELOG.md), [GitHub Issues](https://github.com/shruggietech/local-media-gallery/issues) and [Project](https://github.com/orgs/shruggietech/projects/8) describe contracts and development. Report vulnerabilities through [SECURITY.md](SECURITY.md); follow the [community conduct policy](CODE_OF_CONDUCT.md).
+The [v0.3.0 source documentation](docs/v0.3.0/index.md), [contribution guide](CONTRIBUTING.md), [changelog](CHANGELOG.md), [GitHub Issues](https://github.com/shruggietech/local-media-gallery/issues) and [Project](https://github.com/orgs/shruggietech/projects/8) describe contracts and development. Report vulnerabilities through [SECURITY.md](SECURITY.md); follow the [community conduct policy](CODE_OF_CONDUCT.md).
 
 ## Website and brand maintenance
 
 Use `npm run build:site`, `npm run check:site` and `npm run test:site` for the independent website. Its version manifest retains complete documentation/schema/reference snapshots. Only observed canonical publication elects current downloads and latest docs; Pages deploys exact qualified output.
 
-The upstream [brand repository](https://github.com/shruggietech/shruggie-brand) supplies the pinned kit. `npm run brand:verify` checks installed bytes, `brand:check` is read-only and `brand:update` imports the newest stable matching kit. Supplied candidates keep their provenance until a formal release replaces them. See [current source brand integration](docs/v0.2.2/brand.md).
+The upstream [brand repository](https://github.com/shruggietech/shruggie-brand) supplies the pinned kit. `npm run brand:verify` checks installed bytes, `brand:check` is read-only and `brand:update` imports the newest stable matching kit. Supplied candidates keep their provenance until a formal release replaces them. See [current source brand integration](docs/v0.3.0/brand.md).
 
 ## Release execution evidence
 
