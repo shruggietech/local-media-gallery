@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
+import {withDownloadRetries,requireDownloadResponse,readDownloadBody,DownloadValidationError} from './download-acquisition.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 const observationDeadline=new AsyncLocalStorage();
 import {createHash} from 'node:crypto';
@@ -42,9 +43,10 @@ export class GitHubReleaseClient {
  async request(method,route,{body,bytes,allow404=false,upload=false,timeoutMs=this.timeoutMs}={}){
   const url=new URL(route,this.origin);assert.ok(upload?(this.fixture?url.origin===this.origin:url.origin==='https://uploads.github.com'):url.origin===this.origin,'Unexpected credential destination');assert.ok(!url.username&&!url.password&&!url.hash);
   const headers={'cache-control':'no-cache',accept:'application/vnd.github+json','x-github-api-version':'2022-11-28','user-agent':'local-media-gallery-release',...(this.token?{authorization:'Bearer '+this.token}:{})};if(body!==undefined)headers['content-type']='application/json';if(bytes!==undefined)headers['content-type']='application/octet-stream';
-  const response=await fetch(url,{method,headers,body:bytes??(body===undefined?undefined:JSON.stringify(body)),redirect:'manual',signal:this.signal(timeoutMs)});if(allow404&&response.status===404){await response.body?.cancel();return {data:null,headers:response.headers,status:404};}
-  if(!response.ok){await response.body?.cancel();const error=Error(`GitHub ${method} ${url.pathname}: ${response.status}`);error.status=response.status;throw error;}
-  const chunks=[];let size=0;for await(const chunk of response.body??[]){size+=chunk.length;assert.ok(size<=this.maxJsonBytes,'GitHub JSON response bound exceeded');chunks.push(chunk);}const data=size?JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks))):null;return {data,headers:response.headers,status:response.status};
+  const label='GitHub '+method+' '+url.pathname;
+  const operation=async signal=>{const response=await fetch(url,{method,headers,body:bytes??(body===undefined?undefined:JSON.stringify(body)),redirect:'manual',signal});if(allow404&&response.status===404){await response.body?.cancel();return{data:null,headers:response.headers,status:404};}await requireDownloadResponse(response,{label});const content=await readDownloadBody(response,{maxBytes:this.maxJsonBytes,signal,boundLabel:'GitHub JSON response bound exceeded'});const data=content.length?JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(content)):null;return{data,headers:response.headers,status:response.status};};
+  if(method!=='GET')return operation(this.signal(timeoutMs));
+  return withDownloadRetries(operation,{label,timeoutMs,deadline:Math.min(this.deadline,observationDeadline.getStore()??Infinity)});
  }
  async json(method,route,options){return (await this.request(method,route,options)).data;}
  async list(route,collection){const items=[];let next=route+(route.includes('?')?'&':'?')+'page=1&per_page=100';for(let page=0;next;page++){assert.ok(page<100,'GitHub pagination bound');const result=await this.request('GET',next);const entries=collection?result.data[collection]:result.data;assert.ok(Array.isArray(entries));items.push(...entries);const link=result.headers.get('link')?.match(/<([^>]+)>;\s*rel="next"/);next=link?.[1]??null;}return items;}
@@ -57,20 +59,27 @@ export class GitHubReleaseClient {
  editRelease(id,body){return this.json('PATCH',this.prefix+'/releases/'+id,{body});}
  async upload(release,name,bytes){const template=release.upload_url;assert.equal(typeof template,'string');const url=new URL(template.replace(/\{[^}]*\}$/,''));url.search='';url.searchParams.set('name',name);return this.json('POST',url.href,{bytes,upload:true,timeoutMs:300000});}
  deleteAsset(id){return this.json('DELETE',this.prefix+'/releases/assets/'+id);}
- async download(address,{collect=false,maxBytes=1073741824,onChunk,timeoutMs=this.timeoutMs}={}){
-  assert.ok(Number.isSafeInteger(maxBytes)&&maxBytes>0);assert.ok(onChunk===undefined||typeof onChunk==='function');
-  let url=new URL(address,this.origin),authorized=url.origin===this.origin;
-  const actionsPath=this.prefix+'/actions/artifacts/';
-  const artifactId=url.pathname.slice(actionsPath.length).split('/')[0];
-  const actionsArtifact=authorized&&url.pathname===actionsPath+artifactId+'/zip'&&/^[1-9][0-9]*$/.test(artifactId);
-  const signal=this.signal(timeoutMs);for(let hop=0;hop<=5;hop++){
-   assert.ok(!url.username&&!url.password&&!url.hash);assert.ok(this.fixture?loopback(url):url.protocol==='https:'&&(['api.github.com','github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'].includes(url.hostname)||(/^productionresultssa[0-9]+\.blob\.core\.windows\.net$/.test(url.hostname)&&actionsArtifact)),'Unexpected binary destination');const headers={accept:actionsArtifact&&url.origin===this.origin?'application/vnd.github+json':'application/octet-stream',...(url.origin===this.origin?{'x-github-api-version':'2022-11-28','user-agent':'local-media-gallery-release'}:{}),...(authorized&&this.token?{authorization:'Bearer '+this.token}:{})};const response=await fetch(url,{headers,redirect:'manual',signal});
-   if([301,302,303,307,308].includes(response.status)){assert.ok(hop<5,'Binary redirect bound');const target=new URL(response.headers.get('location'),url);if(target.origin!==url.origin)authorized=false;await response.body?.cancel();url=target;continue;}
-   if(!response.ok){await response.body?.cancel();throw Error('GitHub binary readback: '+response.status);}const hash=createHash('sha256'),chunks=[];let bytes=0;for await(const chunk of response.body??[]){bytes+=chunk.length;assert.ok(bytes<=maxBytes,'Binary response bound exceeded');hash.update(chunk);if(onChunk)await onChunk(chunk);if(collect)chunks.push(chunk);}return {bytes:String(bytes),sha256:hash.digest('hex'),...(collect?{data:Buffer.concat(chunks)}:{})};
-  }throw Error('Binary redirect bound');
+ async download(address,{collect=false,maxBytes=1073741824,onChunk,timeoutMs=this.timeoutMs,resetSink}={}){
+  assert.ok(Number.isSafeInteger(maxBytes)&&maxBytes>0);assert.ok(onChunk===undefined||typeof onChunk==='function');assert.ok(resetSink===undefined||typeof resetSink==='function');
+  const initial=new URL(address,this.origin),actionsPath=this.prefix+'/actions/artifacts/',artifactId=initial.pathname.slice(actionsPath.length).split('/')[0];
+  const actionsArtifact=initial.origin===this.origin&&initial.pathname===actionsPath+artifactId+'/zip'&&/^[1-9][0-9]*$/.test(artifactId);let emitted=false;
+  return withDownloadRetries(async(signal,attempt)=>{
+   if(resetSink)await resetSink(attempt);emitted=false;let url=new URL(initial),authorized=url.origin===this.origin;
+   for(let hop=0;hop<=5;hop++){
+    if(url.username||url.password||url.hash)throw new DownloadValidationError('Unexpected binary credentials or fragment');
+    if(!(this.fixture?loopback(url):url.protocol==='https:'&&(['api.github.com','github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'].includes(url.hostname)||(/^productionresultssa[0-9]+\.blob\.core\.windows\.net$/.test(url.hostname)&&actionsArtifact))))throw new DownloadValidationError('Unexpected binary destination');
+    const headers={accept:actionsArtifact&&url.origin===this.origin?'application/vnd.github+json':'application/octet-stream',...(url.origin===this.origin?{'x-github-api-version':'2022-11-28','user-agent':'local-media-gallery-release'}:{}),...(authorized&&this.token?{authorization:'Bearer '+this.token}:{})};const response=await fetch(url,{headers,redirect:'manual',signal,cache:'no-store'});
+    if([301,302,303,307,308].includes(response.status)){const location=response.headers.get('location');await response.body?.cancel();if(hop>=5)throw new DownloadValidationError('Binary redirect bound');if(!location)throw new DownloadValidationError('Missing binary redirect destination');const target=new URL(location,url);if(target.origin!==url.origin)authorized=false;url=target;continue;}
+    await requireDownloadResponse(response,{label:'GitHub binary readback'});const hash=createHash('sha256'),chunks=[];
+    const result=await readDownloadBody(response,{maxBytes,collect:false,signal,boundLabel:'Binary response bound exceeded',onChunk:async chunk=>{hash.update(chunk);if(onChunk){emitted=true;await onChunk(chunk);}if(collect)chunks.push(chunk);}});
+    return{bytes:String(result.bytes),sha256:hash.digest('hex'),...(collect?{data:Buffer.concat(chunks)}:{})};
+   }
+   throw new DownloadValidationError('Binary redirect bound');
+  },{label:'GitHub binary readback',timeoutMs,deadline:Math.min(this.deadline,observationDeadline.getStore()??Infinity),retryAllowed:()=>!emitted||typeof resetSink==='function'});
  }
  async downloadFile(address,file,{maxBytes=1073741824,timeoutMs=this.timeoutMs}={}){
-  const handle=await open(file,'wx',0o600);try{const result=await this.download(address,{maxBytes,timeoutMs,onChunk:chunk=>handle.writeFile(chunk)});await handle.sync();return result;}finally{await handle.close();}
+  const handle=await open(file,'wx',0o600);let offset=0;
+  try{const result=await this.download(address,{maxBytes,timeoutMs,resetSink:async attempt=>{if(attempt>1)await handle.truncate(0);offset=0;},onChunk:async chunk=>{let written=0;while(written<chunk.length){const result=await handle.write(chunk,written,chunk.length-written,offset);assert.ok(result.bytesWritten>0,'Evidence file write made no progress');written+=result.bytesWritten;offset+=result.bytesWritten;}}});await handle.sync();return result;}finally{await handle.close();}
  }
  async verifyQualification(record){
   assert.ok(!this.fixture,'Fixture transport cannot authorize production');const run=await this.json('GET',this.prefix+'/actions/runs/'+record.qualification.runId);

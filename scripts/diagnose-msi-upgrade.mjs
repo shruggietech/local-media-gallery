@@ -1,3 +1,4 @@
+import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
@@ -21,13 +22,13 @@ const call=promisify(execFile),work=path.join(root,'.local/msi-upgrade-diagnosti
 const capture=(file,args,extra={})=>call(file,args,{cwd:work,env:environment,windowsHide:true,shell:false,timeout:180000,maxBuffer:8388608,...extra});
 const shell=async (code,values={})=>JSON.parse((await capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-Command',"[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);$ErrorActionPreference='Stop';$arg=ConvertFrom-Json ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"+Buffer.from(JSON.stringify(values)).toString('base64')+"')));"+code])).stdout);
 const msi=async(args)=>{try{await capture(path.join(environment.SystemRoot,'System32/msiexec.exe'),msiCommandArguments(args),{windowsVerbatimArguments:true});return 0;}catch(e){if(e.code===3010)return 3010;throw e;}};
-const download=async url=>{const r=await fetch(url,{signal:AbortSignal.timeout(180000)});assert.ok(r.ok,url+': '+r.status);return Buffer.from(await r.arrayBuffer());};
+const download=async (url,maxBytes=1024*1024)=>acquireBytes(url,{label:'Published upgrade diagnostic input',timeoutMs:180000,maxBytes});
 const result={kind:'published-msi-upgrade-diagnostic',acceptance:false,started:new Date().toISOString(),host:{release:os.release(),version:os.version(),image:process.env.ImageVersion??null},inputs:[],cases:[]};let observer,originalAttributes,consentBefore,installerPolicyBefore,offlineIntent;
 try{
  const canonical=await download('https://github.com/shruggietech/local-media-gallery/releases/download/v0.2.0/release.json');assert.equal(digest(canonical),'9f95fbfce0b46fc946f38a2bad6f22fa8284451bccfb258e82d667603cfec039');
- const old=parseReleaseRecord(canonical,{requirePublished:true});const artifact=old.artifacts.find(a=>a.role==='package'&&a.platform==='windows'&&a.edition==='full');const bytes=await download(artifact.url);assert.equal(digest(bytes),artifact.sha256);assert.equal(String(bytes.length),artifact.bytes);
+ const old=parseReleaseRecord(canonical,{requirePublished:true});const artifact=old.artifacts.find(a=>a.role==='package'&&a.platform==='windows'&&a.edition==='full');const bytes=await download(artifact.url,Number(artifact.bytes));assert.equal(digest(bytes),artifact.sha256);assert.equal(String(bytes.length),artifact.bytes);
  const inputs=publishedWindowsInputs(bytes),native=inputs.get('local-media-gallery-machine.msi'),payload=JSON.parse(inputs.get('source/payload.json').data);assert.ok(native);const oldFile=path.join(work,'published-0.2.0.msi');await writeFile(oldFile,native.data);
- const newFile=path.join(work,'published-0.2.1.msi'),newBytes=await download('https://github.com/shruggietech/local-media-gallery/releases/download/v0.2.1/local-media-gallery-0.2.1-full-x86_64-windows.msi');assert.equal(digest(newBytes),'f6bf1c0d500a1f55159f964144c934434882da2184631d0d7c9c923651b4a146');await writeFile(newFile,newBytes);
+ const newFile=path.join(work,'published-0.2.1.msi'),newBytes=await download('https://github.com/shruggietech/local-media-gallery/releases/download/v0.2.1/local-media-gallery-0.2.1-full-x86_64-windows.msi',245473280);assert.equal(newBytes.length,245473280);assert.equal(digest(newBytes),'f6bf1c0d500a1f55159f964144c934434882da2184631d0d7c9c923651b4a146');await writeFile(newFile,newBytes);
  result.inputs=[{version:'0.2.0',canonicalSha256:digest(canonical),artifact,msi:native.record},{version:'0.2.1',msi:{bytes:String(newBytes.length),sha256:digest(newBytes)}}];
  if(process.env.GALLERY_MSI_UPGRADE_CASE==='limited-offline'){
   const group='LMG-S025-offline-'+process.pid+'-'+randomUUID(),ownedRuleNames=['listener','worker','dns-tcp','dns-udp'].map(s=>group+'-'+s);

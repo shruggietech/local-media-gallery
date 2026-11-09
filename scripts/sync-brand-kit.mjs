@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 // The upstream release owns kit bytes. This command only imports and records them.
 import { createHash, randomUUID } from 'node:crypto';
@@ -149,16 +150,7 @@ export function verifyKit(files, candidate, { allowCandidate = false } = {}) {
 }
 
 async function requestBytes(url, maximum, fetchImplementation = fetch) {
-  const response = await fetchImplementation(url, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'localmedia-gallery-brand-maintenance' }, signal: AbortSignal.timeout(60000) });
-  if (!response.ok) throw new Error(`Upstream request returned ${response.status}: ${url}`);
-  if (Number(response.headers.get('content-length') || 0) > maximum) throw new Error(`Download exceeds size limit: ${url}`);
-  const chunks = []; let length = 0;
-  for await (const chunk of response.body) {
-    length += chunk.length;
-    if (length > maximum) { throw new Error(`Download exceeds size limit: ${url}`); }
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
+  return acquireBytes(url,{label:'Upstream brand input',fetcher:fetchImplementation,headers:{Accept:'application/vnd.github+json','User-Agent':'localmedia-gallery-brand-maintenance'},timeoutMs:60000,maxBytes:maximum});
 }
 
 export function selectRelease(releases) {

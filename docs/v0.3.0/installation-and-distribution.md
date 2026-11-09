@@ -1,0 +1,181 @@
+# Installation and distribution
+
+## Distribution contract
+
+**DI-01:** Every product artifact identifies edition, application version, OS, CPU architecture, format and host prerequisites. A release has exactly one Lite executable and one Full installer for each covered platform. Source, documentation and schemas share the application version; brand-kit and feature-helper versions are separate identities.
+
+This chapter describes v0.3.0 installation and distribution contracts. Only a verified canonical published release record establishes actual download availability. Published v0.1.0 archives and v0.2.0 installers remain unchanged; their versioned documentation describes their own workflows.
+
+## Full installation and Lite operation
+
+| Property | Lite | Full |
+| --- | --- | --- |
+| Download | One native executable | One self-contained native installer |
+| Placement | Executable beside gallery media | Windows user/all-users choice; system installation on Linux/macOS |
+| Privileges | No elevation or Full installation | Windows current-user installation needs no administrator; machine operations use normal platform authorization |
+| Interface, application resources and notices | Embedded in executable | Included in installer/application payload |
+| Webview | Declared host runtime | Redistributable runtime bundled; OS facilities retained |
+| Video-thumbnail helper | Optional explicitly selected local FFmpeg | Bundled, verified and automatically selected FFmpeg |
+| Gallery data | Independent media, settings and optional caches | Independent media, settings and optional caches |
+
+**DI-02:** Lite runs without Full, a sender profile, maintainer tools or distributed application companions. It is downloaded directly, without an archive or unpacked application bundle. Its host OS/runtime prerequisites remain explicit. Required notices and maintenance identity travel within the executable. Generated gallery settings/caches are user data, not distributed application dependencies.
+
+Full carries application payloads, redistributable runtimes, implemented feature helpers and internal installation/update metadata in one file. Ordinary installation and maintenance start from that downloaded installer without choosing internal packages, descriptors, payload directories or helper downloads. Windows Full is an MSI with current-user/all-users scope selection; Linux/macOS Full install at system scope. It never uses an online dependency bootstrapper to satisfy its bundled-runtime contract.
+
+## Installation lifecycle and collisions
+
+**DI-03:** Installation validates physical destinations, existing registration, exact owned files, hashes and integration before replacing or removing application content. Foreign destinations, redirects, altered owned files and active application use produce an actionable conflict. Native package ownership remains authoritative where applicable. A failed privilege request does not establish installation.
+
+Same-candidate repeat verifies existing ownership and payload. Replacement installation verifies the prior and incoming identities before switching. Incomplete operations retain attributable receipts and inputs so recovery can inspect the actual installed state. Media directories are never installation destinations by implication.
+
+## Updates, rollback and removal
+
+**DI-04:** A replacement Full installer discovers the owned installation and supplies its embedded verified maintenance inputs internally. Recovery checks retained candidate, destination, registration and observed phase; it does not infer success from a timeout. Changed live or retained files, another active transaction, foreign registration or a selected writer that cannot read or reset the supplied state block destructive changes.
+
+**DI-05:** Removal deletes only unchanged application-owned files and integration. It retains galleries, media, sidecars, portable settings, user preferences/history, foreign extras and shared runtime dependencies. Removing Lite's executable leaves media independently usable. Do not delete unknown files, transaction locks or package registration to force a retry.
+
+Lite replacement runs from the separately downloaded replacement executable with the old application closed. Use maintain replace ABSOLUTE_OLD_EXECUTABLE, or maintain status, maintain recover or maintain rollback with the same old executable path; an optional --json requests machine-readable output. The replacement reads embedded identities and privately retains verified transaction inputs, without user-supplied JSON or a companion updater. Gallery preparation validates exact bytes and executable modes, supports exact reuse and refuses foreign or changed outputs. Retain the replacement executable and private recovery storage until maintenance reaches a verified terminal state. Historical v0.1.0 files lack this embedded contract and retain their versioned archive-maintenance workflow; unknown prior identities are refused. No loose JSON descriptor is needed to launch or relocate new Lite files. Existing explicit maintainer transaction interfaces remain internal compatibility tools and are not the ordinary product download experience.
+
+## Preparing binaries for sharing
+
+Place only the matching Lite executable beside media and launch it there, or explicitly select a gallery. Close the folder/application before relocation so held media grants are released, move the gallery and executable together, then relaunch and Refresh. The original sender's working directory, history and preferences are not required.
+
+Unix downloads and transfer tools may not preserve executable permission. Mark the native file executable using the platform's file-permissions interface where necessary; the byte-identical file remains the entire application delivery. Declared Linux libraries and Windows WebView2 are host prerequisites for Lite. No Node, Python, Rust, chosen browser or Full installation is required.
+
+## Initial platform and dependency matrix
+
+The [canonical matrix](../../schemas/v0.3.0/platform-matrix.json) separates covered native rows from retained targets. Windows x86_64, Ubuntu 24.04 Linux x86_64 and macOS 15 Apple Silicon have distinct artifacts. Windows ARM64, Linux ARM64 and macOS Intel remain unqualified until their own native builds and receipts exist.
+
+### Package and installation policy
+
+| Covered platform | Lite file | Full file | OS facilities and bundled dependencies |
+| --- | --- | --- | --- |
+| Windows x86_64 | PE executable | Native MSI with scope/location choices | Windows facilities; Full includes complete offline Evergreen WebView2 and FFmpeg |
+| Ubuntu 24.04 x86_64 | ELF executable | Native executable installer | GNU OS facilities; Full includes exact GTK/WebKitGTK/libsoup/GStreamer dependency packages and FFmpeg |
+| macOS 15 aarch64 | Mach-O executable | System-domain flat PKG | OS AppKit/WKWebView and system codecs; Full includes FFmpeg |
+
+The interface, native core and SQLite are embedded. Full includes the matching feature-helper source, build configuration and notices. Linux runtime packages retain package copyright material and exact source/version mapping; corresponding runtime source archives are separately identified source assets, not another product edition. Build/debug databases and qualification tooling are excluded from ordinary product files.
+
+### Windows candidate operations
+
+1. Close running gallery processes and open the single Full MSI. Read and accept the license. Choose **Only for me** (the default) or **For all users**, then set the installation location. All-users installation uses Windows administrator authorization.
+2. Independently choose a Start menu shortcut (enabled by default) and command PATH integration (disabled by default). Existing installations retain scope, location and saved integration choices. Back retains selections; Cancel exits before mutation or requests rollback during installation.
+3. Continue to Install. Native progress identifies application work and WebView2 detection, bundled offline provision and verification. No network acquisition is required. Cancellation during vendor work waits for its bounded outcome before application rollback. A shared runtime may remain after cancellation or removal. A timeout remains incomplete and retains diagnostics; it does not prove the vendor service stopped.
+4. Launch from the chosen shortcut, the installed executable or selected command integration, and select a gallery. Full verifies and automatically selects its bundled FFmpeg for video thumbnails.
+5. Open a replacement MSI for an owned same-scope update. Recognized published predecessor ownership is checked before native replacement. Replacing a legacy v0.2.0 all-users installation requests administrator authorization before binding the machine Programs directory; cancellation returns without changing the installed product. Replacing a v0.2.1 or v0.2.2 all-users installation follows the normal native MSI transaction. Both paths inherit the installed scope, location, Start menu and PATH choices and refuse changed owned payloads. Reopen the matching MSI to repair or remove it, or use Windows Apps for removal. Moving between scopes or locations requires an explicit removal/install operation; it is not a silent migration. Native rollback and retained verified maintenance inputs support recovery. Media, settings, foreign extras and shared runtime remain.
+
+For unattended administration, use msiexec /i FULL.msi /qn /norestart with /L*v ABSOLUTE_LOG_PATH. ALLUSERS=2 MSIINSTALLPERUSER=1 selects user scope; ALLUSERS=1 MSIINSTALLPERUSER= selects all users. INSTALLDIR supplies an absolute location. LMG_STARTMENU=1 or 0 and LMG_PATH=1 or 0 independently elect integrations. Omitted choices use fresh-install defaults or saved maintenance choices. Native MSI return codes include 0 (success), 1602 (cancelled), 1603 (failure) and 3010 (success with restart required); retain the log for the actual operation. Quiet use does not bypass ownership or dependency checks. Advanced explicit updater transactions retain their scoped journals and state compatibility checks.
+
+Windows and Linux installed dependency notices are indexed in licenses/dependencies.json with each original path, complete text, byte length and hash. Project notices and bundled feature-helper source/notices remain separate managed files.
+
+Lite is the direct matching EXE beside gallery media. It requires the declared shared host WebView2 runtime and never installs Full. Native Windows Server qualification does not by itself establish Windows 10/11 client behavior; exact host receipts remain authoritative.
+
+### macOS candidate operations
+
+1. Open the single Full PKG and use Installer's system authorization. The install choice invokes embedded ownership-aware application setup before any foreign destination can be overwritten.
+2. Launch the installed app from Applications and select a gallery. The bundled feature helper is inside the managed application.
+3. Open the replacement PKG for an owned system update, including a verified published v0.1.0 system installation. Reopening an interrupted matching operation uses retained recovery identity. Installation and maintenance retain media and compatible settings/history.
+4. To restore the prior owned application after an update, open the same PKG, choose Customize, select **Roll back to the prior owned application**, and continue. The installer discovers and verifies its retained predecessor without separate files or JSON operands. **Uninstall Local Media Gallery Full** is a mutually exclusive choice that removes only unchanged owned application/integration files; media and user settings/history remain.
+5. For Lite, place its direct Mach-O executable beside the gallery and launch that file with executable permission. No distributed app directory or companion file is required.
+
+WKWebView, AppKit and system codecs are OS facilities. Additional codec support is bounded by observed native runtime behavior; generating a thumbnail is not proof that a host webview plays that codec.
+
+### Linux candidate operations
+
+1. Launch the single Full executable installer. Normal platform authorization grants system installation; command-line use on a headless host requires explicit administrator invocation.
+2. The installer verifies its embedded application and exact dependency packages, then installs from local verified inputs with downloads disabled. It does not depend on a prepared maintainer environment or fetch missing packages during installation.
+3. Launch Full from its desktop entry or command and choose a gallery. Its installed FFmpeg is automatically verified and selected for video thumbnails.
+4. Use the matching replacement installer for ordinary replacement and the supported managed recovery path after interruption. Native package ownership and collision checks remain active. The installer accepts --recover, --rollback and --remove without descriptor operands. Its root-owned /var/lib/local-media-gallery/updates history retains verified generations and recovery inputs. System package removal retains that history, media, user data and shared dependencies; it does not run autoremove.
+5. For Lite, place the direct executable beside media with executable permission. GTK3, WebKitGTK4.1, libsoup3 and declared GStreamer host libraries are prerequisites. Missing dynamic libraries may fail at the loader before application code starts.
+
+Ubuntu 24.04 output does not establish older GNU ABI or another distribution's support. X11/Xvfb evidence does not qualify Wayland. The [payload schema](../../schemas/v0.3.0/linux-packages.schema.json) binds internal managed application identity; internal deb and runtime packages are installer inputs rather than competing product downloads.
+
+## Explicit candidate updates and recovery
+
+Candidate provenance and publication are separate. Maintenance verifies retained exact inputs, installed ownership and state compatibility before activation. Ordinary Full installation supplies those internal operands; users do not retain an extracted toolkit or choose JSON descriptors. An update creates no background release-discovery service.
+
+Recovery reconciles actual old/new/missing files after an interrupted mutation. Complete and restored results require payload/native-registration readback. A client timeout remains incomplete until an independent native worker's terminal outcome is observed. Filesystem flushes support process interruption recovery without claiming device power-loss guarantees. The selected ordinary writer checks portable and private-state operands read-only. Resettable private content may admit the new writer without changing bytes during the check; portable or operational failures refuse. Rollback rechecks its older selected writer rather than promising unrestricted downgrades.
+
+### Prerequisites and footprint reporting
+
+Report downloaded installer/executable bytes, installed application bytes, bundled dependencies, retained source/notices and shared runtime observations separately. Unknown runtime size is unavailable with a reason, never zero. A shared runtime's total logical size is not its marginal installation cost.
+
+Lite requires only its declared supported OS/runtime facilities. Full's clean offline campaign first observes redistributable absence, blocks network access, copies only the installer and verifies native rendering/media, helper operation and lifecycle. Prepared build-runner success alone does not establish that outcome. See [Tauri prerequisites](https://tauri.app/start/prerequisites/) and [WebView2 distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
+
+## Open decisions
+
+Additional architectures, OS/ABI combinations and unobserved native behavior require their own evidence. No universal package-size promise is made. A demonstrated technical or redistribution constraint must be resolved explicitly before a single-file or complete-Full requirement changes.
+
+See [verification and compatibility](verification-and-compatibility.md), the [index](index.md) and the [glossary](glossary.md).
+
+## Native behavior qualification
+
+Receipts distinguish native executable identity, actual copy-only Lite launch/relocation/Refresh, offline Full dependency provision, rendering/media/thumbnail behavior, accessibility and maintenance. Tests run on isolated native hosts; they do not use the owner's active desktop or impose attended acceptance. Test frameworks, screen readers and maintainers' runtimes are not recipient dependencies.
+
+## Verified release assembly and publication
+
+The release pipeline selects six ordinary files from retained successful source-bound native qualification, rather than publishing internal diagnostic archives. It verifies exact product hashes/sizes, inventories, executable modes, dependency/source notices and applicable checks before staging. Real product filenames identify version, edition, OS and architecture without candidate. Separately listed source/debug/metadata assets do not become extra product choices.
+
+The [canonical contract](../../schemas/v0.3.0/release-record.schema.json) binds those identities, prerequisites, documentation/schema review and eight qualification scopes. Candidate content identity remains immutable through service publication observations. Numeric version triplets apply; the Windows installer bounds major/minor to 255 and patch to 65535.
+
+Release publication is a separately authorized manual workflow on main. It independently reassembles retained accepted bytes, verifies the elected predecessor and source, gates candidate documentation, stages an attributable draft, uploads exact assets and verifies public readback before canonical selection. Lost acknowledgements are reconciled through service observations before retrying mutations; changed remote bytes refuse replacement. Release notes contain short highlights ending with the master changelog link. Binaries remain in Releases, outside the documentation Pages tree.
+
+## Prepared recipient packages
+
+Guided preparation resolves the current canonical published Lite matrix and preserves the actual published version and artifact identities. Sender v0.3.0 does not relabel downloaded bytes. Historical archives retain their complete older payload and root-launch-copy behavior. New single-file releases instead stage only the matching executable as application delivery, plus preparation/release receipts as gallery metadata. Those receipts are not launch dependencies; copying the executable alone into a fresh gallery remains supported.
+
+See [guided preparation](gallery-lifecycle.md#guided-preparation-and-recipient-outputs) for collision, cancellation, exact-reuse and relocation behavior.
+
+## Windows updater storage and retention
+
+User-scoped maintenance uses %LOCALAPPDATA%/local-media-gallery/updates. Machine-scoped maintenance uses %PROGRAMDATA%/local-media-gallery/updates. Native known folders, protected owner/ACL checks and physical path validation select these roots. Transactions, embedded installer inputs, scratch and coordination use the same elected scope. Existing legacy directories are not migrated or repeatedly deleted.
+
+Published legacy MSI recovery uses a compatibility journal and duplicate verified payload inventories in canonical scoped storage to satisfy that installer's ancestry checks. The selected transaction keeps its immutable identity and a bound reference to this copy. Legacy package bytes and registration are unchanged; the compatibility copy remains retained with recovery evidence.
+
+Coordination files are validated for owner, ACL, ordinary type, one link and empty content before an exclusive lease marks them for deletion. Last handle closure, including process termination, removes the transient coordination file. Active leases continue to exclude other transactions targeting the same installation.
+
+Marked preparation and embedded-retention stages carry a scoped ownership record and lease. Retries reclaim abandoned validated Windows stages; active leases, unresolved native clients and foreign, linked or unrecognized contents remain retained. Terminal native worker scratch is eligible for cleanup only after matching terminal authority and native lease acquisition. Sealed prior/next payloads, installers, identities, journals and recovery authority remain available after completion or restoration. A committed transaction is not blanket-deleted.
+
+## Legacy machine MSI maintenance recovery
+
+### Observed failure
+
+Exact published v0.1.0 and v0.2.0 machine installers can install successfully at a custom location and then refuse ordinary removal with error 1603. Their guard relies on an extended Windows Installer component-path lookup that can return UNKNOWN while the ordinary lookup, scoped component state, registered client, package identity and actual files agree.
+
+On the isolated Windows runner, the elected 129-character executable path removed successfully and the 130- and 131-character paths failed. Flat and nested controls reproduced the same shorter/longer split. This boundary was observed for that host and path family. The separately tested v0.2.1 and v0.2.2 installers removed at the 131-character location despite the same extended-lookup discrepancy.
+
+### Recovery mechanism
+
+Full candidates contain payload-specific `maintenance/legacy-0.1.0-machine.msp` and `maintenance/legacy-0.2.0-machine.msp` Windows Installer patches. Each patch carries a guard compiled with its exact original payload manifest. The original published MSI, its package identity, application files, component definitions and integration definitions remain unchanged.
+
+Before mutation, the replacement guard checks the selected native product, package, component, context and sole registered client, the physical destination, every extant owned payload byte, the manifest and scoped integration state. The ordinary component lookup supplies a path only as one corroborating observation. An UNKNOWN extended lookup alone never establishes ownership. Changed owned bytes, linked locations, mismatched identities and wrong patch targets refuse.
+
+Patch construction compares every exported native table and stream. It permits only the new guard binary, the Preflight redirect and an early common Programs binding action. The original deferred verification action remains in place. File, Component, Directory, Feature, Registry and Environment tables cannot change. Native Windows Installer records and applies the patch.
+
+### Owner workflow
+
+Close running gallery processes before maintenance. Keep the matching original published MSI available for native source recovery if Windows Installer requests it. Choose the patch for the installed predecessor version; native target and ownership checks verify the choice.
+
+1. Obtain the matching verified v0.3.0 Full MSI and administratively extract it into a dedicated folder. This extracts files without registering the candidate application:
+
+   ```powershell
+   msiexec.exe /a "C:\Downloads\Full.msi" /qn TARGETDIR="C:\LMG-Recovery"
+   ```
+
+2. From an administrator terminal, apply the matching machine patch. For v0.1.0:
+
+   ```powershell
+   msiexec.exe /p "C:\LMG-Recovery\Local Media Gallery\maintenance\legacy-0.1.0-machine.msp" REINSTALL=ALL REINSTALLMODE=omus /passive /norestart /L*v "C:\LMG-Recovery\legacy-repair.log"
+   ```
+
+3. After native patch completion, use ordinary Windows application removal or open the replacement Full installer. Retain the native log if repair refuses or reports an incomplete operation.
+
+Managed update, rollback and recovery use the authenticated patch in retained Full payloads when the legacy extended lookup prevents maintenance. They keep the existing scoped native worker and terminal-outcome supervision. Recovery can reuse an already applied matching patch; it does not repeatedly reinstall that patch. A coordinating-client timeout or interruption does not establish that the native worker stopped.
+
+Completed maintenance retains independent gallery media, sidecars, foreign files, preferences, history and shared WebView2.
+
+### Verification boundaries
+
+Qualification reproduces the original failure before repair, checks affected versions separately, exercises retained-input and changed-owned-file refusals, interrupts the actual coordinating client during a native patch, recovers to the current payload, restores the predecessor and subsequently removes it ordinarily. Private state, independent files, native registration, PATH, shortcut and runtime observations are retained with native logs and terminal receipts. Historical diagnostic artifacts do not qualify a changed candidate.
+
+No installer or native GUI test runs on the active developer workstation. The existing qualification elections, advisory target, hard deadline and finalization reserve remain authoritative. Candidate verification and a merged source change do not announce a published release.

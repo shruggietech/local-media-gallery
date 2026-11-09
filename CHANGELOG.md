@@ -4,14 +4,26 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+## [0.3.0]
+
+Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.
+
+### Highlights
+
+- Organize application navigation and save destinations while preserving media playback and admitted preparation work.
+- Recover verified legacy Windows machine installations at affected custom paths with payload-bound native maintenance patches.
+- Recover temporary CI download failures within finite acquisition bounds and prepare matching v0.3.0 software, documentation and schemas.
+
 ### Added
 
-- Organize the application into Gallery, View, Prepare & share, Settings and Help drawer pages, with a compact folder bar, selectable full paths, contextual save destinations, persistent viewer Information and accessible Back/dismissal behavior. See the [unreleased navigation contract](https://github.com/shruggietech/local-media-gallery/blob/main/docs/unreleased/application-navigation.md).
+- Organize the application into Gallery, View, Prepare & share, Settings and Help drawer pages, with a compact folder bar, selectable full paths, contextual save destinations, persistent viewer Information and accessible Back/dismissal behavior. See the [navigation contract](https://github.com/shruggietech/local-media-gallery/blob/main/docs/v0.3.0/browsing-and-playback.md#application-navigation).
 - Keep preparation progress, cancellation and thumbnail destination drafts available across navigation; provide released documentation and embedded application, brand and font notices.
 
 ### Fixed
 
-- Recover verified published v0.1.0/v0.2.0 machine MSI installations whose extended component lookup prevents removal at affected custom locations. Add payload-bound native maintenance patches, preserved ownership checks, supervised replacement/restoration and affected-path regression evidence. See the [unreleased recovery contract](https://github.com/shruggietech/local-media-gallery/blob/main/docs/unreleased/legacy-msi-recovery.md).
+- Retry complete idempotent acquisitions for elected temporary HTTP and nested transport failures, with bounded attempts, elapsed time, Retry-After, cancellation, size checks and credential-free diagnostics. Preserve digest failures and one-shot publication mutations.
+- Add exact published v0.2.2 MSI readiness and ordinary upgrade qualification while retaining the existing v0.2.0/v0.2.1 and advanced legacy cases.
+- Recover verified published v0.1.0/v0.2.0 machine MSI installations whose extended component lookup prevents removal at affected custom locations. Add payload-bound native maintenance patches, preserved ownership checks, supervised replacement/restoration and affected-path regression evidence. See the [recovery contract](https://github.com/shruggietech/local-media-gallery/blob/main/docs/v0.3.0/installation-and-distribution.md#legacy-machine-msi-maintenance-recovery).
 
 - Request explicit PulseAudio recording latency and retain complete-window or bounded failure evidence when the final PCM bytes arrive separately.
 - Bind macOS package interruption to a newly observed coordinator, process creation identity, expected generation and confirmed stopped state; retain refusal and recovery diagnostics.

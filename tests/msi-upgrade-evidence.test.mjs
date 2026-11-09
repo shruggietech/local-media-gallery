@@ -5,7 +5,7 @@ import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {digest} from '../scripts/windows-packages.mjs';
-import {validateOrdinaryUpgrade,validateOrdinaryUpgrades} from '../scripts/windows-package-evidence.mjs';
+import {ordinaryUpgradeContract,validateOrdinaryUpgrade,validateOrdinaryUpgrades} from '../scripts/windows-package-evidence.mjs';
 async function fixture(version='0.2.0',directory=null){
  const legacy=version==='0.2.0';
  const root=directory??await mkdtemp(path.join(os.tmpdir(),'msi-upgrade-proof-'));const source={sha256:'a'.repeat(64),files:5},revision='b'.repeat(40),artifact={sha256:'c'.repeat(64),bytes:'100',format:'msi'},prior={version,msi:{sha256:'d'.repeat(64),productCode:'{OLD-'+version+'}',packageCode:'{PRIOR-'+version+'}'},payload:{version}},packageCode='{NEW}';
@@ -18,14 +18,20 @@ async function fixture(version='0.2.0',directory=null){
 }
 test('Ordinary upgrade acceptance requires actual limited-client, authenticated source, terminal handoff and preserved bytes',async()=>{const x=await fixture();try{assert.equal(await validateOrdinaryUpgrade(x.build,x.evidence,x.root),true);for(const change of [e=>e.revision='f'.repeat(40),e=>e.upgraded.token.clientTokenType=1,e=>e.upgraded.token.clientElevated=true,e=>e.upgraded.msi.sha256='f'.repeat(64),e=>e.upgraded.exitCode=null,e=>e.upgraded.reported267=true,e=>e.upgraded.fixture.policy.restored=false,e=>e.upgraded.fixture.policy.alwaysInstallElevated=true,e=>e.upgraded.fixture.private.after[0].sha256='0'.repeat(64),e=>e.after.foreignSha256='0'.repeat(64),e=>e.upgraded.observations[0].windows[0].processId=99,e=>e.upgraded.fixture.authorizedClient.sid='S-1-5-21-9-9-9-1001',e=>e.upgraded.fixture.authorizedClient.elevated=false,e=>e.upgraded.fixture.authorizedClient.tokenType=1,e=>e.cancelled.exitCode=0,e=>e.upgraded.screens.pop()]){const changed=structuredClone(x.evidence);change(changed);await assert.rejects(validateOrdinaryUpgrade(x.build,changed,x.root));}await writeFile(path.join(x.root,x.evidence.upgraded.log.path),'altered log');await assert.rejects(validateOrdinaryUpgrade(x.build,x.evidence,x.root));}finally{await rm(x.root,{recursive:true,force:true});}});
 
-test('Both published predecessors survive transfer and require distinct complete ordinary upgrade evidence',async()=>{
- const x=await fixture(),y=await fixture('0.2.1',x.root);
+for(const candidate of ['0.2.2','0.3.0'])test(candidate+' requires distinct complete ordinary upgrade evidence for each elected predecessor',async()=>{
+ const x=await fixture(),y=await fixture('0.2.1',x.root),z=candidate==='0.3.0'?await fixture('0.2.2',x.root):null;
  try{
-  x.build.records=[{payload:{version:'0.2.2'}}];x.build.ordinaryPredecessors=[...x.build.publishedPredecessors,...y.build.publishedPredecessors];x.build.bundle.packages[0].productCode='{NEWPRODUCT}';
-  const rows=[x.evidence,y.evidence];for(const row of rows){row.nativeLabel='ordinary-'+row.predecessor.version+'-upgrade';row.observed={registered:{product:'{NEWPRODUCT}',version:'0.2.2',package:'{NEW}',location:row.expected.directory},integration:{product:'{NEWPRODUCT}',package:'{NEW}'},shortcut:{target:path.win32.join(row.expected.directory,'local-media-gallery.exe')},path:row.expected.directory};}
+  x.build.records=[{payload:{version:candidate}}];x.build.ordinaryPredecessors=[...x.build.publishedPredecessors,...y.build.publishedPredecessors,...(z?z.build.publishedPredecessors:[])];x.build.bundle.packages[0].productCode='{NEWPRODUCT}';
+  const rows=[x.evidence,y.evidence,...(z?[z.evidence]:[])];for(const row of rows){row.nativeLabel='ordinary-'+row.predecessor.version+'-upgrade';row.observed={registered:{product:'{NEWPRODUCT}',version:candidate,package:'{NEW}',location:row.expected.directory},integration:{product:'{NEWPRODUCT}',package:'{NEW}'},shortcut:{target:path.win32.join(row.expected.directory,'local-media-gallery.exe')},path:row.expected.directory};}
   const result={ordinaryUpgrade:rows[0],ordinaryUpgrades:rows,native:rows.map(row=>({label:row.nativeLabel,edition:'full'}))};assert.equal(await validateOrdinaryUpgrades(x.build,result,x.root),true);
-  for(const change of [r=>r.ordinaryUpgrades.pop(),r=>r.ordinaryUpgrades.reverse(),r=>r.ordinaryUpgrades[1]=structuredClone(r.ordinaryUpgrades[0]),r=>r.ordinaryUpgrades[1].revision='f'.repeat(40),r=>r.ordinaryUpgrades[1].predecessor.msi.sha256='f'.repeat(64),r=>r.ordinaryUpgrades[1].cancelledPredecessor.package='{OTHER}',r=>r.ordinaryUpgrades[1].refusedPredecessor.version='0.0.0',r=>r.ordinaryUpgrades[1].observed.registered.product='{OTHER}',r=>r.ordinaryUpgrades[1].observed.path='',r=>r.ordinaryUpgrades[1].observed.shortcut.target='C:/elsewhere.exe',r=>r.ordinaryUpgrades[1].upgraded.fixture.private.nativeClientPid=99,r=>r.ordinaryUpgrades[1].upgraded.fixture.private.nativeExitCode=1603,r=>r.ordinaryUpgrades[1].upgraded.fixture.authorizedClient={},r=>r.ordinaryUpgrades[1].after.foreignSha256='0'.repeat(64),r=>r.native.pop()]){const changed=structuredClone(result);change(changed);await assert.rejects(validateOrdinaryUpgrades(x.build,changed,x.root));}
+  for(const change of [r=>r.ordinaryUpgrades.pop(),r=>r.ordinaryUpgrades.reverse(),r=>r.ordinaryUpgrades[1]=structuredClone(r.ordinaryUpgrades[0]),r=>r.ordinaryUpgrades[1].revision='f'.repeat(40),r=>r.ordinaryUpgrades[1].predecessor.msi.sha256='f'.repeat(64),r=>r.ordinaryUpgrades[1].cancelledPredecessor.package='{OTHER}',r=>r.ordinaryUpgrades[1].refusedPredecessor.version='0.0.0',r=>r.ordinaryUpgrades[1].observed.registered.product='{OTHER}',r=>r.ordinaryUpgrades[1].observed.path='',r=>r.ordinaryUpgrades[1].observed.shortcut.target='C:/elsewhere.exe',r=>r.ordinaryUpgrades[1].upgraded.fixture.private.nativeClientPid=99,r=>r.ordinaryUpgrades[1].upgraded.fixture.private.nativeExitCode=1603,r=>r.ordinaryUpgrades[1].upgraded.fixture.authorizedClient={},r=>r.ordinaryUpgrades[1].after.foreignSha256='0'.repeat(64),r=>r.native.pop(),r=>r.ordinaryUpgrades.at(-1).predecessor.version='0.2.9']){const changed=structuredClone(result);change(changed);await assert.rejects(validateOrdinaryUpgrades(x.build,changed,x.root));}
   // An old accepted v0.2.1 receipt retains its original singular reader.
   x.build.records[0].payload.version='0.2.1';assert.equal(await validateOrdinaryUpgrades(x.build,{ordinaryUpgrade:x.evidence},x.root),true);
  }finally{await rm(x.root,{recursive:true,force:true});}
+});
+
+test('Native ordinary-upgrade admission and evidence readers share the same predecessor contract',()=>{
+ assert.deepEqual(ordinaryUpgradeContract('0.2.0'),{legacy:true,kind:'published-legacy-ordinary-msi-upgrade'});
+ for(const version of ['0.2.1','0.2.2'])assert.deepEqual(ordinaryUpgradeContract(version),{legacy:false,kind:'published-ordinary-msi-upgrade'});
+ for(const version of ['0.1.0','0.2.3','0.3.0',null,'v0.2.2'])assert.throws(()=>ordinaryUpgradeContract(version));
 });

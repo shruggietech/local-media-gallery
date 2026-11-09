@@ -1,3 +1,4 @@
+import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {mkdir,readFile,writeFile,stat,readdir,open,mkdtemp} from 'node:fs/promises';
 import path from 'node:path';
@@ -10,7 +11,7 @@ export async function prepareScreenReader(){
  const base=path.join(root,'.local');await mkdir(base,{recursive:true});const receipt=path.join(base,'nvda-tool.json');
  try{const r=JSON.parse(await readFile(receipt));if(r.download.sha256!==pin.sha256)throw new Error('NVDA pin mismatch');for(const f of r.files){const b=await readFile(path.join(r.directory,f.name));if(String(b.length)!==f.bytes||digest(b)!==f.sha256)throw new Error('Prepared NVDA payload changed: '+f.name);}return r;}catch(e){if(e.code!=='ENOENT')throw e;}
  const installer=path.join(base,'nvda-'+pin.version+'.exe');let bytes;
- try{bytes=await readFile(installer);}catch(e){if(e.code!=='ENOENT')throw e;const response=await fetch(pin.url,{signal:AbortSignal.timeout(90000)});if(!response.ok)throw new Error('NVDA download HTTP '+response.status);bytes=Buffer.from(await response.arrayBuffer());if(bytes.length>100*1024*1024)throw new Error('NVDA download exceeds bound');if(digest(bytes)!==pin.sha256)throw new Error('NVDA publisher checksum mismatch');await writeFile(installer,bytes,{flag:'wx'});}
+ try{bytes=await readFile(installer);}catch(e){if(e.code!=='ENOENT')throw e;bytes=await acquireBytes(pin.url,{label:'Pinned NVDA installer',timeoutMs:90000,maxBytes:100*1024*1024});if(digest(bytes)!==pin.sha256)throw new Error('NVDA publisher checksum mismatch');await writeFile(installer,bytes,{flag:'wx'});}
  if(digest(bytes)!==pin.sha256)throw new Error('NVDA publisher checksum mismatch');
  const directory=await mkdtemp(path.join(base,'nvda-portable-'));const config=await mkdtemp(path.join(base,'nvda-prepare-config-'));
  await execute(installer,['--minimal','--create-portable-silent','--portable-path='+directory,'--config-path='+config]);

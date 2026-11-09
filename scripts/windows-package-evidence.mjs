@@ -21,9 +21,13 @@ export function validateSingleFileWindows(build,result){
  return true;
 }
 
+export function ordinaryUpgradeContract(version){
+ assert.ok(['0.2.0','0.2.1','0.2.2'].includes(version),'Unsupported ordinary upgrade predecessor');
+ const legacy=version==='0.2.0';return {legacy,kind:legacy?'published-legacy-ordinary-msi-upgrade':'published-ordinary-msi-upgrade'};
+}
 export async function validateOrdinaryUpgrade(build,evidence,root){
- const legacy=evidence.predecessor.version==='0.2.0';assert.ok(legacy||evidence.predecessor.version==='0.2.1');
- assert.equal(evidence.kind,legacy?'published-legacy-ordinary-msi-upgrade':'published-ordinary-msi-upgrade');assert.equal(evidence.result,'pass');assert.deepEqual(evidence.source,build.source);assert.equal(evidence.revision,build.revision);
+ const {legacy,kind}=ordinaryUpgradeContract(evidence.predecessor.version);
+ assert.equal(evidence.kind,kind);assert.equal(evidence.result,'pass');assert.deepEqual(evidence.source,build.source);assert.equal(evidence.revision,build.revision);
  const prior=(build.ordinaryPredecessors??build.publishedPredecessors).find(p=>p.version===evidence.predecessor.version),artifact=build.products.find(p=>p.edition==='full').artifact;assert.ok(prior);
  assert.deepEqual(evidence.artifact,artifact);assert.deepEqual(evidence.predecessor.msi,prior.msi);assert.deepEqual(evidence.predecessor.payload,prior.payload);assert.equal(evidence.predecessor.registered.version,prior.version);
  assert.deepEqual(evidence.before,evidence.after);assert.ok(evidence.before.foreignSha256);assert.ok(evidence.before.gallery.length);assert.equal(evidence.removed.operation,'remove');assert.ok([0,3010].includes(evidence.removed.exitCode));
@@ -50,8 +54,9 @@ export async function validateOrdinaryUpgrade(build,evidence,root){
 export async function validateOrdinaryUpgrades(build,result,root){
  // Read accepted historical receipts using their original singular contract.
  if(build.records[0].payload.version==='0.2.1')return validateOrdinaryUpgrade(build,result.ordinaryUpgrade,root);
- assert.deepEqual(build.ordinaryPredecessors.map(p=>p.version),['0.2.0','0.2.1']);
- assert.deepEqual(result.ordinaryUpgrades.map(p=>p.predecessor.version),['0.2.0','0.2.1']);assert.deepEqual(result.ordinaryUpgrade,result.ordinaryUpgrades[0]);
+ const expected=build.records[0].payload.version==='0.2.2'?['0.2.0','0.2.1']:['0.2.0','0.2.1','0.2.2'];
+ assert.deepEqual(build.ordinaryPredecessors.map(p=>p.version),expected);
+ assert.deepEqual(result.ordinaryUpgrades.map(p=>p.predecessor.version),expected);assert.deepEqual(result.ordinaryUpgrade,result.ordinaryUpgrades[0]);
  const pkg=build.bundle.packages.find(p=>p.scope==='machine');
  for(const row of result.ordinaryUpgrades){
   await validateOrdinaryUpgrade(build,row,root);const prior=build.ordinaryPredecessors.find(p=>p.version===row.predecessor.version);

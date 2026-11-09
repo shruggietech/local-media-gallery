@@ -32,3 +32,15 @@ import {readProductSchema} from '../scripts/product-version.mjs';
 test('Current native consumers select the elected schema without falling back to the baseline',async t=>{
  const base=await mkdtemp(path.join(os.tmpdir(),'lmg-schema-version-'));t.after(()=>rm(base,{recursive:true,force:true}));const directory=path.join(base,'schemas/v1.2.3');await mkdir(directory,{recursive:true});const file=path.join(directory,'local-media-gallery.schema.json');const schema={$id:'urn:local-media-gallery:1.2.3','x-release-version':'1.2.3',properties:{version:{const:'1.2.3'}}};await writeFile(file,JSON.stringify(schema));assert.deepEqual(await readProductSchema({base,version:'1.2.3'}),schema);await assert.rejects(readProductSchema({base,version:'1.2.4'}),/ENOENT/);schema.$id='urn:local-media-gallery:0.0.0';await writeFile(file,JSON.stringify(schema));await assert.rejects(readProductSchema({base,version:'1.2.3'}),/schema identity/i);
 });
+
+import {readFile} from 'node:fs/promises';
+import {root} from '../scripts/run.mjs';
+test('The 0.3.0 candidate has matching product, schema and forward-compatible settings identities',async()=>{
+ assert.equal(await readProductVersion(root),'0.3.0');
+ const schema=await readProductSchema({base:root,version:'0.3.0'});
+ assert.equal(schema.properties.version.const,'0.3.0');
+ const settings=schema.$defs.portableSettings.properties.version.enum;
+ for(const version of ['0.1.0','0.2.0','0.2.1','0.2.2','0.3.0'])assert.ok(settings.includes(version));
+ const manifest=JSON.parse(await readFile(path.join(root,'site/versions.json'),'utf8'));
+ assert.equal(manifest.latest,'v0.0.0');assert.ok(manifest.snapshots.some(s=>s.version==='v0.3.0'));
+});

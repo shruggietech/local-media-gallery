@@ -1,3 +1,4 @@
+import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {prepareCargoDependencies} from './cargo-readiness.mjs';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -15,16 +16,14 @@ if (process.platform === 'win32' && process.arch === 'x64') {
   const tools = path.join(directory, 'tools');
   const executable = path.join(tools, 'node-v24.11.0-win-x64/node.exe');
   try { await access(executable); }
-  catch {
+  catch (error) {
+    if(error.code!=='ENOENT')throw error;
     await mkdir(tools, { recursive: true });
     const base = 'https://nodejs.org/dist/v24.11.0/';
-    const response = await fetch(base + 'SHASUMS256.txt');
-    if (!response.ok) throw new Error('Unable to fetch official Node proof-tool checksums.');
-    const expected = (await response.text()).split('\n').find(line => line.endsWith(`  ${name}`))?.split(' ')[0];
+    const checksums = await acquireBytes(base+'SHASUMS256.txt',{label:'Official Node checksums',maxBytes:1024*1024});
+    const expected = checksums.toString('utf8').split('\n').find(line => line.endsWith(`  ${name}`))?.split(' ')[0];
     if (!expected) throw new Error('Official proof-tool checksum absent.');
-    const download = await fetch(base + name);
-    if (!download.ok) throw new Error('Unable to fetch exact proof-tool runtime.');
-    const bytes = Buffer.from(await download.arrayBuffer());
+    const bytes = await acquireBytes(base+name,{label:'Pinned Node runtime',maxBytes:128*1024*1024});
     if (createHash('sha256').update(bytes).digest('hex') !== expected) throw new Error('Proof-tool runtime checksum mismatch.');
     const archive = path.join(tools, name); await writeFile(archive, bytes);
     await execute(python, ['-c', 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])', archive, tools]);
