@@ -142,6 +142,8 @@ fn legacy_patch_property(path: &Path) -> Result<String> {
     if path.contains([';', '\"', '\r', '\n']) {
         return Err("Legacy PATCH requires one unambiguous verified input".into());
     }
+    // MSI PATCH parsing does not normalize portable manifest separators.
+    let path = path.replace('/', "\\");
     Ok(format!("PATCH=\"{path}\""))
 }
 
@@ -906,6 +908,10 @@ mod legacy_patch_tests {
     }
     #[test]
     fn legacy_patch_property_cannot_expand_into_multiple_inputs() {
+        assert_eq!(
+            legacy_patch_property(Path::new("C:\\retained/maintenance/one.msp")).unwrap(),
+            "PATCH=\"C:\\retained\\maintenance\\one.msp\""
+        );
         assert_eq!(
             legacy_patch_property(Path::new(r"C:\retained 雪\one.msp")).unwrap(),
             "PATCH=\"C:\\retained 雪\\one.msp\""

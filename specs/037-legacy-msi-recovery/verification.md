@@ -23,6 +23,8 @@ The first PR qualification exposed an uninitialized persistent listener observer
 
 MSI PATCH is a semicolon-delimited list even when quoted. The worker now stages an authenticated copy in its existing protected canonical storage when the selected transaction path contains a semicolon. Native arguments accept exactly one verified patch, retained input/file/namespace pins survive execution, and the integrated predecessor campaign elects a semicolon-containing selected storage root.
 
+The first integrated native patch attempt reached its actual terminal result, 1635. The preserved MSI log identified a portable forward slash in the PATCH filename (error 1324), before guard execution. Native PATCH property construction now normalizes manifest separators to Windows backslashes, with a mixed-separator regression assertion. Artifact globs retain both ordinary and semicolon-containing storage roots. This failed attempt remains diagnostic evidence.
+
 ## Hosted acceptance and reviews
 
 At this source snapshot, final current-head CI and hosted reviews are pending. Review cap: two rounds. The official PR receipt will carry terminal applicable checks, exact final head, review dispositions and final native evidence. No completion-only source commit is required after those external gates pass. Owner merge and release publication remain separate.
