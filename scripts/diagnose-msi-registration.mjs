@@ -149,5 +149,6 @@ try{
  report.originalRemovalSucceeded=[0,3010].includes(removal.code);
  if(!report.originalRemovalSucceeded)report.cleanup={result:'retained',reason:'Original MSI refuses removal. No registration surgery or guard bypass attempted on ephemeral hosted runner.'};
  if(selected.repair&&!report.originalRemovalSucceeded){if(selected.guard)await guardRepair(old,destination);else await aliasRepair(old,destination);}
+ if(selected.guard){assert.ok(report.patch?.outcome,'Elected guard patch must actually execute');assert.ok(report.patch?.removal,'Elected patched ordinary removal must actually execute');success(report.patch.outcome);success(report.patch.removal);}
  report.terminalFinished=new Date().toISOString();await persist();console.log(JSON.stringify({case:selected,identity:report.identity,actions:report.actions.map(({label,code,terminal})=>({label,code,terminal})),snapshots:report.snapshots.map(({phase,componentPath,componentState,nonExPath})=>({phase,componentPath,componentState,nonExPath}))}));
 }catch(error){report.failure={message:error.message,stack:error.stack};await persist();throw error;}
