@@ -46,7 +46,7 @@ export async function buildLegacyMsiPatch({old,guard,wix,work,msi,shell,capture,
  await shell("$e=New-Object -ComObject WindowsInstaller.Installer;$db=$e.OpenDatabase($arg.file,1);$v=$db.OpenView($arg.binaryQuery);$r=$e.CreateRecord(2);$r.StringData(1)='LegacyRecovery';$r.SetStream(2,$arg.guard);$v.Execute($r);foreach($sql in $arg.queries){$v=$db.OpenView($sql);$v.Execute()};$db.Commit();$s=$db.SummaryInformation(1);$s.Property(9)=$arg.packageCode;$s.Persist();@{updated=$true}|ConvertTo-Json -Compress",{file:candidate,guard,binaryQuery,queries,packageCode:packageGuid('machine',digest('legacy-transform:'+code))});
  const prior=await exportsAt(shell,baseline,path.join(work,'prior-tables')),next=await exportsAt(shell,candidate,path.join(work,'next-tables'));
  const delta=verifyLegacyPatchTables(prior,next,guardBytes);
- const transform=path.join(work,'diff.wixmst');await capture(path.join(wix,'torch.exe'),['-nologo','-a','-p','-xo','-val','glrux','-x',path.join(work,'streams'),baseline,candidate,'-out',transform]);
+ const transform=path.join(work,'diff.wixmst');await capture(path.join(wix,'torch.exe'),['-nologo','-a','-p','-xo','-val','g','-val','l','-val','r','-val','u','-val','x','-x',path.join(work,'streams'),baseline,candidate,'-out',transform]);
  // Published inputs have no WiX section IDs. All is bounded by the exhaustive
  // native table/stream comparison above, rather than an unfiltered source diff.
  const source=path.join(work,'patch.wxs');
