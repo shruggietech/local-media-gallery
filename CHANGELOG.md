@@ -31,6 +31,7 @@ Publication availability and its timestamp are established by the matching verif
 - Release live child, pipe, IPC and termination-helper references after a bounded failure so a failed controller can exit and publish diagnostics without claiming the child stopped.
 - Read legacy Windows listener ownership directly from the IPv4/IPv6 TCP owner tables, preserving PID checks and readiness deadlines while avoiding CIM provider startup.
 - Select current Windows campaign artifacts by creation time before provider ID, preserving the shared qualification clock.
+- Initialize the hash-verified MSI observer helper with a bounded startup request before functional wizard actions, and balance all three ordinary predecessor upgrades onto the lifecycle worker. Preserve historical evidence readers and every upgrade assertion.
 
 ### Maintenance
 
@@ -39,6 +40,8 @@ Publication availability and its timestamp are established by the matching verif
 - On 2026-11-08, retain the existing 660-second advisory target, 900-second hard limit and 15-second finalization reserve while strengthening observer diagnostics. Existing published releases remain unchanged.
 
 - On 2026-11-09, use targeted native MSP servicing after controlled path-length tests and failed same-directory alias repair. Build with the existing pinned WiX tools, compare every native table and stream, preserve immutable published MSI bytes, and retain original failure and terminal recovery evidence. Native installer tests remain isolated from the active workstation.
+
+- On 2026-11-09, keep cold MSI helper initialization inside the existing absolute qualification clock with a separate 60-second startup allowance. Keep ordinary functional requests at 20 seconds and the 660-second target, 900-second hard limit and 15-second reserve unchanged. Elect lifecycle ownership for new ordinary-upgrade groups; historical packets retain experience ownership.
 
 ## [0.2.2]
 

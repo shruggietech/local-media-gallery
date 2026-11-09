@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -10,6 +11,14 @@ export function msiControlLabel(value){
  if(value===null||value===undefined)return '';
  if(typeof value!=='string')throw new TypeError('MSI accessible label must be text or absent');
  return value.replaceAll('&','').replaceAll('>','').replaceAll('<','').trim();
+}
+
+export function validateMsiObserverInitialization(identity,proof){
+ assert.equal(proof?.ready,true,'MSI observer initialization readiness required');assert.ok(Number.isSafeInteger(identity.pid)&&identity.pid>0);assert.equal(proof.pid,identity.pid,'MSI initialization belongs to the owned observer');assert.equal(identity.apartment,'MTA');assert.equal(proof.apartment,'MTA');assert.match(identity.sources?.msi??'',/^[a-f0-9]{64}$/);assert.equal(identity.sources['msi-initialize'],identity.sources.msi);assert.equal(proof.sourceSha256,identity.sources.msi,'MSI initialization source differs');return true;
+}
+export async function initializeMsiObserver(observer){
+ // Cold compilation is startup work, still inside the unchanged campaign clock.
+ const proof=await observer.request('msi-initialize',{},60000);validateMsiObserverInitialization(observer.identity,proof);return proof;
 }
 
 // Only code is retained between requests. Every native query still runs afresh.
@@ -85,7 +94,7 @@ export async function observerSession(child,sources,{startupTimeout=20000,shutdo
  };
 }
 export async function openWindowsPackageObserver(root,{cwd,env,...options}={}){
- const sources={};for(const [route,file]of Object.entries({ui:'windows-package-ui.ps1',inspect:'inspect-windows-package.ps1',msi:'windows-msi-ui.ps1',input:'native-input.ps1',state:'Get-WindowsPackageSnapshot.ps1',runtime:'Get-WindowsPackageSnapshot.ps1'}))sources[route]=createHash('sha256').update(await readFile(path.join(root,'scripts',file))).digest('hex');
+ const sources={};for(const [route,file]of Object.entries({ui:'windows-package-ui.ps1',inspect:'inspect-windows-package.ps1',msi:'windows-msi-ui.ps1','msi-initialize':'windows-msi-ui.ps1',input:'native-input.ps1',state:'Get-WindowsPackageSnapshot.ps1',runtime:'Get-WindowsPackageSnapshot.ps1'}))sources[route]=createHash('sha256').update(await readFile(path.join(root,'scripts',file))).digest('hex');
  const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-Mta','-File',path.join(root,'scripts/Invoke-WindowsPackageObserver.ps1')],{cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
  const session=await observerSession(child,sources,options);
  const serverSha256=createHash('sha256').update(await readFile(path.join(root,'scripts/Invoke-WindowsPackageObserver.ps1'))).digest('hex');

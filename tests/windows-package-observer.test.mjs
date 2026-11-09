@@ -6,7 +6,7 @@ import {mkdtemp,writeFile,copyFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import {observerSession,openWindowsPackageObserver,msiControlLabel} from '../scripts/windows-package-observer.mjs';
+import {observerSession,openWindowsPackageObserver,msiControlLabel,initializeMsiObserver,validateMsiObserverInitialization} from '../scripts/windows-package-observer.mjs';
 const sources={ui:'a'.repeat(64),inspect:'b'.repeat(64)};
 const launch=body=>spawn(process.execPath,['-e',`const send=x=>console.log(JSON.stringify(x));const sources=${JSON.stringify(sources)};${body}`],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
 const handshake="send({type:'ready',protocolVersion:1,pid:process.pid,sources});";
@@ -53,7 +53,7 @@ test('Observer bounds readiness and handles early exit without an unhandled pipe
 });
 test('Real PowerShell session pings, refuses unknown commands and joins cleanly without native calls',{skip:process.platform!=='win32'},async()=>{
  const root=path.resolve(import.meta.dirname,'..'),observer=await openWindowsPackageObserver(root,{env:{...process.env,GITHUB_ACTIONS:'false',GALLERY_ISOLATED_DESKTOP:'0'}});
- try{assert.equal(observer.identity.apartment,'MTA');assert.deepEqual(await observer.request('ping'),{pong:true});await assert.rejects(observer.request('arbitrary'),/Unknown observer route/);await assert.rejects(observer.request('ui',{processId:123}),/requires isolated CI/);await assert.rejects(observer.request('inspect',{file:'C:/unwanted.exe'}),/Absolute shortcut path required/);await assert.rejects(observer.request('msi'),/requires isolated CI/);await assert.rejects(observer.request('input',{processId:123,action:'compile'}),/requires an explicitly isolated CI/);assert.deepEqual(await observer.request('ping'),{pong:true});}finally{await observer.close();}
+ try{assert.equal(observer.identity.apartment,'MTA');assert.deepEqual(await observer.request('ping'),{pong:true});await assert.rejects(observer.request('arbitrary'),/Unknown observer route/);await assert.rejects(observer.request('ui',{processId:123}),/requires isolated CI/);await assert.rejects(observer.request('inspect',{file:'C:/unwanted.exe'}),/Absolute shortcut path required/);await assert.rejects(observer.request('msi'),/requires isolated CI/);await assert.rejects(observer.request('msi-initialize'),/requires isolated CI/);await assert.rejects(observer.request('input',{processId:123,action:'compile'}),/requires an explicitly isolated CI/);assert.deepEqual(await observer.request('ping'),{pong:true});}finally{await observer.close();}
 });
 test('Real server reuses only unchanged child code and releases script scopes',{skip:process.platform!=='win32'},async()=>{
  const work=await mkdtemp(path.join(os.tmpdir(),'gallery-observer-'));
@@ -61,16 +61,16 @@ test('Real server reuses only unchanged child code and releases script scopes',{
   await copyFile(path.resolve(import.meta.dirname,'../scripts/Invoke-WindowsPackageObserver.ps1'),path.join(work,'server.ps1'));
   // This fixture never invokes UI, COM, registry or native methods. An exit in
   // a child script must return to the server, and child variables must be fresh.
-  const fixture="$ErrorActionPreference='Stop';if ($null -ne $fixtureOld) {throw 'Leaked child scope'};$fixtureOld='owned';@{fresh=$true}|ConvertTo-Json -Compress;exit 0\n";
+  const fixture="Param([switch]$Initialize);$ErrorActionPreference='Stop';if ($null -ne $fixtureOld) {throw 'Leaked child scope'};$fixtureOld='owned';@{fresh=$true}|ConvertTo-Json -Compress;exit 0\n";
   for(const name of ['windows-package-ui.ps1','inspect-windows-package.ps1','windows-msi-ui.ps1','native-input.ps1'])await writeFile(path.join(work,name),fixture);
   const snapshot="Param([string]$Mode,[string]$Scope,[string[]]$Products=@());$ErrorActionPreference='Stop';if($null -ne $fixtureOld){throw 'Leaked child scope'};$fixtureOld='owned';@{mode=$Mode;scope=$Scope;products=@($Products);value=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'snapshot.txt'));pid=$PID}|ConvertTo-Json -Compress;exit 0\n";
   await writeFile(path.join(work,'Get-WindowsPackageSnapshot.ps1'),snapshot);await writeFile(path.join(work,'snapshot.txt'),'before');
-  const hashes={input:createHash('sha256').update(fixture).digest('hex'),msi:createHash('sha256').update(fixture).digest('hex'),ui:createHash('sha256').update(fixture).digest('hex'),inspect:createHash('sha256').update(fixture).digest('hex'),state:createHash('sha256').update(snapshot).digest('hex'),runtime:createHash('sha256').update(snapshot).digest('hex')};
+  const hashes={'msi-initialize':createHash('sha256').update(fixture).digest('hex'),input:createHash('sha256').update(fixture).digest('hex'),msi:createHash('sha256').update(fixture).digest('hex'),ui:createHash('sha256').update(fixture).digest('hex'),inspect:createHash('sha256').update(fixture).digest('hex'),state:createHash('sha256').update(snapshot).digest('hex'),runtime:createHash('sha256').update(snapshot).digest('hex')};
   const child=spawn('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(work,'server.ps1')],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
   const observer=await observerSession(child,hashes);
   try{
    assert.deepEqual(await observer.request('ui',{processId:123}),{fresh:true});assert.deepEqual(await observer.request('ui',{processId:123}),{fresh:true});
-   assert.deepEqual(await observer.request('inspect',{file:path.join(work,'雪.lnk')}),{fresh:true});
+   assert.deepEqual(await observer.request('inspect',{file:path.join(work,'雪.lnk')}),{fresh:true});assert.deepEqual(await observer.request('msi-initialize'),{fresh:true});assert.deepEqual(await observer.request('msi'),{fresh:true});
    const products=['{00000000-0000-0000-0000-000000000001}'];
    assert.deepEqual(await observer.request('state',{scope:'user',products}),{mode:'state',scope:'user',products,value:'before',pid:child.pid});
    await writeFile(path.join(work,'snapshot.txt'),'after');
@@ -79,7 +79,7 @@ test('Real server reuses only unchanged child code and releases script scopes',{
    for(const parameters of [{scope:'foreign',products},{scope:'user',products:'not-an-array'},{scope:'user',products:['not-a-guid']},{scope:'user',products:[]}])await assert.rejects(observer.request('state',parameters),/Snapshot scope|Product GUID/);
    await assert.rejects(observer.request('runtime',{scope:'foreign'}),/Snapshot scope/);
    await writeFile(path.join(work,'windows-package-ui.ps1'),fixture+'# changed\n');await assert.rejects(observer.request('ui',{processId:123}),/source changed/);
-   await writeFile(path.join(work,'Get-WindowsPackageSnapshot.ps1'),snapshot+'# changed\n');await assert.rejects(observer.request('state',{scope:'user',products}),/source changed/);await assert.rejects(observer.request('runtime',{scope:'user'}),/source changed/);
+   await writeFile(path.join(work,'windows-msi-ui.ps1'),fixture+'# changed\n');await assert.rejects(observer.request('msi-initialize'),/source changed/);await assert.rejects(observer.request('msi'),/source changed/);await writeFile(path.join(work,'Get-WindowsPackageSnapshot.ps1'),snapshot+'# changed\n');await assert.rejects(observer.request('state',{scope:'user',products}),/source changed/);await assert.rejects(observer.request('runtime',{scope:'user'}),/source changed/);
    assert.deepEqual(await observer.request('ping'),{pong:true});
   }finally{await observer.close();}
  }finally{await rm(work,{recursive:true,force:true});}
@@ -104,3 +104,13 @@ test('A stuck observer remains bounded and cannot be reported as a normal termin
 
 test('Closing immediately retires pending and queued requests instead of awaiting their long timeouts',async()=>{const child=launch(handshake+input+'/* deliberately blocked */});'),observer=await observerSession(child,sources,{shutdownTimeout:100});const first=observer.request('msi',{},180000),second=observer.request('ui',{},180000);first.catch(()=>{});second.catch(()=>{});await new Promise(r=>setTimeout(r,30));let timeout;try{await assert.rejects(Promise.race([observer.close(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('fixture close remained blocked')),500);})]),/pending|closing|Observer exited/);await assert.rejects(first);await assert.rejects(second);}finally{clearTimeout(timeout);if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');}});
 test('Requests are clipped to the absolute campaign deadline and checkpoint before admission',async()=>{const records=[],child=launch(handshake+input+'/* deliberately blocked */});');let observer;let timeout;try{observer=await observerSession(child,sources,{deadline:Date.now()+500,shutdownTimeout:100,checkpoint:async record=>{records.push(record);}});await assert.rejects(Promise.race([observer.request('msi',{name:'Install'},180000),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('fixture request remained blocked')),1500);})]),/deadline/);assert.ok(records.some(r=>r.phase==='request'&&r.status==='pending'&&r.route==='msi'));await assert.rejects(observer.close());}finally{clearTimeout(timeout);if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');}});
+
+test('MSI helper initialization has one explicit allowance and validates owned source identity',async()=>{
+ const identity={pid:123,apartment:'MTA',sources:{msi:'e'.repeat(64),'msi-initialize':'e'.repeat(64)}},proof={ready:true,pid:123,apartment:'MTA',sourceSha256:'e'.repeat(64)},requests=[];
+ const observer={identity,request:async(...args)=>{requests.push(args);return proof;}};assert.deepEqual(await initializeMsiObserver(observer),proof);assert.deepEqual(requests,[['msi-initialize',{},60000]]);
+ for(const change of [{ready:false},{pid:124},{apartment:'STA'},{sourceSha256:'f'.repeat(64)}])assert.throws(()=>validateMsiObserverInitialization(identity,{...proof,...change}));assert.throws(()=>validateMsiObserverInitialization(identity,undefined));assert.throws(()=>validateMsiObserverInitialization({...identity,sources:{...identity.sources,'msi-initialize':'f'.repeat(64)}},proof));
+});
+test('Initialization is clipped to the shared deadline, retires once and blocks later functional requests',async()=>{
+ const records=[],child=launch(handshake+input+'/* deliberately blocked initialization */});');const observer=await observerSession(child,sources,{deadline:Date.now()+1500,shutdownTimeout:100,checkpoint:async r=>{records.push(r);}});
+ await assert.rejects(initializeMsiObserver(observer),/deadline/);await assert.rejects(observer.request('msi'),/deadline/);await assert.rejects(observer.close());assert.equal(records.filter(r=>r.phase==='request'&&r.status==='pending'&&r.route==='msi-initialize').length,1);assert.equal(records.filter(r=>r.phase==='request'&&r.status==='pending'&&r.route==='msi').length,0);assert.ok(child.exitCode!==null||child.signalCode!==null);
+});

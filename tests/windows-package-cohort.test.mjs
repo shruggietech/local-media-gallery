@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {windowsCohortClock,validateWindowsCohortClock,windowsReadyName,windowsBuildDigest,selectWindowsCampaignArtifact,combineWindowsCampaigns,validateWindowsInputInventory,normalizeWindowsEvidence} from '../scripts/windows-package-cohort.mjs';
+import {windowsCohortClock,validateWindowsCohortClock,windowsReadyName,windowsBuildDigest,selectWindowsCampaignArtifact,combineWindowsCampaigns,validateWindowsInputInventory,normalizeWindowsEvidence,ordinaryUpgradeWorker} from '../scripts/windows-package-cohort.mjs';
 import {qualification} from '../scripts/qualification.mjs';
 const source={sha256:'a'.repeat(64),files:3},revision='b'.repeat(40),build={source,revision,products:[{edition:'full',artifact:{sha256:'c'.repeat(64)}}]};
 const context={source,revision,shaLabel:'d'.repeat(40),runId:'123',attempt:'2',buildSha256:windowsBuildDigest(build),preparationStarted:'2026-01-01T00:00:00.000Z'};
@@ -65,3 +65,24 @@ test('Independent readback normalizes only retained relative Windows paths witho
 });
 
 test('Current observer campaigns require source-bound unique diagnostics instead of historical receipts',()=>{const current={...build,observerProtocol:'bounded-observer-v1'},c={...context,buildSha256:windowsBuildDigest(current)},clock=windowsCohortClock(c,artifacts),value=fixture();for(const fragment of value.fragments){fragment.buildSha256=c.buildSha256;fragment.clock=clock;fragment.diagnostics={protocol:'bounded-observer-v1',context:{...c,campaign:fragment.campaign,clock},files:['windows-campaign-checkpoints-','windows-campaign-latest-','windows-observer-checkpoint-'].map(prefix=>({path:'.local/'+prefix+fragment.campaign+'.json',bytes:'100',sha256:'e'.repeat(64)})).concat(['stdout','stderr'].map(stream=>({path:'.local/windows-campaign-native-'+fragment.campaign+'.'+stream+'.log',bytes:'0',sha256:'f'.repeat(64)})))};}assert.equal(combineWindowsCampaigns(current,value.fragments,value.receipts,c).acceptance,false);for(const mutate of [x=>delete x.fragments[0].diagnostics,x=>x.fragments[0].diagnostics.context.clock={...clock,hardLimitSeconds:901},x=>x.fragments[0].diagnostics.files[1]=x.fragments[0].diagnostics.files[0]]){const bad=structuredClone(value);mutate(bad);assert.throws(()=>combineWindowsCampaigns(current,bad.fragments,bad.receipts,c));}});
+
+function assignedFixture(){
+ const current={...build,ordinaryUpgradeWorker:'lifecycle',msiObserverInitialization:'explicit-v1',ordinaryPredecessors:['0.2.0','0.2.1','0.2.2'].map(version=>({version}))},c={...context,buildSha256:windowsBuildDigest(current)},clock=windowsCohortClock(c,artifacts),value=fixture();
+ for(const fragment of value.fragments){fragment.buildSha256=c.buildSha256;fragment.clock=clock;fragment.observer={pid:123,apartment:'MTA',sources:{msi:'e'.repeat(64),'msi-initialize':'e'.repeat(64)},msiInitialization:{ready:true,pid:123,apartment:'MTA',sourceSha256:'e'.repeat(64)}};delete fragment.ordinaryUpgrade;delete fragment.ordinaryUpgrades;}
+ const owner=value.fragments.find(f=>f.campaign==='lifecycle');owner.ordinaryUpgrades=current.ordinaryPredecessors.map(predecessor=>({predecessor,result:'pass'}));owner.ordinaryUpgrade=owner.ordinaryUpgrades[0];return {...value,current,c};
+}
+test('Explicit ordinary upgrade assignment preserves historical default and rejects malformed markers',()=>{
+ assert.equal(ordinaryUpgradeWorker(build),'experience');for(const worker of ['experience','lifecycle'])assert.equal(ordinaryUpgradeWorker({...build,ordinaryUpgradeWorker:worker}),worker);
+ for(const worker of [null,undefined,'all','',false])assert.throws(()=>ordinaryUpgradeWorker({...build,ordinaryUpgradeWorker:worker}));
+});
+test('New cohort takes the complete ordinary upgrade group exclusively from elected lifecycle worker',()=>{
+ const {current,c,fragments,receipts}=assignedFixture(),combined=combineWindowsCampaigns(current,fragments,receipts,c);assert.deepEqual(combined.ordinaryUpgrades.map(r=>r.predecessor.version),['0.2.0','0.2.1','0.2.2']);assert.deepEqual(combined.ordinaryUpgrade,fragments[1].ordinaryUpgrade);assert.equal(combined.acceptance,false);
+});
+test('New assignment rejects absent, reordered, duplicate, wrong-owner rows and mismatched alias',()=>{
+ for(const mutate of [x=>delete x.fragments[1].ordinaryUpgrades,x=>x.fragments[1].ordinaryUpgrades.reverse(),x=>x.fragments[1].ordinaryUpgrades[2]=x.fragments[1].ordinaryUpgrades[1],x=>x.fragments[0].ordinaryUpgrades=x.fragments[1].ordinaryUpgrades,x=>x.fragments[0].ordinaryUpgrade=x.fragments[1].ordinaryUpgrade,x=>x.fragments[1].ordinaryUpgrade={result:'other'}]){const x=assignedFixture();mutate(x);assert.throws(()=>combineWindowsCampaigns(x.current,x.fragments,x.receipts,x.c));}
+});
+test('New fragments require source-bound initialized MTA observers',()=>{
+ for(const mutate of [x=>delete x.fragments[0].observer.msiInitialization,x=>x.fragments[0].observer.msiInitialization.ready=false,x=>x.fragments[0].observer.msiInitialization.pid=999,x=>x.fragments[0].observer.msiInitialization.apartment='STA',x=>x.fragments[0].observer.msiInitialization.sourceSha256='f'.repeat(64),x=>x.fragments[0].observer.sources['msi-initialize']='f'.repeat(64)]){const x=assignedFixture();mutate(x);assert.throws(()=>combineWindowsCampaigns(x.current,x.fragments,x.receipts,x.c));}
+});
+
+test('Unknown initialization contracts cannot silently use historical interpretation',()=>{const x=assignedFixture();x.current.msiObserverInitialization='unknown';x.c.buildSha256=windowsBuildDigest(x.current);const clock=windowsCohortClock(x.c,artifacts);for(const part of x.fragments){part.buildSha256=x.c.buildSha256;part.clock=clock;}assert.throws(()=>combineWindowsCampaigns(x.current,x.fragments,x.receipts,x.c));});
