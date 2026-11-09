@@ -11,6 +11,7 @@ import {parseReleaseRecord} from './release-record.mjs';
 import {publishedWindowsInputs} from './published-windows-input.mjs';
 import {digest,verifyPayload} from './windows-packages.mjs';
 import {msiCommandArguments} from './windows-msi-command.mjs';
+import {buildDiagnosticPatch} from './diagnose-msi-patch-build.mjs';
 import {registrationCase,registrationLocation,recordMsiOutcome} from './msi-registration.mjs';
 requireIsolatedDesktop();assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.platform,'win32');
 const selected=registrationCase(process.env.GALLERY_MSI_UPGRADE_CASE);
@@ -76,8 +77,8 @@ function success(row){assert.ok(row.terminal&&[0,3010].includes(row.code),JSON.s
 async function aliasRepair(old,destination){
  assert.ok(old.payload&&['0.1.0','0.2.0'].includes(old.version));
  await verifyPayload(destination,old.payload);
- const alias=JSON.parse((await shell("\nAdd-Type @\"\nusing System;using System.Text;using System.Runtime.InteropServices;using Microsoft.Win32.SafeHandles;\npublic static class OwnedShortAlias {\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern SafeFileHandle CreateFileW(string path,uint access,uint share,IntPtr security,uint disposition,uint flags,IntPtr template);\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool SetFileShortNameW(SafeFileHandle file,string name);\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern uint GetShortPathNameW(string path,StringBuilder buffer,uint size);\n public static string Create(string path){\n  var before=new StringBuilder(32768);if(GetShortPathNameW(path,before,32768)==0)throw new Exception(\"GetShortPathName: \"+Marshal.GetLastWin32Error());\n  if(before.ToString().Length<path.Length)return before.ToString();\n  using(var h=CreateFileW(path,0x10000|0x80,3,IntPtr.Zero,3,0x02000000|0x00200000,IntPtr.Zero)){\n   if(h.IsInvalid)throw new Exception(\"Open alias handle: \"+Marshal.GetLastWin32Error());\n   if(!SetFileShortNameW(h,\"LMG037~1\"))throw new Exception(\"SetFileShortName: \"+Marshal.GetLastWin32Error());\n  }\n  var after=new StringBuilder(32768);if(GetShortPathNameW(path,after,32768)==0)throw new Exception(\"Read alias: \"+Marshal.GetLastWin32Error());return after.ToString();\n }\n}\n\"@\n[OwnedShortAlias]::Create($arg.directory)|ConvertTo-Json -Compress\n",{directory:destination})).stdout);
- assert.ok(alias.length<destination.length);await verifyPayload(alias,old.payload);
+ const alias=selected.patch?destination:JSON.parse((await shell("\nAdd-Type @\"\nusing System;using System.Text;using System.Runtime.InteropServices;using Microsoft.Win32.SafeHandles;\npublic static class OwnedShortAlias {\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern SafeFileHandle CreateFileW(string path,uint access,uint share,IntPtr security,uint disposition,uint flags,IntPtr template);\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool SetFileShortNameW(SafeFileHandle file,string name);\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern uint GetShortPathNameW(string path,StringBuilder buffer,uint size);\n public static string Create(string path){\n  var before=new StringBuilder(32768);if(GetShortPathNameW(path,before,32768)==0)throw new Exception(\"GetShortPathName: \"+Marshal.GetLastWin32Error());\n  if(before.ToString().Length<path.Length)return before.ToString();\n  using(var h=CreateFileW(path,0x10000|0x80,3,IntPtr.Zero,3,0x02000000|0x00200000,IntPtr.Zero)){\n   if(h.IsInvalid)throw new Exception(\"Open alias handle: \"+Marshal.GetLastWin32Error());\n   if(!SetFileShortNameW(h,\"LMG037~1\"))throw new Exception(\"SetFileShortName: \"+Marshal.GetLastWin32Error());\n  }\n  var after=new StringBuilder(32768);if(GetShortPathNameW(path,after,32768)==0)throw new Exception(\"Read alias: \"+Marshal.GetLastWin32Error());return after.ToString();\n }\n}\n\"@\n[OwnedShortAlias]::Create($arg.directory)|ConvertTo-Json -Compress\n",{directory:destination})).stdout);
+ assert.ok(selected.patch||alias.length<destination.length);await verifyPayload(alias,old.payload);
  const proof=await Promise.all([stat(destination,{bigint:true}),stat(alias,{bigint:true})]);assert.equal(proof[0].dev,proof[1].dev);assert.equal(proof[0].ino,proof[1].ino);
  report.alias={directory:alias,device:String(proof[0].dev),inode:String(proof[0].ino)};
  const base=path.join(environment.ProgramData,'local-media-gallery','updates','s037-repair-'+process.env.GITHUB_RUN_ID);
@@ -94,6 +95,11 @@ async function aliasRepair(old,destination){
  const identityBytes=JSON.stringify(identity);await writeFile(path.join(base,'identity.json'),identityBytes);await privateAcl(path.join(base,'identity.json'),false);
  const journal=path.join(base,'journal.json');await writeFile(journal,JSON.stringify({...identity,binding:digest(identityBytes),phase:'restoring',targetPrior:true}));await privateAcl(journal,false);
  report.alias.journal=journal;await persist();
+ if(selected.patch){
+  report.patch=await buildDiagnosticPatch({old,work,msi,shell,capture,download});
+  report.patch.outcome=await msi('metadata-patch-apply',['/p',report.patch.path,'ALLUSERS=1','INSTALLDIR='+destination,'LMG_RECOVERY='+journal,'REINSTALL=ALL','REINSTALLMODE=omus']);
+  await snapshot('after-metadata-patch');await persist();return;
+ }
  const repair=await msi('alias-repair',['/i',old.file,'ALLUSERS=1','INSTALLDIR='+alias,'LMG_RECOVERY='+journal,'REINSTALL=ALL','REINSTALLMODE=vamus']);
  await snapshot('after-alias-repair');report.alias.repair=repair;
  if(repair.terminal&&[0,3010].includes(repair.code)){

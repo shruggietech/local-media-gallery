@@ -14,6 +14,7 @@ test('Registration controls vary structure independently at exact UTF-16 executa
 });
 test('Version, drive and character controls are explicit and invalid selections refuse',()=>{
  for(const version of ['010','020','021','022'])assert.equal(registrationCase(`registration-${version}-nested-131`).version,`0.${Number(version[1])}.${Number(version[2])}`);
+ const repair=registrationCase('registration-010-repair-131');assert.equal(repair.repair,true);assert.equal(repair.structure,'nested');
  const c=registrationCase('registration-010-original-131');assert.equal(registrationLocation(c,'C:\\s037').length+24,131);
  assert.throws(()=>registrationCase('registration-999-nested-131'));
 });

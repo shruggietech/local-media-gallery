@@ -2,9 +2,9 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 export function registrationCase(value){
- const match=/^registration-(010|020|021|022)-(flat|nested|original|repair)-(76|127|128|129|130|131)$/.exec(value);
+ const match=/^registration-(010|020|021|022)-(flat|nested|original|repair|patch)-(76|127|128|129|130|131)$/.exec(value);
  assert.ok(match,'Unknown finite registration diagnostic case');
- return {name:value,version:'0.'+Number(match[1][1])+'.'+Number(match[1][2]),structure:match[2]==='repair'?'nested':match[2],repair:match[2]==='repair',length:Number(match[3])};
+ return {name:value,version:'0.'+Number(match[1][1])+'.'+Number(match[1][2]),structure:['repair','patch'].includes(match[2])?'nested':match[2],repair:['repair','patch'].includes(match[2]),patch:match[2]==='patch',length:Number(match[3])};
 }
 export function registrationLocation(c,base){
  assert.match(base,/^[CD]:\\/i);assert.equal(path.win32.resolve(base),base);

@@ -9,7 +9,7 @@
 
 ## Phase 2: Reproduction and mechanism evidence
 
-- [ ] T003 Add failing pure diagnostic matrix/identity/outcome contract tests in tests/msi-registration.test.mjs before scripts/diagnose-msi-registration.mjs. [FR-001, FR-002, FR-003, FR-010, SC-001]
+- [x] T003 Add failing pure diagnostic matrix/identity/outcome contract tests in tests/msi-registration.test.mjs before scripts/diagnose-msi-registration.mjs. [FR-001, FR-002, FR-003, FR-010, SC-001]
 - [ ] T004 Implement the finite isolated registration probe using authenticated published inputs and read-only native observations; extend only the registered native-desktop MSI diagnostic case/route and artifact paths. Dispatch with nonblank artifact_run, retain original native 1603/cleanup failures and compare independent path controls and versions. [FR-001, FR-002, FR-003, FR-005, FR-010, FR-012, SC-001]
 - [ ] T005 Record actual trigger/version observations and finalize the recovery adapter design in research.md/plan.md before production mutation. Prove existing-journal/physical-short-alias repair feasibility where applicable; surface a materially new transform/patch authority before adoption. [FR-002, FR-003, FR-004, FR-006, SC-001]
 

@@ -18,3 +18,7 @@ Two delegated read-only audits inspected native guards and exact historical diag
 - [MsiQueryComponentStateW](https://learn.microsoft.com/en-us/windows/win32/api/msi/nf-msi-msiquerycomponentstatew)
 
 The documented signatures match the source declarations. No documented 128-character limit was established. A secondary path result alone is not selected-context ownership proof.
+
+## First hosted controls (2026-11-09 UTC)
+
+Exact published v0.1.0 on Windows 2025: flat 76 (42540555510) and nested 76 (42540560340) installed and ordinarily removed with exit 0; flat 131 (42540565388), nested 131 (42540570176), and repeated-name/.local 131 (42540574463) installed with exit 0 but ordinary product removal returned 1603. In each failed control, ExW returned UNKNOWN with empty output while non-Ex returned LOCAL with the exact 131-character path. Nested structure alone does not explain the failure in these controls. Boundary 127–130 and independent-version/repair probes are pending; no universal threshold or supported recovery is claimed yet. Raw logs and JSON are retained under .local/s037-probes by run ID.
