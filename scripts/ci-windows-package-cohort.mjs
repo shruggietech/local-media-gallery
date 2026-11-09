@@ -1,4 +1,3 @@
-import {packWindowsUpdateEvidence} from './windows-evidence-transport.mjs';
 import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
@@ -104,7 +103,6 @@ if(operation==='build'){
     assert.equal(journal.records.at(-1)?.status,'closed','Native campaign cleanup must finish before success');assert.equal(native.status,'complete');
     const fragment=await json('windows-campaign-'+campaign+'.json');fragment.diagnostics={protocol:'bounded-observer-v1',context:contextPacket,files:[]};
     for(const name of ['windows-campaign-checkpoints-'+campaign+'.json','windows-campaign-latest-'+campaign+'.json','windows-observer-checkpoint-'+campaign+'.json','windows-campaign-native-'+campaign+'.stdout.log','windows-campaign-native-'+campaign+'.stderr.log']){const raw=await readFile(path.join(local,name));fragment.diagnostics.files.push({path:'.local/'+name,bytes:String(raw.length),sha256:hash(raw)});}
-    if(campaign==='lifecycle'&&build.windowsUpdateEvidenceTransport)fragment.updateEvidenceTransport=await packWindowsUpdateEvidence(fragment,root,{deadline:Date.parse(clock.activeDeadline)});
     fragment.terminalFinished=new Date().toISOString();await save('windows-campaign-'+campaign+'.json',fragment);
    };
    if(campaign==='experience'){await actual();return;}
