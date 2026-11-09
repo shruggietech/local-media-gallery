@@ -31,7 +31,7 @@ await context.route('**/media/**',route=>{
  const isVideo=new URL(route.request().url()).pathname.includes('/video/');
  return route.fulfill({status:200,contentType:isVideo?'video/webm':'image/png',body:isVideo?video:image});
 });
-await context.addInitScript(({folder,origin})=>{
+await context.addInitScript(({folder,origin,productVersion})=>{
  const callbacks=new Map(),listeners=new Map();let callback=0,sequence=1,revision=1;
  const defaults={version:productVersion,formatVersion:1,fontScale:100,pageSize:48,cardSize:'medium',controlsExpanded:false,scrollIndicator:'auto',metadataExpanded:false,summaryFields:[],loadingMode:'automatic',filter:'all',sort:'name',direction:'asc'};
  const layers={user:{},remembered:{},portable:{},session:{}};
@@ -83,7 +83,7 @@ await context.addInitScript(({folder,origin})=>{
    throw Error('Unexpected synthetic-host command: '+command);
   },
  };
-},{folder,origin:server.url});
+},{folder,origin:server.url,productVersion});
 }
 await configureContext(context);
 page=await context.newPage();

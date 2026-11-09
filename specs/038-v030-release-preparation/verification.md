@@ -21,3 +21,11 @@ The first repository check exposed an import placed before a script shebang; cor
 ## 2026-11-09: affected local parity
 
 Application checks passed (Rust formatting, package tests, workspace clippy, TypeScript, ESLint, Stylelint and brand integration), followed by a successful static gallery export. Website build and static integrity passed (141 generated routes, 158 exact raw sources); all ten rendered website groups passed in 78.293 seconds. The independent gallery navigation browser campaign and post-capture complete unit rerun remain pending. No installer, native application or recipient acceptance was run on the owner workstation.
+
+## 2026-11-09: snapshot and browser fixture correction
+
+Source A d15bc666e1625a381f4881ed157c051ab9da1900 was committed. The existing release snapshot CLI performed the minor-release glossary review and captured the new documentation into a fresh ignored destination; only site/retained/v0.3.0.json was copied back. All older receipts remain unchanged. The gallery browser fixture first failed because its serialized browser context could not access the imported Node version variable. Passed the elected value as an explicit init-script argument; retained the original failed observation and reran the complete campaign. This changes fixture transport, not product behavior or acceptance assertions.
+
+The post-snapshot full unit suite passes: 380 tests, 378 passed, two platform-specific skips, zero failures. Repository integrity check passes after capture. Canonical published latest remains v0.2.2; no tag, release or publication mutation has occurred.
+
+The corrected gallery browser campaign passed all eight groups, including drawer routes, keyboard/focus/reflow, explicit save scopes, persistent viewer playback, thumbnail drafts and admitted preparation cancellation. These are synthetic-host browser results, separate from forthcoming ordinary native package acceptance.

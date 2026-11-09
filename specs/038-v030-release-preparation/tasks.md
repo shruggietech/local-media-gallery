@@ -43,8 +43,8 @@
 
 **Independent test**: Final head/CI/source/artifact bindings agree; all mandatory native/recipient outcomes are actual passes and review dispositions are complete within two rounds.
 
-- [ ] T014 [US3] Run npm run check, npm test, npm run check:docs, npm run check:app and affected static/rendered site checks through the verified hidden launcher; record original failures and source integrity in specs/038-v030-release-preparation/verification.md. [FR-001 through FR-012, FR-014, SC-001 through SC-004]
-- [ ] T015 [US3] Commit source A, perform ordinary vocabulary review and exact-source new snapshot capture in a fresh ignored destination, retain only site/retained/v0.3.0.json, complete affected checks and commit source B. [FR-008 through FR-010, FR-013, SC-003]
+- [x] T014 [US3] Run npm run check, npm test, npm run check:docs, npm run check:app and affected static/rendered site checks through the verified hidden launcher; record original failures and source integrity in specs/038-v030-release-preparation/verification.md. [FR-001 through FR-012, FR-014, SC-001 through SC-004]
+- [x] T015 [US3] Commit source A, perform ordinary vocabulary review and exact-source new snapshot capture in a fresh ignored destination, retain only site/retained/v0.3.0.json, complete affected checks and commit source B. [FR-008 through FR-010, FR-013, SC-003]
 - [ ] T016 [US3] Push/open the official PR with Fixes #116 and elect complete exact-head hosted qualification, retaining all platform/package/native/recipient, ordinary/legacy and 660/900/15 checks. [FR-011 through FR-014, SC-004, SC-005]
 - [ ] T017 [US3] Address every actionable hosted finding, resolve threads and retain a zero-to-two round ledger with exact heads/outcomes in the PR and ignored evidence. No third trigger is permitted. [FR-014, SC-005]
 
