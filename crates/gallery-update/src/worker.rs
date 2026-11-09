@@ -136,6 +136,85 @@ fn reinstall_source(
     Ok((alias, pins))
 }
 
+#[cfg(windows)]
+fn legacy_patch_property(path: &Path) -> Result<String> {
+    let path = path.to_str().ok_or("Invalid legacy patch path")?;
+    if path.contains([';', '\"', '\r', '\n']) {
+        return Err("Legacy PATCH requires one unambiguous verified input".into());
+    }
+    // MSI PATCH parsing does not normalize portable manifest separators.
+    let path = path.replace('/', "\\");
+    Ok(format!("PATCH=\"{path}\""))
+}
+
+#[cfg(windows)]
+fn stage_legacy_patch(patch: &Path, record: &FileRecord) -> Result<(PathBuf, Vec<File>)> {
+    // PATCH is an MSI semicolon-delimited list even inside quotes. Preserve the
+    // selected transaction path by staging only this authenticated input.
+    if !patch
+        .to_str()
+        .ok_or("Invalid legacy patch path")?
+        .contains(';')
+    {
+        legacy_patch_property(patch)?;
+        return Ok((patch.to_path_buf(), vec![]));
+    }
+    let (root, pins) = gallery_windows_package::private::legacy_storage_root(true)?;
+    let staged = root.join(format!("legacy-patch-{}.msp", record.sha256));
+    legacy_patch_property(&staged)?;
+    if staged.exists() {
+        gallery_windows_package::private::validate_file(&staged, true)?;
+        verify_file(&staged, record)?;
+    } else {
+        copy_owned(patch, &staged, record, true)?;
+    }
+    Ok((staged, pins))
+}
+
+#[cfg(windows)]
+fn select_legacy_patch(
+    version: &str,
+    candidates: &[(PathBuf, FileRecord)],
+) -> Result<(PathBuf, FileRecord)> {
+    if !matches!(version, "0.1.0" | "0.2.0") {
+        return Err("Unsupported legacy patch version".into());
+    }
+    let expected = format!("maintenance/legacy-{version}-machine.msp");
+    let mut selected: Option<(PathBuf, FileRecord)> = None;
+    for (path, record) in candidates.iter().filter(|(_, r)| r.path == expected) {
+        if let Some((_, prior)) = &selected {
+            if prior.bytes != record.bytes || prior.sha256 != record.sha256 {
+                return Err("Ambiguous retained legacy patch identities".into());
+            }
+        } else {
+            selected = Some((path.clone(), record.clone()));
+        }
+    }
+    selected
+        .ok_or("Matching authenticated legacy patch is absent from retained Full payload".into())
+}
+#[cfg(windows)]
+fn retained_legacy_patch(journal: &Journal, source: &Candidate) -> Result<(PathBuf, FileRecord)> {
+    let mut candidates = vec![];
+    for (side, current) in [("prior", &journal.prior), ("next", &journal.next)] {
+        if current.edition != "full" || !matches!(current.native, Native::WindowsMsi { .. }) {
+            continue;
+        }
+        let base = journal.transaction.join(side);
+        if !native::dual_msi_identity(current, &base)? {
+            continue;
+        }
+        for record in &current.files {
+            if record.path.starts_with("maintenance/legacy-")
+                && record.path.ends_with("-machine.msp")
+            {
+                candidates.push((base.join(&record.path), record.clone()));
+            }
+        }
+    }
+    select_legacy_patch(&source.version, &candidates)
+}
+
 pub fn entry(path: &Path) -> Result<i32> {
     let (job, journal) = read_job(path)?;
     let base = &job.transaction;
@@ -191,6 +270,10 @@ pub fn entry(path: &Path) -> Result<i32> {
     let _source_pins;
     #[cfg(windows)]
     let _legacy_context_pins;
+    #[cfg(windows)]
+    let _patch_input;
+    #[cfg(windows)]
+    let mut _patch_pins = vec![];
     match &source.native {
         Native::WindowsMsi {
             scope,
@@ -211,10 +294,10 @@ pub fn entry(path: &Path) -> Result<i32> {
                         sha256: artifact.sha256.clone(),
                     },
                 )?;
-                if !matches!(job.action.as_str(), "install" | "remove") {
+                if !matches!(job.action.as_str(), "install" | "remove" | "legacy-patch") {
                     return Err("Invalid MSI worker operation".into());
                 }
-                if job.action == "remove"
+                if matches!(job.action.as_str(), "remove" | "legacy-patch")
                     && (gallery_windows_package::native::registered_package(scope == "machine")?
                         .as_deref()
                         != Some(package_code)
@@ -224,6 +307,41 @@ pub fn entry(path: &Path) -> Result<i32> {
                 {
                     return Err("Installed MSI changed before native removal".into());
                 }
+                _patch_input = if job.action == "legacy-patch" {
+                    if dual_source
+                        || scope != "machine"
+                        || !gallery_windows_package::native::is_legacy_product(product_code, true)
+                    {
+                        return Err("Legacy patch job requires its scoped predecessor".into());
+                    }
+                    let (patch, record) = retained_legacy_patch(&journal, source)?;
+                    gallery_windows_package::private::validate_file(&patch, true)?;
+                    verify_file(&patch, &record)?;
+                    let (patch, pins) = stage_legacy_patch(&patch, &record)?;
+                    _patch_pins = pins;
+                    let input = gallery_windows_package::open_verified_input(
+                        &patch,
+                        &gallery_windows_package::FileRecord {
+                            path: record.path.clone(),
+                            bytes: record.bytes.clone(),
+                            sha256: record.sha256.clone(),
+                        },
+                    )?;
+                    let key = hash(path.to_str().ok_or("Non-Unicode legacy job")?.as_bytes());
+                    let applied =
+                        gallery_windows_package::native::legacy_patch_applied(&patch, true)?;
+                    durable_json(
+                        &base.join(format!("legacy-patch-input-{}.json", &key[..24])),
+                        &serde_json::json!({"binding":job.binding,"job":path,"side":job.side,"version":source.version,"patch":patch,"record":record,"alreadyApplied":applied}),
+                    )?;
+                    if applied {
+                        receipt(base, path, true, Some(0), None)?;
+                        return Ok(0);
+                    }
+                    Some((patch.clone(), input))
+                } else {
+                    None
+                };
                 let system = windows_system_tool("msiexec.exe")?;
                 command = Command::new(system);
                 command
@@ -275,7 +393,11 @@ pub fn entry(path: &Path) -> Result<i32> {
                         command.arg(format!("REMOVE={}", absent.join(",")));
                     }
                 }
-                if job.reinstall {
+                if let Some((patch, _)) = &_patch_input {
+                    command
+                        .raw_arg(legacy_patch_property(patch)?)
+                        .args(["REINSTALL=ALL", "REINSTALLMODE=omus"]);
+                } else if job.reinstall {
                     let mut features =
                         native::reinstall_features(source, &package, &job.directory)?;
                     if dual_source {
@@ -767,5 +889,61 @@ mod tests {
         .unwrap();
         assert!(terminal_receipt(&job, &receipt, Some(0)).is_err());
         assert!(terminal_receipt(&job, &receipt, Some(2)).is_ok());
+    }
+}
+
+#[cfg(all(test, windows))]
+mod legacy_patch_tests {
+    use super::*;
+    fn record(name: &str, bytes: &[u8]) -> (PathBuf, FileRecord) {
+        (
+            PathBuf::from(r"C:\protected retained").join(name),
+            FileRecord {
+                path: name.into(),
+                bytes: bytes.len().to_string(),
+                sha256: hash(bytes),
+                mode: 644,
+            },
+        )
+    }
+    #[test]
+    fn legacy_patch_property_cannot_expand_into_multiple_inputs() {
+        assert_eq!(
+            legacy_patch_property(Path::new("C:\\retained/maintenance/one.msp")).unwrap(),
+            "PATCH=\"C:\\retained\\maintenance\\one.msp\""
+        );
+        assert_eq!(
+            legacy_patch_property(Path::new(r"C:\retained 雪\one.msp")).unwrap(),
+            "PATCH=\"C:\\retained 雪\\one.msp\""
+        );
+        for path in [
+            "C:\\one.msp;C:\\foreign.msp",
+            "C:\\bad\".msp",
+            "C:\\bad\n.msp",
+            "C:\\bad\r.msp",
+        ] {
+            assert!(legacy_patch_property(Path::new(path)).is_err());
+        }
+    }
+    #[test]
+    fn legacy_patch_selection_requires_exact_version_and_unambiguous_retained_bytes() {
+        let good = record(
+            "maintenance/legacy-0.1.0-machine.msp",
+            b"compiled scoped patch",
+        );
+        assert!(select_legacy_patch("0.1.0", std::slice::from_ref(&good)).is_ok());
+        assert!(select_legacy_patch("0.2.0", std::slice::from_ref(&good)).is_err());
+        assert!(select_legacy_patch("0.1.0", &[]).is_err());
+        assert!(
+            select_legacy_patch(
+                "0.1.0",
+                &[
+                    good.clone(),
+                    record("maintenance/legacy-0.1.0-machine.msp", b"changed patch")
+                ]
+            )
+            .is_err()
+        );
+        assert!(select_legacy_patch("0.1.0", &[good.clone(), good]).is_ok());
     }
 }

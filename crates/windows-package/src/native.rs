@@ -21,6 +21,8 @@ use windows::{
     },
     core::{Interface, PCWSTR, PWSTR},
 };
+#[path = "legacy.rs"]
+mod legacy;
 const USER: &str = "{2098F021-7630-4BF6-B7F8-2AC279022A42}";
 const MACHINE: &str = "{F81110E5-48A6-4096-B065-752E0D3B61C0}";
 pub const DUAL_UPGRADE: &str = "{788C188C-E8CE-48B6-95CC-134A6AFD4B20}";
@@ -2001,4 +2003,14 @@ mod context_identity_tests {
             dual_product_code(b"another generation")
         );
     }
+}
+
+/// Diagnose only; the patch guard independently revalidates all ownership before mutation.
+pub fn legacy_lookup_needs_patch(directory: &Path, machine: bool) -> Result<bool, String> {
+    legacy::needs_patch(directory, machine)
+}
+
+/// The caller retains a verified patch input while native state is observed.
+pub fn legacy_patch_applied(file: &Path, machine: bool) -> Result<bool, String> {
+    legacy::patch_applied(file, machine)
 }

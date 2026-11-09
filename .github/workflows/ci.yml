@@ -278,10 +278,10 @@ jobs:
             .local/windows-package-test-*/ordinary * upgrade/*.json
             .local/windows-package-test-*/ordinary * upgrade/*.png
             .local/windows-package-test-*/legacy */*.log
-            .local/windows-package-test-*/legacy */storage/**/*.log
-            .local/windows-package-test-*/legacy */storage/**/*.json
-            .local/windows-package-test-*/legacy */storage/**/*.stdout
-            .local/windows-package-test-*/legacy */storage/**/*.stderr
+            .local/windows-package-test-*/legacy */storage*/**/*.log
+            .local/windows-package-test-*/legacy */storage*/**/*.json
+            .local/windows-package-test-*/legacy */storage*/**/*.stdout
+            .local/windows-package-test-*/legacy */storage*/**/*.stderr
             .local/windows-package-test-*/single-file-offline*.json
             .local/tmp/local-media-gallery-*.log
           include-hidden-files: true

@@ -33,7 +33,7 @@ on:
         required: false
         default: limited
         type: choice
-        options: [limited, limited-offline, all]
+        options: [limited, limited-offline, all, registration-010-flat-76, registration-010-nested-76, registration-010-flat-131, registration-010-flat-129, registration-010-flat-130, registration-010-unicode-129, registration-010-unicode-130, registration-010-drive-d-129, registration-010-drive-d-130, registration-010-nested-127, registration-010-nested-128, registration-010-nested-129, registration-010-nested-130, registration-010-nested-131, registration-010-original-131, registration-010-guard-131, registration-020-guard-131, registration-020-nested-131, registration-021-nested-131, registration-022-nested-131]
       windows_msi_upgrade:
         description: Diagnose exact published ordinary Windows MSI upgrade (never acceptance)
         required: false
@@ -48,7 +48,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: native-desktop-${{ inputs.artifact_run && inputs.platform || 'qualification' }}
+  group: native-desktop-${{ inputs.artifact_run && inputs.platform || 'qualification' }}-${{ inputs.msi_upgrade_case }}
   cancel-in-progress: false
 jobs:
   native-desktop:
@@ -173,6 +173,12 @@ jobs:
             .local/msi-upgrade-diagnostic/*.log
             .local/msi-upgrade-diagnostic/*.json
             .local/msi-upgrade-diagnostic/*.png
+            .local/windows-registration-diagnostic.json
+            .local/msi-registration-diagnostic/*.log
+            .local/msi-registration-diagnostic/*.wixmst
+            .local/msi-registration-diagnostic/*.wxs
+            .local/msi-registration-diagnostic/guard-patch/*.wixmst
+            .local/msi-registration-diagnostic/guard-patch/*.wxs
             .local/runtime-diagnostic.json
             .local/legacy-diagnostic.json
             .local/native-results.json

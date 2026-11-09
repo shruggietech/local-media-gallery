@@ -15,6 +15,7 @@ import {observeMsiUpgrade} from './windows-msi-upgrade.mjs';
 import {randomUUID} from 'node:crypto';
 import {snapshotWindowsOfflineFirewall,applyWindowsOfflineFirewall,readWindowsOfflineFirewall,restoreWindowsOfflineIntent} from './windows-offline-firewall.mjs';
 import {msiCommandArguments} from './windows-msi-command.mjs';
+if(process.env.GALLERY_MSI_UPGRADE_CASE?.startsWith('registration-')){await import('./diagnose-msi-registration.mjs');process.exit(0);}
 requireIsolatedDesktop();assert.equal(process.platform,'win32');
 const call=promisify(execFile),work=path.join(root,'.local/msi-upgrade-diagnostic');await mkdir(work,{recursive:true});
 const capture=(file,args,extra={})=>call(file,args,{cwd:work,env:environment,windowsHide:true,shell:false,timeout:180000,maxBuffer:8388608,...extra});

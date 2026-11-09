@@ -609,6 +609,63 @@ fn compatible_reinstall(
     }
 }
 
+#[cfg(windows)]
+fn repair_legacy_if_needed(op: &Transaction, side: &str) -> Result<()> {
+    let source = if side == "prior" {
+        &op.journal.prior
+    } else {
+        &op.journal.next
+    };
+    let Native::WindowsMsi {
+        scope,
+        product_code,
+        ..
+    } = &source.native
+    else {
+        return Ok(());
+    };
+    if scope != "machine" || !gallery_windows_package::native::is_legacy_product(product_code, true)
+    {
+        return Ok(());
+    }
+    if !gallery_windows_package::native::legacy_lookup_needs_patch(&op.journal.directory, true)? {
+        return Ok(());
+    }
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    let log = op.base.join(format!("legacy-patch-{side}-{nonce:x}.log"));
+    let output = worker::execute(op, side, "legacy-patch", true, &log)?;
+    if !matches!(output.status.code(), Some(0 | 3010)) {
+        return Err(msi_failure("legacy maintenance patch", &output, &log));
+    }
+    verified(source, &op.journal.directory)?;
+    let terminal: serde_json::Value =
+        serde_json::from_slice(&read_bounded(&op.base.join("native-process.json"), 16384)?)
+            .map_err(|e| e.to_string())?;
+    let job = terminal["job"]
+        .as_str()
+        .ok_or("Missing completed patch job")?;
+    let key = hash(job.as_bytes());
+    let input: serde_json::Value = serde_json::from_slice(&read_bounded(
+        &op.base
+            .join(format!("legacy-patch-input-{}.json", &key[..24])),
+        16384,
+    )?)
+    .map_err(|e| e.to_string())?;
+    if input["binding"] != op.journal.binding || input["job"] != job || terminal["terminal"] != true
+    {
+        return Err("Legacy patch terminal evidence differs".into());
+    }
+    durable_json(
+        &op.base
+            .join(format!("legacy-patch-completed-{side}-{nonce:x}.json")),
+        &serde_json::json!({"kind":"verified-legacy-msi-repair","binding":op.journal.binding,"side":side,"version":source.version,"input":input,"native":terminal,"exitCode":output.status.code(),"log":log}),
+    )?;
+    Ok(())
+}
+
 #[cfg(any(windows, target_os = "linux"))]
 pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
     let selected = if prior {
@@ -622,6 +679,23 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
         verified(&selected, &op.journal.directory).is_ok() && op.exclusive_selected(&selected)?;
     if already {
         op.journal.target_prior = prior;
+        #[cfg(windows)]
+        if let Native::WindowsMsi {
+            scope,
+            product_code,
+            ..
+        } = &selected.native
+            && scope == "machine"
+            && gallery_windows_package::native::is_legacy_product(product_code, true)
+            && gallery_windows_package::native::legacy_lookup_needs_patch(
+                &op.journal.directory,
+                true,
+            )?
+        {
+            op.journal.phase = if prior { "restoring" } else { "applying" }.into();
+            op.save()?;
+            repair_legacy_if_needed(op, if prior { "prior" } else { "next" })?;
+        }
         op.journal.phase = if prior { "restored" } else { "committed" }.into();
         op.save()?;
         cleanup(op)?;
@@ -673,6 +747,7 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
                         verified(&which.1, &op.journal.directory)?;
                     }
                     if !reinstall {
+                        repair_legacy_if_needed(op, name)?;
                         let out = worker::execute(
                             op,
                             name,
@@ -806,6 +881,8 @@ pub(super) fn apply(op: &mut Transaction, prior: bool) -> Result<Outcome> {
         }
         Native::Direct => unreachable!(),
     }
+    #[cfg(windows)]
+    repair_legacy_if_needed(op, if prior { "prior" } else { "next" })?;
     op.journal.phase = "activated".into();
     op.save()?;
     verified(&selected, &op.journal.directory)?;

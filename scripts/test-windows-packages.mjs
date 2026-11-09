@@ -124,24 +124,69 @@ async function wizardInstall(file,{scope='machine',destination,startMenu=true,co
   return{...result,result:'pass',operation:'install',package:observed.registered.package.toUpperCase(),nativeDirectory:{encoding:'windows-utf16le',bytes:[...Buffer.from(directory.replace(/[\\/]$/,''),'utf16le')]},runtimeAfter:await installedRuntime(scope)};
  }catch(error){await writeFile(path.join(work,'wizard-'+msiSequence+'-failure.json'),JSON.stringify({error:error.stack,screens,output,exitCode:child.exitCode},null,2)+'\n');throw error;}finally{await retire(child);live.delete(child);}
 }
+
+async function interruptLegacyRecovery(updater,transaction){
+ const child=spawn(updater,['recover','--transaction',transaction,'--events','1'],{cwd:outside,env:environment,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe']});
+ let text='',errors='',buffer='',event=null,killed=false,diagnostic=null;
+ const ended=new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',(code,signal)=>resolve({code,signal}));});
+ const settled=settleOwnedChild(child,{deadline,hardDeadline,collect:false});settled.catch(()=>{});
+ child.stderr.on('data',b=>errors+=b.toString());
+ child.stdout.on('data',b=>{
+  text+=b.toString();buffer+=b.toString();let at;
+  while((at=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,at);buffer=buffer.slice(at+1);let row;try{row=JSON.parse(line);}catch{continue;}
+   if(!event&&row.event==='native-client'){
+    event=row;
+    try{process.kill(row.clientPid,0);killed=child.kill();}catch(error){diagnostic=error.message;}
+   }
+  }
+ });
+ const terminal=await ended;await settled.catch(error=>{if(!killed)throw error;});
+ assert.ok(event&&killed,'Must actually interrupt the coordinator while its native client exists: '+errors+' '+diagnostic);assert.notEqual(terminal.code,0);
+ const native=await until(async()=>{const r=JSON.parse(await readFile(path.join(transaction,'native-process.json')));return r.terminal?r:false;},'Independent legacy patch supervisor reaches its native terminal outcome',Math.max(1,Math.min(180000,deadline-Date.now())));
+ assert.equal(native.clientPid,event.clientPid);assert.ok([0,3010].includes(native.code));
+ const job=JSON.parse(await readFile(native.job));assert.equal(job.action,'legacy-patch');
+ return{event,coordinator:{pid:child.pid,killed,terminal},native,job,stdout:text,stderr:errors};
+}
+
 async function publishedRecoveryCampaign(){
  const results=[];const current=build.upgrades.pairs.find(p=>p.edition==='full'&&p.scope==='machine').from;const updater=path.join(root,build.upgrades.helper);
  for(const prior of build.publishedPredecessors){
   const base=path.join(work,'legacy '+prior.version);await mkdir(base);
-  // Published v0.1.0 itself cannot remove the tested longer checkout-root
-  // locations. Keep its custom Unicode application fixture short; recovery
-  // storage still exercises the selected checkout-root path independently.
-  const legacyRoot=await mkdtemp(path.join(path.parse(work).root,'lmg-legacy-'));const destination=path.join(legacyRoot,'application 雪');const oldMsi=path.join(root,prior.directory,prior.msi.path);
+  const legacyRoot=await mkdtemp(path.join(path.parse(work).root,'lmg-legacy-'));
+  const leaf='application 雪';const padding=131-path.join(legacyRoot,leaf,'local-media-gallery.exe').length;assert.ok(padding>0);
+  const destination=path.join(legacyRoot,leaf+'x'.repeat(padding));assert.equal(path.join(destination,'local-media-gallery.exe').length,131);
+  const oldMsi=path.join(root,prior.directory,prior.msi.path),location={directory:destination,executableLength:131};
   await captureMsi(['/i',oldMsi,'/qn','/norestart','/L*v',path.join(base,'install.log'),'INSTALLDIR='+destination]);await verifyPayload(destination,prior.payload);
   const extra=path.join(destination,'independent.txt'),extraDirectory=path.join(destination,'independent media');await mkdir(extraDirectory);await writeFile(extra,'retain foreign leaf');await writeFile(path.join(extraDirectory,'media.bin'),'retain independent media');
-  const before={private:await retained(),leaf:digest(await readFile(extra)),media:digest(await readFile(path.join(extraDirectory,'media.bin')))};
-  const storage=path.join(base,'storage'),transaction=path.join(storage,'transaction');const args=['update','--storage-root',storage,'--transaction',transaction,'--directory',destination,'--from',path.join(root,prior.directory,'machine.msi.update.json'),'--to',path.join(root,current.path),'--source',path.join(root,build.directory,'full-payload'),'--state-settings',path.join(base,'absent-private-settings.json'),'--state-history',path.join(base,'absent-private-history.sqlite3')];
-  const update=JSON.parse((await capture(updater,args)).stdout);assert.equal(update.status,'complete');await verifyPayload(destination,build.bundle.payload);
+  const runtime=await installedRuntime('machine');
+  const before={private:await retained(),leaf:digest(await readFile(extra)),media:digest(await readFile(path.join(extraDirectory,'media.bin'))),runtime:{version:runtime.version,scope:runtime.scope}};
+  let originalRemoval;try{await captureMsi(['/x',productCodes.machine,'/qn','/norestart','/L*v',path.join(base,'original-remove-failure.log')]);}catch(error){originalRemoval={code:error.code,killed:error.killed??false,signal:error.signal??null,log:path.relative(root,path.join(base,'original-remove-failure.log')).replaceAll('\\','/')};}
+  assert.equal(originalRemoval?.code,1603);assert.equal(originalRemoval.killed,false);assert.equal(originalRemoval.signal,null);const originalLog=await readFile(path.join(base,'original-remove-failure.log'));assert.match(originalLog.toString(originalLog[0]===255&&originalLog[1]===254?'utf16le':'utf8'),/Actual registered component destination differs/);
+
+  const wrong=build.legacyPatches.find(p=>p.version!==prior.version),wrongFile=path.resolve(root,wrong.path);assert.equal(digest(await readFile(wrongFile)),wrong.sha256);
+  let wrongVersion;try{await captureMsi(['/p',wrongFile,'REINSTALL=ALL','REINSTALLMODE=omus','/qn','/norestart','/L*v',path.join(base,'wrong-version-patch.log')]);}catch(error){wrongVersion={code:error.code,killed:error.killed??false,signal:error.signal??null,log:path.relative(root,path.join(base,'wrong-version-patch.log')).replaceAll('\\','/')};}assert.equal(wrongVersion?.code,1642);assert.equal(wrongVersion.killed,false);assert.equal(wrongVersion.signal,null);await verifyPayload(destination,prior.payload);
+  const storage=path.join(base,'storage; selected'),transaction=path.join(storage,'transaction');const args=['update','--storage-root',storage,'--transaction',transaction,'--directory',destination,'--from',path.join(root,prior.directory,'machine.msi.update.json'),'--to',path.join(root,current.path),'--source',path.join(root,build.directory,'full-payload'),'--state-settings',path.join(base,'absent-private-settings.json'),'--state-history',path.join(base,'absent-private-history.sqlite3')];
+  const prepared=JSON.parse((await capture(updater,['prepare',...args.slice(1)])).stdout);assert.equal(prepared.phase,'prepared');
+  const retainedPatch=path.join(transaction,'next','maintenance','legacy-'+prior.version+'-machine.msp'),patchBytes=await readFile(retainedPatch);
+  await writeFile(retainedPatch,Buffer.concat([patchBytes,Buffer.from('changed retained fixture')]));
+  let changedInput;try{await capture(updater,['recover','--transaction',transaction]);}catch(error){changedInput={code:error.code,killed:error.killed??false,signal:error.signal??null,stdout:error.stdout,stderr:error.stderr};}
+  assert.equal(changedInput?.code,2);assert.equal(changedInput.killed,false);assert.equal(changedInput.signal,null);await verifyPayload(destination,prior.payload);await writeFile(retainedPatch,patchBytes);
+  const interruption=await interruptLegacyRecovery(updater,transaction);
+  const update=JSON.parse((await capture(updater,['recover','--transaction',transaction])).stdout);assert.equal(update.status,'complete');await verifyPayload(destination,build.bundle.payload);
   const outerIdentity=await readFile(path.join(transaction,'identity.json'));const rollback=JSON.parse((await capture(updater,['rollback','--transaction',transaction])).stdout);assert.equal(rollback.status,'restored');await verifyPayload(destination,prior.payload);assert.deepEqual(await readFile(path.join(transaction,'identity.json')),outerIdentity);
   const recovered=JSON.parse((await capture(updater,['recover','--transaction',transaction])).stdout);assert.equal(recovered.status,'restored');const native=await shell("$i=New-Object -ComObject WindowsInstaller.Installer;@{version=$i.ProductInfo($arg.product,'VersionString');package=$i.ProductInfo($arg.product,'PackageCode')}|ConvertTo-Json -Compress",{product:productCodes.machine});assert.equal(native.version,prior.version);assert.equal(native.package.toUpperCase(),prior.msi.packageCode);assert.equal((await state('machine')).registered,null);
-  const after={private:await retained(),leaf:digest(await readFile(extra)),media:digest(await readFile(path.join(extraDirectory,'media.bin')))};assert.deepEqual(after,before);
+  const runtimeAfter=await installedRuntime('machine');const after={private:await retained(),leaf:digest(await readFile(extra)),media:digest(await readFile(path.join(extraDirectory,'media.bin'))),runtime:{version:runtimeAfter.version,scope:runtimeAfter.scope}};assert.deepEqual(after,before);
   const names=(await readdir(transaction)).filter(n=>n.startsWith('legacy-recovery-')&&n.endsWith('.json'));assert.ok(names.length);const adapters=[];const canonical=(await shell("@{base=[Environment]::GetFolderPath('CommonApplicationData')}|ConvertTo-Json -Compress")).base;for(const name of names){const reference=JSON.parse(await readFile(path.join(transaction,name)));assert.equal(reference.formatVersion,1);assert.equal(reference.outerBinding,digest(outerIdentity));assert.ok(['prior','next'].includes(reference.side));const relative=path.relative(canonical,reference.journal);assert.ok(relative&&!relative.startsWith('..')&&!path.isAbsolute(relative));const adapter=JSON.parse(await readFile(reference.journal));const identity=await readFile(path.join(path.dirname(reference.journal),'identity.json'));assert.equal(digest(identity),reference.binding);assert.equal(adapter.binding,reference.binding);assert.deepEqual(reference.context,adapter);assert.deepEqual(reference.identity,JSON.parse(identity));assert.equal(path.resolve(adapter.directory),path.resolve(destination));assert.equal(path.resolve(adapter.transaction),path.dirname(reference.journal));assert.deepEqual(adapter.prior,adapter.next);assert.equal(adapter.prior.native.productCode,productCodes.machine);assert.equal(adapter.prior.native.packageCode,prior.msi.packageCode);adapters.push({reference:name,...reference});}
-  await capture(systemMsi,['/x',productCodes.machine,'/qn','/norestart','/L*v',path.join(base,'remove.log')]);assert.equal(await readFile(extra,'utf8'),'retain foreign leaf');assert.equal(await readFile(path.join(extraDirectory,'media.bin'),'utf8'),'retain independent media');results.push({version:prior.version,archive:prior.archive,update,rollback,recovered,native,before,after,outerIdentitySha256:digest(outerIdentity),adapters});
+  const patchFile=path.join(base,'legacy-'+prior.version+'-machine.msp'),patchIdentity=build.legacyPatches.find(p=>p.version===prior.version);await copyFile(retainedPatch,patchFile);assert.equal(digest(await readFile(patchFile)),patchIdentity.sha256);
+  const standaloneRepair={exitCode:0,patchSha256:patchIdentity.sha256,log:path.relative(root,path.join(base,'standalone-patch-repair.log')).replaceAll('\\','/')};try{await captureMsi(['/p',patchFile,'REINSTALL=ALL','REINSTALLMODE=omus','/qn','/norestart','/L*v',path.join(base,'standalone-patch-repair.log')]);}catch(error){if(error.code!==3010||error.killed||error.signal)throw error;standaloneRepair.exitCode=3010;}await verifyPayload(destination,prior.payload);
+  const changedFile=prior.payload.files.find(f=>f.path!==prior.payload.binary&&f.path.startsWith('licenses/'))??prior.payload.files.find(f=>f.path!==prior.payload.binary);assert.ok(changedFile);
+  const owned=path.join(destination,changedFile.path),ownedBytes=await readFile(owned);await writeFile(owned,Buffer.concat([ownedBytes,Buffer.from('changed owned fixture')]));
+  let changedOwned;try{await captureMsi(['/x',productCodes.machine,'/qn','/norestart','/L*v',path.join(base,'changed-owned-refusal.log')]);}catch(error){changedOwned={code:error.code,killed:error.killed??false,signal:error.signal??null,file:changedFile.path,log:path.relative(root,path.join(base,'changed-owned-refusal.log')).replaceAll('\\','/')};}
+  assert.equal(changedOwned?.code,1603);assert.equal(changedOwned.killed,false);assert.equal(changedOwned.signal,null);await writeFile(owned,ownedBytes);await verifyPayload(destination,prior.payload);
+  const patchSteps=[];for(const file of (await readdir(transaction)).filter(n=>n.startsWith('legacy-patch-completed-')&&n.endsWith('.json'))){const receipt=JSON.parse(await readFile(path.join(transaction,file)));assert.equal(receipt.kind,'verified-legacy-msi-repair');assert.equal(receipt.binding,digest(outerIdentity));assert.equal(receipt.input.record.sha256,build.legacyPatches.find(p=>p.version===prior.version).sha256);assert.equal(receipt.native.terminal,true);assert.ok([0,3010].includes(receipt.exitCode));patchSteps.push(receipt);}assert.ok(patchSteps.length>=2);assert.ok(patchSteps.some(p=>p.input.alreadyApplied));
+  await captureMsi(['/x',productCodes.machine,'/qn','/norestart','/L*v',path.join(base,'remove.log')]);
+  const removed=await shell("$i=New-Object -ComObject WindowsInstaller.Installer;$p=[Environment]::GetEnvironmentVariable('Path','Machine');$segments=@($p.Split(';')|Where-Object {$_.Trim().TrimEnd([char]92,[char]47).Equals($arg.directory.TrimEnd([char]92,[char]47),[StringComparison]::OrdinalIgnoreCase)});@{state=$i.ProductState($arg.product);ownedPathSegments=$segments.Count;shortcut=(Test-Path -LiteralPath ([IO.Path]::Combine([Environment]::GetFolderPath('CommonPrograms'),'Local Media Gallery.lnk')))}|ConvertTo-Json -Compress",{product:productCodes.machine,directory:destination});assert.equal(removed.state,-1);assert.equal(removed.ownedPathSegments,0);assert.equal(removed.shortcut,false);assert.deepEqual(await retained(),before.private);const finalRuntime=await installedRuntime('machine');assert.deepEqual({version:finalRuntime.version,scope:finalRuntime.scope},before.runtime);for(const file of [...prior.payload.files,{path:'payload.json'}])await assert.rejects(lstat(path.join(destination,file.path)),e=>e.code==='ENOENT');
+assert.equal(await readFile(extra,'utf8'),'retain foreign leaf');assert.equal(await readFile(path.join(extraDirectory,'media.bin'),'utf8'),'retain independent media');results.push({version:prior.version,archive:prior.archive,location,originalRemoval,wrongVersion,prepared,changedInput,interruption,patchSteps,standaloneRepair,changedOwned,removed,update,rollback,recovered,native,before,after,outerIdentitySha256:digest(outerIdentity),adapters});
  }
  return results;
 }
