@@ -25,6 +25,8 @@ MSI PATCH is a semicolon-delimited list even when quoted. The worker now stages 
 
 The first integrated native patch attempt reached its actual terminal result, 1635. The preserved MSI log identified a portable forward slash in the PATCH filename (error 1324), before guard execution. Native PATCH property construction now normalizes manifest separators to Windows backslashes, with a mixed-separator regression assertion. Artifact globs retain both ordinary and semicolon-containing storage roots. This failed attempt remains diagnostic evidence.
 
+A subsequent integrated attempt passed v0.1.0 native patch interruption, current replacement, rollback and repeated recovery, then found an incorrect standalone fixture lookup in the CLI archive. Maintenance patches are Full MSI payload members. The standalone fixture now copies and authenticates the matching patch already administratively extracted and retained from that exact candidate MSI. No diagnostic archive is substituted for the installer payload. The incomplete campaign remains non-accepting until its full rerun passes.
+
 ## Hosted acceptance and reviews
 
 At this source snapshot, final current-head CI and hosted reviews are pending. Review cap: two rounds. The official PR receipt will carry terminal applicable checks, exact final head, review dispositions and final native evidence. No completion-only source commit is required after those external gates pass. Owner merge and release publication remain separate.
