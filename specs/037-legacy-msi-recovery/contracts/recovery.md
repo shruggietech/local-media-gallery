@@ -1,11 +1,13 @@
 # Recovery contract: S037
 
-Diagnostics are finite, isolated and acceptance=false. Each case identifies package, engine, path, native statuses/counts and original removal outcome. Failed old removal remains a failed observation, including any failed cleanup and retained fixture on the disposable runner.
+Diagnostics are finite, isolated and acceptance=false. Each case identifies package, engine, path, native statuses/counts and original removal outcome. Failed original removal remains a failed observation, including retained fixtures and unsuccessful experiments on disposable runners.
 
-Mutation admission requires selected-context native product/package/component agreement, authenticated inputs, owned bytes and physical location. An uncorroborated registry string, secondary lookup, spelling or success code alone is insufficient.
+The evidenced adapter is a payload-specific native MSP for the published v0.1.0/v0.2.0 machine MSI. It adds one compiled guard, redirects Preflight and binds common Programs before costing. Every other table/stream is unchanged, including the original Ownership binary and deferred verification. Transform targets require exact product, language, upgrade identity and complete version agreement.
 
-Use existing scoped journals, leases and finite native worker observation. Complete/restored outcomes require actual payload and registration readback. Independent media/extras/preferences/history/shared runtime remain. Changed, linked, foreign or ambiguous inputs refuse.
+Mutation admission requires selected-context native product/package/component and sole-client agreement, authenticated original payload, owned bytes, manifest, integrations and a physical destination. An uncorroborated registry string, secondary lookup, spelling or success code is insufficient. Wrong patch targets, changed owned/retained bytes and ambiguous or linked paths refuse.
 
-Canonical release assets remain unchanged. A recovered installation does not imply the immutable old uninstaller was globally fixed. Version-specific instructions reflect actual observations.
+Managed removal/restoration retains existing scoped journals, leases, protected inputs and independently supervised native clients. A job elects only the matching patch from a retained authenticated modern Full inventory. It pins that input while observing native patch state or applying it. Matching already-applied native state avoids another MSI transaction. Unique input/completed receipts preserve the outer binding and actual native outcome. Timeout/interruption never becomes proof of termination.
 
-The PR carries final exact-head CI and at most two hosted review rounds, with zero unresolved findings. Owner final merge and release publication remain separate.
+Complete/restored outcomes require payload/registration/integration readback. Independent media, extras, preferences, history and shared runtime remain. Qualification elects original affected failure, wrong-version and retained-input refusal, actual coordinator interruption, replacement, restoration, idempotent recovery, standalone native patch repair, changed-owned-file refusal and subsequent ordinary removal.
+
+Canonical release assets remain unchanged. A recovered installation does not imply a globally modified old package. Current candidate qualification is separate from historical diagnostics. The PR carries exact-head green CI, no unresolved findings and at most two hosted review rounds; owner merge and release publication remain separate.

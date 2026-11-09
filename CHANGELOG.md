@@ -11,6 +11,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ### Fixed
 
+- Recover verified published v0.1.0/v0.2.0 machine MSI installations whose extended component lookup prevents removal at affected custom locations. Add payload-bound native maintenance patches, preserved ownership checks, supervised replacement/restoration and affected-path regression evidence. See the [unreleased recovery contract](https://github.com/shruggietech/local-media-gallery/blob/main/docs/unreleased/legacy-msi-recovery.md).
+
 - Request explicit PulseAudio recording latency and retain complete-window or bounded failure evidence when the final PCM bytes arrive separately.
 - Bind macOS package interruption to a newly observed coordinator, process creation identity, expected generation and confirmed stopped state; retain refusal and recovery diagnostics.
 - Bound Windows observer requests, command termination and output drain by the campaign deadline. Persist phase and native-request checkpoints before blocking work, and retain controller logs through cleanup and artifact upload.
@@ -23,6 +25,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 - On 2026-11-08, add rendered application navigation coverage to website qualification and source-candidate native drawer/accessibility and ordinary package smoke coverage. Preserve explicit historical recipient routes and the existing qualification clocks, elections and finalization reserve.
 
 - On 2026-11-08, retain the existing 660-second advisory target, 900-second hard limit and 15-second finalization reserve while strengthening observer diagnostics. Existing published releases remain unchanged.
+
+- On 2026-11-09, use targeted native MSP servicing after controlled path-length tests and failed same-directory alias repair. Build with the existing pinned WiX tools, compare every native table and stream, preserve immutable published MSI bytes, and retain original failure and terminal recovery evidence. Native installer tests remain isolated from the active workstation.
 
 ## [0.2.2]
 

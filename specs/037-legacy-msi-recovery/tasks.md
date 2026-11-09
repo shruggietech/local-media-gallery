@@ -15,25 +15,25 @@
 
 ## Phase 3: US1 verified recovery
 
-- [ ] T006 Add failing native/pure ownership tests for selected context, product/package/component, logical/physical alias identity, changed payload, links and immutable inputs in crates/gallery-update/src/native.rs, crates/windows-package/src/native.rs and their existing test modules. [FR-005, FR-006, FR-007, SC-003]
-- [ ] T007 Implement the evidenced recovery adapter within existing scoped gallery-update/windows-package authority and native worker invocation; preserve authenticated journal/input and physical handle pins. [FR-004, FR-005, FR-006, FR-007, FR-010, SC-002, SC-003]
-- [ ] T008 Expose supported recovery through the existing maintenance entry point in crates/gallery-update/src/ordinary.rs and main.rs as required by the actual adapter; retain explicit failure/incomplete results. [FR-004, FR-010, SC-002]
+- [x] T006 Add failing native/pure ownership tests for selected context, product/package/component, logical/physical alias identity, changed payload, links and immutable inputs in crates/gallery-update/src/native.rs, crates/windows-package/src/native.rs and their existing test modules. [FR-005, FR-006, FR-007, SC-003]
+- [x] T007 Implement the evidenced recovery adapter within existing scoped gallery-update/windows-package authority and native worker invocation; preserve authenticated journal/input and physical handle pins. [FR-004, FR-005, FR-006, FR-007, FR-010, SC-002, SC-003]
+- [x] T008 Provide supported recovery through native MSI/MSP entrypoints and the existing managed transaction worker (no new ordinary.rs/main.rs command is required); retain explicit failure/incomplete results. [FR-004, FR-010, SC-002]
 
 ## Phase 4: US2 replacement, restoration and interruption
 
-- [ ] T009 Add failing replacement/rollback/recovery and subsequent removal cases with retained-data inventories in existing Windows package/native tests before integration. [FR-008, FR-009, FR-011, SC-004]
-- [ ] T010 Integrate the adapter with transaction/native worker lifecycle and actual terminal readback in crates/gallery-update/src/native.rs, process.rs and worker.rs where needed. [FR-008, FR-009, FR-010, SC-004]
+- [x] T009 Add failing replacement/rollback/recovery and subsequent removal cases with retained-data inventories in existing Windows package/native tests before integration. [FR-008, FR-009, FR-011, SC-004]
+- [x] T010 Integrate the adapter with transaction/native worker lifecycle and actual terminal readback in crates/gallery-update/src/native.rs, process.rs and worker.rs where needed. [FR-008, FR-009, FR-010, SC-004]
 
 ## Phase 5: US3 refusal and acceptance election
 
-- [ ] T011 Complete negative ownership, stale/foreign input, linked path, wrong scope, interruption and incomplete-worker coverage; preserve all existing tests. [FR-006, FR-007, FR-010, FR-011, SC-003, SC-004]
-- [ ] T012 Elect exact affected-path/version and recovery assertions in scripts/test-windows-packages.mjs and windows-package-evidence.mjs, retaining ordinary package scenarios, data-integrity checks, 660/900/15-second clocks and all final Qualification scopes. [FR-001, FR-003, FR-008, FR-009, FR-011, FR-012, SC-002 through SC-005]
+- [x] T011 Complete negative ownership, stale/foreign input, linked path, wrong scope, interruption and incomplete-worker coverage; preserve all existing tests. [FR-006, FR-007, FR-010, FR-011, SC-003, SC-004]
+- [x] T012 Elect exact affected-path/version and recovery assertions in scripts/test-windows-packages.mjs and windows-package-evidence.mjs, retaining ordinary package scenarios, data-integrity checks, 660/900/15-second clocks and all final Qualification scopes. [FR-001, FR-003, FR-008, FR-009, FR-011, FR-012, SC-002 through SC-005]
 
 ## Phase 6: Documentation and delivery
 
-- [ ] T013 Write source-only docs/unreleased/legacy-msi-recovery.md and update CHANGELOG.md with observed affected versions, owner workflow and dated workflow/adapter decisions; preserve published snapshots, versions and governed bytes. [FR-013]
-- [ ] T014 Run npm run check, npm test, npm run check:app and affected docs/site checks through the verified hidden launcher; native installation remains hosted only. Record meaningful local failures/fixes and evidence boundaries in verification.md. [FR-011, FR-012, SC-005]
-- [ ] T015 Review all changed paths, UTF-8/no-BOM/LF/mojibake, docs and final ownership claims; prepare ignored PR packet and zero-to-two hosted review ledger. [FR-005, FR-007, FR-013, FR-014]
+- [x] T013 Write source-only docs/unreleased/legacy-msi-recovery.md and update CHANGELOG.md with observed affected versions, owner workflow and dated workflow/adapter decisions; preserve published snapshots, versions and governed bytes. [FR-013]
+- [x] T014 Run npm run check, npm test, npm run check:app and affected docs/site checks through the verified hidden launcher; native installation remains hosted only. Record meaningful local failures/fixes and evidence boundaries in verification.md. [FR-011, FR-012, SC-005]
+- [x] T015 Review all changed paths, UTF-8/no-BOM/LF/mojibake, docs and final ownership claims; prepare ignored PR packet and zero-to-two hosted review ledger. [FR-005, FR-007, FR-013, FR-014]
 - [ ] T016 Commit/push the implementation and open the official PR with Fixes #97. Track complete final-head hosted CI and findings on the PR; use no more than two hosted review rounds and leave final merge to the owner. [FR-014, SC-005, SC-006]
 
 ## Dependencies and parallel opportunities

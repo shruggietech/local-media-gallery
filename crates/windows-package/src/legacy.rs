@@ -227,6 +227,131 @@ pub extern "system" fn LegacyConfigure(h: u32) -> u32 {
 pub extern "system" fn LegacyPreflight(h: u32) -> u32 {
     std::panic::catch_unwind(|| report(h, preflight(h))).unwrap_or(1603)
 }
+pub(super) fn needs_patch(directory: &Path, machine: bool) -> Result<bool, String> {
+    let component = guid(
+        if machine { "machine" } else { "user" },
+        &hash(b"component:local-media-gallery.exe"),
+    );
+    let mut buffer = vec![0u16; 32768];
+    let mut length = 32768u32;
+    let state = unsafe {
+        MsiGetComponentPathExW(
+            wide(product(machine)).as_ptr(),
+            wide(&component).as_ptr(),
+            ptr::null(),
+            if machine { 4 } else { 2 },
+            buffer.as_mut_ptr(),
+            &mut length,
+        )
+    };
+    match state {
+        -1 | 2 => Ok(true),
+        3 if length < 32768
+            && equal_path(
+                &PathBuf::from(OsString::from_wide(&buffer[..length as usize])),
+                &directory.join("local-media-gallery.exe"),
+            ) =>
+        {
+            Ok(false)
+        }
+        _ => Err("Unexpected legacy extended component identity".into()),
+    }
+}
+
+pub(super) fn patch_applied(file: &Path, machine: bool) -> Result<bool, String> {
+    #[link(name = "msi")]
+    unsafe extern "system" {
+        fn MsiGetSummaryInformationW(
+            database: u32,
+            path: *const u16,
+            count: u32,
+            summary: *mut u32,
+        ) -> u32;
+        fn MsiSummaryInfoGetPropertyW(
+            summary: u32,
+            property: u32,
+            kind: *mut u32,
+            integer: *mut i32,
+            time: *mut std::ffi::c_void,
+            value: *mut u16,
+            length: *mut u32,
+        ) -> u32;
+        fn MsiGetPatchInfoExW(
+            patch: *const u16,
+            product: *const u16,
+            sid: *const u16,
+            context: u32,
+            property: *const u16,
+            value: *mut u16,
+            length: *mut u32,
+        ) -> u32;
+    }
+    let mut summary = 0;
+    let code = unsafe { MsiGetSummaryInformationW(0, wide(file).as_ptr(), 0, &mut summary) };
+    if code != 0 {
+        return Err(format!("Cannot read legacy patch identity: {code}"));
+    }
+    let (mut kind, mut integer, mut time, mut buffer, mut length) =
+        (0, 0, [0u32; 2], vec![0u16; 256], 256u32);
+    let code = unsafe {
+        let code = MsiSummaryInfoGetPropertyW(
+            summary,
+            9,
+            &mut kind,
+            &mut integer,
+            time.as_mut_ptr().cast(),
+            buffer.as_mut_ptr(),
+            &mut length,
+        );
+        MsiCloseHandle(summary);
+        code
+    };
+    if code != 0 || length >= 256 {
+        return Err(format!("Invalid legacy patch summary: {code}"));
+    }
+    let patch = String::from_utf16(&buffer[..length as usize]).map_err(|e| e.to_string())?;
+    let bytes = patch.as_bytes();
+    if bytes.len() != 38
+        || bytes[0] != b'{'
+        || bytes[37] != b'}'
+        || !bytes[1..37].iter().enumerate().all(|(i, c)| {
+            if [8, 13, 18, 23].contains(&i) {
+                *c == b'-'
+            } else {
+                c.is_ascii_hexdigit()
+            }
+        })
+    {
+        return Err("Invalid legacy patch GUID".into());
+    }
+    let mut output = vec![0u16; 16];
+    let mut count = 16;
+    let code = unsafe {
+        MsiGetPatchInfoExW(
+            wide(&patch).as_ptr(),
+            wide(product(machine)).as_ptr(),
+            ptr::null(),
+            if machine { 4 } else { 2 },
+            wide("State").as_ptr(),
+            output.as_mut_ptr(),
+            &mut count,
+        )
+    };
+    if code == 1647 {
+        return Ok(false);
+    }
+    if code != 0 || count >= 16 {
+        return Err(format!("Cannot inspect scoped legacy patch state: {code}"));
+    }
+    let state = String::from_utf16(&output[..count as usize]).map_err(|e| e.to_string())?;
+    if state != "1" {
+        return Err(format!(
+            "Selected legacy patch is not the active applied patch: {state}"
+        ));
+    }
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

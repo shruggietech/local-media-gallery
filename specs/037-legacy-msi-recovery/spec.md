@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-09
 
-**Status**: Specified
+**Status**: Implemented, pending hosted acceptance and reviews
 
 **Input**: Complete GitHub #97 end-to-end under Spec Kit and autopilot; push/open the PR, handle CI and at most two hosted review rounds, then stop for owner merge.
 

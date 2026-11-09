@@ -12,7 +12,6 @@ import {publishedWindowsInputs} from './published-windows-input.mjs';
 import {digest,verifyPayload,packageGuid} from './windows-packages.mjs';
 import {msiCommandArguments} from './windows-msi-command.mjs';
 import {buildLegacyMsiPatch} from './legacy-msi-patch.mjs';
-import {buildDiagnosticPatch} from './diagnose-msi-patch-build.mjs';
 import {registrationCase,registrationLocation,recordMsiOutcome} from './msi-registration.mjs';
 requireIsolatedDesktop();assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.platform,'win32');
 const selected=registrationCase(process.env.GALLERY_MSI_UPGRADE_CASE);
@@ -93,44 +92,6 @@ async function guardRepair(old,destination){
  assert.equal(digest(await readFile(path.join(destination,'independent.txt'))),report.retainedSha256);await persist();
 }
 
-async function aliasRepair(old,destination){
- assert.ok(old.payload&&['0.1.0','0.2.0'].includes(old.version));
- await verifyPayload(destination,old.payload);
- const alias=selected.patch?destination:JSON.parse((await shell("\nAdd-Type @\"\nusing System;using System.Text;using System.Runtime.InteropServices;using Microsoft.Win32.SafeHandles;\npublic static class OwnedShortAlias {\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern SafeFileHandle CreateFileW(string path,uint access,uint share,IntPtr security,uint disposition,uint flags,IntPtr template);\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool SetFileShortNameW(SafeFileHandle file,string name);\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern uint GetShortPathNameW(string path,StringBuilder buffer,uint size);\n public static string Create(string path){\n  var before=new StringBuilder(32768);if(GetShortPathNameW(path,before,32768)==0)throw new Exception(\"GetShortPathName: \"+Marshal.GetLastWin32Error());\n  if(before.ToString().Length<path.Length)return before.ToString();\n  using(var h=CreateFileW(path,0x10000|0x80,3,IntPtr.Zero,3,0x02000000|0x00200000,IntPtr.Zero)){\n   if(h.IsInvalid)throw new Exception(\"Open alias handle: \"+Marshal.GetLastWin32Error());\n   if(!SetFileShortNameW(h,\"LMG037~1\"))throw new Exception(\"SetFileShortName: \"+Marshal.GetLastWin32Error());\n  }\n  var after=new StringBuilder(32768);if(GetShortPathNameW(path,after,32768)==0)throw new Exception(\"Read alias: \"+Marshal.GetLastWin32Error());return after.ToString();\n }\n}\n\"@\n[OwnedShortAlias]::Create($arg.directory)|ConvertTo-Json -Compress\n",{directory:destination})).stdout);
- assert.ok(selected.patch||alias.length<destination.length);await verifyPayload(alias,old.payload);
- const proof=await Promise.all([stat(destination,{bigint:true}),stat(alias,{bigint:true})]);assert.equal(proof[0].dev,proof[1].dev);assert.equal(proof[0].ino,proof[1].ino);
- report.alias={directory:alias,device:String(proof[0].dev),inode:String(proof[0].ino)};
- const base=path.join(environment.ProgramData,'local-media-gallery','updates','s037-repair-'+process.env.GITHUB_RUN_ID);
- const candidate={native:{kind:'windows-msi',scope:'machine',packageCode:report.identity.packageCode.toUpperCase(),productCode:product}};
- const identity={formatVersion:1,transaction:base,directory:alias,prior:candidate,next:candidate,state:null};
- await mkdir(base);await privateAcl(base,true);
- for(const side of ['prior','next']){
-  const at=path.join(base,side);await mkdir(at);await privateAcl(at,true);
-  for(const f of [...old.payload.files,{path:'payload.json'}]){
-   const target=path.join(at,...f.path.split('/'));await mkdir(path.dirname(target),{recursive:true});await copyFile(path.join(destination,...f.path.split('/')),target);
-  }
- }
- await shell("$items=@(Get-ChildItem -LiteralPath $arg.base -Recurse -Force);foreach($i in $items){if($i.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Linked private fixture'};$s=if($i.PSIsContainer){[Security.AccessControl.DirectorySecurity]::new()}else{[Security.AccessControl.FileSecurity]::new()};$f=if($i.PSIsContainer){'OICI'}else{''};$s.SetSecurityDescriptorSddlForm(('O:BAG:BAD:P(A;'+$f+';FA;;;SY)(A;'+$f+';FA;;;BA)'));Set-Acl -LiteralPath $i.FullName -AclObject $s};@{files=$items.Count}|ConvertTo-Json -Compress",{base});
- const identityBytes=JSON.stringify(identity);await writeFile(path.join(base,'identity.json'),identityBytes);await privateAcl(path.join(base,'identity.json'),false);
- const journal=path.join(base,'journal.json');await writeFile(journal,JSON.stringify({...identity,binding:digest(identityBytes),phase:'restoring',targetPrior:true}));await privateAcl(journal,false);
- report.alias.journal=journal;await persist();
- if(selected.patch){
-  report.patch=await buildDiagnosticPatch({old,work,msi,shell,capture,download});
-  report.patch.outcome=await msi('metadata-patch-apply',['/p',report.patch.path,'ALLUSERS=1','INSTALLDIR='+destination,'LMG_RECOVERY='+journal,'REINSTALL=ALL','REINSTALLMODE=omus']);
-  await snapshot('after-metadata-patch');await persist();return;
- }
- const repair=await msi('alias-repair',['/i',old.file,'ALLUSERS=1','INSTALLDIR='+alias,'LMG_RECOVERY='+journal,'REINSTALL=ALL','REINSTALLMODE=vamus']);
- await snapshot('after-alias-repair');report.alias.repair=repair;
- if(repair.terminal&&[0,3010].includes(repair.code)){
-  await verifyPayload(destination,old.payload);
-  report.alias.removal=await msi('alias-ordinary-remove',['/x',product]);await snapshot('after-alias-removal');
-  assert.equal(digest(await readFile(path.join(destination,'independent.txt'))),report.retainedSha256);
- }
- await persist();
-}
-async function privateAcl(file,directory){
- await shell("$s=if($arg.directory){[Security.AccessControl.DirectorySecurity]::new()}else{[Security.AccessControl.FileSecurity]::new()};$flags=if($arg.directory){'OICI'}else{''};$s.SetSecurityDescriptorSddlForm(('O:BAG:BAD:P(A;'+$flags+';FA;;;SY)(A;'+$flags+';FA;;;BA)'));Set-Acl -LiteralPath $arg.file -AclObject $s;@{secured=$true}|ConvertTo-Json -Compress",{file,directory});
-}
 
 try{
  const current=await published('0.2.2');report.inputs.push(current);
@@ -138,7 +99,7 @@ try{
  const old=selected.version==='0.2.2'?current:await published(selected.version);if(old!==current)report.inputs.push(old);
  const metadata=JSON.parse((await capture('C:/Program Files/PowerShell/7/pwsh.exe',['-NoProfile','-NonInteractive','-File',path.join(root,'scripts/inspect-windows-package.ps1'),'-File',old.file])).stdout);product=metadata.productCode;assert.equal(metadata.version,selected.version);
  component=JSON.parse((await shell("$e=New-Object -ComObject WindowsInstaller.Installer;$db=$e.OpenDatabase($arg.file,0);$v=$db.OpenView('SELECT FileName,Component_ FROM File');$v.Execute();$name=$null;while($null -ne ($r=$v.Fetch())){if(($r.StringData(1).Split('|')[-1]) -eq 'local-media-gallery.exe'){$name=$r.StringData(2)}};if(!$name){throw 'Executable component missing'};$v=$db.OpenView('SELECT Component,ComponentId FROM Component');$v.Execute();$id=$null;while($null -ne ($r=$v.Fetch())){if($r.StringData(1) -eq $name){$id=$r.StringData(2)}};if(!$id){throw 'Executable component GUID missing'};$id|ConvertTo-Json -Compress",{file:old.file})).stdout);
- report.identity={...metadata,component};const destination=registrationLocation(selected,'C:\\s037');report.location={destination,executableLength:path.join(destination,'local-media-gallery.exe').length};
+ report.identity={...metadata,component};const destination=registrationLocation(selected,selected.drive+'\\s037');report.location={destination,executableLength:path.join(destination,'local-media-gallery.exe').length};
  await snapshot('initial');success(await msi('legacy-install',['/i',old.file,'ALLUSERS=1','INSTALLDIR='+destination]));
  if(old.payload)await verifyPayload(destination,old.payload);
  await writeFile(path.join(destination,'independent.txt'),'retained independent fixture\n');report.retainedSha256=digest(await readFile(path.join(destination,'independent.txt')));
@@ -148,7 +109,7 @@ try{
  assert.equal(removal.terminal,true,'Uncertain worker termination is not a native result');
  report.originalRemovalSucceeded=[0,3010].includes(removal.code);
  if(!report.originalRemovalSucceeded)report.cleanup={result:'retained',reason:'Original MSI refuses removal. No registration surgery or guard bypass attempted on ephemeral hosted runner.'};
- if(selected.repair&&!report.originalRemovalSucceeded){if(selected.guard)await guardRepair(old,destination);else await aliasRepair(old,destination);}
+ if(selected.guard&&!report.originalRemovalSucceeded)await guardRepair(old,destination);
  if(selected.guard){assert.ok(report.patch?.outcome,'Elected guard patch must actually execute');assert.ok(report.patch?.removal,'Elected patched ordinary removal must actually execute');success(report.patch.outcome);success(report.patch.removal);}
  report.terminalFinished=new Date().toISOString();await persist();console.log(JSON.stringify({case:selected,identity:report.identity,actions:report.actions.map(({label,code,terminal})=>({label,code,terminal})),snapshots:report.snapshots.map(({phase,componentPath,componentState,nonExPath})=>({phase,componentPath,componentState,nonExPath}))}));
 }catch(error){report.failure={message:error.message,stack:error.stack,code:error.code??null,stdout:error.stdout??null,stderr:error.stderr??null};await persist();throw error;}

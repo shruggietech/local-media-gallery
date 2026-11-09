@@ -2004,3 +2004,13 @@ mod context_identity_tests {
         );
     }
 }
+
+/// Diagnose only; the patch guard independently revalidates all ownership before mutation.
+pub fn legacy_lookup_needs_patch(directory: &Path, machine: bool) -> Result<bool, String> {
+    legacy::needs_patch(directory, machine)
+}
+
+/// The caller retains a verified patch input while native state is observed.
+pub fn legacy_patch_applied(file: &Path, machine: bool) -> Result<bool, String> {
+    legacy::patch_applied(file, machine)
+}
