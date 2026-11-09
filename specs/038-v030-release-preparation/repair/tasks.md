@@ -20,9 +20,13 @@
 ## Verification and handoff
 
 - [x] T009 Run targeted regressions, npm run check and npm test; inspect encoding and record results in specs/038-v030-release-preparation/repair/verification.md.
-- [ ] T010 Record dated internal CI decision in CHANGELOG.md, push repair PR, resolve hosted review and exact-head CI; record handoff in specs/038-v030-release-preparation/repair/verification.md.
-- [ ] T011 After owner merge, accept only a new successful trusted-main qualification and resume exact-artifact publication; record operational evidence under .local/s038-publication/.
+- [x] T010 Research transfer duplication and update specs/038-v030-release-preparation/repair/plan.md; repeat analysis gate with FR-008.
+- [x] T011 Add failing round-trip, integrity, aliases, bounds, deadlines, repeated/partial hydration and compatibility regressions in tests/windows-evidence-transport.test.mjs.
+- [x] T012 Implement scripts/windows-evidence-transport.mjs and bind it in scripts/ci-windows-package-cohort.mjs, scripts/windows-package-cohort.mjs, scripts/windows-package-evidence.mjs, scripts/release-assembly.mjs, scripts/build-windows-packages.mjs and .github/workflows/ci.yml.
+- [x] T013 Run targeted and full repository checks; record dated decision in CHANGELOG.md.
+- [ ] T014 Push the completed repair, complete hosted review and exact-head CI, and hand off for owner merge through PR #119.
+- [ ] T015 After owner merge, accept only new successful trusted-main artifacts and resume authorized publication; retain operational evidence under .local/s038-publication/.
 
 ## Dependencies and strategy
 
-T001 -> T002 -> analyze gate -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010 -> owner merge -> T011. Implement locally in sequence; read-only research was parallel. US1 independently proves complete bounded execution; US2 proves corrupted new evidence rejection and historical compatibility. Both stories are required before handoff.
+T001 -> T002 -> initial analyze gate -> T003 through T009 -> preserved native acceptance/transfer failure -> T010 -> repeated analyze gate -> T011 -> T012 -> T013 -> T014 -> owner merge -> T015. Both user stories remain required. No further unchanged Windows retry. One unchanged macOS cleanup diagnostic retry is running against the first repair head, preserving original evidence and assertions.

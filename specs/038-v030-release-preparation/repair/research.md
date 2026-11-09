@@ -7,3 +7,5 @@
 - Decision: explicit optional packet markers. Rationale: new evidence must enforce ownership and initialization while immutable historical records preserve original semantics. Final byte validator and native label uniqueness remain unchanged.
 
 No unresolved research questions. Failed main run 42694671875 attempts 1 and 2 are preserved under issue #118; no further unchanged rerun.
+
+2026-11-09 follow-up: two read-only researchers identified common validatePackageEvidence hydration plus preflight hydration in assembleRelease; exact worker support archives are extracted before either reader. Native snapshot validators already verify every original prior/next payload and MSI hash. New transport must retain every file and empty directory, reject Windows aliases/link redirection, and support repeated read-only validation. Original native-host trees remain untouched; only upload representation changes.

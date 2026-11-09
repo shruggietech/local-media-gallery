@@ -1,3 +1,4 @@
+import {materializeWindowsUpdateEvidence} from './windows-evidence-transport.mjs';
 import {validateLegacyRecoveryContract} from './legacy-msi-evidence.mjs';
 import {decodeDependencyNotices,validateWindowsDiagnosticReadiness} from './windows-package-fixtures.mjs';
 import {validateWindowsOfflineFirewall} from './windows-offline-firewall.mjs';
@@ -68,7 +69,8 @@ export async function validateOrdinaryUpgrades(build,result,root){
  return true;
 }
 
-export async function validatePackageEvidence(build,result,root){
+export async function validatePackageEvidence(build,result,root,options={}){
+ await materializeWindowsUpdateEvidence(build,result,root,options);
  if(!['0.0.0','0.1.0'].includes(build.records[0].payload.version)){
   validateSingleFileWindows(build,result);validateWindowsDiagnosticReadiness(build,result.diagnosticFixtureReadiness);assert.ok(Date.parse(result.diagnosticFixtureReadiness.terminalFinished)<=Date.parse(result.started));
   assert.match(build.directory,/^\.local\/windows-packages-[A-Za-z0-9_-]+$/);

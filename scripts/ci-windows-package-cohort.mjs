@@ -1,3 +1,4 @@
+import {packWindowsUpdateEvidence} from './windows-evidence-transport.mjs';
 import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
@@ -103,6 +104,7 @@ if(operation==='build'){
     assert.equal(journal.records.at(-1)?.status,'closed','Native campaign cleanup must finish before success');assert.equal(native.status,'complete');
     const fragment=await json('windows-campaign-'+campaign+'.json');fragment.diagnostics={protocol:'bounded-observer-v1',context:contextPacket,files:[]};
     for(const name of ['windows-campaign-checkpoints-'+campaign+'.json','windows-campaign-latest-'+campaign+'.json','windows-observer-checkpoint-'+campaign+'.json','windows-campaign-native-'+campaign+'.stdout.log','windows-campaign-native-'+campaign+'.stderr.log']){const raw=await readFile(path.join(local,name));fragment.diagnostics.files.push({path:'.local/'+name,bytes:String(raw.length),sha256:hash(raw)});}
+    if(campaign==='lifecycle'&&build.windowsUpdateEvidenceTransport)fragment.updateEvidenceTransport=await packWindowsUpdateEvidence(fragment,root,{deadline:Date.parse(clock.activeDeadline)});
     fragment.terminalFinished=new Date().toISOString();await save('windows-campaign-'+campaign+'.json',fragment);
    };
    if(campaign==='experience'){await actual();return;}
@@ -129,7 +131,7 @@ if(operation==='build'){
  const record=await qualification({preparationStartedAt:Date.parse(context.preparationStarted),readinessVerifiedAt:()=>Date.parse(clock.readinessVerified),identify:async()=>({scope:'windows-packages',source:context.source,revision:context.revision}),prepare:async()=>{},steps:[
   {name:'Both isolated Windows campaigns share one source, recipient and absolute clock',run:async()=>{combined=combineWindowsCampaigns(build,fragments,receipts,context);for(const [index,transfer] of transfers.entries()){assert.equal(transfer.campaign,windowsCampaigns[index]);assert.deepEqual(transfer.clock,clock);assert.ok(Number.isSafeInteger(transfer.artifact?.id)&&transfer.artifact.id>0);assert.match(transfer.artifact.digest,/^sha256:[a-f0-9]{64}$/);assert.ok(Date.parse(transfer.observed)<Date.parse(clock.activeDeadline));}for(const fragment of fragments)for(const file of fragment.diagnostics.files){const raw=await readFile(path.join(root,file.path));assert.equal(String(raw.length),file.bytes);assert.equal(hash(raw),file.sha256);}
    validateWindowsInputInventory(await collectPayload(path.join(root,info.directory)),info.inventory);}},
-  {name:'Independent complete package, native, retained-source and governed-byte readback',run:async()=>{await validatePackageEvidence(normalizeWindowsEvidence(build),normalizeWindowsEvidence({...combined,acceptance:true}),root);assert.deepEqual(await sourceIdentity(),context.source);await node(path.join(root,'scripts/sync-brand-kit.mjs'),['--verify']);}}
+  {name:'Independent complete package, native, retained-source and governed-byte readback',run:async()=>{await validatePackageEvidence(normalizeWindowsEvidence(build),normalizeWindowsEvidence({...combined,acceptance:true}),root,{deadline:Date.parse(clock.activeDeadline)});assert.deepEqual(await sourceIdentity(),context.source);await node(path.join(root,'scripts/sync-brand-kit.mjs'),['--verify']);}}
  ]});
  if(record.result==='pass'){
   combined.acceptance=true;combined.terminalFinished=record.terminalFinished;await save('windows-package-results.json',combined);

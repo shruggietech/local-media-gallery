@@ -4,6 +4,7 @@ import {readFile,lstat,realpath,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {validateProductVersion} from './product-version.mjs';
 import {portablePath,validatePayload} from './windows-packages.mjs';
+import {materializeWindowsUpdateEvidence} from './windows-evidence-transport.mjs';
 import {validatePackageEvidence} from './windows-package-evidence.mjs';
 import {validateLinuxPayload,validateLinuxEvidence} from './linux-packages.mjs';
 import {validateMacPayload,validateMacEvidence} from './macos-packages.mjs';
@@ -29,6 +30,9 @@ export function qualificationReceipt(r,scope,source,revision){
 // Validate every local operand before invoking the established portable native
 // validators. Absolute recipient observations are data, never local file operands.
 async function preflight(root,value){if(Array.isArray(value)){for(const item of value)await preflight(root,item);}else if(value&&typeof value==='object'){for(const [key,item] of Object.entries(value)){if(['path','screenshot','manifestPath','evidenceDirectory'].includes(key)&&typeof item==='string'&&item.replaceAll('\\','/').startsWith('.local/'))await retainedPath(root,item);else if(key==='path'&&typeof item==='string'&&!path.isAbsolute(item)&&!item.includes('\\'))portablePath(item);else if(typeof item==='object')await preflight(root,item);}}}
+export async function preflightPlatformEvidence(root,platform,build,result){
+ assert.ok(['windows','linux','macos'].includes(platform));if(platform==='windows')await materializeWindowsUpdateEvidence(build,result,root);await preflight(root,build);await preflight(root,result);
+}
 const nativeValidators={windows:validatePackageEvidence,linux:validateLinuxEvidence,macos:validateMacEvidence};
 const payloadValidators={windows:validatePayload,linux:validateLinuxPayload,macos:validateMacPayload};
 export function validatePayloadNotices(row,version,platform){
@@ -47,7 +51,7 @@ export async function assembleRelease({inputRoot,outputRoot,repository,version,p
  const artifacts=[],inputs=new Map();
  for(const platform of ['windows','linux','macos']){
   const {value:build}=await json(inputRoot,'.local/'+platform+'-package-build.json'),{value:result,bytes:evidence}=await json(inputRoot,'.local/'+platform+'-package-results.json');
-  assert.deepEqual(build.source,source);assert.equal(build.revision,revision);assert.deepEqual(build.records.map(r=>r.edition).sort(),['full','lite']);await preflight(inputRoot,build);await preflight(inputRoot,result);await nativeValidators[platform](build,result,inputRoot);
+  assert.deepEqual(build.source,source);assert.equal(build.revision,revision);assert.deepEqual(build.records.map(r=>r.edition).sort(),['full','lite']);await preflightPlatformEvidence(inputRoot,platform,build,result);await nativeValidators[platform](build,result,inputRoot);
   for(const row of build.records){payloadValidators[platform](row.payload);assert.equal(row.payload.version,version);assert.deepEqual(row.payload.source,source);assert.equal(row.payload.revision,revision);
    const delivered=version==='0.1.0'?row.archive:row.artifact;assert.ok(delivered,'Direct product artifact missing');if(version!=='0.1.0'){assert.equal(build.products?.length,2,'Two direct products required');assert.deepEqual(build.products.find(p=>p.edition===row.edition)?.artifact,delivered,'Product selection mismatch');}const bytes=await verifyRetained(inputRoot,delivered),name=path.posix.basename(delivered.path.replaceAll('\\','/')),files=delivered.files;assert.ok(files?.length,'Complete archive inventory required');assert.equal(new Set(files.map(f=>f.path.toLowerCase())).size,files.length);for(const f of files){portablePath(f.path);assert.match(f.sha256,/^[a-f0-9]{64}$/);assert.match(f.bytes,/^(0|[1-9][0-9]*)$/);if(platform!=='windows')assert.ok(['644','755'].includes(f.mode),'Executable permission inventory');}
    // Native payload notices and dependency inventory were included before the

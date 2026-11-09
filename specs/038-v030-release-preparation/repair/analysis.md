@@ -15,3 +15,5 @@ Findings: no critical, high, medium or low findings. No constitution alignment i
 | FR-007 | T001, T010, T011 |
 
 Seven requirements, eleven tasks, 100% requirement coverage. Requirements checklist: six checked, zero unchecked. No extensions.yml hooks. Proceed to implement; publication remains conditional on new trusted-main acceptance after owner merge.
+
+2026-11-09 repeated gate after transport findings: FR-008 maps to T010-T013; eight requirements, fifteen tasks, 100% coverage. No unresolved ambiguity, conflict, unmapped task or constitution violation. Existing deadlines, native assertions and historical readers remain required. New transport is internal CI evidence representation. Proceed to test-first implementation.

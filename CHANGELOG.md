@@ -43,6 +43,8 @@ Publication availability and its timestamp are established by the matching verif
 
 - On 2026-11-09, keep cold MSI helper initialization inside the existing absolute qualification clock with a separate 60-second startup allowance. Keep ordinary functional requests at 20 seconds and the 660-second target, 900-second hard limit and 15-second reserve unchanged. Elect lifecycle ownership for new ordinary-upgrade groups; historical packets retain experience ownership.
 
+- On 2026-11-09, transport completed Windows update snapshots as SHA-256-addressed blobs plus a source-bound manifest. Preserve every original path, directory and byte, restore independent regular files before existing validators, retain historical raw readers and failure diagnostics, and keep the same absolute qualification deadline. This removes repeated MSI transfers without dropping native evidence.
+
 ## [0.2.2]
 
 Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.

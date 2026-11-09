@@ -24,3 +24,11 @@ See research.md. Moving one predecessor leaves too little final-gate time. Incre
 ## Structure and delivery
 
 Touch scripts/windows-package-cohort.mjs, windows-package-observer.mjs, Invoke-WindowsPackageObserver.ps1, windows-msi-ui.ps1, test-windows-packages.mjs, build-windows-packages.mjs, affected tests and CHANGELOG.md. Test before implementation, run npm check/test, push focused PR, resolve hosted review/CI, hand off for owner merge. Only then accept new trusted-main artifacts and resume authorized publication.
+
+## 2026-11-09 transport repair supplement
+
+Native experience/lifecycle passed at 614.124/649.423 seconds. Aggregate transfer of the 5,142,606,111-byte lifecycle artifact exceeded the unchanged deadline. Bounded ZIP64 directory inspection found sixteen 246,636,544-byte MSI copies across retained update snapshots. CRC/size grouping was diagnostic only; transport deduplication must use actual SHA-256 over every file.
+
+Add scripts/windows-evidence-transport.mjs with streaming hashing, bounded manifest/file/expansion sizes, fixed blob paths and strict Windows path/no-link checks. Pack completed lifecycle update evidence without changing or deleting original snapshots. Bind all transition roots, source/revision and each original file/path/hash into a manifest, referenced by fragment digest. New build marker windowsUpdateEvidenceTransport=sha256-blobs-v1 requires it. Upload manifest/blobs instead of raw successful snapshot trees; preserve raw failed diagnostics. Materialize before release assembly preflight and package validation, verify existing files idempotently without overwrites, reject extras, then run all existing transaction/package validators unchanged. Include packed closure in worker and canonical artifact uploads. Use original absolute deadlines; no new transport time or reset.
+
+Alternative solid compression was rejected because it adds a tool/window-size dependency and uncertain CPU cost. Digest-addressed regular-file transport preserves exact independent readback with a small internal module and no product contract change. Researchers confirmed release preflight ordering and repeated-reader requirements.

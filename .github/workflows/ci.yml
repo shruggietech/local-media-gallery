@@ -268,7 +268,8 @@ jobs:
             .local/prepared-recipient-windows.json
             .local/windows-admin-retention-*.log
             .local/windows-package-test-*/prepared-recipient-*.zip
-            .local/windows-package-test-*/update-evidence-*/**
+            .local/windows-update-evidence-transport.json
+            .local/windows-update-evidence-blobs/**
             .local/windows-package-test-*/failed-update-*/**
             .local/windows-package-test-*/standard-user/*.log
             .local/windows-package-test-*/wizard-*-failure.json
@@ -287,6 +288,16 @@ jobs:
           include-hidden-files: true
           compression-level: 0
           if-no-files-found: error
+      - name: Retain original update snapshots after a failed lifecycle qualification
+        if: failure() && matrix.campaign == 'lifecycle'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-update-diagnostics-${{ github.sha }}
+          path: .local/windows-package-test-*/update-evidence-*/**
+          include-hidden-files: true
+          if-no-files-found: warn
+          compression-level: 0
+
   windows-packages:
     name: windows-packages
     permissions:
@@ -352,6 +363,8 @@ jobs:
             .local/windows-package-build.json
             .local/windows-package-inputs.json
             .local/windows-package-results.json
+            .local/windows-update-evidence-transport.json
+            .local/windows-update-evidence-blobs/**
             .local/windows-campaign-*.json
             .local/windows-packages-*/**
             .local/windows-package-test-*/*.png

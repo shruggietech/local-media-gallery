@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {validateWindowsTransportReference} from './windows-evidence-transport.mjs';
 import {validateMsiObserverInitialization} from './windows-package-observer.mjs';
 
 export const windowsCampaigns=Object.freeze(['experience','lifecycle']);
@@ -69,6 +70,7 @@ export function combineWindowsCampaigns(build,fragments,receipts,context){
  }
  assert.deepEqual([...parts.keys()].sort(),[...windowsCampaigns].sort());assert.deepEqual([...records.keys()].sort(),[...windowsCampaigns].sort());
  const experience=parts.get('experience'),lifecycle=parts.get('lifecycle');assert.deepEqual(experience.clock,lifecycle.clock);
+ validateWindowsTransportReference(build,lifecycle);if(Object.hasOwn(build,'windowsUpdateEvidenceTransport'))assert.equal(experience.updateEvidenceTransport,undefined,'Only lifecycle owns update evidence transport');
  for(const part of parts.values()){assert.ok(Date.parse(part.started)>=Date.parse(part.clock.readinessVerified));assert.ok(Date.parse(part.terminalFinished)>=Date.parse(part.started));assert.ok(Date.parse(part.terminalFinished)<=Date.parse(records.get(part.campaign).terminalFinished));}
  assert.equal(lifecycle.checks.length,29);assert.ok(lifecycle.checks.every(c=>c.result==='pass'));assert.equal(experience.installerChoices.length,8);assert.equal(experience.cachedMaintenance.length,2);assert.deepEqual(experience.publishedRecovery.map(r=>r.version),['0.1.0','0.2.0']);
  const ordinary=parts.get(ordinaryOwner);

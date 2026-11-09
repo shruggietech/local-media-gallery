@@ -26,6 +26,8 @@ Given a new build packet, when worker evidence is combined, then missing, foreig
 - FR-006: Keep product behavior, release version and public contracts unchanged. No workstation installer or app GUI execution.
 - FR-007: Preserve failed evidence from main run 42694671875 attempts 1 and 2. Publish only after a new accepted trusted-main run after repair merge.
 
+- FR-008: Transfer every completed Windows update snapshot path and byte through SHA-256 deduplication, bind the manifest to source/revision and the fragment, reject malformed/missing/foreign blobs and redirected destinations, and restore complete independent regular files before existing validators. Keep historical raw evidence readable. No original worker snapshot is deleted.
+
 ## Success criteria
 
 All local repository checks and targeted regression tests pass. Exact-head hosted qualification completes all mandatory cases inside the original hard deadline. Hosted review findings are resolved before owner merge. Trusted-main qualification and exact-artifact publication remain separately required.
