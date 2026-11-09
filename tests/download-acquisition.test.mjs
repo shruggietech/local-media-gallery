@@ -66,3 +66,7 @@ test('Nested aggregate transport errors retry only when every cause is elected t
 test('An unexpected delay failure is not misreported as caller cancellation',async()=>{
  await assert.rejects(acquireBytes('https://example.invalid/bytes',{baseDelayMs:1,pause:async()=>{throw Error('private delay cause');},fetcher:async()=>new Response(null,{status:503})}),error=>error.name!=='AbortError'&&!error.message.includes('private delay cause'));
 });
+
+test('Acquisition requests revalidation rather than reusing cached delivery errors',async()=>{
+ let calls=0;const data=await acquireBytes('https://example.invalid/pinned',{...quick,fetcher:async(url,options)=>{assert.equal(options.cache,'no-store');return ++calls===1?new Response(null,{status:504}):new Response('pinned');}});assert.equal(data.toString(),'pinned');assert.equal(calls,2);
+});

@@ -29,3 +29,9 @@ Source A d15bc666e1625a381f4881ed157c051ab9da1900 was committed. The existing re
 The post-snapshot full unit suite passes: 380 tests, 378 passed, two platform-specific skips, zero failures. Repository integrity check passes after capture. Canonical published latest remains v0.2.2; no tag, release or publication mutation has occurred.
 
 The corrected gallery browser campaign passed all eight groups, including drawer routes, keyboard/focus/reflow, explicit save scopes, persistent viewer playback, thumbnail drafts and admitted preparation cancellation. These are synthetic-host browser results, separate from forthcoming ordinary native package acceptance.
+
+## 2026-11-09: first hosted observation and review
+
+PR #117 was opened at a392ce1d743b5da95b4170692eb6a84c2b4868c3. Run 42572505360 passes repository checks but retained repeated HTTP 504 preparation failures after the full four-attempt election (website media binary, Windows media notice and macOS published receiver binary). These are not qualification passes. Fresh pinned acquisitions and every manual binary redirect now request no-store/cache revalidation without changing URL, credentials, pins, attempts or elapsed budgets; new failing-before-implementation regressions cover both paths. Original run and artifacts remain retained diagnostically.
+
+Hosted review round one found the explicit v0.2.1 MSI diagnostic call still inherited the new metadata default. That call now elects its exact 245473280-byte pin and verifies the exact count before the existing digest check. The review was answered promptly; final resolution and one permitted follow-up review will bind the pushed correction. Final site integrity after the new glossary/snapshot also passes.

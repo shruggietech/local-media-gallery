@@ -76,3 +76,7 @@ test('An interrupted owned file stream retries from byte zero with a new digest'
 test('An irreversible custom chunk sink is not replayed after delivered bytes',async t=>{
  let calls=0,delivered='';const local=await service((req,res)=>{calls++;res.writeHead(200);res.write('only once');setTimeout(()=>res.destroy(),10);});t.after(local.close);const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true});await assert.rejects(client.download('/bytes',{onChunk:async chunk=>{delivered+=Buffer.from(chunk).toString();}}));assert.equal(calls,1);assert.equal(delivered,'only once');
 });
+
+test('Binary delivery requests revalidation on the initial URL and every redirect',async t=>{
+ const observed=[];const local=await service((req,res)=>{observed.push(req.headers['cache-control']);if(req.url==='/redirect'){res.writeHead(302,{location:'/body'});res.end();}else res.end('pinned');});t.after(local.close);const client=new GitHubReleaseClient({repository:'o/r',apiOrigin:local.url,fixture:true});assert.equal((await client.download('/redirect',{collect:true})).data.toString(),'pinned');assert.deepEqual(observed,['no-cache','no-cache']);
+});

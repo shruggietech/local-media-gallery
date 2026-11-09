@@ -81,5 +81,5 @@ export async function readDownloadBody(response,{maxBytes=1073741824,collect=tru
 }
 
 export async function acquireBytes(url,{fetcher=fetch,headers,redirect='follow',maxBytes=1073741824,...policy}={}){
- return withDownloadRetries(async signal=>{const response=await fetcher(url,{headers,redirect,signal});await requireDownloadResponse(response,{label:policy.label});return readDownloadBody(response,{maxBytes,signal});},policy);
+ return withDownloadRetries(async signal=>{const response=await fetcher(url,{headers,redirect,signal,cache:'no-store'});await requireDownloadResponse(response,{label:policy.label});return readDownloadBody(response,{maxBytes,signal});},policy);
 }
