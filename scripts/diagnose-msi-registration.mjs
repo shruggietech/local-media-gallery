@@ -9,8 +9,9 @@ import {root,environment,execute,python} from './run.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
 import {parseReleaseRecord} from './release-record.mjs';
 import {publishedWindowsInputs} from './published-windows-input.mjs';
-import {digest,verifyPayload} from './windows-packages.mjs';
+import {digest,verifyPayload,packageGuid} from './windows-packages.mjs';
 import {msiCommandArguments} from './windows-msi-command.mjs';
+import {buildLegacyMsiPatch} from './legacy-msi-patch.mjs';
 import {buildDiagnosticPatch} from './diagnose-msi-patch-build.mjs';
 import {registrationCase,registrationLocation,recordMsiOutcome} from './msi-registration.mjs';
 requireIsolatedDesktop();assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.platform,'win32');
@@ -74,6 +75,24 @@ async function msi(label,args){
 }
 function success(row){assert.ok(row.terminal&&[0,3010].includes(row.code),JSON.stringify(row));}
 
+
+async function guardRepair(old,destination){
+ const payloadText=JSON.stringify(old.payload,null,2)+'\n';
+ assert.equal(packageGuid('machine',digest(payloadText)),report.identity.packageCode.toUpperCase());
+ const manifest=path.join(work,'legacy-guard-payload.json');await writeFile(manifest,payloadText);
+ await execute('cargo',['build','--locked','--release','-p','gallery-windows-package','--lib'],{env:{...environment,LMG_PACKAGE_PAYLOAD:manifest,RUSTFLAGS:'-C target-feature=+crt-static -C link-arg=/DEPENDENTLOADFLAG:0x800'}});
+ const guard=path.join(root,'target/release/gallery_windows_package.dll');
+ const pins=JSON.parse(await readFile(path.join(root,'packaging/windows/inputs.json'))).wix;
+ const zip=path.join(work,'wix.zip');await writeFile(zip,await download(pins.url,pins.sha256,pins.bytes));const wix=path.join(work,'wix');await execute(python,[path.join(root,'scripts/extract-build-input.py'),zip,wix]);
+ report.patch=await buildLegacyMsiPatch({old:{version:old.version,file:old.file,sha256:old.msiSha256,productCode:product,packageCode:report.identity.packageCode,scope:'machine'},guard,wix,work:path.join(work,'guard-patch'),msi,shell,capture,generation:'03700000000000000000000000000000'});
+ report.patch.outcome=await msi('guard-patch-apply',['/i',old.file,'PATCH='+report.patch.path,'REINSTALL=ALL','REINSTALLMODE=omus','ALLUSERS=1','INSTALLDIR='+destination]);await snapshot('after-guard-patch');success(report.patch.outcome);
+ await verifyPayload(destination,old.payload);
+ const changed=path.join(destination,old.payload.binary),saved=await readFile(changed);await writeFile(changed,Buffer.concat([saved,Buffer.from('changed owned fixture')]));
+ const refusal=await msi('guard-changed-owned-refusal',['/x',product]);assert.equal(refusal.code,1603);assert.equal(refusal.terminal,true);await snapshot('after-changed-owned-refusal');await writeFile(changed,saved);await verifyPayload(destination,old.payload);
+ report.patch.removal=await msi('guard-ordinary-remove',['/x',product]);await snapshot('after-guard-removal');success(report.patch.removal);
+ assert.equal(digest(await readFile(path.join(destination,'independent.txt'))),report.retainedSha256);await persist();
+}
+
 async function aliasRepair(old,destination){
  assert.ok(old.payload&&['0.1.0','0.2.0'].includes(old.version));
  await verifyPayload(destination,old.payload);
@@ -129,6 +148,6 @@ try{
  assert.equal(removal.terminal,true,'Uncertain worker termination is not a native result');
  report.originalRemovalSucceeded=[0,3010].includes(removal.code);
  if(!report.originalRemovalSucceeded)report.cleanup={result:'retained',reason:'Original MSI refuses removal. No registration surgery or guard bypass attempted on ephemeral hosted runner.'};
- if(selected.repair&&!report.originalRemovalSucceeded)await aliasRepair(old,destination);
+ if(selected.repair&&!report.originalRemovalSucceeded){if(selected.guard)await guardRepair(old,destination);else await aliasRepair(old,destination);}
  report.terminalFinished=new Date().toISOString();await persist();console.log(JSON.stringify({case:selected,identity:report.identity,actions:report.actions.map(({label,code,terminal})=>({label,code,terminal})),snapshots:report.snapshots.map(({phase,componentPath,componentState,nonExPath})=>({phase,componentPath,componentState,nonExPath}))}));
 }catch(error){report.failure={message:error.message,stack:error.stack};await persist();throw error;}

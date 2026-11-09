@@ -21,6 +21,8 @@ use windows::{
     },
     core::{Interface, PCWSTR, PWSTR},
 };
+#[path = "legacy.rs"]
+mod legacy;
 const USER: &str = "{2098F021-7630-4BF6-B7F8-2AC279022A42}";
 const MACHINE: &str = "{F81110E5-48A6-4096-B065-752E0D3B61C0}";
 pub const DUAL_UPGRADE: &str = "{788C188C-E8CE-48B6-95CC-134A6AFD4B20}";

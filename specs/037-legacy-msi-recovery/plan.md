@@ -57,3 +57,13 @@ The planned engineering experiment determines the precise adapter inside the exi
 ## Complexity Tracking
 
 No constitution violations. Existing authenticated repair/aliases remain hypotheses until native proof. A new patch/transform authority requires an explicit architecture discussion.
+
+## Evidenced adapter decision (2026-11-09 UTC)
+
+The alias repair hypothesis is rejected by exact native observations. A metadata-only MSP built with the existing pinned WiX Torch/Pyro tools applied successfully to the affected exact v0.1.0 installation in run 42541702915, preserving original ProductCode and PackageCode. Native MSI owns patch registration; original published bytes remain unchanged.
+
+Adopt a per-published-payload MSP that adds a compiled LegacyRecovery binary and an early known-folder configuration action, and redirects only Preflight to its explicit legacy entrypoint. The existing ownership binary and deferred VerifyInstalled remain intact. The replacement guard independently checks exact scoped native product/package/component/client identity, physical paths, compiled original payload/manifest and integrations; ExW UNKNOWN alone never grants authority. Only metadata/Binary/CustomAction/sequence differences are allowed. File, Component, Directory, Feature, Registry and Environment tables remain identical. Native patching is a supported installation entrypoint and existing managed worker removal applies the authenticated retained patch before original removal when needed. No generic patch-application service or arbitrary patch input is introduced.
+
+The original immutable legacy payload can be embedded while building each patch before current payload assembly, avoiding a payload hash cycle. Patch files are authenticated members of current Full payload and retained transaction inventories. Published documentation/version/asset contracts are not changed by this source slice. Owner recovery instructions describe the development candidate and existing native MSI/MSP entrypoints. Full final qualification covers application/removal, retention, replacement/restoration and refusals.
+
+This native servicing mechanism was surfaced in commentary after the simpler supported repair failed. It is the supported option with the strongest current evidence, uses existing tooling and authority, and stays within the authorized recovery scope. Autopilot chooses it without a routine permission stop.

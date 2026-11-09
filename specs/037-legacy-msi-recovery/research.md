@@ -22,3 +22,11 @@ The documented signatures match the source declarations. No documented 128-chara
 ## First hosted controls (2026-11-09 UTC)
 
 Exact published v0.1.0 on Windows 2025: flat 76 (42540555510) and nested 76 (42540560340) installed and ordinarily removed with exit 0; flat 131 (42540565388), nested 131 (42540570176), and repeated-name/.local 131 (42540574463) installed with exit 0 but ordinary product removal returned 1603. In each failed control, ExW returned UNKNOWN with empty output while non-Ex returned LOCAL with the exact 131-character path. Nested structure alone does not explain the failure in these controls. Boundary 127–130 and independent-version/repair probes are pending; no universal threshold or supported recovery is claimed yet. Raw logs and JSON are retained under .local/s037-probes by run ID.
+
+## Boundary and rejected alias repair (2026-11-09 UTC)
+
+The nested 127, 128 and 129-character controls removed with exit 0 (42540890205, 42540894085, 42540897931). The 130-character control failed with 1603/ExW UNKNOWN (42540901604). This establishes a 129/130 boundary for the elected host and path family, not all Windows versions. Exact v0.2.0 at 131 also failed (42540909277); v0.2.1 and v0.2.2 ordinarily removed at 131 (42540913236, 42540916963), despite their separate ExW observations also being UNKNOWN.
+
+Existing same-physical-directory short aliases were independently verified, with full payload and file-ID agreement, before repair through a fresh protected legacy journal. Both v0.1.0 (42540905466) and v0.2.0 (42540909277) refused with Recovery destination differs: native costing expanded INSTALLDIR back to its original long spelling. No product recovery code will adopt this failed mechanism. Original failures and patch feasibility remain separate evidence.
+
+A new customization transform cannot be appended to an installed product; Microsoft documents the fixed transform list. The next supported option under evaluation is a narrowly targeted native MSP that changes the legacy Preflight action while preserving full identity/payload/integration checks. The original MSI and published release bytes remain unchanged. No registry/cache surgery, volume policy change or blanket guard suppression is an alternative. Existing pinned WiX Torch/Pyro tooling is being tested with a metadata-only prototype before production adoption.
