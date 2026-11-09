@@ -1,3 +1,4 @@
+import {ordinaryUpgradeContract} from './windows-package-evidence.mjs';
 import {navigationSmoke} from './navigation-smoke.mjs';
 import {observeMsiUpgrade} from './windows-msi-upgrade.mjs';
 import {windowsBuildDigest} from './windows-package-cohort.mjs';
@@ -267,7 +268,7 @@ async function singleFileCampaign(){
 }
 
 async function ordinaryUpgradeCampaign(prior){
- const legacy=prior.version==='0.2.0';assert.ok(['0.2.0','0.2.1'].includes(prior.version));
+ const {legacy}=ordinaryUpgradeContract(prior.version);
  const base=path.join(work,'ordinary '+prior.version+' upgrade');await mkdir(base);
  const artifact=build.products.find(p=>p.edition==='full').artifact,file=path.join(base,artifact.binary);await copyFile(path.join(root,artifact.path),file);
  assert.equal(digest(await readFile(file)),artifact.sha256);

@@ -5,7 +5,7 @@ import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {digest} from '../scripts/windows-packages.mjs';
-import {validateOrdinaryUpgrade,validateOrdinaryUpgrades} from '../scripts/windows-package-evidence.mjs';
+import {ordinaryUpgradeContract,validateOrdinaryUpgrade,validateOrdinaryUpgrades} from '../scripts/windows-package-evidence.mjs';
 async function fixture(version='0.2.0',directory=null){
  const legacy=version==='0.2.0';
  const root=directory??await mkdtemp(path.join(os.tmpdir(),'msi-upgrade-proof-'));const source={sha256:'a'.repeat(64),files:5},revision='b'.repeat(40),artifact={sha256:'c'.repeat(64),bytes:'100',format:'msi'},prior={version,msi:{sha256:'d'.repeat(64),productCode:'{OLD-'+version+'}',packageCode:'{PRIOR-'+version+'}'},payload:{version}},packageCode='{NEW}';
@@ -28,4 +28,10 @@ for(const candidate of ['0.2.2','0.3.0'])test(candidate+' requires distinct comp
   // An old accepted v0.2.1 receipt retains its original singular reader.
   x.build.records[0].payload.version='0.2.1';assert.equal(await validateOrdinaryUpgrades(x.build,{ordinaryUpgrade:x.evidence},x.root),true);
  }finally{await rm(x.root,{recursive:true,force:true});}
+});
+
+test('Native ordinary-upgrade admission and evidence readers share the same predecessor contract',()=>{
+ assert.deepEqual(ordinaryUpgradeContract('0.2.0'),{legacy:true,kind:'published-legacy-ordinary-msi-upgrade'});
+ for(const version of ['0.2.1','0.2.2'])assert.deepEqual(ordinaryUpgradeContract(version),{legacy:false,kind:'published-ordinary-msi-upgrade'});
+ for(const version of ['0.1.0','0.2.3','0.3.0',null,'v0.2.2'])assert.throws(()=>ordinaryUpgradeContract(version));
 });
