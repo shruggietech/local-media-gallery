@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {readFile,writeFile,mkdir,stat,copyFile} from 'node:fs/promises';
 import path from 'node:path';
 import {root,environment,execute,python} from './run.mjs';
 import {requireIsolatedDesktop} from './desktop-isolation.mjs';
@@ -72,6 +72,41 @@ async function msi(label,args){
  const outcome={label,...recordMsiOutcome(error),log,...(error?{message:error.message,stdout:error.stdout,stderr:error.stderr}:{})};report.actions.push(outcome);await persist();return outcome;
 }
 function success(row){assert.ok(row.terminal&&[0,3010].includes(row.code),JSON.stringify(row));}
+
+async function aliasRepair(old,destination){
+ assert.ok(old.payload&&['0.1.0','0.2.0'].includes(old.version));
+ await verifyPayload(destination,old.payload);
+ const alias=JSON.parse((await shell("\nAdd-Type @\"\nusing System;using System.Text;using System.Runtime.InteropServices;using Microsoft.Win32.SafeHandles;\npublic static class OwnedShortAlias {\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern SafeFileHandle CreateFileW(string path,uint access,uint share,IntPtr security,uint disposition,uint flags,IntPtr template);\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool SetFileShortNameW(SafeFileHandle file,string name);\n [DllImport(\"kernel32.dll\",CharSet=CharSet.Unicode,SetLastError=true)] static extern uint GetShortPathNameW(string path,StringBuilder buffer,uint size);\n public static string Create(string path){\n  var before=new StringBuilder(32768);if(GetShortPathNameW(path,before,32768)==0)throw new Exception(\"GetShortPathName: \"+Marshal.GetLastWin32Error());\n  if(before.ToString().Length<path.Length)return before.ToString();\n  using(var h=CreateFileW(path,0x10000|0x80,3,IntPtr.Zero,3,0x02000000|0x00200000,IntPtr.Zero)){\n   if(h.IsInvalid)throw new Exception(\"Open alias handle: \"+Marshal.GetLastWin32Error());\n   if(!SetFileShortNameW(h,\"LMG037~1\"))throw new Exception(\"SetFileShortName: \"+Marshal.GetLastWin32Error());\n  }\n  var after=new StringBuilder(32768);if(GetShortPathNameW(path,after,32768)==0)throw new Exception(\"Read alias: \"+Marshal.GetLastWin32Error());return after.ToString();\n }\n}\n\"@\n[OwnedShortAlias]::Create($arg.directory)|ConvertTo-Json -Compress\n",{directory:destination})).stdout);
+ assert.ok(alias.length<destination.length);await verifyPayload(alias,old.payload);
+ const proof=await Promise.all([stat(destination,{bigint:true}),stat(alias,{bigint:true})]);assert.equal(proof[0].dev,proof[1].dev);assert.equal(proof[0].ino,proof[1].ino);
+ report.alias={directory:alias,device:String(proof[0].dev),inode:String(proof[0].ino)};
+ const base=path.join(environment.ProgramData,'local-media-gallery','updates','s037-repair-'+process.env.GITHUB_RUN_ID);
+ const candidate={native:{kind:'windows-msi',scope:'machine',packageCode:report.identity.packageCode.toUpperCase(),productCode:product}};
+ const identity={formatVersion:1,transaction:base,directory:alias,prior:candidate,next:candidate,state:null};
+ await mkdir(base);await privateAcl(base,true);
+ for(const side of ['prior','next']){
+  const at=path.join(base,side);await mkdir(at);await privateAcl(at,true);
+  for(const f of [...old.payload.files,{path:'payload.json'}]){
+   const target=path.join(at,...f.path.split('/'));await mkdir(path.dirname(target),{recursive:true});await copyFile(path.join(destination,...f.path.split('/')),target);
+  }
+ }
+ await shell("$items=@(Get-ChildItem -LiteralPath $arg.base -Recurse -Force);foreach($i in $items){if($i.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Linked private fixture'};$s=if($i.PSIsContainer){[Security.AccessControl.DirectorySecurity]::new()}else{[Security.AccessControl.FileSecurity]::new()};$f=if($i.PSIsContainer){'OICI'}else{''};$s.SetSecurityDescriptorSddlForm(('O:BAG:BAD:P(A;'+$f+';FA;;;SY)(A;'+$f+';FA;;;BA)'));Set-Acl -LiteralPath $i.FullName -AclObject $s};@{files=$items.Count}|ConvertTo-Json -Compress",{base});
+ const identityBytes=JSON.stringify(identity);await writeFile(path.join(base,'identity.json'),identityBytes);await privateAcl(path.join(base,'identity.json'),false);
+ const journal=path.join(base,'journal.json');await writeFile(journal,JSON.stringify({...identity,binding:digest(identityBytes),phase:'restoring',targetPrior:true}));await privateAcl(journal,false);
+ report.alias.journal=journal;await persist();
+ const repair=await msi('alias-repair',['/i',old.file,'ALLUSERS=1','INSTALLDIR='+alias,'LMG_RECOVERY='+journal,'REINSTALL=ALL','REINSTALLMODE=vamus']);
+ await snapshot('after-alias-repair');report.alias.repair=repair;
+ if(repair.terminal&&[0,3010].includes(repair.code)){
+  await verifyPayload(destination,old.payload);
+  report.alias.removal=await msi('alias-ordinary-remove',['/x',product]);await snapshot('after-alias-removal');
+  assert.equal(digest(await readFile(path.join(destination,'independent.txt'))),report.retainedSha256);
+ }
+ await persist();
+}
+async function privateAcl(file,directory){
+ await shell("$s=if($arg.directory){[Security.AccessControl.DirectorySecurity]::new()}else{[Security.AccessControl.FileSecurity]::new()};$flags=if($arg.directory){'OICI'}else{''};$s.SetSecurityDescriptorSddlForm(('O:BAG:BAD:P(A;'+$flags+';FA;;;SY)(A;'+$flags+';FA;;;BA)'));Set-Acl -LiteralPath $arg.file -AclObject $s;@{secured=$true}|ConvertTo-Json -Compress",{file,directory});
+}
+
 try{
  const current=await published('0.2.2');report.inputs.push(current);
  success(await msi('bootstrap-install',['/i',current.file,'ALLUSERS=1','INSTALLDIR=C:\\s037-bootstrap']));success(await msi('bootstrap-remove',['/x',current.file,'ALLUSERS=1']));
@@ -88,5 +123,6 @@ try{
  assert.equal(removal.terminal,true,'Uncertain worker termination is not a native result');
  report.originalRemovalSucceeded=[0,3010].includes(removal.code);
  if(!report.originalRemovalSucceeded)report.cleanup={result:'retained',reason:'Original MSI refuses removal. No registration surgery or guard bypass attempted on ephemeral hosted runner.'};
+ if(selected.repair&&!report.originalRemovalSucceeded)await aliasRepair(old,destination);
  report.terminalFinished=new Date().toISOString();await persist();console.log(JSON.stringify({case:selected,identity:report.identity,actions:report.actions.map(({label,code,terminal})=>({label,code,terminal})),snapshots:report.snapshots.map(({phase,componentPath,componentState,nonExPath})=>({phase,componentPath,componentState,nonExPath}))}));
 }catch(error){report.failure={message:error.message,stack:error.stack};await persist();throw error;}

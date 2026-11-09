@@ -33,7 +33,7 @@ on:
         required: false
         default: limited
         type: choice
-        options: [limited, limited-offline, all, registration-010-flat-76, registration-010-nested-76, registration-010-flat-131, registration-010-nested-131, registration-010-original-131, registration-020-nested-131, registration-021-nested-131, registration-022-nested-131]
+        options: [limited, limited-offline, all, registration-010-flat-76, registration-010-nested-76, registration-010-flat-131, registration-010-nested-127, registration-010-nested-128, registration-010-nested-129, registration-010-nested-130, registration-010-nested-131, registration-010-original-131, registration-010-repair-131, registration-020-repair-131, registration-020-nested-131, registration-021-nested-131, registration-022-nested-131]
       windows_msi_upgrade:
         description: Diagnose exact published ordinary Windows MSI upgrade (never acceptance)
         required: false
