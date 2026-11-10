@@ -114,7 +114,7 @@ Param(
     [Console]::InputEncoding=[Text.UTF8Encoding]::new($false)
     [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
     try {
-        $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');input=(Join-Path $PSScriptRoot 'native-input.ps1');state=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1');runtime=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1')}
+        $observerScripts=@{ui=(Join-Path $PSScriptRoot 'windows-package-ui.ps1');inspect=(Join-Path $PSScriptRoot 'inspect-windows-package.ps1');msi=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');'msi-initialize'=(Join-Path $PSScriptRoot 'windows-msi-ui.ps1');input=(Join-Path $PSScriptRoot 'native-input.ps1');state=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1');runtime=(Join-Path $PSScriptRoot 'Get-WindowsPackageSnapshot.ps1')}
         $observerHashes=@{}
         foreach ($route in $observerScripts.Keys) { $observerHashes[$route]=(Get-FileHash -LiteralPath $observerScripts[$route] -Algorithm SHA256).Hash.ToLowerInvariant() }
         $self=[Diagnostics.Process]::GetCurrentProcess()
@@ -175,6 +175,8 @@ Param(
                         $parameters.AppProcessId=$request.processId
                         $parameters.Action=$request.action
                         if ($request.ContainsKey('key')) { $parameters.Keys=[string]$request.key }
+                    } elseif ($request.route -eq 'msi-initialize') {
+                        $parameters.Initialize=$true
                     } elseif ($request.route -eq 'msi') {
                         foreach ($key in @('name','value','screenshot')) { if ($request.ContainsKey($key)) { $parameters[$key]=[string]$request[$key] } }
                         if ($request.ContainsKey('screenshotWindow')) {

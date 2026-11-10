@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {validateWindowsTransportReference} from './windows-evidence-transport.mjs';
+import {validateMsiObserverInitialization} from './windows-package-observer.mjs';
 
 export const windowsCampaigns=Object.freeze(['experience','lifecycle']);
+export function ordinaryUpgradeWorker(build){
+ if(!Object.hasOwn(build,'ordinaryUpgradeWorker'))return 'experience';
+ assert.ok(windowsCampaigns.includes(build.ordinaryUpgradeWorker),'Ordinary upgrade worker must be experience or lifecycle');return build.ordinaryUpgradeWorker;
+}
 export const windowsBuildDigest=build=>createHash('sha256').update(JSON.stringify(build)).digest('hex');
 export function windowsReadyName(profile,sha,attempt){
  assert.ok(windowsCampaigns.includes(profile));assert.match(sha,/^[a-f0-9]{40}$/);assert.match(String(attempt),/^[1-9][0-9]*$/);
@@ -45,10 +51,12 @@ export function selectWindowsCampaignArtifact(context,clock,campaign,artifacts){
 export function combineWindowsCampaigns(build,fragments,receipts,context){
  contextValid(context);assert.equal(context.buildSha256,windowsBuildDigest(build));assert.deepEqual(context.source,build.source);assert.equal(context.revision,build.revision);
  assert.equal(fragments.length,2);assert.equal(receipts.length,2);
+ const ordinaryOwner=ordinaryUpgradeWorker(build);
+ if(Object.hasOwn(build,'msiObserverInitialization'))assert.equal(build.msiObserverInitialization,'explicit-v1');
  const parts=new Map(),records=new Map();
  for(const part of fragments){
   assert.equal(part.kind,'windows-package-fragment');assert.ok(windowsCampaigns.includes(part.campaign));assert.equal(part.result,'pass');assert.equal(part.acceptance,false,'Partial campaigns cannot grant product acceptance');assert.equal(parts.has(part.campaign),false);
-  assert.deepEqual(part.source,build.source);assert.equal(part.revision,build.revision);assert.equal(part.buildSha256,context.buildSha256);assert.equal(part.fullMsiSha256,build.products.find(p=>p.edition==='full').artifact.sha256);validateWindowsCohortClock(part.clock,context);if(build.observerProtocol==='bounded-observer-v1'){assert.equal(part.diagnostics?.protocol,'bounded-observer-v1');assert.deepEqual(part.diagnostics.context,{...context,campaign:part.campaign,clock:part.clock});assert.deepEqual(part.diagnostics.files.map(file=>file.path).sort(),['windows-campaign-checkpoints-','windows-campaign-latest-','windows-observer-checkpoint-'].map(prefix=>'.local/'+prefix+part.campaign+'.json').concat(['.local/windows-campaign-native-'+part.campaign+'.stdout.log','.local/windows-campaign-native-'+part.campaign+'.stderr.log']).sort());for(const file of part.diagnostics.files){assert.match(file.path,/^\.local\/windows-(campaign|observer)-[A-Za-z0-9.-]+$/);assert.match(file.sha256,/^[a-f0-9]{64}$/);assert.match(file.bytes,/^[0-9]+$/);}}parts.set(part.campaign,part);
+  assert.deepEqual(part.source,build.source);assert.equal(part.revision,build.revision);assert.equal(part.buildSha256,context.buildSha256);assert.equal(part.fullMsiSha256,build.products.find(p=>p.edition==='full').artifact.sha256);validateWindowsCohortClock(part.clock,context);if(build.observerProtocol==='bounded-observer-v1'){assert.equal(part.diagnostics?.protocol,'bounded-observer-v1');assert.deepEqual(part.diagnostics.context,{...context,campaign:part.campaign,clock:part.clock});assert.deepEqual(part.diagnostics.files.map(file=>file.path).sort(),['windows-campaign-checkpoints-','windows-campaign-latest-','windows-observer-checkpoint-'].map(prefix=>'.local/'+prefix+part.campaign+'.json').concat(['.local/windows-campaign-native-'+part.campaign+'.stdout.log','.local/windows-campaign-native-'+part.campaign+'.stderr.log']).sort());for(const file of part.diagnostics.files){assert.match(file.path,/^\.local\/windows-(campaign|observer)-[A-Za-z0-9.-]+$/);assert.match(file.sha256,/^[a-f0-9]{64}$/);assert.match(file.bytes,/^[0-9]+$/);}}if(build.msiObserverInitialization==='explicit-v1')validateMsiObserverInitialization(part.observer,part.observer?.msiInitialization);parts.set(part.campaign,part);
  }
  for(const record of receipts){
   const campaign=record.context.campaign;assert.ok(windowsCampaigns.includes(campaign));assert.equal(records.has(campaign),false);assert.equal(record.context.scope,'windows-'+campaign);assert.deepEqual(record.context.source,build.source);assert.equal(record.context.revision,build.revision);assert.equal(record.result,'pass');assert.ok(record.steps.length>0&&record.steps.every(s=>s.result==='pass'));
@@ -62,11 +70,17 @@ export function combineWindowsCampaigns(build,fragments,receipts,context){
  }
  assert.deepEqual([...parts.keys()].sort(),[...windowsCampaigns].sort());assert.deepEqual([...records.keys()].sort(),[...windowsCampaigns].sort());
  const experience=parts.get('experience'),lifecycle=parts.get('lifecycle');assert.deepEqual(experience.clock,lifecycle.clock);
+ validateWindowsTransportReference(build,lifecycle);if(Object.hasOwn(build,'windowsUpdateEvidenceTransport'))assert.equal(experience.updateEvidenceTransport,undefined,'Only lifecycle owns update evidence transport');
  for(const part of parts.values()){assert.ok(Date.parse(part.started)>=Date.parse(part.clock.readinessVerified));assert.ok(Date.parse(part.terminalFinished)>=Date.parse(part.started));assert.ok(Date.parse(part.terminalFinished)<=Date.parse(records.get(part.campaign).terminalFinished));}
  assert.equal(lifecycle.checks.length,29);assert.ok(lifecycle.checks.every(c=>c.result==='pass'));assert.equal(experience.installerChoices.length,8);assert.equal(experience.cachedMaintenance.length,2);assert.deepEqual(experience.publishedRecovery.map(r=>r.version),['0.1.0','0.2.0']);
+ const ordinary=parts.get(ordinaryOwner);
+ if(Object.hasOwn(build,'ordinaryUpgradeWorker')){
+  assert.ok(Array.isArray(build.ordinaryPredecessors)&&build.ordinaryPredecessors.length>0);assert.deepEqual(ordinary.ordinaryUpgrades?.map(row=>row.predecessor?.version),build.ordinaryPredecessors.map(prior=>prior.version),'Complete ordered ordinary upgrade group must come from its elected worker');assert.equal(new Set(ordinary.ordinaryUpgrades.map(row=>row.predecessor.version)).size,build.ordinaryPredecessors.length);assert.deepEqual(ordinary.ordinaryUpgrade,ordinary.ordinaryUpgrades[0],'Ordinary upgrade alias differs');
+  const other=parts.get(windowsCampaigns.find(profile=>profile!==ordinaryOwner));assert.equal(other.ordinaryUpgrade,undefined,'Non-owner ordinary upgrade evidence');assert.equal(other.ordinaryUpgrades,undefined,'Non-owner ordinary upgrade group');
+ }
  // This draft is deliberately non-accepting. The gate must run the complete
  // existing evidence/byte validator and source readback before publishing it.
- return {...lifecycle,kind:undefined,campaign:undefined,buildSha256:undefined,fullMsiSha256:undefined,clock:undefined,acceptance:false,started:experience.clock.readinessVerified,singleFile:experience.singleFile,installerChoices:experience.installerChoices,cachedMaintenance:experience.cachedMaintenance,publishedRecovery:experience.publishedRecovery,standardUser:experience.standardUser,ordinaryUpgrade:experience.ordinaryUpgrade,ordinaryUpgrades:experience.ordinaryUpgrades,wizardEvidence:experience.wizardEvidence,native:[...experience.native,...lifecycle.native],cohort:{clock:experience.clock,workers:windowsCampaigns.map(campaign=>({campaign,host:parts.get(campaign).host,observer:parts.get(campaign).observer,qualification:records.get(campaign)}))}};
+ return {...lifecycle,kind:undefined,campaign:undefined,buildSha256:undefined,fullMsiSha256:undefined,clock:undefined,acceptance:false,started:experience.clock.readinessVerified,singleFile:experience.singleFile,installerChoices:experience.installerChoices,cachedMaintenance:experience.cachedMaintenance,publishedRecovery:experience.publishedRecovery,standardUser:experience.standardUser,ordinaryUpgrade:ordinary.ordinaryUpgrade,ordinaryUpgrades:ordinary.ordinaryUpgrades,wizardEvidence:experience.wizardEvidence,native:[...experience.native,...lifecycle.native],cohort:{clock:experience.clock,workers:windowsCampaigns.map(campaign=>({campaign,host:parts.get(campaign).host,observer:parts.get(campaign).observer,qualification:records.get(campaign)}))}};
 }
 
 // Windows does not declare POSIX modes. Read back every Windows-origin file

@@ -5,6 +5,8 @@
     Uses native accessibility patterns for buttons, checkboxes, scope and path.
     Enumerates product-attributed Windows Installer dialogs because MSI may host
     UI in its client or server process. Refuses ambiguous controls. No local use.
+.PARAMETER Initialize
+    Load hash-bound helper declarations and return readiness before desktop access.
 .PARAMETER Name
     Exact visible control name, or empty for a fresh observation.
 .PARAMETER Value
@@ -13,10 +15,11 @@
     Optional absolute PNG evidence destination.
 #>
 [CmdletBinding()]
-param([string]$Name='', [string]$Value='', [string]$Screenshot='', [long]$ScreenshotWindow=0)
+param([string]$Name='', [string]$Value='', [string]$Screenshot='', [long]$ScreenshotWindow=0, [switch]$Initialize)
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GALLERY_ISOLATED_DESKTOP -ne '1') { throw 'MSI wizard input requires isolated CI' }
+if (-not ('GalleryMsiWindow' -as [type])) {
 [Console]::Error.WriteLine('MSI observer: loading UI Automation assemblies')
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -43,6 +46,11 @@ public static class GalleryMsiWindow {
  public static void Tab(IntPtr window) {SetForegroundWindow(window);if(GetForegroundWindow()!=window)throw new Exception("MSI focus attribution failed");keybd_event(9,0,0,UIntPtr.Zero);keybd_event(9,0,2,UIntPtr.Zero);}
 }
 '@
+}
+if ($Initialize) {
+    @{ready=$true;pid=$PID;apartment=([Threading.Thread]::CurrentThread.GetApartmentState().ToString());sourceSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()}|ConvertTo-Json -Compress
+    return
+}
 [Console]::Error.WriteLine('MSI observer: enumerate desktop roots, apartment '+[Threading.Thread]::CurrentThread.GetApartmentState())
 $top=[Windows.Automation.AutomationElement]::RootElement.FindAll([Windows.Automation.TreeScope]::Children,[Windows.Automation.Condition]::TrueCondition)
 $windows=@()
