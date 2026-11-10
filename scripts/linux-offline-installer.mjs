@@ -36,7 +36,7 @@ export async function retainCanonicalPredecessorArtifact({row,bytes,directory}){
 
 export async function prepareOfflineClosure({root,directory,application,dependencies,capture}){
  const recipient=path.join(root,'.local','linux-clean-recipient-'+path.basename(directory));
- await capture('/usr/bin/sudo',['-n','/usr/sbin/debootstrap','--variant=minbase','--arch=amd64','--include=ca-certificates','noble',recipient,'https://archive.ubuntu.com/ubuntu'],{timeout:900000,maxBuffer:32*1024*1024});
+ await capture('/usr/bin/sudo',['-n','/usr/sbin/debootstrap','--variant=minbase','--arch=amd64','--include=ca-certificates','noble',recipient,'https://archive.ubuntu.com/ubuntu'],{timeout:1800000,maxBuffer:32*1024*1024});
  const chroot=(args,options)=>capture('/usr/bin/sudo',['-n','/usr/sbin/chroot',recipient,...args],options);
  const baseline=(await chroot(['/usr/bin/dpkg-query','-W','--showformat=${binary:Package}|${Version}|${Architecture}|${db:Status-Status}\n'])).stdout;
  for(const name of ['local-media-gallery','libgtk-3-0t64','libwebkit2gtk-4.1-0','gstreamer1.0-libav','ffmpeg'])assert.ok(!baseline.split('\n').some(row=>row.split('|')[0].split(':')[0]===name),'Clean recipient unexpectedly contains '+name);
