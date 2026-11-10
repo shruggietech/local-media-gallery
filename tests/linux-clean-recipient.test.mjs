@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,rename,readdir,rm,mkdir,chmod,lstat,readFile,link,unlink,realpath,chown,copyFile} from 'node:fs/promises';
 import os from 'node:os';
+import {linuxBootstrapWgetrc,withLinuxBootstrapWgetrc} from '../scripts/linux-offline-installer.mjs';
 import path from 'node:path';
 import {observeReadyDirectory,stageRecipientInstaller,isolateRecipientProfile,captureRecipientState} from '../scripts/linux-clean-recipient.mjs';
 
@@ -44,4 +45,16 @@ test('Authoritative profile capture excludes live cache symlinks/sockets while p
   const profile={base,env},inventory=await captureRecipientState(profile,path.join(work,'evidence'));assert.equal(inventory.length,8);assert.ok(inventory.some(file=>file.path.endsWith('history.sqlite3-wal')));assert.ok(inventory.every(file=>!file.path.endsWith('-shm')&&!file.path.includes('derived')));assert.deepEqual(await collectPayload(path.join(work,'evidence')),inventory);
   await isolateRecipientProfile(base,async({directory})=>{await writeFile(path.join(directory,'new-profile'),'canonical fixture');});assert.deepEqual(await captureRecipientState(profile),inventory);assert.equal(await readFile(history+'-wal','utf8'),'committed WAL bytes');assert.equal(await readFile(history+'-shm','utf8'),'derived shared index');if(process.platform==='linux'){assert.ok((await lstat(path.join(env.XDG_CACHE_HOME,'derived-link'))).isSymbolicLink());assert.ok((await lstat(path.join(env.XDG_CACHE_HOME,'derived-socket'))).isSocket());await fs.rename(settings,settings+'.original');await fs.symlink(path.join(outside,'private'),settings);await assert.rejects(captureRecipientState(profile),/physical single-link/);await fs.unlink(settings);await fs.rename(settings+'.original',settings);}
  }finally{if(server)await new Promise(resolve=>server.close(resolve));await rm(work,{recursive:true,force:true});}
+});
+
+test('Bootstrap Wget runs as the download account, retries finitely and preserves terminal refusals',{skip:process.platform!=='linux'||process.getuid()!==0||process.env.GALLERY_PRIVILEGED_PACKAGE_TESTS!=='1'},async()=>{
+ const fs=await import('node:fs/promises'),path=await import('node:path'),os=await import('node:os'),http=await import('node:http'),{execFile}=await import('node:child_process'),{promisify}=await import('node:util');
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),'linux-bootstrap-wget-')),payload=Buffer.from('complete baseline package bytes');const counts=new Map();let settingsPath;
+ const server=http.createServer((request,response)=>{const count=(counts.get(request.url)??0)+1;counts.set(request.url,count);if(request.url==='/missing'){response.writeHead(404);response.end('missing');return;}if(request.url==='/unavailable'||count<5){response.writeHead(503);response.end('temporary failure');return;}response.writeHead(200,{'Content-Length':payload.length});response.end(payload);});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;
+ try{await withLinuxBootstrapWgetrc(directory,async config=>{settingsPath=config;assert.equal((await fs.stat(path.dirname(config))).mode&0o777,0o755);assert.equal((await fs.stat(config)).mode&0o777,0o644);
+  const download=async route=>{const operation=promisify(execFile)('/usr/bin/sudo',['-n','/usr/sbin/runuser','-u','_apt','--','/usr/bin/env','WGETRC='+config,'/usr/bin/wget','--no-proxy','--output-document=-',origin+route],{windowsHide:true,shell:false,encoding:'utf8',timeout:60000,maxBuffer:1024*1024});operation.child.stdin.end();return operation;};
+  const recovered=await download('/recover');assert.equal(counts.get('/recover'),5);assert.equal(recovered.stdout,payload.toString());await assert.rejects(download('/unavailable'),error=>Number.isInteger(error.code)&&error.code>0&&!error.killed&&!error.signal);assert.equal(counts.get('/unavailable'),5);await assert.rejects(download('/missing'),error=>Number.isInteger(error.code)&&error.code>0&&!error.killed&&!error.signal);assert.equal(counts.get('/missing'),1);
+ });await assert.rejects(fs.stat(settingsPath),{code:'ENOENT'});assert.equal(await fs.readFile(path.join(directory,'bootstrap.wgetrc'),'utf8'),linuxBootstrapWgetrc);}
+ finally{await new Promise(resolve=>server.close(resolve));assert.ok(path.basename(directory).startsWith('linux-bootstrap-wget-'));await fs.rm(directory,{recursive:true,force:true});}
 });

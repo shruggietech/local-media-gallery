@@ -1,10 +1,22 @@
 import {acquireBytes} from './download-acquisition.mjs';
 // SPDX-License-Identifier: Apache-2.0
 import assert from 'node:assert/strict';
-import {readFile,writeFile,readdir,copyFile,mkdir,chmod,open} from 'node:fs/promises';
+import {readFile,writeFile,readdir,copyFile,mkdir,mkdtemp,chmod,open,rm,rmdir} from 'node:fs/promises';
 import path from 'node:path';
+import {tmpdir} from 'node:os';
 import {hash} from './proof.mjs';
 import {parseReleaseRecord} from './release-record.mjs';
+
+export const linuxBootstrapWgetrc='timeout = 30\ntries = 5\nretryconnrefused = on\nretryonhttperror = 429,500,502,503,504\nwaitretry = 2\n';
+export async function withLinuxBootstrapWgetrc(directory,operation){
+ await writeFile(path.join(directory,'bootstrap.wgetrc'),linuxBootstrapWgetrc,{flag:'wx',mode:0o600});
+ const shared=await mkdtemp(path.join(process.platform==='linux'?'/tmp':tmpdir(),'local-media-gallery-bootstrap-'));await chmod(shared,0o755);const file=path.join(shared,'wgetrc');
+ let failure;
+ try{await writeFile(file,linuxBootstrapWgetrc,{flag:'wx',mode:0o644});await chmod(file,0o644);return await operation(file);}
+ catch(error){failure=error;throw error;}
+ finally{try{await rm(file,{force:true});await rmdir(shared);}catch(error){if(failure)failure.bootstrapSettingsCleanupFailure=String(error.message);else throw error;}}
+}
+
 
 export const linuxInstallerMagic=Buffer.from('LMG-LINUX-FULL1\0');
 export function debFields(text){return Object.fromEntries(text.trim().split('\n').map(line=>{const i=line.indexOf(':');assert.ok(i>0);return [line.slice(0,i),line.slice(i+1).trim()];}));}
@@ -36,7 +48,10 @@ export async function retainCanonicalPredecessorArtifact({row,bytes,directory}){
 
 export async function prepareOfflineClosure({root,directory,application,dependencies,capture}){
  const recipient=path.join(root,'.local','linux-clean-recipient-'+path.basename(directory));
- await capture('/usr/bin/sudo',['-n','/usr/sbin/debootstrap','--variant=minbase','--arch=amd64','--include=ca-certificates','noble',recipient,'https://archive.ubuntu.com/ubuntu'],{timeout:1800000,maxBuffer:32*1024*1024});
+ await withLinuxBootstrapWgetrc(directory,async wgetrc=>{
+  try{await capture('/usr/bin/sudo',['-n','/usr/bin/env','WGETRC='+wgetrc,'/usr/sbin/debootstrap','--variant=minbase','--arch=amd64','--include=ca-certificates','noble',recipient,'https://archive.ubuntu.com/ubuntu'],{timeout:1800000,maxBuffer:32*1024*1024});}
+  catch(error){await capture('/usr/bin/sudo',['-n','/usr/bin/install','-m','644','--',path.join(recipient,'debootstrap/debootstrap.log'),path.join(directory,'bootstrap.log')]).catch(copyError=>{error.bootstrapLogFailure=String(copyError.message);});throw error;}
+ });
  const chroot=(args,options)=>capture('/usr/bin/sudo',['-n','/usr/sbin/chroot',recipient,...args],options);
  const baseline=(await chroot(['/usr/bin/dpkg-query','-W','--showformat=${binary:Package}|${Version}|${Architecture}|${db:Status-Status}\n'])).stdout;
  for(const name of ['local-media-gallery','libgtk-3-0t64','libwebkit2gtk-4.1-0','gstreamer1.0-libav','ffmpeg'])assert.ok(!baseline.split('\n').some(row=>row.split('|')[0].split(':')[0]===name),'Clean recipient unexpectedly contains '+name);

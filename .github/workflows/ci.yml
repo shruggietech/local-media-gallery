@@ -566,6 +566,8 @@ jobs:
             .local/linux-package-test-*/prepared-recipient-*.tar.gz
             .local/linux-package-failure.json
             .local/linux-packages-*/**/*.json
+            .local/linux-packages-*/bootstrap.log
+            .local/linux-packages-*/bootstrap.wgetrc
             .local/linux-package-test-*/update-evidence-*/**
             .local/linux-package-test-*/failed-update-*/**
             .local/linux-packages-*/*-candidate.deb
