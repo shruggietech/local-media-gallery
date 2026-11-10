@@ -20,3 +20,12 @@ Second/final hosted review on abe816b identified missing transport production fo
 After PR #119 merged, main qualification run 42739628829 failed Linux recipient preparation twice. Both debootstrap children were killed at the 900000 ms command timeout while retrieving Ubuntu baseline packages. Qualification readiness was never reached and no Linux package test ran. Failed original ZIP artifacts 13730491431 and 13731593747 were retained and independently SHA-256 checked. All other native platform and Windows cohort scopes passed.
 
 Owner direction is to increase a specific timing limit directly when timing is the issue. Increase only debootstrap preparation from 15 to 30 minutes. Keep the same command, mirror, signature/integrity checks, campaign, qualification accounting and existing 90-minute Linux CI job ceiling. No new retry mechanism or fixture is introduced. Fresh exact-source CI remains required before merge and a successful new main run remains required before publication.
+
+
+## Repeated main Ubuntu download failures
+
+Main run 42756879341 at revision 32e7b5c failed preparation twice with terminal debootstrap download errors, not command timeouts. Attempt 1 could not retrieve passwd; the fresh-host retry could not retrieve ca-certificates, libaudit-common and openssl. Original ZIP artifacts 13737897696 and 13738709581 were retained and SHA-256 verified. No Linux qualification assertions ran. Every other platform scope passed.
+
+Use Wget's existing per-download configuration through an invocation-owned WGETRC: five attempts, 30-second DNS/connect/read timeouts, connection-refusal recovery, transient HTTP retries and bounded retry waits. Retain the 30-minute outer bootstrap allowance and all native/integrity/provenance checks. Copy the complete debootstrap log on failure and retain it with the configuration. A real local HTTP fixture on Linux verifies recovery on the fifth attempt, five-attempt exhaustion and one-attempt permanent 404 refusal. The production closure fixture proves that only this bootstrap invocation receives its own configuration.
+
+Primary references: [debootstrap delegates retrieval to Wget](https://sources.debian.org/src/debootstrap/1.0.128%2Bnmu2%2Bdeb12u2/functions/) and [Wget 1.21 startup-file configuration](https://sources.debian.org/src/wget/1.21-1%2Bdeb11u1/doc/wget.texi).
