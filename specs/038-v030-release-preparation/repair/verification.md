@@ -32,3 +32,6 @@ Primary references: [debootstrap delegates retrieval to Wget](https://sources.de
 
 
 The first download-recovery candidate a002f00 failed before retrieval because Ubuntu's unprivileged downloader could not read the private WGETRC. Artifact 13740516834 (SHA-256 7f8e198454aa147efd5dcad3b667da091bf4af1bae5e501fe7209923b13d3e4d) retained the exact permission-denied log. Move the live configuration into a per-invocation traversable temporary directory with a readable file, retain a private evidence copy and remove the temporary configuration afterward. Execute the real HTTP regression as the same _apt account so configuration access is covered alongside recovery and finite refusal.
+
+
+The second hosted review found that the restricted-account regression must not require sudo during ordinary Linux npm test. Move it into the existing root-gated clean-recipient suite, which ci-linux-packages.mjs already executes under its verified privileged boundary. Ordinary tests skip this probe without privilege escalation, including root invocations outside the package scope. The existing privileged Linux package command explicitly elects it with GALLERY_PRIVILEGED_PACKAGE_TESTS=1, and its actual execution remains mandatory there. No third hosted review round is requested.
