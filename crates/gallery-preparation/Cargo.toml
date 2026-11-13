@@ -14,9 +14,9 @@ tempfile = "=3.27.0"
 tokio-util = { version = "0.7", features = ["rt"] }
 tokio = { version = "=1.54.1", features = ["rt", "time", "macros"] }
 reqwest = { version = "=0.13.5", default-features = false, features = ["native-tls"] }
-flate2 = "=1.1.10"
+flate2 = "=1.1.11"
 tar = { version = "=0.4.46", default-features = false }
-zip = { version = "=9.2.1", default-features = false, features = ["deflate-flate2"] }
+zip = { version = "=9.5.0", default-features = false, features = ["deflate-flate2"] }
 cap-std = "=4.0.3"
 cap-fs-ext = "=4.0.3"
 
