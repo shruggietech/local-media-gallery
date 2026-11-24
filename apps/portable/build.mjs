@@ -115,11 +115,15 @@ export async function build(selected) {
     }, null, 2) + "\n", "utf8");
     const archive = "local-media-gallery-" + name + "-" + sha.slice(0, 12) + (dirty ? "-dirty" : "") + "." + target.ext;
     const archivePath = path.join(output, archive);
-    if (process.platform === "win32" && target.ext === "tar.gz") {
+    if (target.ext === "zip") {
+      // A dot-root ZIP is empty to Windows Compressed Folders. List the entries instead.
+      const entries = (await readdir(packageDir)).sort();
+      command("tar", ["-acf", archivePath, "-C", packageDir, ...entries]);
+    } else if (process.platform === "win32") {
       // Windows staging does not preserve the executable mode required on Unix.
       command(process.env.LMG_PORTABLE_PYTHON || "python.exe", [path.join(app, "pack-unix.py"), packageDir, archivePath, target.binary]);
     } else {
-      command("tar", [target.ext === "zip" ? "-acf" : "-czf", archivePath, "-C", packageDir, "."]);
+      command("tar", ["-czf", archivePath, "-C", packageDir, "."]);
     }
     const archiveHash = digest(await readFile(archivePath));
     await writeFile(archivePath + ".sha256", archiveHash + "  " + archive + "\n", "utf8");

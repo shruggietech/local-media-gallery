@@ -95,7 +95,16 @@ export async function smoke(target, archive) {
   await Promise.all([primary, secondary, profile].map(dir => mkdir(dir)));
   const archiveHash = digest(await readFile(archive));
   assert.equal((await readFile(archive + ".sha256", "utf8")).split(" ")[0], archiveHash);
-  command("tar", ["-xf", archive, "-C", primary]);
+  let archiveExtraction = "tar";
+  if (target === "windows-x64") {
+    const extract = await readFile(path.join(app, "extract-windows-zip.ps1"), "utf8");
+    archiveExtraction = command("powershell.exe", ["-NoProfile", "-NonInteractive", "-Sta", "-Command", extract], {
+      env: { ...process.env, LMG_PORTABLE_ZIP: archive, LMG_PORTABLE_ZIP_DESTINATION: primary },
+      timeout: 30000,
+    }).trim();
+  } else {
+    command("tar", ["-xf", archive, "-C", primary]);
+  }
   const executable = path.join(primary, targets[target].binary);
   const build = JSON.parse(await readFile(path.join(primary, "BUILD.json"), "utf8"));
   assert.equal(build.target, target);
@@ -257,7 +266,7 @@ export async function smoke(target, archive) {
     assert.deepEqual(external, [], "Chromium product requests stay local");
     assert.deepEqual(observations, [], "Browser script errors");
     const result = { target, revision: build.revision, archive: path.basename(archive), archiveHash, executableHash: build.sha256,
-      checks: steps, browser: browser.version(), nonLoopbackRequests: external.length, originalsPreserved: true };
+      checks: steps, archiveExtraction, browser: browser.version(), nonLoopbackRequests: external.length, originalsPreserved: true };
     await writeFile(path.join(screenshots, "smoke.json"), JSON.stringify(result, null, 2) + "\n");
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
