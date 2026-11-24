@@ -4,6 +4,8 @@ All notable changes are documented here using [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+- Add a portable Go and static Next.js gallery candidate with recursive browsing, direct search and view controls, and per-gallery private state. On 2026-11-24, choose a single portable distribution per target and qualify the successor independently of the published v0.3.0 release.
+
 ## [0.3.0]
 
 Publication availability and its timestamp are established by the matching verified GitHub Release; this entry alone does not announce published downloads.

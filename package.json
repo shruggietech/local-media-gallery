@@ -28,7 +28,8 @@
   },
   "workspaces": [
     "apps/gallery",
-    "apps/site"
+    "apps/site",
+    "apps/portable/web"
   ],
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
