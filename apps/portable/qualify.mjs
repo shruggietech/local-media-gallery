@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import assert from "node:assert/strict";
-import { readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { build, command, hostTarget, output } from "./build.mjs";
@@ -8,6 +8,7 @@ import { smoke } from "./smoke.mjs";
 
 const target = process.argv[2] || hostTarget;
 assert.equal(target, hostTarget, "The runner must match the candidate target.");
+await mkdir(output, { recursive: true });
 const now = new Date().toISOString();
 const started = performance.now();
 const preparationStart = process.env.LMG_PORTABLE_PREPARATION_STARTED || now;

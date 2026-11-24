@@ -44,6 +44,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci
+      - name: Prepare Python for repository checks
+        if: runner.os == 'Linux'
+        run: node --input-type=module -e "import { preparePython } from './scripts/python-environment.mjs'; await preparePython(['Pillow']);"
       - run: go mod download
         working-directory: apps/portable
       - if: runner.os == 'Linux'
